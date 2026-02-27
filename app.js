@@ -1469,27 +1469,25 @@ function exportarDados() {
 
 function exportarEstoqueCompleto() {
     const sep = ';';
-    const reps = ['KOLTE', 'ISA', 'LC', 'ADES', 'FL'];
     
-    // Cabeçalho
-    let csv = `PRODUTO${sep}PRECO`;
-    reps.forEach(rep => {
-        csv += `${sep}${rep}_DISP${sep}${rep}_VENDA`;
-    });
-    csv += `${sep}IMBEL_ESTOQUE\n`;
+    // Cabeçalho simples: Produto, Preço, Quantidade Total
+    let csv = `PRODUTO${sep}PRECO${sep}QUANTIDADE_TOTAL\n`;
     
     // Dados
     estoque.produtos.forEach(produto => {
-        csv += `${produto.nome}${sep}${(produto.preco || 0).toFixed(2).replace('.', ',')}`;
-        
-        reps.forEach(rep => {
+        // Calcular quantidade total em estoque (saldo de todos os representantes + IMBEL)
+        let totalEstoque = 0;
+        estoque.representantes.forEach(rep => {
             const disp = produto.distribuicao[rep] || 0;
             const venda = produto.vendas[rep] || 0;
-            csv += `${sep}${disp}${sep}${venda}`;
+            if (rep === 'IMBEL') {
+                totalEstoque += disp; // IMBEL é estoque direto
+            } else {
+                totalEstoque += (disp - venda); // Saldo = Disp - Venda
+            }
         });
         
-        const imbelEstoque = produto.distribuicao.IMBEL || 0;
-        csv += `${sep}${imbelEstoque}\n`;
+        csv += `${produto.nome}${sep}${(produto.preco || 0).toFixed(2).replace('.', ',')}${sep}${totalEstoque}\n`;
     });
     
     const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
@@ -1499,7 +1497,7 @@ function exportarEstoqueCompleto() {
     const dataAtual = new Date().toISOString().split('T')[0];
     
     link.setAttribute('href', url);
-    link.setAttribute('download', `estoque_completo_${dataAtual}.csv`);
+    link.setAttribute('download', `estoque_${dataAtual}.csv`);
     link.style.visibility = 'hidden';
     
     document.body.appendChild(link);
@@ -1539,7 +1537,7 @@ function importarEstoque(event) {
                 
                 const colunas = parseCsvLinha(linha);
                 
-                if (colunas.length < 3) {
+                if (colunas.length < 2) {
                     erros.push(`Linha ${i + 1}: formato inválido`);
                     continue;
                 }
@@ -1560,37 +1558,17 @@ function importarEstoque(event) {
                     continue;
                 }
                 
-                // Atualizar preço se fornecido
+                // Atualizar preço se fornecido (coluna 2)
                 const precoStr = colunas[1]?.trim();
                 if (precoStr) {
                     const preco = parseFloat(precoStr.replace(/\./g, '').replace(',', '.')) || 0;
                     if (preco > 0) produto.preco = preco;
                 }
                 
-                // Mapear colunas do cabeçalho
-                const reps = ['KOLTE', 'ISA', 'LC', 'ADES', 'FL'];
-                let colIndex = 2;
-                
-                reps.forEach(rep => {
-                    // DISP
-                    if (colunas[colIndex] !== undefined) {
-                        const disp = parseInt(colunas[colIndex]) || 0;
-                        produto.distribuicao[rep] = disp;
-                    }
-                    colIndex++;
-                    
-                    // VENDA
-                    if (colunas[colIndex] !== undefined) {
-                        const venda = parseInt(colunas[colIndex]) || 0;
-                        produto.vendas[rep] = venda;
-                    }
-                    colIndex++;
-                });
-                
-                // IMBEL estoque
-                if (colunas[colIndex] !== undefined) {
-                    const imbelEstoque = parseInt(colunas[colIndex]) || 0;
-                    produto.distribuicao.IMBEL = imbelEstoque;
+                // Atualizar quantidade total no estoque IMBEL (coluna 3)
+                if (colunas[2] !== undefined) {
+                    const quantidade = parseInt(colunas[2]) || 0;
+                    produto.distribuicao.IMBEL = quantidade;
                 }
                 
                 produtosAtualizados++;
