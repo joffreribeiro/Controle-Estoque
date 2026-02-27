@@ -541,6 +541,65 @@ function atualizarSelectDistribuicaoProduto() {
 }
 
 // ========================================
+// ENTRADA DE ESTOQUE (IMBEL)
+// ========================================
+
+function abrirModalEntradaEstoque() {
+    document.getElementById('modalEntradaEstoque').style.display = 'block';
+    document.getElementById('formEntradaEstoque').reset();
+    document.getElementById('estoqueAtualIMBEL').value = '-';
+    
+    // Atualizar select de produtos
+    const select = document.getElementById('produtoEntrada');
+    select.innerHTML = '<option value="">Selecione um produto</option>';
+    
+    estoque.produtos.forEach(produto => {
+        const option = document.createElement('option');
+        option.value = produto.id;
+        option.textContent = produto.nome;
+        select.appendChild(option);
+    });
+}
+
+function mostrarEstoqueAtual() {
+    const produtoId = parseInt(document.getElementById('produtoEntrada').value);
+    const produto = estoque.produtos.find(p => p.id === produtoId);
+    
+    if (produto) {
+        const estoqueIMBEL = (produto.distribuicao.IMBEL || 0) - (produto.vendas.IMBEL || 0);
+        document.getElementById('estoqueAtualIMBEL').value = `${estoqueIMBEL} unidades`;
+    } else {
+        document.getElementById('estoqueAtualIMBEL').value = '-';
+    }
+}
+
+function salvarEntradaEstoque(event) {
+    event.preventDefault();
+    
+    const produtoId = parseInt(document.getElementById('produtoEntrada').value);
+    const quantidade = parseInt(document.getElementById('quantidadeEntrada').value);
+    const observacao = document.getElementById('observacaoEntrada').value.trim();
+    
+    const produto = estoque.produtos.find(p => p.id === produtoId);
+    
+    if (!produto) {
+        mostrarNotificacao('Produto não encontrado!', 'error');
+        return;
+    }
+    
+    // Adicionar ao estoque da IMBEL
+    produto.distribuicao.IMBEL = (produto.distribuicao.IMBEL || 0) + quantidade;
+    
+    salvarDados();
+    renderizarTabela();
+    renderizarDashboard();
+    fecharModal('modalEntradaEstoque');
+    
+    const msgObs = observacao ? ` (${observacao})` : '';
+    mostrarNotificacao(`Entrada registrada: +${quantidade} "${produto.nome}" no estoque IMBEL${msgObs}`, 'success');
+}
+
+// ========================================
 // REGISTRO DE VENDAS DETALHADO
 // ========================================
 
@@ -836,6 +895,13 @@ function salvarNovaDistribuicao(event) {
         return;
     }
     
+    // Verificar estoque disponível na IMBEL
+    const estoqueIMBEL = (produto.distribuicao.IMBEL || 0) - (produto.vendas.IMBEL || 0);
+    if (quantidade > estoqueIMBEL) {
+        mostrarNotificacao(`Estoque insuficiente na IMBEL! Disponível: ${estoqueIMBEL} unidades`, 'error');
+        return;
+    }
+    
     // Criar registro da distribuição
     const novaDistribuicao = {
         id: Date.now(),
@@ -847,7 +913,8 @@ function salvarNovaDistribuicao(event) {
         observacoes: observacoes
     };
     
-    // Atualizar distribuição no estoque
+    // Retirar da IMBEL e adicionar ao representante
+    produto.distribuicao.IMBEL = (produto.distribuicao.IMBEL || 0) - quantidade;
     produto.distribuicao[representante] = (produto.distribuicao[representante] || 0) + quantidade;
     
     // Adicionar ao registro
@@ -949,14 +1016,15 @@ function excluirDistribuicao(distId) {
         return;
     }
     
-    if (!confirm(`Deseja excluir esta distribuição?\n\nRepresentante: ${dist.representante}\nProduto: ${dist.produtoNome}\nQuantidade: ${dist.quantidade}\n\nATENÇÃO: A quantidade será removida do estoque do representante.`)) {
+    if (!confirm(`Deseja excluir esta distribuição?\n\nRepresentante: ${dist.representante}\nProduto: ${dist.produtoNome}\nQuantidade: ${dist.quantidade}\n\nATENÇÃO: A quantidade será devolvida ao estoque da IMBEL.`)) {
         return;
     }
     
-    // Remover do estoque
+    // Devolver ao estoque da IMBEL e remover do representante
     const produto = estoque.produtos.find(p => p.id === dist.produtoId);
     if (produto) {
         produto.distribuicao[dist.representante] = Math.max(0, (produto.distribuicao[dist.representante] || 0) - dist.quantidade);
+        produto.distribuicao.IMBEL = (produto.distribuicao.IMBEL || 0) + dist.quantidade;
     }
     
     // Remover do registro
@@ -967,7 +1035,7 @@ function excluirDistribuicao(distId) {
     renderizarDashboard();
     renderizarRegistroDistribuicao();
     
-    mostrarNotificacao(`Distribuição excluída com sucesso!`, 'success');
+    mostrarNotificacao(`Distribuição excluída! ${dist.quantidade} unidades devolvidas à IMBEL.`, 'success');
 }
 
 function exportarDistribuicao() {
@@ -1088,6 +1156,13 @@ function importarDistribuicao(event) {
                     }
                 }
                 
+                // Verificar estoque disponível na IMBEL
+                const estoqueIMBEL = (produto.distribuicao.IMBEL || 0) - (produto.vendas.IMBEL || 0);
+                if (quantidade > estoqueIMBEL) {
+                    erros.push(`Linha ${i + 1}: estoque insuficiente na IMBEL para ${produto.nome} (disponível: ${estoqueIMBEL})`);
+                    continue;
+                }
+                
                 // Criar registro da distribuição
                 const novaDistribuicao = {
                     id: Date.now() + i,
@@ -1099,7 +1174,8 @@ function importarDistribuicao(event) {
                     observacoes: observacoes
                 };
                 
-                // Atualizar distribuição no estoque
+                // Retirar da IMBEL e adicionar ao representante
+                produto.distribuicao.IMBEL = (produto.distribuicao.IMBEL || 0) - quantidade;
                 produto.distribuicao[representante] = (produto.distribuicao[representante] || 0) + quantidade;
                 
                 // Adicionar ao registro

@@ -65,8 +65,12 @@
                     <span class="btn-icon">+</span>
                     Novo Produto
                 </button>
+                <button class="btn btn-warning" onclick="abrirModalEntradaEstoque()">
+                    <span class="btn-icon">📥</span>
+                    Entrada Estoque
+                </button>
                 <button class="btn btn-info" onclick="abrirModalDistribuicao()">
-                    <span class="btn-icon">📦</span>
+                    <span class="btn-icon">🚚</span>
                     Distribuir
                 </button>
                 <button class="btn btn-success" onclick="abrirModalVenda()">
@@ -82,7 +86,7 @@
                     <span class="btn-icon">↩</span>
                     Devolução
                 </button>
-                <button class="btn btn-warning" onclick="exportarDados()">
+                <button class="btn btn-outline" onclick="exportarDados()">
                     <span class="btn-icon">📊</span>
                     Exportar
                 </button>
@@ -464,6 +468,42 @@
                     <div class="modal-footer">
                         <button type="button" class="btn btn-outline" onclick="fecharModal('modalProduto')">Cancelar</button>
                         <button type="submit" class="btn btn-primary">Salvar Produto</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Modal Entrada de Estoque -->
+        <div id="modalEntradaEstoque" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2><span>📥</span> Entrada de Estoque (IMBEL)</h2>
+                    <span class="close" onclick="fecharModal('modalEntradaEstoque')">&times;</span>
+                </div>
+                <form id="formEntradaEstoque" onsubmit="salvarEntradaEstoque(event)">
+                    <div class="modal-body">
+                        <div class="form-group">
+                            <label for="produtoEntrada">Produto <span class="required">*</span></label>
+                            <select id="produtoEntrada" required onchange="mostrarEstoqueAtual()">
+                                <option value="">Selecione um produto</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Estoque Atual na IMBEL</label>
+                            <input type="text" id="estoqueAtualIMBEL" readonly class="readonly-field" value="-">
+                        </div>
+                        <div class="form-group">
+                            <label for="quantidadeEntrada">Quantidade a Adicionar <span class="required">*</span></label>
+                            <input type="number" id="quantidadeEntrada" required min="1" placeholder="0">
+                        </div>
+                        <div class="form-group">
+                            <label for="observacaoEntrada">Observação</label>
+                            <input type="text" id="observacaoEntrada" placeholder="Ex: Lote 2026-001">
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-outline" onclick="fecharModal('modalEntradaEstoque')">Cancelar</button>
+                        <button type="submit" class="btn btn-warning">📥 Registrar Entrada</button>
                     </div>
                 </form>
             </div>
