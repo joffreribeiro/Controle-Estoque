@@ -1110,16 +1110,6 @@ function importarVendas(event) {
                     continue;
                 }
                 
-                // Verificar estoque disponível
-                const disp = produto.distribuicao[representante] || 0;
-                const vendido = produto.vendas[representante] || 0;
-                const saldo = disp - vendido;
-                
-                if (quantidade > saldo) {
-                    erros.push(`Linha ${i + 1}: estoque insuficiente para ${representante} (disponível: ${saldo}, solicitado: ${quantidade})`);
-                    continue;
-                }
-                
                 // Verificar se contrato já existe
                 if (estoque.registroVendas.some(v => v.contrato === contrato)) {
                     erros.push(`Linha ${i + 1}: contrato ${contrato} já existe`);
@@ -1144,7 +1134,8 @@ function importarVendas(event) {
                     data: new Date().toISOString()
                 };
                 
-                // Atualizar vendas no estoque
+                // Atualizar distribuição e vendas no estoque (para refletir que houve venda)
+                produto.distribuicao[representante] = (produto.distribuicao[representante] || 0) + quantidade;
                 produto.vendas[representante] = (produto.vendas[representante] || 0) + quantidade;
                 
                 // Adicionar ao registro
