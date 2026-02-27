@@ -1042,7 +1042,13 @@ function importarVendas(event) {
     reader.onload = function(e) {
         try {
             const conteudo = e.target.result;
-            const linhas = conteudo.split('\n').filter(l => l.trim());
+            console.log('Conteúdo do arquivo:', conteudo); // Debug
+            
+            const linhas = conteudo.split(/\r?\n/).filter(l => l.trim());
+            
+            console.log('Linhas encontradas:', linhas.length); // Debug
+            console.log('Primeira linha:', linhas[0]); // Debug
+            if (linhas[1]) console.log('Segunda linha:', linhas[1]); // Debug
             
             // Pular cabeçalho
             if (linhas.length < 2) {
@@ -1056,13 +1062,18 @@ function importarVendas(event) {
             // Processar cada linha (começando da segunda - pular cabeçalho)
             for (let i = 1; i < linhas.length; i++) {
                 const linha = linhas[i].trim();
-                if (!linha || linha.startsWith(';') || linha.toLowerCase().includes('total')) continue;
+                if (!linha || linha.toLowerCase().includes('total')) continue;
                 
                 // Parse do CSV com suporte a aspas
                 const colunas = parseCsvLinha(linha);
                 
+                console.log(`Linha ${i + 1} - Colunas:`, colunas); // Debug
+                
+                // Pular linha se primeira coluna estiver vazia (linha de total ou vazia)
+                if (!colunas[0] || colunas[0].trim() === '') continue;
+                
                 if (colunas.length < 5) {
-                    erros.push(`Linha ${i + 1}: formato inválido`);
+                    erros.push(`Linha ${i + 1}: formato inválido (${colunas.length} colunas encontradas)`);
                     continue;
                 }
                 
@@ -1071,10 +1082,12 @@ function importarVendas(event) {
                 const representante = colunas[2]?.trim().toUpperCase();
                 const produtoNome = colunas[3]?.trim().replace(/"/g, '').toUpperCase();
                 const quantidade = parseInt(colunas[4]?.trim()) || 0;
-                const observacoes = colunas[7]?.trim().replace(/"/g, '') || '';
+                const observacoes = colunas[7]?.trim()?.replace(/"/g, '') || '';
+                
+                console.log(`Dados: contrato=${contrato}, loja=${loja}, rep=${representante}, produto=${produtoNome}, qtd=${quantidade}`); // Debug
                 
                 if (!contrato || !loja || !representante || !produtoNome || quantidade <= 0) {
-                    erros.push(`Linha ${i + 1}: dados obrigatórios faltando`);
+                    erros.push(`Linha ${i + 1}: dados obrigatórios faltando (contrato=${contrato}, loja=${loja}, rep=${representante}, produto=${produtoNome}, qtd=${quantidade})`);
                     continue;
                 }
                 
