@@ -47,6 +47,9 @@
             <button class="tab-btn active" onclick="trocarAba('estoque')">
                 <span>📦</span> Estoque
             </button>
+            <button class="tab-btn" onclick="trocarAba('distribuicao')">
+                <span>🚚</span> Distribuição
+            </button>
             <button class="tab-btn" onclick="trocarAba('vendas')">
                 <span>📝</span> Registro de Vendas
             </button>
@@ -148,6 +151,82 @@
                                 </tr>
                             </thead>
                             <tbody id="corpoTabela"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ========================================
+             ABA: DISTRIBUIÇÃO
+             ======================================== -->
+        <div class="tab-content" id="tab-distribuicao">
+            <div class="content-area">
+                <div class="section-header">
+                    <h2 class="section-title">Registro de Distribuição</h2>
+                    <div class="header-actions">
+                        <button class="btn btn-success" onclick="abrirModalNovaDistribuicao()">
+                            <span class="btn-icon">+</span>
+                            Nova Distribuição
+                        </button>
+                        <button class="btn btn-info" onclick="document.getElementById('inputImportarDistribuicao').click()">
+                            <span class="btn-icon">📥</span>
+                            Importar Excel
+                        </button>
+                        <input type="file" id="inputImportarDistribuicao" accept=".csv,.xlsx,.xls" style="display:none" onchange="importarDistribuicao(event)">
+                        <button class="btn btn-outline" onclick="exportarDistribuicao()">
+                            <span class="btn-icon">📤</span>
+                            Exportar Excel
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Filtros -->
+                <div class="filtros-container">
+                    <div class="filtro-group">
+                        <label>Representante:</label>
+                        <select id="filtroDistribuicaoRep" onchange="renderizarRegistroDistribuicao()">
+                            <option value="">Todos</option>
+                            <option value="KOLTE">KOLTE</option>
+                            <option value="ISA">ISA</option>
+                            <option value="LC">LC</option>
+                            <option value="ADES">ADES</option>
+                            <option value="FL">FL</option>
+                        </select>
+                    </div>
+                    <div class="filtro-group">
+                        <label>Produto:</label>
+                        <select id="filtroDistribuicaoProduto" onchange="renderizarRegistroDistribuicao()">
+                            <option value="">Todos</option>
+                        </select>
+                    </div>
+                    <button class="btn btn-outline btn-sm" onclick="limparFiltrosDistribuicao()">
+                        <span>🔄</span> Limpar Filtros
+                    </button>
+                </div>
+
+                <div class="table-container">
+                    <div class="table-wrapper">
+                        <table class="dashboard-table" id="tabelaRegistroDistribuicao">
+                            <thead>
+                                <tr>
+                                    <th style="width: 80px;">Nº</th>
+                                    <th class="col-loja">Representante</th>
+                                    <th class="col-produto">Produto</th>
+                                    <th style="width: 100px;">Quantidade</th>
+                                    <th style="width: 150px;">Data</th>
+                                    <th style="width: 200px;">Observações</th>
+                                    <th style="width: 80px;">Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tabelaRegistroDistribuicaoBody"></tbody>
+                            <tfoot>
+                                <tr class="total-row">
+                                    <td colspan="3"><strong>TOTAL</strong></td>
+                                    <td id="totalQtdDistribuicao"><strong>0</strong></td>
+                                    <td colspan="3"></td>
+                                </tr>
+                            </tfoot>
                         </table>
                     </div>
                 </div>
@@ -569,6 +648,57 @@
                     <div class="modal-footer">
                         <button type="button" class="btn btn-outline" onclick="fecharModal('modalVendaDetalhada')">Cancelar</button>
                         <button type="submit" class="btn btn-success">💾 Salvar Venda</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Modal Nova Distribuição Detalhada -->
+        <div id="modalNovaDistribuicao" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2><span>🚚</span> Nova Distribuição</h2>
+                    <span class="close" onclick="fecharModal('modalNovaDistribuicao')">&times;</span>
+                </div>
+                <form id="formNovaDistribuicao" onsubmit="salvarNovaDistribuicao(event)">
+                    <div class="modal-body">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="representanteDistDet">Representante <span class="required">*</span></label>
+                                <select id="representanteDistDet" required>
+                                    <option value="">Selecione o representante</option>
+                                    <option value="KOLTE">KOLTE</option>
+                                    <option value="ISA">ISA</option>
+                                    <option value="LC">LC</option>
+                                    <option value="ADES">ADES</option>
+                                    <option value="FL">FL</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="produtoDistDet">Produto <span class="required">*</span></label>
+                                <select id="produtoDistDet" required>
+                                    <option value="">Selecione um produto</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="quantidadeDistDet">Quantidade <span class="required">*</span></label>
+                                <input type="number" id="quantidadeDistDet" required min="1" placeholder="0">
+                            </div>
+                            <div class="form-group">
+                                <label for="dataDistDet">Data</label>
+                                <input type="date" id="dataDistDet">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="observacoesDistDet">Observações</label>
+                            <textarea id="observacoesDistDet" rows="2" placeholder="Observações sobre a distribuição..."></textarea>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-outline" onclick="fecharModal('modalNovaDistribuicao')">Cancelar</button>
+                        <button type="submit" class="btn btn-info">🚚 Registrar Distribuição</button>
                     </div>
                 </form>
             </div>

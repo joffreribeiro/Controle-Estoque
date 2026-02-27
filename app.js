@@ -7,7 +7,8 @@
 let estoque = {
     produtos: [],
     representantes: ['KOLTE', 'ISA', 'LC', 'ADES', 'FL', 'IMBEL'],
-    registroVendas: []
+    registroVendas: [],
+    registroDistribuicao: []
 };
 
 // Dados iniciais com PREÇOS baseados na planilha
@@ -95,6 +96,7 @@ function inicializar() {
     renderizarTabela();
     renderizarDashboard();
     renderizarRegistroVendas();
+    renderizarRegistroDistribuicao();
     atualizarSelectsProdutos();
     atualizarEstatisticas();
     atualizarData();
@@ -108,6 +110,10 @@ function carregarDados() {
         if (!estoque.registroVendas) {
             estoque.registroVendas = [];
         }
+        // Garantir que registroDistribuicao existe
+        if (!estoque.registroDistribuicao) {
+            estoque.registroDistribuicao = [];
+        }
     } else {
         estoque.produtos = dadosIniciais.map((item, index) => ({
             id: index + 1,
@@ -117,6 +123,7 @@ function carregarDados() {
             vendas: { ...item.vendas }
         }));
         estoque.registroVendas = [];
+        estoque.registroDistribuicao = [];
         salvarDados();
     }
 }
@@ -180,6 +187,9 @@ function trocarAba(aba) {
         renderizarDashboard();
     } else if (aba === 'vendas') {
         renderizarRegistroVendas();
+    } else if (aba === 'distribuicao') {
+        renderizarRegistroDistribuicao();
+        atualizarSelectDistribuicaoProduto();
     }
 }
 
@@ -492,13 +502,13 @@ document.addEventListener('keydown', function(event) {
 // ========================================
 
 function atualizarSelectsProdutos() {
-    const selects = ['produtoDistribuicao', 'produtoVenda', 'produtoDevolucao', 'produtoVendaDet', 'filtroVendaProduto'];
+    const selects = ['produtoDistribuicao', 'produtoVenda', 'produtoDevolucao', 'produtoVendaDet', 'filtroProduto', 'produtoDistDet', 'filtroDistribuicaoProduto'];
     
     selects.forEach(selectId => {
         const select = document.getElementById(selectId);
         if (select) {
             const valorAtual = select.value;
-            const primeiraOpcao = selectId === 'filtroVendaProduto' ? 'Todos os produtos' : 'Selecione um produto';
+            const primeiraOpcao = (selectId === 'filtroProduto' || selectId === 'filtroDistribuicaoProduto') ? 'Todos' : 'Selecione um produto';
             select.innerHTML = `<option value="">${primeiraOpcao}</option>`;
             
             estoque.produtos.forEach(produto => {
@@ -511,6 +521,23 @@ function atualizarSelectsProdutos() {
             select.value = valorAtual;
         }
     });
+}
+
+function atualizarSelectDistribuicaoProduto() {
+    const select = document.getElementById('filtroDistribuicaoProduto');
+    if (select) {
+        const valorAtual = select.value;
+        select.innerHTML = '<option value="">Todos</option>';
+        
+        estoque.produtos.forEach(produto => {
+            const option = document.createElement('option');
+            option.value = produto.id;
+            option.textContent = produto.nome;
+            select.appendChild(option);
+        });
+        
+        select.value = valorAtual;
+    }
 }
 
 // ========================================
@@ -777,6 +804,337 @@ function exportarVendas() {
     } else {
         mostrarNotificacao('Registro de vendas exportado com sucesso!', 'success');
     }
+}
+
+// ========================================
+// REGISTRO DE DISTRIBUIÇÃO
+// ========================================
+
+function abrirModalNovaDistribuicao() {
+    document.getElementById('modalNovaDistribuicao').style.display = 'block';
+    document.getElementById('formNovaDistribuicao').reset();
+    atualizarSelectsProdutos();
+    
+    // Definir data atual
+    const hoje = new Date().toISOString().split('T')[0];
+    document.getElementById('dataDistDet').value = hoje;
+}
+
+function salvarNovaDistribuicao(event) {
+    event.preventDefault();
+    
+    const representante = document.getElementById('representanteDistDet').value;
+    const produtoId = parseInt(document.getElementById('produtoDistDet').value);
+    const quantidade = parseInt(document.getElementById('quantidadeDistDet').value);
+    const data = document.getElementById('dataDistDet').value || new Date().toISOString().split('T')[0];
+    const observacoes = document.getElementById('observacoesDistDet').value.trim();
+    
+    const produto = estoque.produtos.find(p => p.id === produtoId);
+    
+    if (!produto) {
+        mostrarNotificacao('Produto não encontrado!', 'error');
+        return;
+    }
+    
+    // Criar registro da distribuição
+    const novaDistribuicao = {
+        id: Date.now(),
+        representante: representante,
+        produtoId: produtoId,
+        produtoNome: produto.nome,
+        quantidade: quantidade,
+        data: data,
+        observacoes: observacoes
+    };
+    
+    // Atualizar distribuição no estoque
+    produto.distribuicao[representante] = (produto.distribuicao[representante] || 0) + quantidade;
+    
+    // Adicionar ao registro
+    estoque.registroDistribuicao.push(novaDistribuicao);
+    
+    salvarDados();
+    renderizarTabela();
+    renderizarDashboard();
+    renderizarRegistroDistribuicao();
+    fecharModal('modalNovaDistribuicao');
+    
+    mostrarNotificacao(`Distribuição registrada: ${quantidade}x "${produto.nome}" para ${representante}`, 'success');
+}
+
+function renderizarRegistroDistribuicao() {
+    const tbody = document.getElementById('tabelaRegistroDistribuicaoBody');
+    if (!tbody) return;
+    
+    const filtroRep = document.getElementById('filtroDistribuicaoRep')?.value || '';
+    const filtroProduto = document.getElementById('filtroDistribuicaoProduto')?.value || '';
+    
+    // Filtrar distribuições
+    let distribuicoesFiltradas = estoque.registroDistribuicao || [];
+    
+    if (filtroRep) {
+        distribuicoesFiltradas = distribuicoesFiltradas.filter(d => d.representante === filtroRep);
+    }
+    
+    if (filtroProduto) {
+        distribuicoesFiltradas = distribuicoesFiltradas.filter(d => d.produtoId === parseInt(filtroProduto));
+    }
+    
+    // Ordenar por data (mais recente primeiro)
+    distribuicoesFiltradas.sort((a, b) => new Date(b.data) - new Date(a.data));
+    
+    tbody.innerHTML = '';
+    
+    if (distribuicoesFiltradas.length === 0) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="7" class="empty-state">
+                    <div class="empty-icon">🚚</div>
+                    <div class="empty-text">Nenhuma distribuição registrada</div>
+                    <div class="empty-hint">Clique em "Nova Distribuição" para adicionar o primeiro registro</div>
+                </td>
+            </tr>
+        `;
+        atualizarTotaisDistribuicao(0);
+        return;
+    }
+    
+    let totalQtd = 0;
+    let numero = distribuicoesFiltradas.length;
+    
+    distribuicoesFiltradas.forEach(dist => {
+        totalQtd += dist.quantidade;
+        
+        const repClass = dist.representante.toLowerCase();
+        const dataFormatada = dist.data ? new Date(dist.data + 'T00:00:00').toLocaleDateString('pt-BR') : '-';
+        
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td class="col-contrato">${numero--}</td>
+            <td class="col-loja"><span class="badge-rep ${repClass}">${dist.representante}</span></td>
+            <td class="col-produto-venda" title="${dist.produtoNome}">${dist.produtoNome}</td>
+            <td class="col-qtd">${dist.quantidade}</td>
+            <td>${dataFormatada}</td>
+            <td class="col-obs" title="${dist.observacoes || '-'}">${dist.observacoes || '-'}</td>
+            <td class="col-acoes">
+                <button class="btn-action btn-delete" onclick="excluirDistribuicao(${dist.id})" title="Excluir distribuição">🗑</button>
+            </td>
+        `;
+        tbody.appendChild(tr);
+    });
+    
+    atualizarTotaisDistribuicao(totalQtd);
+}
+
+function atualizarTotaisDistribuicao(totalQtd) {
+    const spanQtd = document.getElementById('totalQtdDistribuicao');
+    if (spanQtd) spanQtd.innerHTML = `<strong>${totalQtd.toLocaleString('pt-BR')}</strong>`;
+}
+
+function limparFiltrosDistribuicao() {
+    const filtroRep = document.getElementById('filtroDistribuicaoRep');
+    const filtroProduto = document.getElementById('filtroDistribuicaoProduto');
+    
+    if (filtroRep) filtroRep.value = '';
+    if (filtroProduto) filtroProduto.value = '';
+    
+    renderizarRegistroDistribuicao();
+}
+
+function excluirDistribuicao(distId) {
+    const dist = estoque.registroDistribuicao.find(d => d.id === distId);
+    
+    if (!dist) {
+        mostrarNotificacao('Distribuição não encontrada!', 'error');
+        return;
+    }
+    
+    if (!confirm(`Deseja excluir esta distribuição?\n\nRepresentante: ${dist.representante}\nProduto: ${dist.produtoNome}\nQuantidade: ${dist.quantidade}\n\nATENÇÃO: A quantidade será removida do estoque do representante.`)) {
+        return;
+    }
+    
+    // Remover do estoque
+    const produto = estoque.produtos.find(p => p.id === dist.produtoId);
+    if (produto) {
+        produto.distribuicao[dist.representante] = Math.max(0, (produto.distribuicao[dist.representante] || 0) - dist.quantidade);
+    }
+    
+    // Remover do registro
+    estoque.registroDistribuicao = estoque.registroDistribuicao.filter(d => d.id !== distId);
+    
+    salvarDados();
+    renderizarTabela();
+    renderizarDashboard();
+    renderizarRegistroDistribuicao();
+    
+    mostrarNotificacao(`Distribuição excluída com sucesso!`, 'success');
+}
+
+function exportarDistribuicao() {
+    const distribuicoes = estoque.registroDistribuicao || [];
+    
+    // Ordenar por data
+    const distribuicoesOrdenadas = [...distribuicoes].sort((a, b) => new Date(a.data) - new Date(b.data));
+    
+    // Usar ponto-e-vírgula como separador (padrão Excel PT-BR)
+    const sep = ';';
+    
+    // Cabeçalho
+    let csv = `REPRESENTANTE${sep}PRODUTO${sep}QUANTIDADE${sep}DATA${sep}OBSERVAÇÕES\n`;
+    
+    if (distribuicoesOrdenadas.length > 0) {
+        distribuicoesOrdenadas.forEach(dist => {
+            const dataFormatada = dist.data ? new Date(dist.data + 'T00:00:00').toLocaleDateString('pt-BR') : '';
+            csv += `${dist.representante}${sep}${dist.produtoNome}${sep}${dist.quantidade}${sep}${dataFormatada}${sep}${dist.observacoes || ''}\n`;
+        });
+        
+        // Linha de total
+        const totalQtd = distribuicoes.reduce((sum, d) => sum + d.quantidade, 0);
+        csv += `${sep}TOTAL${sep}${totalQtd}${sep}${sep}\n`;
+    }
+    
+    const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    
+    const dataAtual = new Date().toISOString().split('T')[0];
+    
+    link.setAttribute('href', url);
+    link.setAttribute('download', `registro_distribuicao_${dataAtual}.csv`);
+    link.style.visibility = 'hidden';
+    
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    if (distribuicoes.length === 0) {
+        mostrarNotificacao('Modelo exportado (sem distribuições registradas)', 'info');
+    } else {
+        mostrarNotificacao('Registro de distribuição exportado com sucesso!', 'success');
+    }
+}
+
+function importarDistribuicao(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    
+    const reader = new FileReader();
+    
+    reader.onload = function(e) {
+        try {
+            const conteudo = e.target.result;
+            const linhas = conteudo.split(/\r?\n/).filter(l => l.trim());
+            
+            if (linhas.length < 2) {
+                mostrarNotificacao('Arquivo vazio ou sem dados!', 'error');
+                return;
+            }
+            
+            let distribuicoesImportadas = 0;
+            let erros = [];
+            
+            // Processar cada linha (começando da segunda - pular cabeçalho)
+            for (let i = 1; i < linhas.length; i++) {
+                const linha = linhas[i].trim();
+                if (!linha || linha.toLowerCase().includes('total')) continue;
+                
+                const colunas = parseCsvLinha(linha);
+                
+                // Pular linha se primeira coluna estiver vazia
+                if (!colunas[0] || colunas[0].trim() === '') continue;
+                
+                if (colunas.length < 3) {
+                    erros.push(`Linha ${i + 1}: formato inválido`);
+                    continue;
+                }
+                
+                const representante = colunas[0]?.trim().toUpperCase();
+                const produtoNome = colunas[1]?.trim().toUpperCase();
+                const quantidade = parseInt(colunas[2]?.trim()) || 0;
+                const dataStr = colunas[3]?.trim() || '';
+                const observacoes = colunas[4]?.trim() || '';
+                
+                if (!representante || !produtoNome || quantidade <= 0) {
+                    erros.push(`Linha ${i + 1}: dados obrigatórios faltando`);
+                    continue;
+                }
+                
+                // Verificar se representante é válido
+                const repsValidos = ['KOLTE', 'ISA', 'LC', 'ADES', 'FL'];
+                if (!repsValidos.includes(representante)) {
+                    erros.push(`Linha ${i + 1}: representante inválido (${representante})`);
+                    continue;
+                }
+                
+                // Buscar produto pelo nome
+                let produto = estoque.produtos.find(p => 
+                    p.nome.toUpperCase() === produtoNome || 
+                    p.nome.toUpperCase().includes(produtoNome) ||
+                    produtoNome.includes(p.nome.toUpperCase())
+                );
+                
+                if (!produto) {
+                    erros.push(`Linha ${i + 1}: produto não encontrado (${produtoNome})`);
+                    continue;
+                }
+                
+                // Converter data
+                let data = new Date().toISOString().split('T')[0];
+                if (dataStr) {
+                    // Tentar converter dd/mm/yyyy para yyyy-mm-dd
+                    const partes = dataStr.split('/');
+                    if (partes.length === 3) {
+                        data = `${partes[2]}-${partes[1].padStart(2, '0')}-${partes[0].padStart(2, '0')}`;
+                    }
+                }
+                
+                // Criar registro da distribuição
+                const novaDistribuicao = {
+                    id: Date.now() + i,
+                    representante: representante,
+                    produtoId: produto.id,
+                    produtoNome: produto.nome,
+                    quantidade: quantidade,
+                    data: data,
+                    observacoes: observacoes
+                };
+                
+                // Atualizar distribuição no estoque
+                produto.distribuicao[representante] = (produto.distribuicao[representante] || 0) + quantidade;
+                
+                // Adicionar ao registro
+                estoque.registroDistribuicao.push(novaDistribuicao);
+                distribuicoesImportadas++;
+            }
+            
+            if (distribuicoesImportadas > 0) {
+                salvarDados();
+                renderizarTabela();
+                renderizarDashboard();
+                renderizarRegistroDistribuicao();
+            }
+            
+            // Limpar input
+            event.target.value = '';
+            
+            // Mostrar resultado
+            if (erros.length > 0 && distribuicoesImportadas === 0) {
+                mostrarNotificacao(`Nenhuma distribuição importada. Verifique o formato.`, 'error');
+                console.log('Erros de importação:', erros);
+            } else if (erros.length > 0) {
+                mostrarNotificacao(`${distribuicoesImportadas} distribuições importadas. ${erros.length} linhas com erro.`, 'warning');
+                console.log('Erros de importação:', erros);
+            } else {
+                mostrarNotificacao(`${distribuicoesImportadas} distribuições importadas com sucesso!`, 'success');
+            }
+            
+        } catch (error) {
+            console.error('Erro ao importar:', error);
+            mostrarNotificacao('Erro ao processar o arquivo. Verifique o formato.', 'error');
+        }
+    };
+    
+    reader.readAsText(file, 'UTF-8');
 }
 
 function salvarProduto(event) {
@@ -1204,7 +1562,7 @@ function parseCsvLinha(linha) {
 // ========================================
 
 function limparTodosDados() {
-    if (!confirm('⚠️ ATENÇÃO!\n\nEsta ação irá APAGAR TODOS os dados do sistema:\n- Produtos\n- Distribuições\n- Vendas\n- Registro de vendas\n\nOs dados serão resetados para os valores iniciais.\n\nDeseja continuar?')) {
+    if (!confirm('⚠️ ATENÇÃO!\n\nEsta ação irá APAGAR TODOS os dados do sistema:\n- Produtos\n- Distribuições\n- Vendas\n- Registro de vendas\n- Registro de distribuição\n\nOs dados serão resetados para os valores iniciais.\n\nDeseja continuar?')) {
         return;
     }
     
@@ -1224,11 +1582,13 @@ function limparTodosDados() {
         vendas: { KOLTE: 0, ISA: 0, LC: 0, ADES: 0, FL: 0, IMBEL: 0 }
     }));
     estoque.registroVendas = [];
+    estoque.registroDistribuicao = [];
     
     salvarDados();
     renderizarTabela();
     renderizarDashboard();
     renderizarRegistroVendas();
+    renderizarRegistroDistribuicao();
     atualizarSelectsProdutos();
     atualizarEstatisticas();
     
