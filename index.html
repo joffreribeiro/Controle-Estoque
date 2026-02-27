@@ -86,9 +86,19 @@
                     <span class="btn-icon">↩</span>
                     Devolução
                 </button>
-                <button class="btn btn-outline" onclick="exportarDados()">
-                    <span class="btn-icon">📊</span>
-                    Exportar
+            </div>
+
+            <div class="actions-divider"></div>
+
+            <div class="actions-group">
+                <button class="btn btn-info" onclick="document.getElementById('inputImportarEstoque').click()">
+                    <span class="btn-icon">📥</span>
+                    Importar Excel
+                </button>
+                <input type="file" id="inputImportarEstoque" accept=".csv,.xlsx,.xls" style="display:none" onchange="importarEstoque(event)">
+                <button class="btn btn-outline" onclick="exportarEstoqueCompleto()">
+                    <span class="btn-icon">📤</span>
+                    Exportar Excel
                 </button>
             </div>
 

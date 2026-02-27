@@ -1464,6 +1464,171 @@ function exportarDados() {
 }
 
 // ========================================
+// EXPORTAR/IMPORTAR ESTOQUE COMPLETO
+// ========================================
+
+function exportarEstoqueCompleto() {
+    const sep = ';';
+    const reps = ['KOLTE', 'ISA', 'LC', 'ADES', 'FL'];
+    
+    // Cabeçalho
+    let csv = `PRODUTO${sep}PRECO`;
+    reps.forEach(rep => {
+        csv += `${sep}${rep}_DISP${sep}${rep}_VENDA`;
+    });
+    csv += `${sep}IMBEL_ESTOQUE\n`;
+    
+    // Dados
+    estoque.produtos.forEach(produto => {
+        csv += `${produto.nome}${sep}${(produto.preco || 0).toFixed(2).replace('.', ',')}`;
+        
+        reps.forEach(rep => {
+            const disp = produto.distribuicao[rep] || 0;
+            const venda = produto.vendas[rep] || 0;
+            csv += `${sep}${disp}${sep}${venda}`;
+        });
+        
+        const imbelEstoque = produto.distribuicao.IMBEL || 0;
+        csv += `${sep}${imbelEstoque}\n`;
+    });
+    
+    const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    
+    const dataAtual = new Date().toISOString().split('T')[0];
+    
+    link.setAttribute('href', url);
+    link.setAttribute('download', `estoque_completo_${dataAtual}.csv`);
+    link.style.visibility = 'hidden';
+    
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    mostrarNotificacao('Estoque exportado com sucesso!', 'success');
+}
+
+function importarEstoque(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    
+    const reader = new FileReader();
+    
+    reader.onload = function(e) {
+        try {
+            const conteudo = e.target.result;
+            const linhas = conteudo.split(/\r?\n/).filter(l => l.trim());
+            
+            if (linhas.length < 2) {
+                mostrarNotificacao('Arquivo vazio ou sem dados!', 'error');
+                return;
+            }
+            
+            // Ler cabeçalho para identificar colunas
+            const cabecalho = parseCsvLinha(linhas[0]);
+            console.log('Cabeçalho:', cabecalho);
+            
+            let produtosAtualizados = 0;
+            let erros = [];
+            
+            // Processar cada linha
+            for (let i = 1; i < linhas.length; i++) {
+                const linha = linhas[i].trim();
+                if (!linha) continue;
+                
+                const colunas = parseCsvLinha(linha);
+                
+                if (colunas.length < 3) {
+                    erros.push(`Linha ${i + 1}: formato inválido`);
+                    continue;
+                }
+                
+                const produtoNome = colunas[0]?.trim().toUpperCase();
+                
+                if (!produtoNome) continue;
+                
+                // Buscar produto
+                let produto = estoque.produtos.find(p => 
+                    p.nome.toUpperCase() === produtoNome ||
+                    p.nome.toUpperCase().includes(produtoNome) ||
+                    produtoNome.includes(p.nome.toUpperCase())
+                );
+                
+                if (!produto) {
+                    erros.push(`Linha ${i + 1}: produto não encontrado (${produtoNome})`);
+                    continue;
+                }
+                
+                // Atualizar preço se fornecido
+                const precoStr = colunas[1]?.trim();
+                if (precoStr) {
+                    const preco = parseFloat(precoStr.replace(/\./g, '').replace(',', '.')) || 0;
+                    if (preco > 0) produto.preco = preco;
+                }
+                
+                // Mapear colunas do cabeçalho
+                const reps = ['KOLTE', 'ISA', 'LC', 'ADES', 'FL'];
+                let colIndex = 2;
+                
+                reps.forEach(rep => {
+                    // DISP
+                    if (colunas[colIndex] !== undefined) {
+                        const disp = parseInt(colunas[colIndex]) || 0;
+                        produto.distribuicao[rep] = disp;
+                    }
+                    colIndex++;
+                    
+                    // VENDA
+                    if (colunas[colIndex] !== undefined) {
+                        const venda = parseInt(colunas[colIndex]) || 0;
+                        produto.vendas[rep] = venda;
+                    }
+                    colIndex++;
+                });
+                
+                // IMBEL estoque
+                if (colunas[colIndex] !== undefined) {
+                    const imbelEstoque = parseInt(colunas[colIndex]) || 0;
+                    produto.distribuicao.IMBEL = imbelEstoque;
+                }
+                
+                produtosAtualizados++;
+            }
+            
+            if (produtosAtualizados > 0) {
+                salvarDados();
+                renderizarTabela();
+                renderizarDashboard();
+                renderizarRegistroVendas();
+                renderizarRegistroDistribuicao();
+                atualizarEstatisticas();
+            }
+            
+            // Limpar input
+            event.target.value = '';
+            
+            // Mostrar resultado
+            if (erros.length > 0 && produtosAtualizados === 0) {
+                mostrarNotificacao(`Nenhum produto atualizado. Verifique o formato.`, 'error');
+                console.log('Erros de importação:', erros);
+            } else if (erros.length > 0) {
+                mostrarNotificacao(`${produtosAtualizados} produtos atualizados. ${erros.length} erros.`, 'warning');
+                console.log('Erros de importação:', erros);
+            } else {
+                mostrarNotificacao(`${produtosAtualizados} produtos atualizados com sucesso!`, 'success');
+            }
+            
+        } catch (error) {
+            console.error('Erro ao importar:', error);
+            mostrarNotificacao('Erro ao processar o arquivo. Verifique o formato.', 'error');
+        }
+    };
+    
+    reader.readAsText(file, 'UTF-8');
+}
+
+// ========================================
 // IMPORTAÇÃO DE VENDAS
 // ========================================
 
@@ -1562,8 +1727,8 @@ function importarVendas(event) {
                     data: new Date().toISOString()
                 };
                 
-                // Atualizar distribuição e vendas no estoque (para refletir que houve venda)
-                produto.distribuicao[representante] = (produto.distribuicao[representante] || 0) + quantidade;
+                // Apenas registrar a venda (NÃO mexer na distribuição)
+                // A distribuição deve ser feita separadamente na aba Distribuição
                 produto.vendas[representante] = (produto.vendas[representante] || 0) + quantidade;
                 
                 // Adicionar ao registro
