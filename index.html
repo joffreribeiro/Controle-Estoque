@@ -1,0 +1,580 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Controle de Estoque | Material Bélico</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎯</text></svg>">
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header>
+            <div class="header-content">
+                <div class="logo-section">
+                    <div class="logo-icon">CE</div>
+                    <div class="logo-text">
+                        <h1>Controle de Estoque</h1>
+                        <p class="subtitle">Sistema de Gestão de Material Bélico</p>
+                    </div>
+                </div>
+                
+                <div class="header-info">
+                    <div class="header-stat">
+                        <div class="stat-value" id="totalProdutos">0</div>
+                        <div class="stat-label">Produtos</div>
+                    </div>
+                    <div class="header-stat">
+                        <div class="stat-value" id="totalEstoque">0</div>
+                        <div class="stat-label">Em Estoque</div>
+                    </div>
+                    <div class="header-stat accent">
+                        <div class="stat-value" id="totalVendas">0</div>
+                        <div class="stat-label">Vendidos</div>
+                    </div>
+                    <div class="header-stat highlight">
+                        <div class="stat-value" id="valorTotalVendas">R$ 0</div>
+                        <div class="stat-label">Faturamento</div>
+                    </div>
+                    <div class="current-date" id="dataAtual"></div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Navegação por Abas -->
+        <div class="tabs-navigation">
+            <button class="tab-btn active" onclick="trocarAba('estoque')">
+                <span>📦</span> Estoque
+            </button>
+            <button class="tab-btn" onclick="trocarAba('vendas')">
+                <span>📝</span> Registro de Vendas
+            </button>
+            <button class="tab-btn" onclick="trocarAba('dashboard')">
+                <span>📊</span> Dashboard
+            </button>
+        </div>
+
+        <!-- Barra de Ações -->
+        <div class="actions-bar" id="acoesEstoque">
+            <div class="actions-group">
+                <button class="btn btn-primary" onclick="abrirModalProduto()">
+                    <span class="btn-icon">+</span>
+                    Novo Produto
+                </button>
+                <button class="btn btn-info" onclick="abrirModalDistribuicao()">
+                    <span class="btn-icon">📦</span>
+                    Distribuir
+                </button>
+                <button class="btn btn-success" onclick="abrirModalVenda()">
+                    <span class="btn-icon">💰</span>
+                    Registrar Venda
+                </button>
+            </div>
+            
+            <div class="actions-divider"></div>
+            
+            <div class="actions-group">
+                <button class="btn btn-outline" onclick="abrirModalDevolucao()">
+                    <span class="btn-icon">↩</span>
+                    Devolução
+                </button>
+                <button class="btn btn-warning" onclick="exportarDados()">
+                    <span class="btn-icon">📊</span>
+                    Exportar
+                </button>
+            </div>
+
+            <div class="actions-divider"></div>
+
+            <div class="actions-group">
+                <button class="btn btn-outline" onclick="limparFiltros()">
+                    <span class="btn-icon">🔄</span>
+                    Atualizar
+                </button>
+                <button class="btn btn-danger" onclick="limparTodosDados()">
+                    <span class="btn-icon">🗑</span>
+                    Limpar Dados
+                </button>
+            </div>
+        </div>
+
+        <!-- ========================================
+             ABA: ESTOQUE
+             ======================================== -->
+        <div class="tab-content active" id="tab-estoque">
+            <div class="content-area">
+                <div class="section-header">
+                    <h2 class="section-title">Inventário de Produtos</h2>
+                    <span class="badge badge-info" id="ultimaAtualizacao">Atualizado agora</span>
+                </div>
+
+                <div class="table-container">
+                    <div class="table-wrapper">
+                        <table id="tabelaEstoque">
+                            <thead>
+                                <tr>
+                                    <th rowspan="2" class="col-produto">PRODUTOS</th>
+                                    <th colspan="3" class="header-rep kolte">KOLTE</th>
+                                    <th colspan="3" class="header-rep isa">ISA</th>
+                                    <th colspan="3" class="header-rep lc">LC</th>
+                                    <th colspan="3" class="header-rep ades">ADES</th>
+                                    <th colspan="3" class="header-rep fl">FL</th>
+                                    <th colspan="3" class="header-rep imbel">IMBEL</th>
+                                    <th colspan="3" class="header-geral">CONSOLIDADO</th>
+                                </tr>
+                                <tr>
+                                    <th class="sub-header">Disp</th>
+                                    <th class="sub-header">Venda</th>
+                                    <th class="sub-header">Saldo</th>
+                                    <th class="sub-header">Disp</th>
+                                    <th class="sub-header">Venda</th>
+                                    <th class="sub-header">Saldo</th>
+                                    <th class="sub-header">Disp</th>
+                                    <th class="sub-header">Venda</th>
+                                    <th class="sub-header">Saldo</th>
+                                    <th class="sub-header">Disp</th>
+                                    <th class="sub-header">Venda</th>
+                                    <th class="sub-header">Saldo</th>
+                                    <th class="sub-header">Disp</th>
+                                    <th class="sub-header">Venda</th>
+                                    <th class="sub-header">Saldo</th>
+                                    <th class="sub-header">Disp</th>
+                                    <th class="sub-header">Venda</th>
+                                    <th class="sub-header">Saldo</th>
+                                    <th class="sub-header">Disp</th>
+                                    <th class="sub-header">Venda</th>
+                                    <th class="sub-header">Saldo</th>
+                                </tr>
+                            </thead>
+                            <tbody id="corpoTabela"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ========================================
+             ABA: REGISTRO DE VENDAS
+             ======================================== -->
+        <div class="tab-content" id="tab-vendas">
+            <div class="content-area">
+                <div class="section-header">
+                    <h2 class="section-title">Registro de Vendas</h2>
+                    <div class="header-actions">
+                        <button class="btn btn-success" onclick="abrirModalVendaDetalhada()">
+                            <span class="btn-icon">+</span>
+                            Nova Venda
+                        </button>
+                        <button class="btn btn-info" onclick="document.getElementById('inputImportarVendas').click()">
+                            <span class="btn-icon">📥</span>
+                            Importar Excel
+                        </button>
+                        <input type="file" id="inputImportarVendas" accept=".csv,.xlsx,.xls" style="display:none" onchange="importarVendas(event)">
+                        <button class="btn btn-outline" onclick="exportarVendas()">
+                            <span class="btn-icon">📤</span>
+                            Exportar Excel
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Filtros -->
+                <div class="filtros-container">
+                    <div class="filtro-group">
+                        <label>Representante:</label>
+                        <select id="filtroRepresentante" onchange="filtrarVendas()">
+                            <option value="">Todos</option>
+                            <option value="KOLTE">KOLTE</option>
+                            <option value="ISA">ISA</option>
+                            <option value="LC">LC</option>
+                            <option value="ADES">ADES</option>
+                            <option value="FL">FL</option>
+                            <option value="IMBEL">IMBEL</option>
+                        </select>
+                    </div>
+                    <div class="filtro-group">
+                        <label>Produto:</label>
+                        <select id="filtroProduto" onchange="filtrarVendas()">
+                            <option value="">Todos</option>
+                        </select>
+                    </div>
+                    <button class="btn btn-outline btn-sm" onclick="limparFiltrosVendas()">
+                        <span>🔄</span> Limpar Filtros
+                    </button>
+                </div>
+
+                <div class="table-container">
+                    <div class="table-wrapper">
+                        <table class="dashboard-table" id="tabelaRegistroVendas">
+                            <thead>
+                                <tr>
+                                    <th style="width: 80px;">Contrato</th>
+                                    <th class="col-loja">Loja / Cliente</th>
+                                    <th style="width: 120px;">Representante</th>
+                                    <th class="col-produto">Produto</th>
+                                    <th style="width: 90px;">Qtd</th>
+                                    <th style="width: 120px;">Valor Un.</th>
+                                    <th style="width: 130px;">Valor Total</th>
+                                    <th style="width: 150px;">Obs</th>
+                                    <th style="width: 80px;">Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tabelaRegistroVendasBody"></tbody>
+                            <tfoot>
+                                <tr class="total-row">
+                                    <td colspan="4"><strong>TOTAL</strong></td>
+                                    <td id="totalQtdVendas"><strong>0</strong></td>
+                                    <td></td>
+                                    <td id="totalValorVendas"><strong>R$ 0,00</strong></td>
+                                    <td colspan="2"></td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ========================================
+             ABA: DASHBOARD DE VENDAS
+             ======================================== -->
+        <div class="tab-content" id="tab-dashboard">
+            <div class="content-area">
+                <!-- Cards de Resumo -->
+                <div class="dashboard-cards">
+                    <div class="dash-card card-blue">
+                        <div class="dash-card-icon">📦</div>
+                        <div class="dash-card-info">
+                            <div class="dash-card-value" id="dashTotalUnidades">0</div>
+                            <div class="dash-card-label">Total de Unidades Vendidas</div>
+                        </div>
+                    </div>
+                    <div class="dash-card card-green">
+                        <div class="dash-card-icon">💰</div>
+                        <div class="dash-card-info">
+                            <div class="dash-card-value" id="dashTotalFaturamento">R$ 0,00</div>
+                            <div class="dash-card-label">Faturamento Total</div>
+                        </div>
+                    </div>
+                    <div class="dash-card card-orange">
+                        <div class="dash-card-icon">🏆</div>
+                        <div class="dash-card-info">
+                            <div class="dash-card-value" id="dashMelhorRep">-</div>
+                            <div class="dash-card-label">Melhor Representante</div>
+                        </div>
+                    </div>
+                    <div class="dash-card card-purple">
+                        <div class="dash-card-icon">⭐</div>
+                        <div class="dash-card-info">
+                            <div class="dash-card-value" id="dashProdutoTop">-</div>
+                            <div class="dash-card-label">Produto Mais Vendido</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tabelas do Dashboard -->
+                <div class="dashboard-grid">
+                    <!-- Quantidade Vendida por Produto -->
+                    <div class="dashboard-section">
+                        <div class="section-header">
+                            <h2 class="section-title">Quantidade Vendida por Produto</h2>
+                        </div>
+                        <div class="table-container compact">
+                            <table class="dashboard-table">
+                                <thead>
+                                    <tr>
+                                        <th class="col-produto">Produto</th>
+                                        <th>Quantidade</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tabelaQtdProduto"></tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Valor Total por Produto -->
+                    <div class="dashboard-section">
+                        <div class="section-header">
+                            <h2 class="section-title">Valor das Vendas por Produto</h2>
+                        </div>
+                        <div class="table-container compact">
+                            <table class="dashboard-table">
+                                <thead>
+                                    <tr>
+                                        <th class="col-produto">Produto</th>
+                                        <th>Valor (R$)</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tabelaValorProduto"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tabela de Vendas por Representante -->
+                <div class="dashboard-section full-width">
+                    <div class="section-header">
+                        <h2 class="section-title">Quantidade de Vendas por Representante</h2>
+                    </div>
+                    <div class="table-container">
+                        <div class="table-wrapper">
+                            <table class="dashboard-table" id="tabelaVendasRep">
+                                <thead>
+                                    <tr>
+                                        <th class="col-produto">Produto</th>
+                                        <th class="header-rep ades">ADES</th>
+                                        <th class="header-rep fl">FL</th>
+                                        <th class="header-rep imbel">IMBEL</th>
+                                        <th class="header-rep isa">ISA</th>
+                                        <th class="header-rep kolte">KOLTE</th>
+                                        <th class="header-rep lc">LC</th>
+                                        <th class="header-geral">Total</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tabelaVendasRepBody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <footer class="footer">
+            <div class="footer-info">
+                <span class="footer-item">
+                    <strong>Sistema:</strong> Controle de Estoque v2.0
+                </span>
+                <span class="footer-item">
+                    <strong>Representantes:</strong> 5 ativos
+                </span>
+            </div>
+            <div>
+                © 2026 - Gestão de Material Bélico
+            </div>
+        </footer>
+
+        <!-- ========================================
+             MODAIS
+             ======================================== -->
+        
+        <!-- Modal Novo Produto -->
+        <div id="modalProduto" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2><span>+</span> Adicionar Novo Produto</h2>
+                    <span class="close" onclick="fecharModal('modalProduto')">&times;</span>
+                </div>
+                <form id="formProduto" onsubmit="salvarProduto(event)">
+                    <div class="modal-body">
+                        <div class="form-group">
+                            <label for="nomeProduto">Nome do Produto <span class="required">*</span></label>
+                            <input type="text" id="nomeProduto" required placeholder="Ex: CARABINA IA2 5,56">
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="estoqueTotal">Quantidade <span class="required">*</span></label>
+                                <input type="number" id="estoqueTotal" required min="0" placeholder="0">
+                            </div>
+                            <div class="form-group">
+                                <label for="precoProduto">Preço Unitário (R$) <span class="required">*</span></label>
+                                <input type="text" id="precoProduto" required placeholder="0,00" oninput="formatarMoeda(this)">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-outline" onclick="fecharModal('modalProduto')">Cancelar</button>
+                        <button type="submit" class="btn btn-primary">Salvar Produto</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Modal Distribuição -->
+        <div id="modalDistribuicao" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2><span>📦</span> Distribuir Estoque</h2>
+                    <span class="close" onclick="fecharModal('modalDistribuicao')">&times;</span>
+                </div>
+                <form id="formDistribuicao" onsubmit="salvarDistribuicao(event)">
+                    <div class="modal-body">
+                        <div class="form-group">
+                            <label for="produtoDistribuicao">Produto <span class="required">*</span></label>
+                            <select id="produtoDistribuicao" required>
+                                <option value="">Selecione um produto</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="representanteDistribuicao">Representante <span class="required">*</span></label>
+                            <select id="representanteDistribuicao" required>
+                                <option value="">Selecione o representante</option>
+                                <option value="KOLTE">KOLTE</option>
+                                <option value="ISA">ISA</option>
+                                <option value="LC">LC</option>
+                                <option value="ADES">ADES</option>
+                                <option value="FL">FL</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="quantidadeDistribuicao">Quantidade <span class="required">*</span></label>
+                            <input type="number" id="quantidadeDistribuicao" required min="1" placeholder="0">
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-outline" onclick="fecharModal('modalDistribuicao')">Cancelar</button>
+                        <button type="submit" class="btn btn-info">Distribuir</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Modal Venda -->
+        <div id="modalVenda" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2><span>💰</span> Registrar Venda</h2>
+                    <span class="close" onclick="fecharModal('modalVenda')">&times;</span>
+                </div>
+                <form id="formVenda" onsubmit="salvarVenda(event)">
+                    <div class="modal-body">
+                        <div class="form-group">
+                            <label for="produtoVenda">Produto <span class="required">*</span></label>
+                            <select id="produtoVenda" required>
+                                <option value="">Selecione um produto</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="vendedorVenda">Vendedor <span class="required">*</span></label>
+                            <select id="vendedorVenda" required>
+                                <option value="">Selecione o vendedor</option>
+                                <option value="KOLTE">KOLTE</option>
+                                <option value="ISA">ISA</option>
+                                <option value="LC">LC</option>
+                                <option value="ADES">ADES</option>
+                                <option value="FL">FL</option>
+                                <option value="IMBEL">IMBEL (Venda Direta)</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="quantidadeVenda">Quantidade <span class="required">*</span></label>
+                            <input type="number" id="quantidadeVenda" required min="1" placeholder="0">
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-outline" onclick="fecharModal('modalVenda')">Cancelar</button>
+                        <button type="submit" class="btn btn-success">Registrar Venda</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Modal Devolução -->
+        <div id="modalDevolucao" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2><span>↩</span> Registrar Devolução</h2>
+                    <span class="close" onclick="fecharModal('modalDevolucao')">&times;</span>
+                </div>
+                <form id="formDevolucao" onsubmit="salvarDevolucao(event)">
+                    <div class="modal-body">
+                        <div class="form-group">
+                            <label for="produtoDevolucao">Produto <span class="required">*</span></label>
+                            <select id="produtoDevolucao" required>
+                                <option value="">Selecione um produto</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="representanteDevolucao">Representante <span class="required">*</span></label>
+                            <select id="representanteDevolucao" required>
+                                <option value="">Selecione o representante</option>
+                                <option value="KOLTE">KOLTE</option>
+                                <option value="ISA">ISA</option>
+                                <option value="LC">LC</option>
+                                <option value="ADES">ADES</option>
+                                <option value="FL">FL</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="quantidadeDevolucao">Quantidade <span class="required">*</span></label>
+                            <input type="number" id="quantidadeDevolucao" required min="1" placeholder="0">
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-outline" onclick="fecharModal('modalDevolucao')">Cancelar</button>
+                        <button type="submit" class="btn btn-primary">Registrar Devolução</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Modal Venda Detalhada -->
+        <div id="modalVendaDetalhada" class="modal">
+            <div class="modal-content modal-lg">
+                <div class="modal-header">
+                    <h2><span>📝</span> Nova Venda Detalhada</h2>
+                    <span class="close" onclick="fecharModal('modalVendaDetalhada')">&times;</span>
+                </div>
+                <form id="formVendaDetalhada" onsubmit="salvarVendaDetalhada(event)">
+                    <div class="modal-body">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="contratoVenda">Nº Contrato <span class="required">*</span></label>
+                                <input type="text" id="contratoVenda" required placeholder="Ex: 123">
+                            </div>
+                            <div class="form-group">
+                                <label for="lojaVenda">Loja/Cliente <span class="required">*</span></label>
+                                <input type="text" id="lojaVenda" required placeholder="Nome da loja ou cliente">
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="representanteVendaDet">Representante <span class="required">*</span></label>
+                                <select id="representanteVendaDet" required>
+                                    <option value="">Selecione o representante</option>
+                                    <option value="KOLTE">KOLTE</option>
+                                    <option value="ISA">ISA</option>
+                                    <option value="LC">LC</option>
+                                    <option value="ADES">ADES</option>
+                                    <option value="FL">FL</option>
+                                    <option value="IMBEL">IMBEL (Venda Direta)</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="produtoVendaDet">Produto <span class="required">*</span></label>
+                                <select id="produtoVendaDet" required onchange="atualizarPrecoVenda()">
+                                    <option value="">Selecione um produto</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="quantidadeVendaDet">Quantidade <span class="required">*</span></label>
+                                <input type="number" id="quantidadeVendaDet" required min="1" placeholder="0" onchange="atualizarPrecoVenda()" onkeyup="atualizarPrecoVenda()">
+                            </div>
+                            <div class="form-group">
+                                <label for="valorUnitarioVenda">Valor Unitário (R$)</label>
+                                <input type="text" id="valorUnitarioVenda" readonly class="readonly-field">
+                            </div>
+                            <div class="form-group">
+                                <label for="valorTotalVenda">Valor Total (R$)</label>
+                                <input type="text" id="valorTotalVenda" readonly class="readonly-field highlight-field">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="observacoesVenda">Observações</label>
+                            <textarea id="observacoesVenda" rows="3" placeholder="Observações adicionais sobre a venda..."></textarea>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-outline" onclick="fecharModal('modalVendaDetalhada')">Cancelar</button>
+                        <button type="submit" class="btn btn-success">💾 Salvar Venda</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
