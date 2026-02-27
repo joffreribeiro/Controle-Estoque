@@ -1110,9 +1110,9 @@ function importarVendas(event) {
                     continue;
                 }
                 
-                // Verificar se contrato já existe
-                if (estoque.registroVendas.some(v => v.contrato === contrato)) {
-                    erros.push(`Linha ${i + 1}: contrato ${contrato} já existe`);
+                // Verificar se já existe registro idêntico (mesmo contrato, mesmo produto)
+                if (estoque.registroVendas.some(v => v.contrato === contrato && v.produtoId === produto.id)) {
+                    erros.push(`Linha ${i + 1}: contrato ${contrato} com produto ${produto.nome} já existe`);
                     continue;
                 }
                 
