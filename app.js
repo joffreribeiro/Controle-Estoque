@@ -11,79 +11,79 @@ let estoque = {
     registroDistribuicao: []
 };
 
-// Dados iniciais com PREÇOS baseados na planilha
+// Dados iniciais com PREÇOS baseados na planilha - SEM dados de distribuição/vendas (zerados)
 const dadosIniciais = [
     {
         nome: 'CARABINA IA2 5,56',
-        preco: 10420.75, // 125.049,04 / 12 = ~10.420,75
-        distribuicao: { KOLTE: 20, ISA: 20, LC: 20, ADES: 20, FL: 20, IMBEL: 241 },
-        vendas: { KOLTE: 0, ISA: 8, LC: 0, ADES: 4, FL: 0, IMBEL: 0 }
+        preco: 10420.75,
+        distribuicao: { KOLTE: 0, ISA: 0, LC: 0, ADES: 0, FL: 0, IMBEL: 0 },
+        vendas: { KOLTE: 0, ISA: 0, LC: 0, ADES: 0, FL: 0, IMBEL: 0 }
     },
     {
         nome: 'CARABINA IA2 7,62',
-        preco: 12690.21, // 101.521,70 / 8 = ~12.690,21
-        distribuicao: { KOLTE: 4, ISA: 4, LC: 4, ADES: 4, FL: 4, IMBEL: 1 },
-        vendas: { KOLTE: 2, ISA: 2, LC: 0, ADES: 4, FL: 0, IMBEL: 1 }
+        preco: 12690.21,
+        distribuicao: { KOLTE: 0, ISA: 0, LC: 0, ADES: 0, FL: 0, IMBEL: 0 },
+        vendas: { KOLTE: 0, ISA: 0, LC: 0, ADES: 0, FL: 0, IMBEL: 0 }
     },
     {
         nome: 'FACA CAMPANHA AMZ',
-        preco: 360.00, // 74.880,00 / 208 = 360,00
-        distribuicao: { KOLTE: 100, ISA: 100, LC: 100, ADES: 100, FL: 100, IMBEL: 525 },
-        vendas: { KOLTE: 100, ISA: 100, LC: 0, ADES: 0, FL: 0, IMBEL: 8 }
+        preco: 360.00,
+        distribuicao: { KOLTE: 0, ISA: 0, LC: 0, ADES: 0, FL: 0, IMBEL: 0 },
+        vendas: { KOLTE: 0, ISA: 0, LC: 0, ADES: 0, FL: 0, IMBEL: 0 }
     },
     {
         nome: 'FACA POLICIAL AMZ',
-        preco: 352.45, // 18.680,00 / 53 = ~352,45
-        distribuicao: { KOLTE: 14, ISA: 20, LC: 0, ADES: 0, FL: 0, IMBEL: 8 },
-        vendas: { KOLTE: 20, ISA: 20, LC: 0, ADES: 5, FL: 0, IMBEL: 8 }
+        preco: 352.45,
+        distribuicao: { KOLTE: 0, ISA: 0, LC: 0, ADES: 0, FL: 0, IMBEL: 0 },
+        vendas: { KOLTE: 0, ISA: 0, LC: 0, ADES: 0, FL: 0, IMBEL: 0 }
     },
     {
         nome: 'FACA POLICIAL IA2',
         preco: 380.00,
-        distribuicao: { KOLTE: 20, ISA: 0, LC: 20, ADES: 0, FL: 20, IMBEL: 0 },
+        distribuicao: { KOLTE: 0, ISA: 0, LC: 0, ADES: 0, FL: 0, IMBEL: 0 },
         vendas: { KOLTE: 0, ISA: 0, LC: 0, ADES: 0, FL: 0, IMBEL: 0 }
     },
     {
         nome: 'FUZIL DE ALTA PRECISÃO IMBEL 308 AGLC (COMPLETO)',
-        preco: 13500.00, // 27.000,00 / 2 = 13.500,00
-        distribuicao: { KOLTE: 0, ISA: 0, LC: 0, ADES: 0, FL: 0, IMBEL: 2 },
-        vendas: { KOLTE: 0, ISA: 0, LC: 0, ADES: 0, FL: 0, IMBEL: 2 }
+        preco: 13500.00,
+        distribuicao: { KOLTE: 0, ISA: 0, LC: 0, ADES: 0, FL: 0, IMBEL: 0 },
+        vendas: { KOLTE: 0, ISA: 0, LC: 0, ADES: 0, FL: 0, IMBEL: 0 }
     },
     {
         nome: 'PISTOLA .40 GC MD7 C/ ADC',
-        preco: 5159.71, // 30.958,26 / 6 = ~5.159,71
-        distribuicao: { KOLTE: 2, ISA: 0, LC: 0, ADES: 4, FL: 0, IMBEL: 193 },
-        vendas: { KOLTE: 2, ISA: 0, LC: 0, ADES: 4, FL: 0, IMBEL: 0 }
+        preco: 5159.71,
+        distribuicao: { KOLTE: 0, ISA: 0, LC: 0, ADES: 0, FL: 0, IMBEL: 0 },
+        vendas: { KOLTE: 0, ISA: 0, LC: 0, ADES: 0, FL: 0, IMBEL: 0 }
     },
     {
         nome: 'PISTOLA 380 GC MD1 C/ ADC',
-        preco: 5219.54, // 46.975,85 / 9 = ~5.219,54
-        distribuicao: { KOLTE: 8, ISA: 8, LC: 8, ADES: 8, FL: 8, IMBEL: 10 },
-        vendas: { KOLTE: 2, ISA: 2, LC: 0, ADES: 5, FL: 0, IMBEL: 0 }
+        preco: 5219.54,
+        distribuicao: { KOLTE: 0, ISA: 0, LC: 0, ADES: 0, FL: 0, IMBEL: 0 },
+        vendas: { KOLTE: 0, ISA: 0, LC: 0, ADES: 0, FL: 0, IMBEL: 0 }
     },
     {
         nome: 'PISTOLA 380 GC MD1 S/ ADC',
-        preco: 5406.19, // 16.218,56 / 3 = ~5.406,19
-        distribuicao: { KOLTE: 8, ISA: 8, LC: 8, ADES: 8, FL: 8, IMBEL: 13 },
-        vendas: { KOLTE: 0, ISA: 3, LC: 0, ADES: 0, FL: 0, IMBEL: 0 }
+        preco: 5406.19,
+        distribuicao: { KOLTE: 0, ISA: 0, LC: 0, ADES: 0, FL: 0, IMBEL: 0 },
+        vendas: { KOLTE: 0, ISA: 0, LC: 0, ADES: 0, FL: 0, IMBEL: 0 }
     },
     {
         nome: 'PISTOLA 380 GC MD2 C/ ADC',
-        preco: 5162.57, // 56.788,27 / 11 = ~5.162,57
-        distribuicao: { KOLTE: 0, ISA: 0, LC: 0, ADES: 5, FL: 0, IMBEL: 60 },
-        vendas: { KOLTE: 0, ISA: 0, LC: 0, ADES: 5, FL: 0, IMBEL: 6 }
+        preco: 5162.57,
+        distribuicao: { KOLTE: 0, ISA: 0, LC: 0, ADES: 0, FL: 0, IMBEL: 0 },
+        vendas: { KOLTE: 0, ISA: 0, LC: 0, ADES: 0, FL: 0, IMBEL: 0 }
     },
     {
         nome: 'PISTOLA 380 GC MD2 S/ ADC',
-        preco: 5207.87, // 692.646,71 / 133 = ~5.207,87
-        distribuicao: { KOLTE: 50, ISA: 50, LC: 50, ADES: 50, FL: 50, IMBEL: 50 },
-        vendas: { KOLTE: 38, ISA: 45, LC: 0, ADES: 40, FL: 0, IMBEL: 10 }
+        preco: 5207.87,
+        distribuicao: { KOLTE: 0, ISA: 0, LC: 0, ADES: 0, FL: 0, IMBEL: 0 },
+        vendas: { KOLTE: 0, ISA: 0, LC: 0, ADES: 0, FL: 0, IMBEL: 0 }
     },
     {
         nome: 'PISTOLA 9 GC MD1 S/ ADC',
-        preco: 5236.30, // 141.379,97 / 27 = ~5.236,30
-        distribuicao: { KOLTE: 30, ISA: 30, LC: 30, ADES: 30, FL: 30, IMBEL: 46 },
-        vendas: { KOLTE: 2, ISA: 16, LC: 0, ADES: 9, FL: 0, IMBEL: 0 }
+        preco: 5236.30,
+        distribuicao: { KOLTE: 0, ISA: 0, LC: 0, ADES: 0, FL: 0, IMBEL: 0 },
+        vendas: { KOLTE: 0, ISA: 0, LC: 0, ADES: 0, FL: 0, IMBEL: 0 }
     }
 ];
 
