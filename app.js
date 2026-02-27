@@ -610,11 +610,11 @@ function salvarVendaDetalhada(event) {
 }
 
 function renderizarRegistroVendas() {
-    const tbody = document.getElementById('corpoTabelaVendas');
+    const tbody = document.getElementById('tabelaRegistroVendasBody');
     if (!tbody) return;
     
-    const filtroRep = document.getElementById('filtroVendaRep')?.value || '';
-    const filtroProduto = document.getElementById('filtroVendaProduto')?.value || '';
+    const filtroRep = document.getElementById('filtroRepresentante')?.value || '';
+    const filtroProduto = document.getElementById('filtroProduto')?.value || '';
     
     // Filtrar vendas
     let vendasFiltradas = estoque.registroVendas || [];
@@ -680,11 +680,11 @@ function renderizarRegistroVendas() {
 }
 
 function atualizarTotaisVendas(totalQtd, totalValor) {
-    const spanQtd = document.getElementById('totalVendasQtd');
-    const spanValor = document.getElementById('totalVendasValor');
+    const spanQtd = document.getElementById('totalQtdVendas');
+    const spanValor = document.getElementById('totalValorVendas');
     
-    if (spanQtd) spanQtd.textContent = totalQtd.toLocaleString('pt-BR');
-    if (spanValor) spanValor.textContent = formatarMoedaValor(totalValor);
+    if (spanQtd) spanQtd.innerHTML = `<strong>${totalQtd.toLocaleString('pt-BR')}</strong>`;
+    if (spanValor) spanValor.innerHTML = `<strong>${formatarMoedaValor(totalValor)}</strong>`;
 }
 
 function filtrarVendas() {
@@ -692,8 +692,8 @@ function filtrarVendas() {
 }
 
 function limparFiltrosVendas() {
-    const filtroRep = document.getElementById('filtroVendaRep');
-    const filtroProduto = document.getElementById('filtroVendaProduto');
+    const filtroRep = document.getElementById('filtroRepresentante');
+    const filtroProduto = document.getElementById('filtroProduto');
     
     if (filtroRep) filtroRep.value = '';
     if (filtroProduto) filtroProduto.value = '';
