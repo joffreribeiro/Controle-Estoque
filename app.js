@@ -1516,6 +1516,8 @@ function exportarEstoqueCompleto() {
     mostrarNotificacao('Estoque exportado com sucesso!', 'success');
 }
 
+
+
 function importarEstoque(event) {
     const file = event.target.files[0];
     if (!file) return;
