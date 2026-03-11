@@ -907,6 +907,7 @@ function renderizarRegistroVendas() {
     
     const filtroRep = document.getElementById('filtroRepresentante')?.value || '';
     const filtroProduto = document.getElementById('filtroProduto')?.value || '';
+    const filtroProdutoId = filtroProduto ? parseInt(filtroProduto) : null;
     
     // Filtrar vendas
     let vendasFiltradas = estoque.registroVendas || [];
@@ -914,9 +915,14 @@ function renderizarRegistroVendas() {
     if (filtroRep) {
         vendasFiltradas = vendasFiltradas.filter(v => v.representante === filtroRep);
     }
-    
-    if (filtroProduto) {
-        vendasFiltradas = vendasFiltradas.filter(v => v.produtoId === parseInt(filtroProduto));
+
+    if (filtroProdutoId) {
+        vendasFiltradas = vendasFiltradas.filter(v => {
+            if (Array.isArray(v.items) && v.items.length > 0) {
+                return v.items.some(it => it.produtoId === filtroProdutoId);
+            }
+            return v.produtoId === filtroProdutoId;
+        });
     }
     
     // Ordenar por contrato
@@ -946,45 +952,67 @@ function renderizarRegistroVendas() {
     let totalValor = 0;
 
     vendasFiltradas.forEach(venda => {
-        // Compatibilidade: vendas antigas podem ter campos individuais
-        let repClass = (venda.representante || '').toLowerCase();
-        let produtoHtml = '';
-        let qtd = 0;
-        let valorUn = '';
-        let valorTot = 0;
+        const repClass = (venda.representante || '').toLowerCase();
 
         if (Array.isArray(venda.items) && venda.items.length > 0) {
-            produtoHtml = venda.items.map(it => `${it.produtoNome} (${it.quantidade})`).join('<br>');
-            qtd = venda.quantidadeTotal || venda.items.reduce((s, it) => s + (it.quantidade || 0), 0);
-            valorTot = venda.valorTotal || venda.items.reduce((s, it) => s + (it.valorTotal || 0), 0);
-            // mostrar preço unitário médio
-            const somaUn = venda.items.reduce((s, it) => s + ((it.valorUnitario || 0) * (it.quantidade || 0)), 0);
-            valorUn = qtd > 0 ? formatarMoedaValor(somaUn / qtd) : '';
+            // Se houver filtro de produto, considerar apenas os itens correspondentes
+            let itemsToRender = venda.items;
+            if (filtroProdutoId) {
+                itemsToRender = itemsToRender.filter(it => it.produtoId === filtroProdutoId);
+            }
+
+            itemsToRender.forEach(it => {
+                const valorUn = it.valorUnitario ? formatarMoedaValor(it.valorUnitario) : '-';
+                const valorTot = it.valorTotal || (it.valorUnitario || 0) * (it.quantidade || 0);
+
+                totalQtd += it.quantidade || 0;
+                totalValor += valorTot || 0;
+
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td class="col-contrato">${venda.contrato}</td>
+                    <td class="col-loja" title="${venda.loja}">${venda.loja}</td>
+                    <td class="col-representante"><span class="badge-rep ${repClass}">${venda.representante}</span></td>
+                    <td class="col-produto-venda" title="${it.produtoNome}">${it.produtoNome}</td>
+                    <td class="col-qtd">${it.quantidade}</td>
+                    <td class="col-valor-un">${valorUn}</td>
+                    <td class="col-valor-total">${valorTot > 0 ? formatarMoedaValor(valorTot) : '-'}</td>
+                    <td class="col-obs" title="${venda.observacoes || '-'}">${venda.observacoes || '-'}</td>
+                    <td class="col-acoes">
+                        <button class="btn-action btn-delete" onclick="excluirVenda(${venda.id})" title="Excluir venda">🗑</button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
         } else {
-            produtoHtml = venda.produtoNome || '-';
-            qtd = venda.quantidade || 0;
-            valorUn = venda.valorUnitario ? formatarMoedaValor(venda.valorUnitario) : '';
-            valorTot = venda.valorTotal || 0;
+            // venda antiga com único produto
+            // Se filtro de produto estiver ativo, garantir que o produto bate (filtro aplicado antes, mas manter checagem)
+            if (filtroProdutoId && venda.produtoId !== filtroProdutoId) return;
+
+            const produtoNome = venda.produtoNome || '-';
+            const qtd = venda.quantidade || 0;
+            const valorUn = venda.valorUnitario ? formatarMoedaValor(venda.valorUnitario) : '-';
+            const valorTot = venda.valorTotal || 0;
+
+            totalQtd += qtd;
+            totalValor += valorTot;
+
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td class="col-contrato">${venda.contrato}</td>
+                <td class="col-loja" title="${venda.loja}">${venda.loja}</td>
+                <td class="col-representante"><span class="badge-rep ${repClass}">${venda.representante}</span></td>
+                <td class="col-produto-venda" title="${produtoNome}">${produtoNome}</td>
+                <td class="col-qtd">${qtd}</td>
+                <td class="col-valor-un">${valorUn}</td>
+                <td class="col-valor-total">${valorTot > 0 ? formatarMoedaValor(valorTot) : '-'}</td>
+                <td class="col-obs" title="${venda.observacoes || '-'}">${venda.observacoes || '-'}</td>
+                <td class="col-acoes">
+                    <button class="btn-action btn-delete" onclick="excluirVenda(${venda.id})" title="Excluir venda">🗑</button>
+                </td>
+            `;
+            tbody.appendChild(tr);
         }
-
-        totalQtd += qtd;
-        totalValor += valorTot;
-
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-            <td class="col-contrato">${venda.contrato}</td>
-            <td class="col-loja" title="${venda.loja}">${venda.loja}</td>
-            <td class="col-representante"><span class="badge-rep ${repClass}">${venda.representante}</span></td>
-            <td class="col-produto-venda" title="${produtoHtml}">${produtoHtml}</td>
-            <td class="col-qtd">${qtd}</td>
-            <td class="col-valor-un">${valorUn || '-'}</td>
-            <td class="col-valor-total">${valorTot > 0 ? formatarMoedaValor(valorTot) : '-'}</td>
-            <td class="col-obs" title="${venda.observacoes || '-'}">${venda.observacoes || '-'}</td>
-            <td class="col-acoes">
-                <button class="btn-action btn-delete" onclick="excluirVenda(${venda.id})" title="Excluir venda">🗑</button>
-            </td>
-        `;
-        tbody.appendChild(tr);
     });
     
     atualizarTotaisVendas(totalQtd, totalValor);
