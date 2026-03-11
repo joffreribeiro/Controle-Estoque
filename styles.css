@@ -773,11 +773,53 @@ tr.total-row:hover {
     max-height: 80vh;
 }
 
+/* Permitir redimensionar a janela do modal pelo usuário */
+.modal-content {
+    resize: both;
+    overflow: auto;
+    min-width: 480px;
+    min-height: 320px;
+}
+
 /* Container de itens dentro do modal - rolagem interna quando muitos itens */
 .itens-venda-container {
     max-height: 38vh;
     overflow-y: auto;
     padding-right: 8px;
+}
+
+/* Permitir também rolagem horizontal quando em layout horizontal */
+.itens-venda-container { overflow: auto; }
+
+/* Layout vertical (padrão) */
+.itens-venda-container.itens-layout-vertical {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+/* Layout horizontal: itens organizados em cards lado-a-lado com rolagem horizontal */
+.itens-venda-container.itens-layout-horizontal {
+    display: flex;
+    flex-direction: row;
+    gap: 12px;
+    align-items: flex-start;
+    white-space: nowrap;
+}
+
+.itens-venda-container.itens-layout-horizontal .item-venda-row {
+    display: flex;
+    flex-direction: column;
+    width: 320px;
+    min-width: 280px;
+    background: #fbfdff;
+    padding: 10px;
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+}
+
+.itens-venda-container.itens-layout-horizontal .item-venda-row .item-subtotal {
+    text-align: right;
 }
 
 /* Estilo das linhas de item para melhorar leitura */

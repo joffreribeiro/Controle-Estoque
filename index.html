@@ -683,8 +683,10 @@
 
                         <div class="form-row">
                             <div class="form-group full-width">
-                                <label>Itens da Venda</label>
-                                <div id="itensVendaContainer" class="itens-venda-container"></div>
+                                <label>Itens da Venda
+                                    <button type="button" class="btn btn-outline btn-sm" style="margin-left:10px; vertical-align:middle;" id="btnToggleLayout" onclick="toggleItensLayout()">Layout: Vertical</button>
+                                </label>
+                                <div id="itensVendaContainer" class="itens-venda-container itens-layout-vertical"></div>
                                 <div style="margin-top:8px">
                                     <button type="button" class="btn btn-outline btn-sm" onclick="adicionarItemVendaRow()">+ Adicionar Item</button>
                                 </div>
