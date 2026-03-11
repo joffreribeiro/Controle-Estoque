@@ -547,11 +547,13 @@ th.col-produto {
 .header-geral { background: var(--primary-dark); }
 
 .sub-header {
-    background: #4a6785;
+    /* Tornar transparente por padrão para que cores por representante prevaleçam */
+    background: transparent;
     font-size: 0.65rem;
     padding: 8px 6px;
-    font-weight: 500;
+    font-weight: 600;
     letter-spacing: 0.3px;
+    color: inherit;
 }
 
 td {
