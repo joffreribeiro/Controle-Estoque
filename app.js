@@ -1516,6 +1516,78 @@ function exportarEstoqueCompleto() {
     mostrarNotificacao('Estoque exportado com sucesso!', 'success');
 }
 
+// ========================================
+// EXPORTAR / IMPORTAR SISTEMA COMPLETO (JSON)
+// ========================================
+
+function exportarSistema() {
+    try {
+        const dataStr = JSON.stringify(estoque, null, 2);
+        const blob = new Blob([dataStr], { type: 'application/json' });
+        const link = document.createElement('a');
+        const url = URL.createObjectURL(blob);
+        const dataAtual = new Date().toISOString().split('T')[0];
+
+        link.setAttribute('href', url);
+        link.setAttribute('download', `controle_estoque_full_${dataAtual}.json`);
+        link.style.visibility = 'hidden';
+
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        mostrarNotificacao('Exportação do sistema concluída!', 'success');
+    } catch (error) {
+        console.error('Erro ao exportar sistema:', error);
+        mostrarNotificacao('Erro ao exportar o sistema.', 'error');
+    }
+}
+
+function importarSistema(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        try {
+            const conteudo = e.target.result;
+            const obj = JSON.parse(conteudo);
+
+            // Validações básicas
+            if (!obj || !Array.isArray(obj.produtos) || !Array.isArray(obj.representantes)) {
+                mostrarNotificacao('Arquivo inválido: formato JSON inesperado.', 'error');
+                event.target.value = '';
+                return;
+            }
+
+            if (!confirm('⚠️ Importar o arquivo substituirá TODO o estado do sistema atual (produtos, distribuições e vendas). Deseja continuar?')) {
+                event.target.value = '';
+                return;
+            }
+
+            // Substitui o estado em memória e persiste
+            estoque = obj;
+            salvarDados();
+
+            // Re-renderizar tudo
+            renderizarTabela();
+            renderizarDashboard();
+            renderizarRegistroVendas();
+            renderizarRegistroDistribuicao();
+            atualizarSelectsProdutos();
+            atualizarEstatisticas();
+
+            mostrarNotificacao('Importação do sistema concluída com sucesso!', 'success');
+        } catch (error) {
+            console.error('Erro ao importar sistema:', error);
+            mostrarNotificacao('Erro ao processar o arquivo JSON. Verifique o formato.', 'error');
+        } finally {
+            event.target.value = '';
+        }
+    };
+
+    reader.readAsText(file, 'UTF-8');
+}
+
 
 
 function importarEstoque(event) {

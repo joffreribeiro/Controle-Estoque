@@ -101,6 +101,15 @@
                     Exportar Excel
                 </button>
                 
+                <button class="btn btn-outline" onclick="document.getElementById('inputImportarSistema').click()">
+                    <span class="btn-icon">🔁</span>
+                    Importar Sistema
+                </button>
+                <input type="file" id="inputImportarSistema" accept=".json,application/json" style="display:none" onchange="importarSistema(event)">
+                <button class="btn btn-outline" onclick="exportarSistema()">
+                    <span class="btn-icon">💾</span>
+                    Exportar Sistema
+                </button>
             </div>
 
             <div class="actions-divider"></div>
