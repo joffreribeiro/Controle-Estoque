@@ -679,20 +679,21 @@
                                     <option value="IMBEL">IMBEL (Venda Direta)</option>
                                 </select>
                             </div>
-                            <div class="form-group">
-                                <label for="produtoVendaDet">Produto <span class="required">*</span></label>
-                                <select id="produtoVendaDet" required onchange="atualizarPrecoVenda()">
-                                    <option value="">Selecione um produto</option>
-                                </select>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group full-width">
+                                <label>Itens da Venda</label>
+                                <div id="itensVendaContainer" class="itens-venda-container"></div>
+                                <div style="margin-top:8px">
+                                    <button type="button" class="btn btn-outline btn-sm" onclick="adicionarItemVendaRow()">+ Adicionar Item</button>
+                                </div>
                             </div>
                         </div>
+
                         <div class="form-row">
                             <div class="form-group">
-                                <label for="quantidadeVendaDet">Quantidade <span class="required">*</span></label>
-                                <input type="number" id="quantidadeVendaDet" required min="1" placeholder="0" onchange="atualizarPrecoVenda()" onkeyup="atualizarPrecoVenda()">
-                            </div>
-                            <div class="form-group">
-                                <label for="valorUnitarioVenda">Valor Unitário (R$)</label>
+                                <label for="valorUnitarioVenda">Valor Unitário (média)</label>
                                 <input type="text" id="valorUnitarioVenda" readonly class="readonly-field">
                             </div>
                             <div class="form-group">

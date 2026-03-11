@@ -618,12 +618,122 @@ function abrirModalVendaDetalhada() {
     document.getElementById('valorUnitarioVenda').value = '';
     document.getElementById('valorTotalVenda').value = '';
     atualizarSelectsProdutos();
-    
+
+    // Limpar container e adicionar um item padrão
+    const container = document.getElementById('itensVendaContainer');
+    if (container) {
+        container.innerHTML = '';
+        adicionarItemVendaRow();
+    }
+
     // Sugerir próximo número de contrato
     const ultimoContrato = estoque.registroVendas.length > 0 
         ? Math.max(...estoque.registroVendas.map(v => parseInt(v.contrato) || 0)) 
         : 0;
     document.getElementById('contratoVenda').value = ultimoContrato + 1;
+}
+
+// Constrói opções de produtos (HTML) para selects dinâmicos
+function construirOpcoesProdutos() {
+    let html = '<option value="">Selecione um produto</option>';
+    estoque.produtos.forEach(produto => {
+        html += `<option value="${produto.id}">${produto.nome}</option>`;
+    });
+    return html;
+}
+
+function adicionarItemVendaRow(preProdutoId = '', preQuantidade = 1, preValor = '') {
+    const container = document.getElementById('itensVendaContainer');
+    if (!container) return;
+
+    const row = document.createElement('div');
+    row.className = 'item-venda-row';
+    row.style.display = 'flex';
+    row.style.gap = '8px';
+    row.style.alignItems = 'center';
+    row.style.marginBottom = '6px';
+
+    row.innerHTML = `
+        <select class="item-produto" onchange="atualizarItemRow(this)">${construirOpcoesProdutos()}</select>
+        <input type="number" class="item-quantidade" min="1" value="${preQuantidade}" style="width:90px" onchange="atualizarItemRow(this)" />
+        <input type="text" class="item-valor" placeholder="Valor unit. (opcional)" style="width:140px" oninput="formatarMoeda(this); atualizarItemRow(this)" />
+        <div class="item-subtotal" style="min-width:120px">-</div>
+        <button type="button" class="btn btn-outline btn-sm" onclick="removerItemRow(this)">Remover</button>
+    `;
+
+    container.appendChild(row);
+
+    // Preencher valores se fornecidos
+    if (preProdutoId) row.querySelector('.item-produto').value = preProdutoId;
+    if (preValor) row.querySelector('.item-valor').value = preValor;
+
+    // Atualizar visual do item
+    atualizarItemRow(row.querySelector('.item-produto'));
+}
+
+function removerItemRow(btn) {
+    const row = btn.closest('.item-venda-row');
+    if (row) {
+        row.remove();
+        atualizarTotalVendaDetalhada();
+    }
+}
+
+function atualizarItemRow(el) {
+    const row = el.closest ? el.closest('.item-venda-row') : el.parentElement;
+    if (!row) return;
+
+    const produtoId = parseInt(row.querySelector('.item-produto').value) || null;
+    const quantidade = parseInt(row.querySelector('.item-quantidade').value) || 0;
+    const valorInput = row.querySelector('.item-valor').value || '';
+    const produto = estoque.produtos.find(p => p.id === produtoId);
+
+    let unit = 0;
+    if (valorInput && valorInput.trim() !== '') {
+        unit = converterMoedaParaNumero(valorInput);
+    } else if (produto && produto.preco) {
+        unit = produto.preco;
+    }
+
+    const subtotal = unit * quantidade;
+    const subtotalEl = row.querySelector('.item-subtotal');
+    subtotalEl.textContent = quantidade > 0 ? formatarMoedaValor(subtotal) : '-';
+
+    // Mostrar placeholder do preço padrão se o campo estiver vazio
+    const valorEl = row.querySelector('.item-valor');
+    if (valorEl && (!valorEl.value || valorEl.value.trim() === '')) {
+        valorEl.placeholder = produto && produto.preco ? formatarMoedaValor(produto.preco) : 'Opcional';
+    }
+
+    atualizarTotalVendaDetalhada();
+}
+
+function atualizarTotalVendaDetalhada() {
+    const container = document.getElementById('itensVendaContainer');
+    if (!container) return;
+
+    let total = 0;
+    let totalQtd = 0;
+    const rows = container.querySelectorAll('.item-venda-row');
+    rows.forEach(row => {
+        const quantidade = parseInt(row.querySelector('.item-quantidade').value) || 0;
+        const valorInput = row.querySelector('.item-valor').value || '';
+        const produtoId = parseInt(row.querySelector('.item-produto').value) || null;
+        const produto = estoque.produtos.find(p => p.id === produtoId);
+
+        let unit = 0;
+        if (valorInput && valorInput.trim() !== '') {
+            unit = converterMoedaParaNumero(valorInput);
+        } else if (produto && produto.preco) {
+            unit = produto.preco;
+        }
+
+        total += unit * quantidade;
+        totalQtd += quantidade;
+    });
+
+    document.getElementById('valorTotalVenda').value = total > 0 ? formatarMoedaValor(total) : '';
+    document.getElementById('valorUnitarioVenda').value = totalQtd > 0 ? formatarMoedaValor(total / totalQtd) : '';
 }
 
 function atualizarPrecoVenda() {
@@ -646,62 +756,112 @@ function atualizarPrecoVenda() {
 
 function salvarVendaDetalhada(event) {
     event.preventDefault();
-    
+
     const contrato = document.getElementById('contratoVenda').value.trim();
     const loja = document.getElementById('lojaVenda').value.trim().toUpperCase();
     const representante = document.getElementById('representanteVendaDet').value;
-    const produtoId = parseInt(document.getElementById('produtoVendaDet').value);
-    const quantidade = parseInt(document.getElementById('quantidadeVendaDet').value);
     const observacoes = document.getElementById('observacoesVenda').value.trim();
-    
-    const produto = estoque.produtos.find(p => p.id === produtoId);
-    
-    if (!produto) {
-        mostrarNotificacao('Produto não encontrado!', 'error');
+
+    // Coletar itens
+    const container = document.getElementById('itensVendaContainer');
+    if (!container) {
+        mostrarNotificacao('Erro interno: container de itens não encontrado.', 'error');
         return;
     }
-    
-    // Verificar estoque disponível
-    const disp = produto.distribuicao[representante] || 0;
-    const vendido = produto.vendas[representante] || 0;
-    const saldo = disp - vendido;
-    
-    if (quantidade > saldo) {
-        mostrarNotificacao(`Estoque insuficiente! ${representante} possui apenas ${saldo} unidades disponíveis.`, 'error');
+
+    const rows = Array.from(container.querySelectorAll('.item-venda-row'));
+    if (rows.length === 0) {
+        mostrarNotificacao('Adicione ao menos um item à venda.', 'error');
         return;
     }
-    
-    const valorUnitario = produto.preco || 0;
-    const valorTotal = valorUnitario * quantidade;
-    
-    // Criar registro da venda
+
+    let itens = [];
+    let erros = [];
+    let totalQtd = 0;
+    let totalValor = 0;
+
+    rows.forEach((row, idx) => {
+        const produtoId = parseInt(row.querySelector('.item-produto').value) || null;
+        const quantidade = parseInt(row.querySelector('.item-quantidade').value) || 0;
+        const valorInput = row.querySelector('.item-valor').value || '';
+
+        if (!produtoId || quantidade <= 0) {
+            erros.push(`Item ${idx + 1}: produto ou quantidade inválidos.`);
+            return;
+        }
+
+        const produto = estoque.produtos.find(p => p.id === produtoId);
+        if (!produto) {
+            erros.push(`Item ${idx + 1}: produto não encontrado.`);
+            return;
+        }
+
+        // Determinar preço unitário (opcional)
+        let unit = 0;
+        if (valorInput && valorInput.trim() !== '') {
+            unit = converterMoedaParaNumero(valorInput);
+        } else if (produto.preco) {
+            unit = produto.preco;
+        }
+
+        const valorTotalItem = unit * quantidade;
+
+        itens.push({ produtoId: produtoId, produtoNome: produto.nome, quantidade: quantidade, valorUnitario: unit, valorTotal: valorTotalItem });
+
+        totalQtd += quantidade;
+        totalValor += valorTotalItem;
+    });
+
+    if (erros.length > 0) {
+        mostrarNotificacao(erros.join('\n'), 'error');
+        return;
+    }
+
+    // Validar estoque para cada item (no representante selecionado)
+    let falta = [];
+    itens.forEach(it => {
+        const produto = estoque.produtos.find(p => p.id === it.produtoId);
+        const disp = produto.distribuicao[representante] || 0;
+        const vendido = produto.vendas[representante] || 0;
+        const saldo = disp - vendido;
+        if (it.quantidade > saldo) {
+            falta.push(`${produto.nome}: disponível ${saldo}, solicitado ${it.quantidade}`);
+        }
+    });
+
+    if (falta.length > 0) {
+        mostrarNotificacao('Estoque insuficiente:\n' + falta.join('\n'), 'error');
+        return;
+    }
+
+    // Atualizar vendas no estoque para todos os itens
+    itens.forEach(it => {
+        const produto = estoque.produtos.find(p => p.id === it.produtoId);
+        produto.vendas[representante] = (produto.vendas[representante] || 0) + it.quantidade;
+    });
+
+    // Criar registro de venda com múltiplos itens
     const novaVenda = {
         id: Date.now(),
         contrato: contrato,
         loja: loja,
         representante: representante,
-        produtoId: produtoId,
-        produtoNome: produto.nome,
-        quantidade: quantidade,
-        valorUnitario: valorUnitario,
-        valorTotal: valorTotal,
+        items: itens,
+        quantidadeTotal: totalQtd,
+        valorTotal: totalValor,
         observacoes: observacoes,
         data: new Date().toISOString()
     };
-    
-    // Atualizar vendas no estoque
-    produto.vendas[representante] = (produto.vendas[representante] || 0) + quantidade;
-    
-    // Adicionar ao registro
+
     estoque.registroVendas.push(novaVenda);
-    
+
     salvarDados();
     renderizarTabela();
     renderizarDashboard();
     renderizarRegistroVendas();
     fecharModal('modalVendaDetalhada');
-    
-    mostrarNotificacao(`Venda registrada: Contrato ${contrato} - ${quantidade}x "${produto.nome}" - ${formatarMoedaValor(valorTotal)}`, 'success');
+
+    mostrarNotificacao(`Venda registrada: Contrato ${contrato} - ${totalQtd} itens - ${formatarMoedaValor(totalValor)}`, 'success');
 }
 
 function renderizarRegistroVendas() {
@@ -747,22 +907,41 @@ function renderizarRegistroVendas() {
     
     let totalQtd = 0;
     let totalValor = 0;
-    
+
     vendasFiltradas.forEach(venda => {
-        totalQtd += venda.quantidade;
-        totalValor += venda.valorTotal;
-        
-        const repClass = venda.representante.toLowerCase();
-        
+        // Compatibilidade: vendas antigas podem ter campos individuais
+        let repClass = (venda.representante || '').toLowerCase();
+        let produtoHtml = '';
+        let qtd = 0;
+        let valorUn = '';
+        let valorTot = 0;
+
+        if (Array.isArray(venda.items) && venda.items.length > 0) {
+            produtoHtml = venda.items.map(it => `${it.produtoNome} (${it.quantidade})`).join('<br>');
+            qtd = venda.quantidadeTotal || venda.items.reduce((s, it) => s + (it.quantidade || 0), 0);
+            valorTot = venda.valorTotal || venda.items.reduce((s, it) => s + (it.valorTotal || 0), 0);
+            // mostrar preço unitário médio
+            const somaUn = venda.items.reduce((s, it) => s + ((it.valorUnitario || 0) * (it.quantidade || 0)), 0);
+            valorUn = qtd > 0 ? formatarMoedaValor(somaUn / qtd) : '';
+        } else {
+            produtoHtml = venda.produtoNome || '-';
+            qtd = venda.quantidade || 0;
+            valorUn = venda.valorUnitario ? formatarMoedaValor(venda.valorUnitario) : '';
+            valorTot = venda.valorTotal || 0;
+        }
+
+        totalQtd += qtd;
+        totalValor += valorTot;
+
         const tr = document.createElement('tr');
         tr.innerHTML = `
             <td class="col-contrato">${venda.contrato}</td>
             <td class="col-loja" title="${venda.loja}">${venda.loja}</td>
             <td class="col-representante"><span class="badge-rep ${repClass}">${venda.representante}</span></td>
-            <td class="col-produto-venda" title="${venda.produtoNome}">${venda.produtoNome}</td>
-            <td class="col-qtd">${venda.quantidade}</td>
-            <td class="col-valor-un">${formatarMoedaValor(venda.valorUnitario)}</td>
-            <td class="col-valor-total">${formatarMoedaValor(venda.valorTotal)}</td>
+            <td class="col-produto-venda" title="${produtoHtml}">${produtoHtml}</td>
+            <td class="col-qtd">${qtd}</td>
+            <td class="col-valor-un">${valorUn || '-'}</td>
+            <td class="col-valor-total">${valorTot > 0 ? formatarMoedaValor(valorTot) : '-'}</td>
             <td class="col-obs" title="${venda.observacoes || '-'}">${venda.observacoes || '-'}</td>
             <td class="col-acoes">
                 <button class="btn-action btn-delete" onclick="excluirVenda(${venda.id})" title="Excluir venda">🗑</button>
@@ -798,30 +977,47 @@ function limparFiltrosVendas() {
 
 function excluirVenda(vendaId) {
     const venda = estoque.registroVendas.find(v => v.id === vendaId);
-    
+
     if (!venda) {
         mostrarNotificacao('Venda não encontrada!', 'error');
         return;
     }
-    
-    if (!confirm(`Deseja excluir a venda do contrato ${venda.contrato}?\n\nProduto: ${venda.produtoNome}\nQuantidade: ${venda.quantidade}\nValor: ${formatarMoedaValor(venda.valorTotal)}\n\nATENÇÃO: A quantidade será devolvida ao estoque do representante.`)) {
+
+    // Mensagem resumo para confirmação
+    let resumo = '';
+    if (Array.isArray(venda.items) && venda.items.length > 0) {
+        resumo = venda.items.map(it => `${it.produtoNome} x ${it.quantidade}`).join('\n');
+    } else {
+        resumo = `${venda.produtoNome || '-'} x ${venda.quantidade || 0}`;
+    }
+
+    if (!confirm(`Deseja excluir a venda do contrato ${venda.contrato}?\n\n${resumo}\n\nATENÇÃO: As quantidades serão devolvidas ao estoque do representante.`)) {
         return;
     }
-    
-    // Devolver ao estoque
-    const produto = estoque.produtos.find(p => p.id === venda.produtoId);
-    if (produto) {
-        produto.vendas[venda.representante] = Math.max(0, (produto.vendas[venda.representante] || 0) - venda.quantidade);
+
+    // Devolver ao estoque: lidar com vendas multi-itens
+    if (Array.isArray(venda.items) && venda.items.length > 0) {
+        venda.items.forEach(it => {
+            const produto = estoque.produtos.find(p => p.id === it.produtoId);
+            if (produto) {
+                produto.vendas[venda.representante] = Math.max(0, (produto.vendas[venda.representante] || 0) - it.quantidade);
+            }
+        });
+    } else {
+        const produto = estoque.produtos.find(p => p.id === venda.produtoId);
+        if (produto) {
+            produto.vendas[venda.representante] = Math.max(0, (produto.vendas[venda.representante] || 0) - venda.quantidade);
+        }
     }
-    
+
     // Remover do registro
     estoque.registroVendas = estoque.registroVendas.filter(v => v.id !== vendaId);
-    
+
     salvarDados();
     renderizarTabela();
     renderizarDashboard();
     renderizarRegistroVendas();
-    
+
     mostrarNotificacao(`Venda do contrato ${venda.contrato} excluída com sucesso!`, 'success');
 }
 
