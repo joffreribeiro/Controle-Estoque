@@ -231,11 +231,12 @@ function renderizarTabela() {
             totais[rep].saldo += saldo;
 
             const saldoClass = saldo < 0 ? 'negativo' : (saldo > 0 && saldo <= 5 ? 'baixo' : '');
-            
+            const animateClass = saldo < 0 ? 'animate-negativo' : '';
+
             tr.innerHTML += `
                 <td class="cell-disp ${disp === 0 ? 'cell-zero' : ''}">${formatarNumero(disp)}</td>
                 <td class="cell-venda ${venda === 0 ? 'cell-zero' : ''}">${formatarNumero(venda)}</td>
-                <td class="cell-saldo ${saldoClass} ${saldo === 0 ? 'cell-zero' : ''}">${formatarNumero(saldo)}</td>
+                <td class="cell-saldo ${saldoClass} ${saldo === 0 ? 'cell-zero' : ''} ${animateClass}">${formatarNumero(saldo)}</td>
             `;
         });
 
@@ -246,10 +247,11 @@ function renderizarTabela() {
 
         const saldoGeralClass = geralSaldo < 0 ? 'negativo' : (geralSaldo > 0 && geralSaldo <= 10 ? 'baixo' : '');
 
+        const animateGeral = geralSaldo < 0 ? 'animate-negativo' : '';
         tr.innerHTML += `
             <td class="geral-disp">${formatarNumero(geralDisp)}</td>
             <td class="geral-venda">${formatarNumero(geralVenda)}</td>
-            <td class="geral-saldo ${saldoGeralClass}">${formatarNumero(geralSaldo)}</td>
+            <td class="geral-saldo ${saldoGeralClass} ${animateGeral}">${formatarNumero(geralSaldo)}</td>
         `;
 
         tbody.appendChild(tr);
@@ -261,17 +263,24 @@ function renderizarTabela() {
     trTotal.innerHTML = `<td class="produto-nome col-produto"><strong>TOTAL GERAL</strong></td>`;
 
     estoque.representantes.forEach(rep => {
+        const saldoRep = totais[rep].saldo;
+        const saldoRepClass = saldoRep < 0 ? 'negativo' : (saldoRep > 0 && saldoRep <= 5 ? 'baixo' : '');
+        const animateRep = saldoRep < 0 ? 'animate-negativo' : '';
         trTotal.innerHTML += `
             <td class="cell-disp"><strong>${formatarNumero(totais[rep].disp)}</strong></td>
             <td class="cell-venda"><strong>${formatarNumero(totais[rep].venda)}</strong></td>
-            <td class="cell-saldo"><strong>${formatarNumero(totais[rep].saldo)}</strong></td>
+            <td class="cell-saldo ${saldoRepClass} ${animateRep}"><strong>${formatarNumero(totais[rep].saldo)}</strong></td>
         `;
     });
+
+    const saldoGeralTotal = totais.GERAL.saldo;
+    const saldoGeralTotalClass = saldoGeralTotal < 0 ? 'negativo' : (saldoGeralTotal > 0 && saldoGeralTotal <= 10 ? 'baixo' : '');
+    const animateGeralTotal = saldoGeralTotal < 0 ? 'animate-negativo' : '';
 
     trTotal.innerHTML += `
         <td class="geral-disp"><strong>${formatarNumero(totais.GERAL.disp)}</strong></td>
         <td class="geral-venda"><strong>${formatarNumero(totais.GERAL.venda)}</strong></td>
-        <td class="geral-saldo"><strong>${formatarNumero(totais.GERAL.saldo)}</strong></td>
+        <td class="geral-saldo ${saldoGeralTotalClass} ${animateGeralTotal}"><strong>${formatarNumero(totais.GERAL.saldo)}</strong></td>
     `;
 
     tbody.appendChild(trTotal);
