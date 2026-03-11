@@ -211,7 +211,9 @@ function renderizarTabela() {
         GERAL: { disp: 0, venda: 0, saldo: 0 }
     };
 
-    estoque.produtos.forEach(produto => {
+    // Ordenar produtos alfabeticamente por nome para exibição
+    const produtosOrdenados = [...estoque.produtos].sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
+    produtosOrdenados.forEach(produto => {
         const tr = document.createElement('tr');
         tr.innerHTML = `<td class="produto-nome col-produto" title="${produto.nome}">${produto.nome}</td>`;
 
@@ -262,6 +264,7 @@ function renderizarTabela() {
     trTotal.className = 'total-row';
     trTotal.innerHTML = `<td class="produto-nome col-produto"><strong>TOTAL GERAL</strong></td>`;
 
+    produtosOrdenados.forEach(repProd => {}); // placeholder to keep lint tools happy
     estoque.representantes.forEach(rep => {
         const saldoRep = totais[rep].saldo;
         const saldoRepClass = saldoRep < 0 ? 'negativo' : (saldoRep > 0 && saldoRep <= 5 ? 'baixo' : '');
@@ -519,8 +522,9 @@ function atualizarSelectsProdutos() {
             const valorAtual = select.value;
             const primeiraOpcao = (selectId === 'filtroProduto' || selectId === 'filtroDistribuicaoProduto') ? 'Todos' : 'Selecione um produto';
             select.innerHTML = `<option value="">${primeiraOpcao}</option>`;
-            
-            estoque.produtos.forEach(produto => {
+            // Preencher em ordem alfabética
+            const produtosOrdenados = [...estoque.produtos].sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
+            produtosOrdenados.forEach(produto => {
                 const option = document.createElement('option');
                 option.value = produto.id;
                 option.textContent = produto.nome;
@@ -537,8 +541,8 @@ function atualizarSelectDistribuicaoProduto() {
     if (select) {
         const valorAtual = select.value;
         select.innerHTML = '<option value="">Todos</option>';
-        
-        estoque.produtos.forEach(produto => {
+        const produtosOrdenados = [...estoque.produtos].sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
+        produtosOrdenados.forEach(produto => {
             const option = document.createElement('option');
             option.value = produto.id;
             option.textContent = produto.nome;
@@ -561,8 +565,8 @@ function abrirModalEntradaEstoque() {
     // Atualizar select de produtos
     const select = document.getElementById('produtoEntrada');
     select.innerHTML = '<option value="">Selecione um produto</option>';
-    
-    estoque.produtos.forEach(produto => {
+    const produtosOrdenados = [...estoque.produtos].sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
+    produtosOrdenados.forEach(produto => {
         const option = document.createElement('option');
         option.value = produto.id;
         option.textContent = produto.nome;
@@ -636,7 +640,8 @@ function abrirModalVendaDetalhada() {
 // Constrói opções de produtos (HTML) para selects dinâmicos
 function construirOpcoesProdutos() {
     let html = '<option value="">Selecione um produto</option>';
-    estoque.produtos.forEach(produto => {
+    const produtosOrdenados = [...estoque.produtos].sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
+    produtosOrdenados.forEach(produto => {
         html += `<option value="${produto.id}">${produto.nome}</option>`;
     });
     return html;
@@ -1470,6 +1475,8 @@ function salvarProduto(event) {
     };
     
     estoque.produtos.push(novoProduto);
+    // Atualizar selects imediatamente para refletir o novo produto em qualquer modal aberto
+    atualizarSelectsProdutos();
     salvarDados();
     renderizarTabela();
     renderizarDashboard();
