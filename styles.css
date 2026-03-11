@@ -707,7 +707,7 @@ tr.total-row:hover {
     padding: 0;
     border-radius: 12px;
     width: 90%;
-    max-width: 500px;
+    max-width: 700px;
     box-shadow: var(--shadow-lg);
     animation: slideIn 0.3s ease;
     overflow: hidden;
@@ -761,7 +761,60 @@ tr.total-row:hover {
 }
 
 .modal-body {
-    padding: 25px;
+    padding: 20px 20px 0 20px;
+    overflow: auto;
+    flex: 1 1 auto;
+}
+
+/* Tornar o modal com altura limitada e o corpo rolável para manter o rodapé visível */
+.modal-content {
+    display: flex;
+    flex-direction: column;
+    max-height: 80vh;
+}
+
+/* Container de itens dentro do modal - rolagem interna quando muitos itens */
+.itens-venda-container {
+    max-height: 38vh;
+    overflow-y: auto;
+    padding-right: 8px;
+}
+
+/* Estilo das linhas de item para melhorar leitura */
+.item-venda-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.item-venda-row .item-produto {
+    min-width: 260px;
+    flex: 1 1 320px;
+}
+
+.item-venda-row .item-quantidade {
+    width: 90px;
+    flex: 0 0 90px;
+}
+
+.item-venda-row .item-valor {
+    width: 140px;
+    flex: 0 0 140px;
+}
+
+.item-venda-row .item-subtotal {
+    min-width: 120px;
+    flex: 0 0 120px;
+    text-align: right;
+}
+
+/* Em telas pequenas, empilhar elementos para caber melhor */
+@media (max-width: 600px) {
+    .item-venda-row { flex-direction: column; align-items: stretch; }
+    .item-venda-row .item-quantidade,
+    .item-venda-row .item-valor,
+    .item-venda-row .item-subtotal { width: 100%; flex: none; text-align: left; }
 }
 
 .form-group {
