@@ -643,32 +643,46 @@ function construirOpcoesProdutos() {
 }
 
 function adicionarItemVendaRow(preProdutoId = '', preQuantidade = 1, preValor = '') {
-    const container = document.getElementById('itensVendaContainer');
-    if (!container) return;
+    try {
+        const container = document.getElementById('itensVendaContainer');
+        if (!container) return;
 
-    const row = document.createElement('div');
-    row.className = 'item-venda-row';
-    row.style.display = 'flex';
-    row.style.gap = '8px';
-    row.style.alignItems = 'center';
-    row.style.marginBottom = '6px';
+        const row = document.createElement('div');
+        row.className = 'item-venda-row';
+        row.style.display = 'flex';
+        row.style.gap = '8px';
+        row.style.alignItems = 'center';
+        row.style.marginBottom = '6px';
 
-    row.innerHTML = `
-        <select class="item-produto" onchange="atualizarItemRow(this)">${construirOpcoesProdutos()}</select>
-        <input type="number" class="item-quantidade" min="1" value="${preQuantidade}" style="width:90px" onchange="atualizarItemRow(this)" />
-        <input type="text" class="item-valor" placeholder="Valor unit. (opcional)" style="width:140px" oninput="formatarMoeda(this); atualizarItemRow(this)" />
-        <div class="item-subtotal" style="min-width:120px">-</div>
-        <button type="button" class="btn btn-outline btn-sm" onclick="removerItemRow(this)">Remover</button>
-    `;
+        // Construir opções com segurança
+        let opcoesHtml = '';
+        try {
+            opcoesHtml = construirOpcoesProdutos();
+        } catch (err) {
+            console.error('Erro ao construir opções de produtos:', err);
+            opcoesHtml = '<option value="">(nenhum produto)</option>';
+        }
 
-    container.appendChild(row);
+        row.innerHTML = `
+            <select class="item-produto" onchange="atualizarItemRow(this)">${opcoesHtml}</select>
+            <input type="number" class="item-quantidade" min="1" value="${preQuantidade}" style="width:90px" onchange="atualizarItemRow(this)" />
+            <input type="text" class="item-valor" placeholder="Valor unit. (opcional)" style="width:140px" oninput="formatarMoeda(this); atualizarItemRow(this)" />
+            <div class="item-subtotal" style="min-width:120px">-</div>
+            <button type="button" class="btn btn-outline btn-sm" onclick="removerItemRow(this)">Remover</button>
+        `;
 
-    // Preencher valores se fornecidos
-    if (preProdutoId) row.querySelector('.item-produto').value = preProdutoId;
-    if (preValor) row.querySelector('.item-valor').value = preValor;
+        container.appendChild(row);
 
-    // Atualizar visual do item
-    atualizarItemRow(row.querySelector('.item-produto'));
+        // Preencher valores se fornecidos
+        if (preProdutoId) row.querySelector('.item-produto').value = preProdutoId;
+        if (preValor) row.querySelector('.item-valor').value = preValor;
+
+        // Atualizar visual do item
+        atualizarItemRow(row.querySelector('.item-produto'));
+    } catch (err) {
+        console.error('Erro em adicionarItemVendaRow:', err);
+        mostrarNotificacao('Erro ao adicionar item. Veja o console para detalhes.', 'error');
+    }
 }
 
 function removerItemRow(btn) {
