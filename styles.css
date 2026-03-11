@@ -603,6 +603,20 @@ td.produto-nome {
 .cell-venda { color: var(--primary-light); font-weight: 600; }
 .cell-saldo { color: var(--success-color); font-weight: 600; }
 .cell-saldo.negativo { color: var(--danger-color); background: rgba(220, 53, 69, 0.08); }
+.cell-saldo.negativo { font-weight: 800; }
+
+/* Garantir que saldos consolidados negativos também fiquem vermelhos */
+#tabelaEstoque td.geral-saldo.negativo {
+    color: var(--danger-color);
+    background: rgba(220, 53, 69, 0.06);
+    font-weight: 800;
+}
+
+/* Totais negativos na linha de totais */
+tr.total-row td.geral-saldo.negativo {
+    color: var(--danger-color);
+    background: rgba(220, 53, 69, 0.06);
+}
 .cell-saldo.baixo { color: #e67e22; background: rgba(230, 126, 34, 0.08); }
 .cell-zero { color: #adb5bd; }
 
