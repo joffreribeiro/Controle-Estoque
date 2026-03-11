@@ -343,6 +343,9 @@ function renderizarDashboard() {
         ? dadosVendas[0].nome.substring(0, 25) + (dadosVendas[0].nome.length > 25 ? '...' : '')
         : '-';
 
+    // Criar versão ordenada alfabeticamente para exibição nas tabelas do dashboard
+    const dadosVendasAlpha = [...dadosVendas].sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
+
     // Atualizar cards
     document.getElementById('dashTotalUnidades').textContent = totalUnidades.toLocaleString('pt-BR');
     document.getElementById('dashTotalFaturamento').textContent = formatarMoedaValor(totalFaturamento);
@@ -353,7 +356,7 @@ function renderizarDashboard() {
     const tabelaQtd = document.getElementById('tabelaQtdProduto');
     tabelaQtd.innerHTML = '';
     
-    dadosVendas.forEach(item => {
+    dadosVendasAlpha.forEach(item => {
         if (item.quantidade > 0) {
             const tr = document.createElement('tr');
             tr.innerHTML = `
@@ -377,10 +380,8 @@ function renderizarDashboard() {
     const tabelaValor = document.getElementById('tabelaValorProduto');
     tabelaValor.innerHTML = '';
     
-    // Ordenar por valor
-    const dadosPorValor = [...dadosVendas].sort((a, b) => b.valor - a.valor);
-    
-    dadosPorValor.forEach(item => {
+    // Exibir lista de produtos em ordem alfabética por nome (valor exibido permanece)
+    dadosVendasAlpha.forEach(item => {
         if (item.valor > 0) {
             const tr = document.createElement('tr');
             tr.innerHTML = `
@@ -407,17 +408,17 @@ function renderizarDashboard() {
     const repsOrdem = ['ADES', 'FL', 'IMBEL', 'ISA', 'KOLTE', 'LC'];
     let totaisPorRep = { ADES: 0, FL: 0, IMBEL: 0, ISA: 0, KOLTE: 0, LC: 0 };
 
-    dadosVendas.forEach(item => {
+    dadosVendasAlpha.forEach(item => {
         if (item.quantidade > 0) {
             const tr = document.createElement('tr');
             let html = `<td class="produto-nome">${item.nome}</td>`;
-            
+
             repsOrdem.forEach(rep => {
                 const venda = item.vendasPorRep[rep] || 0;
                 totaisPorRep[rep] += venda;
                 html += `<td class="${venda === 0 ? 'cell-zero' : 'cell-qtd'}">${venda > 0 ? venda : '-'}</td>`;
             });
-            
+
             html += `<td class="geral-venda"><strong>${item.quantidade}</strong></td>`;
             tr.innerHTML = html;
             tabelaRep.appendChild(tr);
