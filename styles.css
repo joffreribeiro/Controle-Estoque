@@ -1403,6 +1403,18 @@ tr.total-row:hover {
 /* Tornar as colunas de saldo mais visíveis */
 #tabelaEstoque td.cell-saldo { font-weight: 700; }
 
+/* Garantir prioridade para saldos negativos (especificidade maior) */
+#tabelaEstoque td.cell-saldo.negativo {
+    color: var(--danger-color) !important;
+    background: rgba(220, 53, 69, 0.08) !important;
+    font-weight: 800 !important;
+}
+
+/* Garantir animação para negativos com especificidade aumentada */
+#tabelaEstoque td.cell-saldo.negativo.animate-negativo {
+    animation: pulso-negativo 1.6s ease-in-out infinite !important;
+}
+
 /* Reduzir preenchimento horizontal para caber melhor */
 #tabelaEstoque td { padding: 8px 6px; }
 
