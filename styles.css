@@ -1337,33 +1337,33 @@ tr.total-row:hover {
 }
 
 /* Cores de fundo levemente tonais por representante, com contraste maior */
+#tabelaEstoque thead tr:nth-child(2) th:nth-child(1),
 #tabelaEstoque thead tr:nth-child(2) th:nth-child(2),
-#tabelaEstoque thead tr:nth-child(2) th:nth-child(3),
-#tabelaEstoque thead tr:nth-child(2) th:nth-child(4) { background: rgba(61, 90, 128, 0.22); color: #12324a; }
+#tabelaEstoque thead tr:nth-child(2) th:nth-child(3) { background: rgba(61, 90, 128, 0.22); color: #12324a; }
 
+#tabelaEstoque thead tr:nth-child(2) th:nth-child(4),
 #tabelaEstoque thead tr:nth-child(2) th:nth-child(5),
-#tabelaEstoque thead tr:nth-child(2) th:nth-child(6),
-#tabelaEstoque thead tr:nth-child(2) th:nth-child(7) { background: rgba(92, 77, 125, 0.22); color: #2b1b3b; }
+#tabelaEstoque thead tr:nth-child(2) th:nth-child(6) { background: rgba(92, 77, 125, 0.22); color: #2b1b3b; }
 
+#tabelaEstoque thead tr:nth-child(2) th:nth-child(7),
 #tabelaEstoque thead tr:nth-child(2) th:nth-child(8),
-#tabelaEstoque thead tr:nth-child(2) th:nth-child(9),
-#tabelaEstoque thead tr:nth-child(2) th:nth-child(10) { background: rgba(45, 106, 79, 0.18); color: #123822; }
+#tabelaEstoque thead tr:nth-child(2) th:nth-child(9) { background: rgba(45, 106, 79, 0.18); color: #123822; }
 
+#tabelaEstoque thead tr:nth-child(2) th:nth-child(10),
 #tabelaEstoque thead tr:nth-child(2) th:nth-child(11),
-#tabelaEstoque thead tr:nth-child(2) th:nth-child(12),
-#tabelaEstoque thead tr:nth-child(2) th:nth-child(13) { background: rgba(156, 74, 26, 0.18); color: #4a260e; }
+#tabelaEstoque thead tr:nth-child(2) th:nth-child(12) { background: rgba(156, 74, 26, 0.18); color: #4a260e; }
 
+#tabelaEstoque thead tr:nth-child(2) th:nth-child(13),
 #tabelaEstoque thead tr:nth-child(2) th:nth-child(14),
-#tabelaEstoque thead tr:nth-child(2) th:nth-child(15),
-#tabelaEstoque thead tr:nth-child(2) th:nth-child(16) { background: rgba(123, 45, 38, 0.18); color: #3e1c18; }
+#tabelaEstoque thead tr:nth-child(2) th:nth-child(15) { background: rgba(123, 45, 38, 0.18); color: #3e1c18; }
 
+#tabelaEstoque thead tr:nth-child(2) th:nth-child(16),
 #tabelaEstoque thead tr:nth-child(2) th:nth-child(17),
-#tabelaEstoque thead tr:nth-child(2) th:nth-child(18),
-#tabelaEstoque thead tr:nth-child(2) th:nth-child(19) { background: rgba(30, 58, 95, 0.22); color: #0f2740; }
+#tabelaEstoque thead tr:nth-child(2) th:nth-child(18) { background: rgba(30, 58, 95, 0.22); color: #0f2740; }
 
+#tabelaEstoque thead tr:nth-child(2) th:nth-child(19),
 #tabelaEstoque thead tr:nth-child(2) th:nth-child(20),
-#tabelaEstoque thead tr:nth-child(2) th:nth-child(21),
-#tabelaEstoque thead tr:nth-child(2) th:nth-child(22) { background: rgba(16, 30, 46, 0.12); color: #0b1a2a; }
+#tabelaEstoque thead tr:nth-child(2) th:nth-child(21) { background: rgba(16, 30, 46, 0.12); color: #0b1a2a; }
 
 /* Melhor contraste para números importantes */
 #tabelaEstoque td.cell-disp { color: #1f2d3d; }
