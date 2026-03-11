@@ -1268,3 +1268,102 @@ tr.total-row:hover {
 .badge-rep.ades { background: rgba(156, 74, 26, 0.15); color: #9c4a1a; }
 .badge-rep.fl { background: rgba(123, 45, 38, 0.15); color: #7b2d26; }
 .badge-rep.imbel { background: rgba(30, 58, 95, 0.15); color: #1e3a5f; }
+
+/* ===== Melhorias visuais para a tabela de inventário ===== */
+/* Destacar cada bloco de 3 colunas por representante com cor suave */
+#tabelaEstoque td:nth-child(2),
+#tabelaEstoque td:nth-child(3),
+#tabelaEstoque td:nth-child(4) {
+    background: rgba(61, 90, 128, 0.04);
+}
+
+#tabelaEstoque td:nth-child(5),
+#tabelaEstoque td:nth-child(6),
+#tabelaEstoque td:nth-child(7) {
+    background: rgba(92, 77, 125, 0.04);
+}
+
+#tabelaEstoque td:nth-child(8),
+#tabelaEstoque td:nth-child(9),
+#tabelaEstoque td:nth-child(10) {
+    background: rgba(45, 106, 79, 0.04);
+}
+
+#tabelaEstoque td:nth-child(11),
+#tabelaEstoque td:nth-child(12),
+#tabelaEstoque td:nth-child(13) {
+    background: rgba(156, 74, 26, 0.04);
+}
+
+#tabelaEstoque td:nth-child(14),
+#tabelaEstoque td:nth-child(15),
+#tabelaEstoque td:nth-child(16) {
+    background: rgba(123, 45, 38, 0.04);
+}
+
+#tabelaEstoque td:nth-child(17),
+#tabelaEstoque td:nth-child(18),
+#tabelaEstoque td:nth-child(19) {
+    background: rgba(30, 58, 95, 0.04);
+}
+
+/* Consolidado com fundo neutro mais forte */
+#tabelaEstoque td:nth-child(20),
+#tabelaEstoque td:nth-child(21),
+#tabelaEstoque td:nth-child(22) {
+    background: rgba(16, 30, 46, 0.03);
+    font-weight: 700;
+}
+
+/* Separadores visuais entre blocos */
+#tabelaEstoque td:nth-child(4),
+#tabelaEstoque td:nth-child(7),
+#tabelaEstoque td:nth-child(10),
+#tabelaEstoque td:nth-child(13),
+#tabelaEstoque td:nth-child(16),
+#tabelaEstoque td:nth-child(19) {
+    border-right: 3px solid rgba(0,0,0,0.06);
+}
+
+/* Sub-headers (segunda linha do thead) com cores correspondentes */
+#tabelaEstoque thead tr:nth-child(2) th:nth-child(2),
+#tabelaEstoque thead tr:nth-child(2) th:nth-child(3),
+#tabelaEstoque thead tr:nth-child(2) th:nth-child(4) { background: rgba(61, 90, 128, 0.12); }
+
+#tabelaEstoque thead tr:nth-child(2) th:nth-child(5),
+#tabelaEstoque thead tr:nth-child(2) th:nth-child(6),
+#tabelaEstoque thead tr:nth-child(2) th:nth-child(7) { background: rgba(92, 77, 125, 0.12); }
+
+#tabelaEstoque thead tr:nth-child(2) th:nth-child(8),
+#tabelaEstoque thead tr:nth-child(2) th:nth-child(9),
+#tabelaEstoque thead tr:nth-child(2) th:nth-child(10) { background: rgba(45, 106, 79, 0.12); }
+
+#tabelaEstoque thead tr:nth-child(2) th:nth-child(11),
+#tabelaEstoque thead tr:nth-child(2) th:nth-child(12),
+#tabelaEstoque thead tr:nth-child(2) th:nth-child(13) { background: rgba(156, 74, 26, 0.12); }
+
+#tabelaEstoque thead tr:nth-child(2) th:nth-child(14),
+#tabelaEstoque thead tr:nth-child(2) th:nth-child(15),
+#tabelaEstoque thead tr:nth-child(2) th:nth-child(16) { background: rgba(123, 45, 38, 0.12); }
+
+#tabelaEstoque thead tr:nth-child(2) th:nth-child(17),
+#tabelaEstoque thead tr:nth-child(2) th:nth-child(18),
+#tabelaEstoque thead tr:nth-child(2) th:nth-child(19) { background: rgba(30, 58, 95, 0.12); }
+
+#tabelaEstoque thead tr:nth-child(2) th:nth-child(20),
+#tabelaEstoque thead tr:nth-child(2) th:nth-child(21),
+#tabelaEstoque thead tr:nth-child(2) th:nth-child(22) { background: rgba(16, 30, 46, 0.08); }
+
+/* Melhor contraste para números importantes */
+#tabelaEstoque td.cell-disp { color: #1f2d3d; }
+#tabelaEstoque td.cell-venda { color: #0d6efd; }
+#tabelaEstoque td.cell-saldo { color: #198754; }
+
+/* Tornar as colunas de saldo mais visíveis */
+#tabelaEstoque td.cell-saldo { font-weight: 700; }
+
+/* Reduzir preenchimento horizontal para caber melhor */
+#tabelaEstoque td { padding: 8px 6px; }
+
+/* Pequeno ajuste para o cabeçalho principal por representante */
+th.header-rep { border-right: 2px solid rgba(255,255,255,0.06); }
