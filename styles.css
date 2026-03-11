@@ -620,6 +620,22 @@ tr.total-row td.geral-saldo.negativo {
 .cell-saldo.baixo { color: #e67e22; background: rgba(230, 126, 34, 0.08); }
 .cell-zero { color: #adb5bd; }
 
+/* Animação sutil para chamar atenção a valores negativos */
+@keyframes pulso-negativo {
+    0% { box-shadow: 0 0 0 0 rgba(220,53,69,0.00); transform: translateY(0); }
+    50% { box-shadow: 0 0 8px 2px rgba(220,53,69,0.08); transform: translateY(-1px); }
+    100% { box-shadow: 0 0 0 0 rgba(220,53,69,0.00); transform: translateY(0); }
+}
+
+.cell-saldo.negativo.animate-negativo {
+    animation: pulso-negativo 1.6s ease-in-out infinite;
+}
+
+/* Aplicar animação também a saldos gerais/total quando negativos */
+#tabelaEstoque td.geral-saldo.negativo.animate-negativo,
+tr.total-row td.geral-saldo.negativo.animate-negativo {
+    animation: pulso-negativo 1.6s ease-in-out infinite;
+}
 .cell-valor {
     color: var(--success-color);
     font-weight: 600;
