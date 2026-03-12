@@ -334,12 +334,20 @@ function criarHeaderFixoEstoque() {
     // Ocultar o thead original e adicionar padding-top para evitar que as linhas rolem por baixo
     try {
         const altura = cloneWrap.getBoundingClientRect().height || 0;
-        // Esconder o thead original (remover da renderização visual)
-        thead.style.display = 'none';
-        // Adicionar padding-top ao wrapper para empurrar o conteúdo para baixo
-        wrapper.style.paddingTop = altura + 'px';
+        // Se a cópia não tiver altura válida, não ocultar o thead original (fallback)
+        if (altura > 4) {
+            thead.style.display = 'none';
+            wrapper.style.paddingTop = altura + 'px';
+        } else {
+            // fallback: remover clone se inválido e garantir thead visível
+            cloneWrap.remove();
+            thead.style.display = '';
+            wrapper.style.paddingTop = '';
+        }
     } catch (e) {
         console.warn('Não foi possível ajustar padding do wrapper para header fixo:', e);
+        // Em caso de erro, garantir que o cabeçalho original permaneça visível
+        try { thead.style.display = ''; wrapper.style.paddingTop = ''; } catch (er) {}
     }
 }
 
