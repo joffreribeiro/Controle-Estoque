@@ -330,6 +330,17 @@ function criarHeaderFixoEstoque() {
     // Escutar scroll horizontal da wrapper para mover o cabeçalho duplicado
     wrapper.addEventListener('scroll', onWrapperScroll);
     window.addEventListener('resize', atualizarHeaderFixoEstoque);
+    
+    // Ocultar o thead original e adicionar padding-top para evitar que as linhas rolem por baixo
+    try {
+        const altura = cloneWrap.getBoundingClientRect().height || 0;
+        // Esconder o thead original (remover da renderização visual)
+        thead.style.display = 'none';
+        // Adicionar padding-top ao wrapper para empurrar o conteúdo para baixo
+        wrapper.style.paddingTop = altura + 'px';
+    } catch (e) {
+        console.warn('Não foi possível ajustar padding do wrapper para header fixo:', e);
+    }
 }
 
 function onWrapperScroll(e) {
@@ -349,6 +360,8 @@ function atualizarHeaderFixoEstoque() {
     const clone = wrapper.querySelector('.fixed-table-header');
     if (!tabela) {
         if (clone) clone.remove();
+        // Restaurar display original se não houver tabela
+        if (wrapper) wrapper.style.paddingTop = '';
         return;
     }
 
@@ -380,6 +393,14 @@ function atualizarHeaderFixoEstoque() {
     const origTableWidth = tabela.getBoundingClientRect().width;
     const innerTable = clone.querySelector('table');
     if (innerTable) innerTable.style.width = `${origTableWidth}px`;
+
+    // Ajustar padding-top caso o tamanho do header tenha mudado
+    try {
+        const altura = clone.getBoundingClientRect().height || 0;
+        wrapper.style.paddingTop = altura + 'px';
+    } catch (e) {
+        // ignore
+    }
 }
 
 // Inicializar ao carregar (se tabela já existia)
