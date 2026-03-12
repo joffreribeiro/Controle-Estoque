@@ -625,29 +625,37 @@ function abrirModalDevolucao() {
     atualizarSelectsProdutos();
 }
 
-function fecharModal(modalId) {
-    document.getElementById(modalId).style.display = 'none';
-    if (modalId === 'modalVendaDetalhada') {
-        vendaEditandoId = null;
-    }
-}
 
-// Restaurar z-index do header fixo quando qualquer modal for fechado
-const observerModalClose = new MutationObserver(() => {
+
+// Restaurar z-index do header fixo quando um modal for fechado (feito explicitamente aqui)
+function _restaurarZindexHeaderFixo() {
     try {
         const clone = document.querySelector('.fixed-table-header');
         if (clone && clone.dataset && clone.dataset._zBefore !== undefined) {
             clone.style.zIndex = clone.dataset._zBefore || '';
             delete clone.dataset._zBefore;
         }
-    } catch (e) {}
-});
+    } catch (e) {
+        // silencioso
+    }
+}
 
-observerModalClose.observe(document.body, { attributes: true, childList: true, subtree: true });
+function fecharModal(modalId) {
+    document.getElementById(modalId).style.display = 'none';
+    if (modalId === 'modalVendaDetalhada') {
+        vendaEditandoId = null;
+    }
+    // Restaurar z-index do header fixo quando qualquer modal é fechado
+    _restaurarZindexHeaderFixo();
+}
 
 window.onclick = function(event) {
     if (event.target.classList.contains('modal')) {
-        event.target.style.display = 'none';
+        const modalEl = event.target;
+        modalEl.style.display = 'none';
+        // Garantir restauração do header duplicado
+        _restaurarZindexHeaderFixo();
+        if (modalEl.id === 'modalVendaDetalhada') vendaEditandoId = null;
     }
 }
 
@@ -656,6 +664,9 @@ document.addEventListener('keydown', function(event) {
         document.querySelectorAll('.modal').forEach(modal => {
             modal.style.display = 'none';
         });
+        // Restaura z-index se o header foi rebaixado
+        _restaurarZindexHeaderFixo();
+        vendaEditandoId = null;
     }
 });
 
