@@ -604,68 +604,8 @@ function converterMoedaParaNumero(valor) {
 // ========================================
 
 function abrirModalProduto() {
-    const wrapper = document.querySelector('.table-wrapper');
-    if (!wrapper) return;
-
-    // Remover qualquer clone anterior
-    const existente = wrapper.querySelector('.fixed-table-header');
-    if (existente) existente.remove();
-
-    const tabela = wrapper.querySelector('#tabelaEstoque');
-    if (!tabela) return;
-
-    const thead = tabela.querySelector('thead');
-    if (!thead) return;
-
-    const cloneWrap = document.createElement('div');
-    cloneWrap.className = 'fixed-table-header';
-    cloneWrap.style.position = 'absolute';
-    cloneWrap.style.top = '0';
-    cloneWrap.style.left = '0';
-    cloneWrap.style.right = '0';
-    cloneWrap.style.pointerEvents = 'none';
-    // fix: z-index abaixo de modais (modal z-index = 1000)
-    cloneWrap.style.zIndex = '900';
-
-    const cloneTable = document.createElement('table');
-    cloneTable.className = tabela.className;
-    const cloneThead = thead.cloneNode(true);
-    cloneTable.appendChild(cloneThead);
-    cloneWrap.appendChild(cloneTable);
-    wrapper.appendChild(cloneWrap);
-
-    // Sincronizar largura das colunas
-    atualizarHeaderFixoEstoque();
-
-    // Escutar scroll horizontal da wrapper para mover o cabeçalho duplicado
-    // remover listeners antigos para evitar duplicação
-    wrapper.removeEventListener('scroll', onWrapperScroll);
-    wrapper.addEventListener('scroll', onWrapperScroll);
-    window.removeEventListener('resize', atualizarHeaderFixoEstoque);
-    window.addEventListener('resize', atualizarHeaderFixoEstoque);
-
-    // Ocultar o thead original e adicionar padding-top para evitar que as linhas rolem por baixo
-    try {
-        const altura = cloneWrap.getBoundingClientRect().height || 0;
-        if (altura > 4) {
-            thead.style.display = 'none';
-            wrapper.style.paddingTop = altura + 'px';
-        } else {
-            cloneWrap.remove();
-            thead.style.display = '';
-            wrapper.style.paddingTop = '';
-        }
-    } catch (e) {
-        console.warn('Não foi possível ajustar padding do wrapper para header fixo:', e);
-        try { thead.style.display = ''; wrapper.style.paddingTop = ''; } catch (er) {}
-    }
-    if (event.target.classList.contains('modal')) {
-        const modalEl = event.target;
-        modalEl.style.display = 'none';
-        // Garantir restauração do header duplicado
-        _restaurarZindexHeaderFixo();
-        if (modalEl.id === 'modalVendaDetalhada') vendaEditandoId = null;
-    }
+    document.getElementById('modalProduto').style.display = 'flex';
+    document.getElementById('formProduto').reset();
 }
 
 document.addEventListener('keydown', function(event) {
@@ -728,7 +668,7 @@ function atualizarSelectDistribuicaoProduto() {
 // ========================================
 
 function abrirModalEntradaEstoque() {
-    document.getElementById('modalEntradaEstoque').style.display = 'block';
+    document.getElementById('modalEntradaEstoque').style.display = 'flex';
     document.getElementById('formEntradaEstoque').reset();
     document.getElementById('estoqueAtualIMBEL').value = '-';
     
@@ -789,7 +729,7 @@ function salvarEntradaEstoque(event) {
 function abrirModalVendaDetalhada(vendaId = null) {
     // vendaId: se fornecido, abre o modal em modo de edição para essa venda
     const modalEl = document.getElementById('modalVendaDetalhada');
-    modalEl.style.display = 'block';
+    modalEl.style.display = 'flex';
     document.getElementById('formVendaDetalhada').reset();
     document.getElementById('valorUnitarioVenda').value = '';
     document.getElementById('valorTotalVenda').value = '';
@@ -1421,7 +1361,7 @@ function exportarVendas() {
 // ========================================
 
 function abrirModalNovaDistribuicao() {
-    document.getElementById('modalNovaDistribuicao').style.display = 'block';
+    document.getElementById('modalNovaDistribuicao').style.display = 'flex';
     document.getElementById('formNovaDistribuicao').reset();
     atualizarSelectsProdutos();
     

@@ -749,6 +749,9 @@ tr.total-row:hover {
     background-color: rgba(0, 0, 0, 0.5);
     backdrop-filter: blur(4px);
     animation: fadeIn 0.2s ease;
+    /* usar flexbox para centralizar o conteúdo quando mostrado com display:flex */
+    align-items: center;
+    justify-content: center;
 }
 
 @keyframes fadeIn {
@@ -758,7 +761,8 @@ tr.total-row:hover {
 
 .modal-content {
     background: var(--bg-white);
-    margin: 8% auto;
+    /* margin removed to support flex centering */
+    margin: 0;
     padding: 0;
     border-radius: 12px;
     width: 90%;
