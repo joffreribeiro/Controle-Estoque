@@ -264,34 +264,44 @@
                         <button class="btn btn-success" onclick="abrirModalVendaDetalhada()">
                             <span class="btn-icon">+</span>
                             Nova Venda
-                        </button>
-                        <button class="btn btn-info" onclick="document.getElementById('inputImportarVendas').click()">
-                            <span class="btn-icon">📥</span>
-                            Importar Excel
-                        </button>
-                        <input type="file" id="inputImportarVendas" accept=".csv,.xlsx,.xls" style="display:none" onchange="importarVendas(event)">
-                        <button class="btn btn-outline" onclick="exportarVendas()">
-                            <span class="btn-icon">📤</span>
+                                    <th rowspan="2" class="col-produto">PRODUTOS</th>
+                                    <th colspan="3" class="header-geral">CONSOLIDADO</th>
+                                    <th colspan="3" class="header-rep imbel">IMBEL</th>
+                                    <th colspan="3" class="header-rep kolte">KOLTE</th>
+                                    <th colspan="3" class="header-rep isa">ISA</th>
+                                    <th colspan="3" class="header-rep lc">LC</th>
+                                    <th colspan="3" class="header-rep ades">ADES</th>
+                                    <th colspan="3" class="header-rep fl">FL</th>
                             Exportar Excel
                         </button>
-                    </div>
-                </div>
-
-                <!-- Filtros -->
-                <div class="filtros-container">
-                    <div class="filtro-group">
-                        <label>Representante:</label>
-                        <select id="filtroRepresentante" onchange="filtrarVendas()">
-                            <option value="">Todos</option>
-                            <option value="KOLTE">KOLTE</option>
-                            <option value="ISA">ISA</option>
-                            <option value="LC">LC</option>
-                            <option value="ADES">ADES</option>
-                            <option value="FL">FL</option>
-                            <option value="IMBEL">IMBEL</option>
-                        </select>
-                    </div>
-                    <div class="filtro-group">
+                                    <!-- CONSOLIDADO -->
+                                    <th class="sub-header">Disp</th>
+                                    <th class="sub-header">Venda</th>
+                                    <th class="sub-header">Saldo</th>
+                                    <!-- IMBEL -->
+                                    <th class="sub-header">Disp</th>
+                                    <th class="sub-header">Venda</th>
+                                    <th class="sub-header">Saldo</th>
+                                    <!-- KOLTE -->
+                                    <th class="sub-header">Disp</th>
+                                    <th class="sub-header">Venda</th>
+                                    <th class="sub-header">Saldo</th>
+                                    <!-- ISA -->
+                                    <th class="sub-header">Disp</th>
+                                    <th class="sub-header">Venda</th>
+                                    <th class="sub-header">Saldo</th>
+                                    <!-- LC -->
+                                    <th class="sub-header">Disp</th>
+                                    <th class="sub-header">Venda</th>
+                                    <th class="sub-header">Saldo</th>
+                                    <!-- ADES -->
+                                    <th class="sub-header">Disp</th>
+                                    <th class="sub-header">Venda</th>
+                                    <th class="sub-header">Saldo</th>
+                                    <!-- FL -->
+                                    <th class="sub-header">Disp</th>
+                                    <th class="sub-header">Venda</th>
+                                    <th class="sub-header">Saldo</th>
                         <label>Produto:</label>
                         <select id="filtroProduto" onchange="filtrarVendas()">
                             <option value="">Todos</option>

@@ -222,31 +222,21 @@ function renderizarTabela() {
     produtosOrdenados.forEach(produto => {
         const tr = document.createElement('tr');
         tr.dataset.id = produto.id;
-        tr.innerHTML = `<td class="produto-nome col-produto" title="${produto.nome}">${produto.nome}</td>`;
-
+        // Pre-cálculo dos valores por representante e totais
         let geralDisp = 0;
         let geralVenda = 0;
-
+        const repData = [];
         estoque.representantes.forEach(rep => {
             const disp = produto.distribuicao[rep] || 0;
             const venda = produto.vendas[rep] || 0;
             const saldo = disp - venda;
-
             geralDisp += disp;
             geralVenda += venda;
-
+            // atualizar totais por rep
             totais[rep].disp += disp;
             totais[rep].venda += venda;
             totais[rep].saldo += saldo;
-
-            const saldoClass = saldo < 0 ? 'negativo' : (saldo > 0 && saldo <= 5 ? 'baixo' : '');
-            const animateClass = saldo < 0 ? 'animate-negativo' : '';
-
-            tr.innerHTML += `
-                <td class="cell-disp ${disp === 0 ? 'cell-zero' : ''}">${formatarNumero(disp)}</td>
-                <td class="cell-venda ${venda === 0 ? 'cell-zero' : ''}">${formatarNumero(venda)}</td>
-                <td class="cell-saldo ${saldoClass} ${saldo === 0 ? 'cell-zero' : ''} ${animateClass}">${formatarNumero(saldo)}</td>
-            `;
+            repData.push({ rep, disp, venda, saldo });
         });
 
         const geralSaldo = geralDisp - geralVenda;
@@ -254,14 +244,45 @@ function renderizarTabela() {
         totais.GERAL.venda += geralVenda;
         totais.GERAL.saldo += geralSaldo;
 
-        const saldoGeralClass = geralSaldo < 0 ? 'negativo' : (geralSaldo > 0 && geralSaldo <= 10 ? 'baixo' : '');
+        // Montar células na ordem desejada: produto | CONSOLIDADO | IMBEL | KOLTE, ISA, LC, ADES, FL
+        tr.innerHTML = `<td class="produto-nome col-produto" title="${produto.nome}">${produto.nome}</td>`;
 
+        // CONSOLIDADO
+        const saldoGeralClass = geralSaldo < 0 ? 'negativo' : (geralSaldo > 0 && geralSaldo <= 10 ? 'baixo' : '');
         const animateGeral = geralSaldo < 0 ? 'animate-negativo' : '';
         tr.innerHTML += `
             <td class="geral-disp">${formatarNumero(geralDisp)}</td>
             <td class="geral-venda">${formatarNumero(geralVenda)}</td>
             <td class="geral-saldo ${saldoGeralClass} ${animateGeral}">${formatarNumero(geralSaldo)}</td>
         `;
+
+        // IMBEL primeiro among reps
+        const imbel = repData.find(r => r.rep === 'IMBEL');
+        if (imbel) {
+            const saldoClass = imbel.saldo < 0 ? 'negativo' : (imbel.saldo > 0 && imbel.saldo <= 5 ? 'baixo' : '');
+            const animateClass = imbel.saldo < 0 ? 'animate-negativo' : '';
+            tr.innerHTML += `
+                <td class="cell-disp ${imbel.disp === 0 ? 'cell-zero' : ''}">${formatarNumero(imbel.disp)}</td>
+                <td class="cell-venda ${imbel.venda === 0 ? 'cell-zero' : ''}">${formatarNumero(imbel.venda)}</td>
+                <td class="cell-saldo ${saldoClass} ${imbel.saldo === 0 ? 'cell-zero' : ''} ${animateClass}">${formatarNumero(imbel.saldo)}</td>
+            `;
+        }
+
+        // demais representantes na ordem KOLTE, ISA, LC, ADES, FL
+        const ordem = ['KOLTE','ISA','LC','ADES','FL'];
+        ordem.forEach(repName => {
+            const rd = repData.find(r => r.rep === repName);
+            const disp = rd ? rd.disp : 0;
+            const venda = rd ? rd.venda : 0;
+            const saldo = rd ? rd.saldo : 0;
+            const saldoClass = saldo < 0 ? 'negativo' : (saldo > 0 && saldo <= 5 ? 'baixo' : '');
+            const animateClass = saldo < 0 ? 'animate-negativo' : '';
+            tr.innerHTML += `
+                <td class="cell-disp ${disp === 0 ? 'cell-zero' : ''}">${formatarNumero(disp)}</td>
+                <td class="cell-venda ${venda === 0 ? 'cell-zero' : ''}">${formatarNumero(venda)}</td>
+                <td class="cell-saldo ${saldoClass} ${saldo === 0 ? 'cell-zero' : ''} ${animateClass}">${formatarNumero(saldo)}</td>
+            `;
+        });
 
         tbody.appendChild(tr);
     });
@@ -271,27 +292,37 @@ function renderizarTabela() {
     trTotal.className = 'total-row';
     trTotal.innerHTML = `<td class="produto-nome col-produto"><strong>TOTAL GERAL</strong></td>`;
 
-    produtosOrdenados.forEach(repProd => {}); // placeholder to keep lint tools happy
-    estoque.representantes.forEach(rep => {
-        const saldoRep = totais[rep].saldo;
-        const saldoRepClass = saldoRep < 0 ? 'negativo' : (saldoRep > 0 && saldoRep <= 5 ? 'baixo' : '');
-        const animateRep = saldoRep < 0 ? 'animate-negativo' : '';
-        trTotal.innerHTML += `
-            <td class="cell-disp"><strong>${formatarNumero(totais[rep].disp)}</strong></td>
-            <td class="cell-venda"><strong>${formatarNumero(totais[rep].venda)}</strong></td>
-            <td class="cell-saldo ${saldoRepClass} ${animateRep}"><strong>${formatarNumero(totais[rep].saldo)}</strong></td>
-        `;
-    });
-
+    // Ordem: CONSOLIDADO | IMBEL | KOLTE, ISA, LC, ADES, FL
     const saldoGeralTotal = totais.GERAL.saldo;
     const saldoGeralTotalClass = saldoGeralTotal < 0 ? 'negativo' : (saldoGeralTotal > 0 && saldoGeralTotal <= 10 ? 'baixo' : '');
     const animateGeralTotal = saldoGeralTotal < 0 ? 'animate-negativo' : '';
-
     trTotal.innerHTML += `
         <td class="geral-disp"><strong>${formatarNumero(totais.GERAL.disp)}</strong></td>
         <td class="geral-venda"><strong>${formatarNumero(totais.GERAL.venda)}</strong></td>
         <td class="geral-saldo ${saldoGeralTotalClass} ${animateGeralTotal}"><strong>${formatarNumero(totais.GERAL.saldo)}</strong></td>
     `;
+
+    // IMBEL
+    const imbelTotals = totais['IMBEL'] || { disp:0, venda:0, saldo:0 };
+    const saldoImbelClass = imbelTotals.saldo < 0 ? 'negativo' : (imbelTotals.saldo > 0 && imbelTotals.saldo <= 5 ? 'baixo' : '');
+    const animateImbel = imbelTotals.saldo < 0 ? 'animate-negativo' : '';
+    trTotal.innerHTML += `
+        <td class="cell-disp"><strong>${formatarNumero(imbelTotals.disp)}</strong></td>
+        <td class="cell-venda"><strong>${formatarNumero(imbelTotals.venda)}</strong></td>
+        <td class="cell-saldo ${saldoImbelClass} ${animateImbel}"><strong>${formatarNumero(imbelTotals.saldo)}</strong></td>
+    `;
+
+    // demais representantes na ordem KOLTE, ISA, LC, ADES, FL
+    ['KOLTE','ISA','LC','ADES','FL'].forEach(rep => {
+        const t = totais[rep] || { disp:0, venda:0, saldo:0 };
+        const saldoRepClass = t.saldo < 0 ? 'negativo' : (t.saldo > 0 && t.saldo <= 5 ? 'baixo' : '');
+        const animateRep = t.saldo < 0 ? 'animate-negativo' : '';
+        trTotal.innerHTML += `
+            <td class="cell-disp"><strong>${formatarNumero(t.disp)}</strong></td>
+            <td class="cell-venda"><strong>${formatarNumero(t.venda)}</strong></td>
+            <td class="cell-saldo ${saldoRepClass} ${animateRep}"><strong>${formatarNumero(t.saldo)}</strong></td>
+        `;
+    });
 
     tbody.appendChild(trTotal);
 
