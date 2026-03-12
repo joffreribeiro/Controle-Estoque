@@ -488,6 +488,72 @@ function prepararRelatorioInventario() {
         });
     }
 
+    // Se foi selecionado um representante, reconstruir o THEAD reduzido e remover colunas que não pertencem
+    const selRep = filtroRep || '';
+    if (selRep) {
+        const repsCount = estoque.representantes.length;
+        const repIndex = estoque.representantes.indexOf(selRep);
+        // índices baseados na ordem dos tds no tbody: 0 = produto, then reps*3, then GERAL*3
+        const produtoColIndex = 0;
+        const repStart = 1 + (repIndex * 3);
+        const repCols = [repStart, repStart + 1, repStart + 2];
+        const geralStart = 1 + (repsCount * 3);
+        const geralCols = [geralStart, geralStart + 1, geralStart + 2];
+
+        // Reconstruir THEAD com apenas PRODUTOS | REP (colspan=3) | CONSOLIDADO (colspan=3)
+        const newThead = document.createElement('thead');
+        const first = document.createElement('tr');
+        const thProdutos = document.createElement('th');
+        thProdutos.className = 'col-produto';
+        thProdutos.rowSpan = 2;
+        thProdutos.textContent = 'PRODUTOS';
+        first.appendChild(thProdutos);
+
+        const thRep = document.createElement('th');
+        thRep.className = 'header-rep ' + selRep.toLowerCase();
+        thRep.colSpan = 3;
+        thRep.textContent = selRep;
+        first.appendChild(thRep);
+
+        const thGeral = document.createElement('th');
+        thGeral.className = 'header-geral';
+        thGeral.colSpan = 3;
+        thGeral.textContent = 'CONSOLIDADO';
+        first.appendChild(thGeral);
+
+        const second = document.createElement('tr');
+        ['Disp', 'Venda', 'Saldo', 'Disp', 'Venda', 'Saldo'].forEach(text => {
+            const t = document.createElement('th');
+            t.className = 'sub-header';
+            t.textContent = text;
+            second.appendChild(t);
+        });
+
+        newThead.appendChild(first);
+        newThead.appendChild(second);
+
+        // Substituir thead do clone
+        const oldThead = clone.querySelector('thead');
+        if (oldThead) oldThead.remove();
+        clone.insertBefore(newThead, clone.firstChild);
+
+        // Agora remover das linhas do corpo as colunas que não estão em repCols ou geralCols
+        if (corpo) {
+            const rowsAll = Array.from(corpo.querySelectorAll('tr'));
+            rowsAll.forEach(row => {
+                const cells = Array.from(row.children);
+                // construir lista de índices a manter
+                const keep = new Set([produtoColIndex, ...repCols, ...geralCols]);
+                // iterar de trás para frente ao remover
+                for (let i = cells.length - 1; i >= 0; i--) {
+                    if (!keep.has(i)) {
+                        cells[i].remove();
+                    }
+                }
+            });
+        }
+    }
+
     preview.innerHTML = '';
     const wrapper = document.createElement('div');
     wrapper.className = 'report-printable';
@@ -499,8 +565,15 @@ function imprimirInventario() {
     prepararRelatorioInventario();
     const preview = document.getElementById('relatoriosPreview');
     if (!preview) return;
-
     const content = preview.innerHTML;
+    const filtroRep = document.getElementById('filtroRelatoriosRep') ? document.getElementById('filtroRelatoriosRep').value : '';
+    const filtroProduto = document.getElementById('filtroRelatoriosProduto') ? document.getElementById('filtroRelatoriosProduto').value : '';
+    const orient = document.getElementById('filtroRelatoriosOrientacao') ? document.getElementById('filtroRelatoriosOrientacao').value : 'landscape';
+
+    // Montar cabeçalho resumido para o relatório
+    const produtoNome = filtroProduto ? (estoque.produtos.find(p => String(p.id) === String(filtroProduto)) || {}).nome : '';
+    const dataAgora = new Date().toLocaleString('pt-BR');
+    const headerHTML = `<div style="margin-bottom:8px;font-size:13px;color:#222"><strong>Representante:</strong> ${filtroRep || 'Todos'} &nbsp;|&nbsp; <strong>Produto:</strong> ${produtoNome || 'Todos'} &nbsp;|&nbsp; <strong>Data:</strong> ${dataAgora}</div>`;
     const win = window.open('', '_blank', 'width=1000,height=700');
     if (!win) {
         alert('Não foi possível abrir a janela de impressão. Permita popups ou use a impressão do navegador.');
@@ -515,7 +588,7 @@ function imprimirInventario() {
             <title>Relatório - Inventário</title>
             <link rel="stylesheet" href="styles.css">
             <style>
-                @page { size: A4 landscape; margin: 10mm; }
+                @page { size: A4 ${orient}; margin: 10mm; }
                 body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif; padding: 12px; color: #222; }
                 h1 { margin-bottom: 12px; font-size: 18px; }
                 .report-printable table { width: 100%; border-collapse: collapse; font-size: 12px; }
@@ -527,6 +600,7 @@ function imprimirInventario() {
         </head>
         <body>
             <h1>Inventário de Produtos</h1>
+            ${headerHTML}
             ${content}
             <script>window.onload = function(){ setTimeout(function(){ window.print(); }, 200); };</script>
         </body>
