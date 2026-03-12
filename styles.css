@@ -503,6 +503,8 @@ thead {
     position: sticky;
     top: 0;
     z-index: 2147483647; /* garantir que o cabeçalho fique acima das células do corpo */
+    /* força camada de composição para evitar problemas de stacking em alguns navegadores */
+    transform: translateZ(0);
 }
 
 th {
@@ -564,9 +566,8 @@ td {
     font-variant-numeric: tabular-nums;
     transition: background 0.15s ease;
 
-    /* Garantir que as células do corpo fiquem abaixo do cabeçalho sticky */
-    position: relative;
-    z-index: 1;
+    /* Não criar novo contexto de empilhamento aqui — manter z-index padrão para evitar sobreposição do cabeçalho */
+    position: static;
 }
 
 .dashboard-table td {
@@ -610,15 +611,47 @@ thead th {
     position: sticky;
     top: 0;
     z-index: 2147483647;
+    transform: translateZ(0);
 }
 
 /* Aumentar z-index da primeira coluna do cabeçalho para evitar sobreposição */
 thead th.col-produto {
-    z-index: 620;
+    z-index: 2147483646;
 }
 
 .table-wrapper {
     position: relative; /* criar contexto empilhamento consistente */
+}
+
+/* Cabeçalho fixo duplicado (fallback robusto para sticky falhando) */
+.fixed-table-header {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: auto;
+    pointer-events: none; /* deixar eventos passarem para a tabela abaixo */
+    overflow: hidden;
+    z-index: 2147483647; /* acima de tudo */
+}
+
+.fixed-table-header table {
+    border-collapse: separate;
+    border-spacing: 0;
+    width: 100%;
+    table-layout: fixed;
+}
+
+.fixed-table-header th {
+    background: var(--primary-color);
+    color: white;
+    padding: 12px 10px;
+    text-align: center;
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 0.7rem;
+    letter-spacing: 0.5px;
+    border: none;
 }
 
 .cell-disp { color: var(--text-primary); font-weight: 500; }

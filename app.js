@@ -290,7 +290,108 @@ function renderizarTabela() {
     `;
 
     tbody.appendChild(trTotal);
+
+    // Atualizar cabeçalho fixo (se presente)
+    try {
+        atualizarHeaderFixoEstoque();
+    } catch (e) {
+        // não bloquear renderização se algo falhar
+        console.error('Erro atualizando header fixo:', e);
+    }
 }
+
+// ---------- Cabeçalho fixo duplicado (sincroniza largura e rolagem)
+function criarHeaderFixoEstoque() {
+    const wrapper = document.querySelector('.table-wrapper');
+    if (!wrapper) return;
+    // Se já existe, remover
+    const existente = wrapper.querySelector('.fixed-table-header');
+    if (existente) existente.remove();
+
+    const tabela = wrapper.querySelector('#tabelaEstoque');
+    if (!tabela) return;
+
+    const thead = tabela.querySelector('thead');
+    if (!thead) return;
+
+    const cloneWrap = document.createElement('div');
+    cloneWrap.className = 'fixed-table-header';
+
+    const cloneTable = document.createElement('table');
+    cloneTable.className = tabela.className;
+    const cloneThead = thead.cloneNode(true);
+    cloneTable.appendChild(cloneThead);
+    cloneWrap.appendChild(cloneTable);
+    wrapper.appendChild(cloneWrap);
+
+    // Sincronizar largura das colunas
+    atualizarHeaderFixoEstoque();
+
+    // Escutar scroll horizontal da wrapper para mover o cabeçalho duplicado
+    wrapper.addEventListener('scroll', onWrapperScroll);
+    window.addEventListener('resize', atualizarHeaderFixoEstoque);
+}
+
+function onWrapperScroll(e) {
+    const wrapper = e.currentTarget;
+    const clone = wrapper.querySelector('.fixed-table-header');
+    if (!clone) return;
+    // Deslocar o conteúdo do header (mover o inner table)
+    const innerTable = clone.querySelector('table');
+    if (!innerTable) return;
+    innerTable.style.transform = `translateX(${ -wrapper.scrollLeft }px)`;
+}
+
+function atualizarHeaderFixoEstoque() {
+    const wrapper = document.querySelector('.table-wrapper');
+    if (!wrapper) return;
+    const tabela = wrapper.querySelector('#tabelaEstoque');
+    const clone = wrapper.querySelector('.fixed-table-header');
+    if (!tabela) {
+        if (clone) clone.remove();
+        return;
+    }
+
+    // Se não existe o cabeçalho duplicado, criar
+    if (!clone) {
+        criarHeaderFixoEstoque();
+        return;
+    }
+
+    const origThs = Array.from(tabela.querySelectorAll('thead th'));
+    const cloneThs = Array.from(clone.querySelectorAll('thead th'));
+    if (origThs.length !== cloneThs.length) {
+        // reconstruir se colunas mudarem
+        clone.remove();
+        criarHeaderFixoEstoque();
+        return;
+    }
+
+    // Ajustar largura de cada th duplicado para corresponder ao original
+    origThs.forEach((th, i) => {
+        const cloneTh = cloneThs[i];
+        const width = th.getBoundingClientRect().width;
+        cloneTh.style.width = `${width}px`;
+        cloneTh.style.minWidth = `${width}px`;
+        cloneTh.style.boxSizing = 'border-box';
+    });
+
+    // Ajustar a largura da tabela duplicada para a largura do original
+    const origTableWidth = tabela.getBoundingClientRect().width;
+    const innerTable = clone.querySelector('table');
+    if (innerTable) innerTable.style.width = `${origTableWidth}px`;
+}
+
+// Inicializar ao carregar (se tabela já existia)
+document.addEventListener('DOMContentLoaded', () => {
+    setTimeout(() => {
+        // criar apenas para a tabela principal se existir
+        const wrapper = document.querySelector('.table-wrapper');
+        if (wrapper && wrapper.querySelector('#tabelaEstoque')) {
+            criarHeaderFixoEstoque();
+        }
+    }, 200);
+});
 
 // ========================================
 // RENDERIZAÇÃO DO DASHBOARD
