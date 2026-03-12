@@ -910,22 +910,7 @@ function atualizarTotalVendaDetalhada() {
     document.getElementById('valorUnitarioVenda').value = totalQtd > 0 ? formatarMoedaValor(total / totalQtd) : '';
 }
 
-// Alternar layout dos itens: vertical <-> horizontal
-function toggleItensLayout() {
-    const container = document.getElementById('itensVendaContainer');
-    const btn = document.getElementById('btnToggleLayout');
-    if (!container || !btn) return;
-
-    if (container.classList.contains('itens-layout-vertical')) {
-        container.classList.remove('itens-layout-vertical');
-        container.classList.add('itens-layout-horizontal');
-        btn.textContent = 'Layout: Horizontal';
-    } else {
-        container.classList.remove('itens-layout-horizontal');
-        container.classList.add('itens-layout-vertical');
-        btn.textContent = 'Layout: Vertical';
-    }
-}
+// Layout toggle removed per user request (button removed from modal)
 
 function atualizarPrecoVenda() {
     const produtoId = parseInt(document.getElementById('produtoVendaDet').value);
