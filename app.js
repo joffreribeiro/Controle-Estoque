@@ -322,10 +322,27 @@ function criarHeaderFixoEstoque() {
     const cloneThead = thead.cloneNode(true);
     cloneTable.appendChild(cloneThead);
     cloneWrap.appendChild(cloneTable);
+
     wrapper.appendChild(cloneWrap);
 
     // Sincronizar largura das colunas
     atualizarHeaderFixoEstoque();
+
+    // Se houver um modal aberto, rebaixar imediatamente o z-index do clone
+    try {
+        // armazenar z-index original (computed) para restauração posterior
+        if (cloneWrap.dataset._zBefore === undefined) {
+            const computed = window.getComputedStyle(cloneWrap).zIndex || '';
+            cloneWrap.dataset._zBefore = computed;
+        }
+        if (document.querySelector('.modal[style*="display: block"], .modal[style*="display: block;"]') || document.querySelectorAll('.modal').length > 0 && Array.from(document.querySelectorAll('.modal')).some(m => window.getComputedStyle(m).display !== 'none')) {
+            cloneWrap.style.zIndex = '900';
+        } else if (cloneWrap.dataset._zBefore) {
+            cloneWrap.style.zIndex = cloneWrap.dataset._zBefore || '';
+        }
+    } catch (e) {
+        // silencioso
+    }
 
     // Escutar scroll horizontal da wrapper para mover o cabeçalho duplicado
     wrapper.addEventListener('scroll', onWrapperScroll);
@@ -406,6 +423,16 @@ function atualizarHeaderFixoEstoque() {
     try {
         const altura = clone.getBoundingClientRect().height || 0;
         wrapper.style.paddingTop = altura + 'px';
+        // Se houver um modal aberto, garantir que o clone fique abaixo dele
+        try {
+            const qualquerModalAberto = Array.from(document.querySelectorAll('.modal')).some(m => window.getComputedStyle(m).display !== 'none');
+            if (qualquerModalAberto) {
+                if (clone.dataset._zBefore === undefined) {
+                    clone.dataset._zBefore = window.getComputedStyle(clone).zIndex || '';
+                }
+                clone.style.zIndex = '900';
+            }
+        } catch (e) { }
     } catch (e) {
         // ignore
     }
