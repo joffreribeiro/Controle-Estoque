@@ -11,6 +11,9 @@ let estoque = {
     registroDistribuicao: []
 };
 
+// ID da venda que está sendo editada (null quando criando nova)
+let vendaEditandoId = null;
+
 // Dados iniciais com PREÇOS baseados na planilha - SEM dados de distribuição/vendas (zerados)
 const dadosIniciais = [
     {
@@ -494,6 +497,9 @@ function abrirModalDevolucao() {
 
 function fecharModal(modalId) {
     document.getElementById(modalId).style.display = 'none';
+    if (modalId === 'modalVendaDetalhada') {
+        vendaEditandoId = null;
+    }
 }
 
 window.onclick = function(event) {
@@ -617,25 +623,60 @@ function salvarEntradaEstoque(event) {
 // REGISTRO DE VENDAS DETALHADO
 // ========================================
 
-function abrirModalVendaDetalhada() {
+function abrirModalVendaDetalhada(vendaId = null) {
+    // vendaId: se fornecido, abre o modal em modo de edição para essa venda
     document.getElementById('modalVendaDetalhada').style.display = 'block';
     document.getElementById('formVendaDetalhada').reset();
     document.getElementById('valorUnitarioVenda').value = '';
     document.getElementById('valorTotalVenda').value = '';
     atualizarSelectsProdutos();
 
-    // Limpar container e adicionar um item padrão
     const container = document.getElementById('itensVendaContainer');
-    if (container) {
+    if (!container) return;
+
+    // Se estamos criando nova venda, inicializa com uma linha vazia e sugere contrato
+    if (!vendaId) {
+        vendaEditandoId = null;
         container.innerHTML = '';
         adicionarItemVendaRow();
+
+        const ultimoContrato = estoque.registroVendas.length > 0 
+            ? Math.max(...estoque.registroVendas.map(v => parseInt(v.contrato) || 0)) 
+            : 0;
+        document.getElementById('contratoVenda').value = ultimoContrato + 1;
+        return;
     }
 
-    // Sugerir próximo número de contrato
-    const ultimoContrato = estoque.registroVendas.length > 0 
-        ? Math.max(...estoque.registroVendas.map(v => parseInt(v.contrato) || 0)) 
-        : 0;
-    document.getElementById('contratoVenda').value = ultimoContrato + 1;
+    // Modo edição: preencher campos com os dados da venda
+    const venda = estoque.registroVendas.find(v => v.id === vendaId);
+    if (!venda) {
+        mostrarNotificacao('Venda não encontrada para edição', 'error');
+        vendaEditandoId = null;
+        container.innerHTML = '';
+        adicionarItemVendaRow();
+        return;
+    }
+
+    vendaEditandoId = vendaId;
+    container.innerHTML = '';
+
+    document.getElementById('contratoVenda').value = venda.contrato || '';
+    document.getElementById('lojaVenda').value = venda.loja || '';
+    document.getElementById('representanteVendaDet').value = venda.representante || '';
+    document.getElementById('observacoesVenda').value = venda.observacoes || '';
+
+    if (Array.isArray(venda.items) && venda.items.length > 0) {
+        venda.items.forEach(it => {
+            const preValor = it.valorUnitario ? it.valorUnitario.toLocaleString('pt-BR', { minimumFractionDigits: 2 }) : '';
+            adicionarItemVendaRow(it.produtoId, it.quantidade, preValor);
+        });
+    } else {
+        // compatibilidade com registro antigo
+        const preValor = venda.valorUnitario ? venda.valorUnitario.toLocaleString('pt-BR', { minimumFractionDigits: 2 }) : '';
+        adicionarItemVendaRow(venda.produtoId, venda.quantidade || 1, preValor);
+    }
+
+    atualizarTotalVendaDetalhada();
 }
 
 // Constrói opções de produtos (HTML) para selects dinâmicos
@@ -793,7 +834,6 @@ function atualizarPrecoVenda() {
 
 function salvarVendaDetalhada(event) {
     event.preventDefault();
-
     const contrato = document.getElementById('contratoVenda').value.trim();
     const loja = document.getElementById('lojaVenda').value.trim().toUpperCase();
     const representante = document.getElementById('representanteVendaDet').value;
@@ -854,6 +894,33 @@ function salvarVendaDetalhada(event) {
         return;
     }
 
+    // Se estivermos editando, primeiro reverter os efeitos da venda anterior
+    const isEditing = vendaEditandoId !== null;
+    let vendaAnterior = null;
+    if (isEditing) {
+        vendaAnterior = estoque.registroVendas.find(v => v.id === vendaEditandoId);
+        if (!vendaAnterior) {
+            mostrarNotificacao('Venda anterior não encontrada para edição.', 'error');
+            vendaEditandoId = null;
+            return;
+        }
+
+        // Reverter quantidades da venda anterior no representante antigo
+        if (Array.isArray(vendaAnterior.items) && vendaAnterior.items.length > 0) {
+            vendaAnterior.items.forEach(it => {
+                const produto = estoque.produtos.find(p => p.id === it.produtoId);
+                if (produto) {
+                    produto.vendas[vendaAnterior.representante] = Math.max(0, (produto.vendas[vendaAnterior.representante] || 0) - it.quantidade);
+                }
+            });
+        } else {
+            const produto = estoque.produtos.find(p => p.id === vendaAnterior.produtoId);
+            if (produto) {
+                produto.vendas[vendaAnterior.representante] = Math.max(0, (produto.vendas[vendaAnterior.representante] || 0) - (vendaAnterior.quantidade || 0));
+            }
+        }
+    }
+
     // Validar estoque para cada item (no representante selecionado)
     let falta = [];
     itens.forEach(it => {
@@ -867,17 +934,56 @@ function salvarVendaDetalhada(event) {
     });
 
     if (falta.length > 0) {
+        // Restaurar venda anterior caso haja erro na validação
+        if (isEditing && vendaAnterior) {
+            if (Array.isArray(vendaAnterior.items) && vendaAnterior.items.length > 0) {
+                vendaAnterior.items.forEach(it => {
+                    const produto = estoque.produtos.find(p => p.id === it.produtoId);
+                    if (produto) produto.vendas[vendaAnterior.representante] = (produto.vendas[vendaAnterior.representante] || 0) + it.quantidade;
+                });
+            } else {
+                const produto = estoque.produtos.find(p => p.id === vendaAnterior.produtoId);
+                if (produto) produto.vendas[vendaAnterior.representante] = (produto.vendas[vendaAnterior.representante] || 0) + (vendaAnterior.quantidade || 0);
+            }
+            vendaEditandoId = null;
+        }
+
         mostrarNotificacao('Estoque insuficiente:\n' + falta.join('\n'), 'error');
         return;
     }
 
-    // Atualizar vendas no estoque para todos os itens
+    // Aplicar novos valores ao estoque
     itens.forEach(it => {
         const produto = estoque.produtos.find(p => p.id === it.produtoId);
         produto.vendas[representante] = (produto.vendas[representante] || 0) + it.quantidade;
     });
 
-    // Criar registro de venda com múltiplos itens
+    if (isEditing && vendaAnterior) {
+        // Atualizar o registro existente
+        const idx = estoque.registroVendas.findIndex(v => v.id === vendaEditandoId);
+        if (idx !== -1) {
+            estoque.registroVendas[idx].contrato = contrato;
+            estoque.registroVendas[idx].loja = loja;
+            estoque.registroVendas[idx].representante = representante;
+            estoque.registroVendas[idx].items = itens;
+            estoque.registroVendas[idx].quantidadeTotal = totalQtd;
+            estoque.registroVendas[idx].valorTotal = totalValor;
+            estoque.registroVendas[idx].observacoes = observacoes;
+            estoque.registroVendas[idx].data = new Date().toISOString();
+        }
+        vendaEditandoId = null;
+
+        salvarDados();
+        renderizarTabela();
+        renderizarDashboard();
+        renderizarRegistroVendas();
+        fecharModal('modalVendaDetalhada');
+
+        mostrarNotificacao(`Venda atualizada: Contrato ${contrato} - ${totalQtd} itens - ${formatarMoedaValor(totalValor)}`, 'success');
+        return;
+    }
+
+    // Criar registro de venda com múltiplos itens (novo)
     const novaVenda = {
         id: Date.now(),
         contrato: contrato,
@@ -979,6 +1085,7 @@ function renderizarRegistroVendas() {
                     <td class="col-valor-total">${valorTot > 0 ? formatarMoedaValor(valorTot) : '-'}</td>
                     <td class="col-obs" title="${venda.observacoes || '-'}">${venda.observacoes || '-'}</td>
                     <td class="col-acoes">
+                        <button class="btn-action btn-edit" onclick="abrirModalVendaDetalhada(${venda.id})" title="Editar venda">✎</button>
                         <button class="btn-action btn-delete" onclick="excluirVenda(${venda.id})" title="Excluir venda">🗑</button>
                     </td>
                 `;
@@ -1008,6 +1115,7 @@ function renderizarRegistroVendas() {
                 <td class="col-valor-total">${valorTot > 0 ? formatarMoedaValor(valorTot) : '-'}</td>
                 <td class="col-obs" title="${venda.observacoes || '-'}">${venda.observacoes || '-'}</td>
                 <td class="col-acoes">
+                    <button class="btn-action btn-edit" onclick="abrirModalVendaDetalhada(${venda.id})" title="Editar venda">✎</button>
                     <button class="btn-action btn-delete" onclick="excluirVenda(${venda.id})" title="Excluir venda">🗑</button>
                 </td>
             `;
