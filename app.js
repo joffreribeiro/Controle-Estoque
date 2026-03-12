@@ -193,6 +193,8 @@ function trocarAba(aba) {
     } else if (aba === 'distribuicao') {
         renderizarRegistroDistribuicao();
         atualizarSelectDistribuicaoProduto();
+    } else if (aba === 'relatorios') {
+        prepararRelatorioInventario();
     }
 }
 
@@ -426,6 +428,75 @@ document.addEventListener('DOMContentLoaded', () => {
 // ========================================
 // RENDERIZAÇÃO DO DASHBOARD
 // ========================================
+
+// ========================================
+// RELATÓRIOS / IMPRESSÃO
+// ========================================
+
+function prepararRelatorioInventario() {
+    const preview = document.getElementById('relatoriosPreview');
+    if (!preview) return;
+
+    const tabela = document.getElementById('tabelaEstoque');
+    if (!tabela) {
+        preview.innerHTML = '<p>Tabela de estoque não encontrada.</p>';
+        return;
+    }
+
+    // Clonar a tabela para preview/print, evitando ids duplicados
+    const clone = tabela.cloneNode(true);
+    clone.id = 'tabelaEstoqueRelatorio';
+
+    // Remover possíveis estilos de posicionamento que atrapalham impressão
+    clone.querySelectorAll('thead th').forEach(th => { th.style.position = 'static'; th.style.left = 'auto'; });
+    clone.querySelectorAll('td').forEach(td => { td.style.position = 'static'; td.style.left = 'auto'; });
+
+    preview.innerHTML = '';
+    const wrapper = document.createElement('div');
+    wrapper.className = 'report-printable';
+    wrapper.appendChild(clone);
+    preview.appendChild(wrapper);
+}
+
+function imprimirInventario() {
+    prepararRelatorioInventario();
+    const preview = document.getElementById('relatoriosPreview');
+    if (!preview) return;
+
+    const content = preview.innerHTML;
+    const win = window.open('', '_blank', 'width=1000,height=700');
+    if (!win) {
+        alert('Não foi possível abrir a janela de impressão. Permita popups ou use a impressão do navegador.');
+        return;
+    }
+
+    win.document.write(`
+        <!doctype html>
+        <html lang="pt-BR">
+        <head>
+            <meta charset="utf-8">
+            <title>Relatório - Inventário</title>
+            <link rel="stylesheet" href="styles.css">
+            <style>
+                body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif; padding: 20px; color: #222; }
+                h1 { margin-bottom: 12px; }
+                .report-printable table { width: 100%; border-collapse: collapse; font-size: 12px; }
+                .report-printable th, .report-printable td { border: 1px solid #ddd; padding: 6px 8px; text-align: left; }
+                thead { background: #1e3a5f; color: white; }
+                th.col-produto, td.produto-nome { position: static !important; left: auto !important; }
+                @media print { body { margin: 0; } }
+            </style>
+        </head>
+        <body>
+            <h1>Inventário de Produtos</h1>
+            ${content}
+            <script>window.onload = function(){ setTimeout(function(){ window.print(); }, 200); };</script>
+        </body>
+        </html>
+    `);
+    win.document.close();
+}
+
 
 function renderizarDashboard() {
     // Calcular dados

@@ -1623,3 +1623,45 @@ tr.total-row:hover {
 
 /* Pequeno ajuste para o cabeçalho principal por representante */
 th.header-rep { border-right: 2px solid rgba(255,255,255,0.06); }
+
+/* ==============================
+   RELATÓRIOS / IMPRESSÃO
+   ============================== */
+
+.report-preview {
+    background: var(--bg-white);
+    padding: 16px;
+    border-radius: 8px;
+    box-shadow: var(--shadow-sm);
+    overflow: auto;
+}
+
+.report-preview .report-printable {
+    width: 100%;
+}
+
+.report-printable table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+}
+
+.report-printable th,
+.report-printable td {
+    border: 1px solid #e6e9ee;
+    padding: 8px 10px;
+    text-align: left;
+}
+
+.report-printable thead th {
+    background: var(--primary-color);
+    color: white;
+}
+
+/* Impressão: esconder cabeçalho, navegação e elementos não relacionados ao relatório */
+@media print {
+    body * { visibility: hidden; }
+    .report-printable, .report-printable * { visibility: visible; }
+    .report-printable { position: absolute; left: 0; top: 0; width: 100%; }
+    .fixed-table-header { display: none !important; }
+}
