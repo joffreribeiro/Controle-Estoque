@@ -101,6 +101,7 @@ function inicializar() {
     renderizarRegistroVendas();
     renderizarRegistroDistribuicao();
     atualizarSelectsProdutos();
+    atualizarSelectsRelatorios();
     atualizarEstatisticas();
     atualizarData();
 }
@@ -220,6 +221,7 @@ function renderizarTabela() {
     const produtosOrdenados = [...estoque.produtos].sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
     produtosOrdenados.forEach(produto => {
         const tr = document.createElement('tr');
+        tr.dataset.id = produto.id;
         tr.innerHTML = `<td class="produto-nome col-produto" title="${produto.nome}">${produto.nome}</td>`;
 
         let geralDisp = 0;
@@ -442,14 +444,49 @@ function prepararRelatorioInventario() {
         preview.innerHTML = '<p>Tabela de estoque não encontrada.</p>';
         return;
     }
+    // Atualizar selects de relatorio (caso a lista de produtos tenha mudado)
+    atualizarSelectsRelatorios();
+
+    const filtroRep = document.getElementById('filtroRelatoriosRep').value;
+    const filtroProduto = document.getElementById('filtroRelatoriosProduto').value;
 
     // Clonar a tabela para preview/print, evitando ids duplicados
     const clone = tabela.cloneNode(true);
     clone.id = 'tabelaEstoqueRelatorio';
 
     // Remover possíveis estilos de posicionamento que atrapalham impressão
-    clone.querySelectorAll('thead th').forEach(th => { th.style.position = 'static'; th.style.left = 'auto'; });
+    clone.querySelectorAll('thead th').forEach(th => { th.style.position = 'static'; th.style.left = 'auto'; th.style.top = 'auto'; });
     clone.querySelectorAll('td').forEach(td => { td.style.position = 'static'; td.style.left = 'auto'; });
+
+    // Filtrar por produto (se selecionado) e por representante (linha com valores)
+    const corpo = clone.querySelector('tbody');
+    if (corpo) {
+        const rows = Array.from(corpo.querySelectorAll('tr'));
+        rows.forEach(row => {
+            const pid = row.dataset.id;
+            // Se é a linha de totais sem dataset, manter
+            if (!pid) return;
+
+            // Filtrar por produto
+            if (filtroProduto && filtroProduto !== '' && pid !== filtroProduto) {
+                row.remove();
+                return;
+            }
+
+            // Filtrar por representante: manter apenas se houver quantidade ou venda para esse rep
+            if (filtroRep && filtroRep !== '') {
+                const produto = estoque.produtos.find(p => String(p.id) === String(pid));
+                if (produto) {
+                    const disp = produto.distribuicao[filtroRep] || 0;
+                    const venda = produto.vendas[filtroRep] || 0;
+                    if ((disp + venda) === 0) {
+                        row.remove();
+                        return;
+                    }
+                }
+            }
+        });
+    }
 
     preview.innerHTML = '';
     const wrapper = document.createElement('div');
@@ -478,8 +515,9 @@ function imprimirInventario() {
             <title>Relatório - Inventário</title>
             <link rel="stylesheet" href="styles.css">
             <style>
-                body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif; padding: 20px; color: #222; }
-                h1 { margin-bottom: 12px; }
+                @page { size: A4 landscape; margin: 10mm; }
+                body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif; padding: 12px; color: #222; }
+                h1 { margin-bottom: 12px; font-size: 18px; }
                 .report-printable table { width: 100%; border-collapse: collapse; font-size: 12px; }
                 .report-printable th, .report-printable td { border: 1px solid #ddd; padding: 6px 8px; text-align: left; }
                 thead { background: #1e3a5f; color: white; }
@@ -715,6 +753,37 @@ function atualizarSelectsProdutos() {
             select.value = valorAtual;
         }
     });
+}
+
+function atualizarSelectsRelatorios() {
+    // Popular select de representantes
+    const selRep = document.getElementById('filtroRelatoriosRep');
+    if (selRep) {
+        const atual = selRep.value;
+        selRep.innerHTML = '<option value="">Todos</option>';
+        estoque.representantes.forEach(rep => {
+            const opt = document.createElement('option');
+            opt.value = rep;
+            opt.textContent = rep;
+            selRep.appendChild(opt);
+        });
+        selRep.value = atual;
+    }
+
+    // Popular select de produtos
+    const selProd = document.getElementById('filtroRelatoriosProduto');
+    if (selProd) {
+        const atualP = selProd.value;
+        selProd.innerHTML = '<option value="">Todos</option>';
+        const produtosOrdenados = [...estoque.produtos].sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
+        produtosOrdenados.forEach(produto => {
+            const opt = document.createElement('option');
+            opt.value = produto.id;
+            opt.textContent = produto.nome;
+            selProd.appendChild(opt);
+        });
+        selProd.value = atualP;
+    }
 }
 
 function atualizarSelectDistribuicaoProduto() {

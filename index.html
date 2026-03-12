@@ -446,6 +446,14 @@
                 <div class="section-header">
                     <h2 class="section-title">Relatórios</h2>
                     <div class="header-actions">
+                        <label style="margin-right:8px">Representante:</label>
+                        <select id="filtroRelatoriosRep" onchange="prepararRelatorioInventario()">
+                            <option value="">Todos</option>
+                        </select>
+                        <label style="margin:0 8px">Produto:</label>
+                        <select id="filtroRelatoriosProduto" onchange="prepararRelatorioInventario()">
+                            <option value="">Todos</option>
+                        </select>
                         <button class="btn btn-primary" onclick="prepararRelatorioInventario(); imprimirInventario()">
                             <span class="btn-icon">🖨️</span>
                             Imprimir Inventário
