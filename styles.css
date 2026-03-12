@@ -502,7 +502,7 @@ table {
 thead {
     position: sticky;
     top: 0;
-    z-index: 10;
+    z-index: 100; /* garantir que o cabeçalho fique acima das células do corpo */
 }
 
 th {
@@ -530,7 +530,7 @@ th.col-produto {
     background: var(--primary-dark);
     position: sticky;
     left: 0;
-    z-index: 20;
+    z-index: 120; /* este header é sticky tanto no topo quanto à esquerda - manter acima */
 }
 
 .header-rep {
@@ -592,6 +592,7 @@ td.produto-nome {
     background: #f8fafc;
     position: sticky;
     left: 0;
+    z-index: 50; /* garantir que a coluna fixa fique abaixo do cabeçalho, mas acima das células normais */
     border-right: 2px solid var(--border-color);
     max-width: 300px;
     overflow: hidden;
