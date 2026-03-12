@@ -304,7 +304,8 @@ function renderizarTabela() {
 function criarHeaderFixoEstoque() {
     const wrapper = document.querySelector('.table-wrapper');
     if (!wrapper) return;
-    // Se já existe, remover
+
+    // Remover qualquer clone anterior
     const existente = wrapper.querySelector('.fixed-table-header');
     if (existente) existente.remove();
 
@@ -316,54 +317,44 @@ function criarHeaderFixoEstoque() {
 
     const cloneWrap = document.createElement('div');
     cloneWrap.className = 'fixed-table-header';
+    cloneWrap.style.position = 'absolute';
+    cloneWrap.style.top = '0';
+    cloneWrap.style.left = '0';
+    cloneWrap.style.right = '0';
+    cloneWrap.style.pointerEvents = 'none';
+    // fix: z-index abaixo de modais (modal z-index = 1000)
+    cloneWrap.style.zIndex = '950';
 
     const cloneTable = document.createElement('table');
     cloneTable.className = tabela.className;
     const cloneThead = thead.cloneNode(true);
     cloneTable.appendChild(cloneThead);
     cloneWrap.appendChild(cloneTable);
-
     wrapper.appendChild(cloneWrap);
 
     // Sincronizar largura das colunas
     atualizarHeaderFixoEstoque();
 
-    // Se houver um modal aberto, rebaixar imediatamente o z-index do clone
-    try {
-        // armazenar z-index original (computed) para restauração posterior
-        if (cloneWrap.dataset._zBefore === undefined) {
-            const computed = window.getComputedStyle(cloneWrap).zIndex || '';
-            cloneWrap.dataset._zBefore = computed;
-        }
-        if (document.querySelector('.modal[style*="display: block"], .modal[style*="display: block;"]') || document.querySelectorAll('.modal').length > 0 && Array.from(document.querySelectorAll('.modal')).some(m => window.getComputedStyle(m).display !== 'none')) {
-            cloneWrap.style.zIndex = '900';
-        } else if (cloneWrap.dataset._zBefore) {
-            cloneWrap.style.zIndex = cloneWrap.dataset._zBefore || '';
-        }
-    } catch (e) {
-        // silencioso
-    }
-
     // Escutar scroll horizontal da wrapper para mover o cabeçalho duplicado
+    // remover listeners antigos para evitar duplicação
+    wrapper.removeEventListener('scroll', onWrapperScroll);
     wrapper.addEventListener('scroll', onWrapperScroll);
+    window.removeEventListener('resize', atualizarHeaderFixoEstoque);
     window.addEventListener('resize', atualizarHeaderFixoEstoque);
-    
+
     // Ocultar o thead original e adicionar padding-top para evitar que as linhas rolem por baixo
     try {
         const altura = cloneWrap.getBoundingClientRect().height || 0;
-        // Se a cópia não tiver altura válida, não ocultar o thead original (fallback)
         if (altura > 4) {
             thead.style.display = 'none';
             wrapper.style.paddingTop = altura + 'px';
         } else {
-            // fallback: remover clone se inválido e garantir thead visível
             cloneWrap.remove();
             thead.style.display = '';
             wrapper.style.paddingTop = '';
         }
     } catch (e) {
         console.warn('Não foi possível ajustar padding do wrapper para header fixo:', e);
-        // Em caso de erro, garantir que o cabeçalho original permaneça visível
         try { thead.style.display = ''; wrapper.style.paddingTop = ''; } catch (er) {}
     }
 }
@@ -372,7 +363,6 @@ function onWrapperScroll(e) {
     const wrapper = e.currentTarget;
     const clone = wrapper.querySelector('.fixed-table-header');
     if (!clone) return;
-    // Deslocar o conteúdo do header (mover o inner table)
     const innerTable = clone.querySelector('table');
     if (!innerTable) return;
     innerTable.style.transform = `translateX(${ -wrapper.scrollLeft }px)`;
@@ -385,12 +375,10 @@ function atualizarHeaderFixoEstoque() {
     const clone = wrapper.querySelector('.fixed-table-header');
     if (!tabela) {
         if (clone) clone.remove();
-        // Restaurar display original se não houver tabela
         if (wrapper) wrapper.style.paddingTop = '';
         return;
     }
 
-    // Se não existe o cabeçalho duplicado, criar
     if (!clone) {
         criarHeaderFixoEstoque();
         return;
@@ -399,13 +387,11 @@ function atualizarHeaderFixoEstoque() {
     const origThs = Array.from(tabela.querySelectorAll('thead th'));
     const cloneThs = Array.from(clone.querySelectorAll('thead th'));
     if (origThs.length !== cloneThs.length) {
-        // reconstruir se colunas mudarem
         clone.remove();
         criarHeaderFixoEstoque();
         return;
     }
 
-    // Ajustar largura de cada th duplicado para corresponder ao original
     origThs.forEach((th, i) => {
         const cloneTh = cloneThs[i];
         const width = th.getBoundingClientRect().width;
@@ -414,25 +400,13 @@ function atualizarHeaderFixoEstoque() {
         cloneTh.style.boxSizing = 'border-box';
     });
 
-    // Ajustar a largura da tabela duplicada para a largura do original
     const origTableWidth = tabela.getBoundingClientRect().width;
     const innerTable = clone.querySelector('table');
     if (innerTable) innerTable.style.width = `${origTableWidth}px`;
 
-    // Ajustar padding-top caso o tamanho do header tenha mudado
     try {
         const altura = clone.getBoundingClientRect().height || 0;
         wrapper.style.paddingTop = altura + 'px';
-        // Se houver um modal aberto, garantir que o clone fique abaixo dele
-        try {
-            const qualquerModalAberto = Array.from(document.querySelectorAll('.modal')).some(m => window.getComputedStyle(m).display !== 'none');
-            if (qualquerModalAberto) {
-                if (clone.dataset._zBefore === undefined) {
-                    clone.dataset._zBefore = window.getComputedStyle(clone).zIndex || '';
-                }
-                clone.style.zIndex = '900';
-            }
-        } catch (e) { }
     } catch (e) {
         // ignore
     }
@@ -630,53 +604,61 @@ function converterMoedaParaNumero(valor) {
 // ========================================
 
 function abrirModalProduto() {
-    document.getElementById('modalProduto').style.display = 'block';
-    document.getElementById('formProduto').reset();
-}
+    const wrapper = document.querySelector('.table-wrapper');
+    if (!wrapper) return;
 
-function abrirModalDistribuicao() {
-    document.getElementById('modalDistribuicao').style.display = 'block';
-    document.getElementById('formDistribuicao').reset();
-    atualizarSelectsProdutos();
-}
+    // Remover qualquer clone anterior
+    const existente = wrapper.querySelector('.fixed-table-header');
+    if (existente) existente.remove();
 
-function abrirModalVenda() {
-    document.getElementById('modalVenda').style.display = 'block';
-    document.getElementById('formVenda').reset();
-    atualizarSelectsProdutos();
-}
+    const tabela = wrapper.querySelector('#tabelaEstoque');
+    if (!tabela) return;
 
-function abrirModalDevolucao() {
-    document.getElementById('modalDevolucao').style.display = 'block';
-    document.getElementById('formDevolucao').reset();
-    atualizarSelectsProdutos();
-}
+    const thead = tabela.querySelector('thead');
+    if (!thead) return;
 
+    const cloneWrap = document.createElement('div');
+    cloneWrap.className = 'fixed-table-header';
+    cloneWrap.style.position = 'absolute';
+    cloneWrap.style.top = '0';
+    cloneWrap.style.left = '0';
+    cloneWrap.style.right = '0';
+    cloneWrap.style.pointerEvents = 'none';
+    // fix: z-index abaixo de modais (modal z-index = 1000)
+    cloneWrap.style.zIndex = '900';
 
+    const cloneTable = document.createElement('table');
+    cloneTable.className = tabela.className;
+    const cloneThead = thead.cloneNode(true);
+    cloneTable.appendChild(cloneThead);
+    cloneWrap.appendChild(cloneTable);
+    wrapper.appendChild(cloneWrap);
 
-// Restaurar z-index do header fixo quando um modal for fechado (feito explicitamente aqui)
-function _restaurarZindexHeaderFixo() {
+    // Sincronizar largura das colunas
+    atualizarHeaderFixoEstoque();
+
+    // Escutar scroll horizontal da wrapper para mover o cabeçalho duplicado
+    // remover listeners antigos para evitar duplicação
+    wrapper.removeEventListener('scroll', onWrapperScroll);
+    wrapper.addEventListener('scroll', onWrapperScroll);
+    window.removeEventListener('resize', atualizarHeaderFixoEstoque);
+    window.addEventListener('resize', atualizarHeaderFixoEstoque);
+
+    // Ocultar o thead original e adicionar padding-top para evitar que as linhas rolem por baixo
     try {
-        const clone = document.querySelector('.fixed-table-header');
-        if (clone && clone.dataset && clone.dataset._zBefore !== undefined) {
-            clone.style.zIndex = clone.dataset._zBefore || '';
-            delete clone.dataset._zBefore;
+        const altura = cloneWrap.getBoundingClientRect().height || 0;
+        if (altura > 4) {
+            thead.style.display = 'none';
+            wrapper.style.paddingTop = altura + 'px';
+        } else {
+            cloneWrap.remove();
+            thead.style.display = '';
+            wrapper.style.paddingTop = '';
         }
     } catch (e) {
-        // silencioso
+        console.warn('Não foi possível ajustar padding do wrapper para header fixo:', e);
+        try { thead.style.display = ''; wrapper.style.paddingTop = ''; } catch (er) {}
     }
-}
-
-function fecharModal(modalId) {
-    document.getElementById(modalId).style.display = 'none';
-    if (modalId === 'modalVendaDetalhada') {
-        vendaEditandoId = null;
-    }
-    // Restaurar z-index do header fixo quando qualquer modal é fechado
-    _restaurarZindexHeaderFixo();
-}
-
-window.onclick = function(event) {
     if (event.target.classList.contains('modal')) {
         const modalEl = event.target;
         modalEl.style.display = 'none';

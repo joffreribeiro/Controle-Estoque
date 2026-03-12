@@ -502,7 +502,7 @@ table {
 thead {
     position: sticky;
     top: 0;
-    z-index: 2147483647; /* garantir que o cabeçalho fique acima das células do corpo */
+    z-index: 950; /* garantir que o cabeçalho fique acima das células do corpo, mas abaixo de modais */
     /* força camada de composição para evitar problemas de stacking em alguns navegadores */
     transform: translateZ(0);
 }
@@ -532,7 +532,7 @@ th.col-produto {
     background: var(--primary-dark);
     position: sticky;
     left: 0;
-    z-index: 2147483646; /* este header é sticky tanto no topo quanto à esquerda - manter acima */
+    z-index: 949; /* este header é sticky tanto no topo quanto à esquerda - manter acima */
     top: 0; /* garantir alinhamento quando combinado com thead sticky */
 }
 
@@ -610,13 +610,13 @@ td.produto-nome {
 thead th {
     position: sticky;
     top: 0;
-    z-index: 2147483647;
+    z-index: 950;
     transform: translateZ(0);
 }
 
 /* Aumentar z-index da primeira coluna do cabeçalho para evitar sobreposição */
 thead th.col-produto {
-    z-index: 2147483646;
+    z-index: 949;
 }
 
 .table-wrapper {
@@ -632,7 +632,7 @@ thead th.col-produto {
     height: auto;
     pointer-events: none; /* deixar eventos passarem para a tabela abaixo */
     overflow: hidden;
-    z-index: 2147483647; /* acima de tudo */
+    z-index: 950; /* acima da tabela, abaixo dos modais */
 }
 
 .fixed-table-header table {
