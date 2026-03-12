@@ -836,6 +836,55 @@ tr.total-row:hover {
     min-height: 320px;
 }
 
+/* Modal grande com navegação vertical */
+.modal-content.modal-lg {
+    max-width: 900px;
+}
+
+.modal-inner {
+    display: flex;
+    gap: 20px;
+}
+
+.modal-nav {
+    width: 200px;
+    background: transparent;
+    padding: 10px 0 10px 10px;
+    border-right: 1px solid var(--border-color);
+    height: 56vh;
+    overflow: auto;
+}
+
+.modal-nav ul {
+    list-style: none;
+}
+
+.modal-nav li {
+    margin: 6px 0;
+}
+
+.modal-nav a {
+    display: block;
+    padding: 8px 12px;
+    color: var(--text-primary);
+    text-decoration: none;
+    border-radius: 6px;
+}
+
+.modal-nav a:hover,
+.modal-nav a:focus {
+    background: var(--bg-light);
+}
+
+.modal-form {
+    flex: 1 1 auto;
+    max-height: 56vh;
+    overflow: auto;
+    padding-right: 8px;
+}
+
+.form-section { padding-bottom: 16px; }
+
 /* Container de itens dentro do modal - rolagem interna quando muitos itens */
 .itens-venda-container {
     max-height: 38vh;

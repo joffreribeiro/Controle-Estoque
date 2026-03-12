@@ -649,56 +649,83 @@
                 </div>
                 <form id="formVendaDetalhada" onsubmit="salvarVendaDetalhada(event)">
                     <div class="modal-body">
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label for="contratoVenda">Nº Contrato <span class="required">*</span></label>
-                                <input type="text" id="contratoVenda" required placeholder="Ex: 123">
-                            </div>
-                            <div class="form-group">
-                                <label for="lojaVenda">Loja/Cliente <span class="required">*</span></label>
-                                <input type="text" id="lojaVenda" required placeholder="Nome da loja ou cliente">
-                            </div>
-                        </div>
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label for="representanteVendaDet">Representante <span class="required">*</span></label>
-                                <select id="representanteVendaDet" required>
-                                    <option value="">Selecione o representante</option>
-                                    <option value="KOLTE">KOLTE</option>
-                                    <option value="ISA">ISA</option>
-                                    <option value="LC">LC</option>
-                                    <option value="ADES">ADES</option>
-                                    <option value="FL">FL</option>
-                                    <option value="IMBEL">IMBEL (Venda Direta)</option>
-                                </select>
-                            </div>
-                        </div>
+                        <div class="modal-inner">
+                            <nav class="modal-nav">
+                                <ul>
+                                    <li><a href="#sec-contrato">Contrato</a></li>
+                                    <li><a href="#sec-loja">Loja / Cliente</a></li>
+                                    <li><a href="#sec-representante">Representante</a></li>
+                                    <li><a href="#sec-itens">Itens</a></li>
+                                    <li><a href="#sec-totais">Totais</a></li>
+                                    <li><a href="#sec-observacoes">Observações</a></li>
+                                </ul>
+                            </nav>
 
-                        <div class="form-row">
-                            <div class="form-group full-width">
-                                <label>Itens da Venda
-                                    <button type="button" class="btn btn-outline btn-sm" style="margin-left:10px; vertical-align:middle;" id="btnToggleLayout" onclick="toggleItensLayout()">Layout: Vertical</button>
-                                </label>
-                                <div id="itensVendaContainer" class="itens-venda-container itens-layout-vertical"></div>
-                                <div style="margin-top:8px">
-                                    <button type="button" class="btn btn-outline btn-sm" onclick="adicionarItemVendaRow()">+ Adicionar Item</button>
-                                </div>
-                            </div>
-                        </div>
+                            <div class="modal-form">
+                                <section id="sec-contrato" class="form-section">
+                                    <div class="form-row">
+                                        <div class="form-group">
+                                            <label for="contratoVenda">Nº Contrato <span class="required">*</span></label>
+                                            <input type="text" id="contratoVenda" required placeholder="Ex: 123">
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="lojaVenda">Loja/Cliente <span class="required">*</span></label>
+                                            <input type="text" id="lojaVenda" required placeholder="Nome da loja ou cliente">
+                                        </div>
+                                    </div>
+                                </section>
 
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label for="valorUnitarioVenda">Valor Unitário (média)</label>
-                                <input type="text" id="valorUnitarioVenda" readonly class="readonly-field">
+                                <section id="sec-representante" class="form-section">
+                                    <div class="form-row">
+                                        <div class="form-group">
+                                            <label for="representanteVendaDet">Representante <span class="required">*</span></label>
+                                            <select id="representanteVendaDet" required>
+                                                <option value="">Selecione o representante</option>
+                                                <option value="KOLTE">KOLTE</option>
+                                                <option value="ISA">ISA</option>
+                                                <option value="LC">LC</option>
+                                                <option value="ADES">ADES</option>
+                                                <option value="FL">FL</option>
+                                                <option value="IMBEL">IMBEL (Venda Direta)</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </section>
+
+                                <section id="sec-itens" class="form-section">
+                                    <div class="form-row">
+                                        <div class="form-group full-width">
+                                            <label>Itens da Venda
+                                                <button type="button" class="btn btn-outline btn-sm" style="margin-left:10px; vertical-align:middle;" id="btnToggleLayout" onclick="toggleItensLayout()">Layout: Vertical</button>
+                                            </label>
+                                            <div id="itensVendaContainer" class="itens-venda-container itens-layout-vertical"></div>
+                                            <div style="margin-top:8px">
+                                                <button type="button" class="btn btn-outline btn-sm" onclick="adicionarItemVendaRow()">+ Adicionar Item</button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </section>
+
+                                <section id="sec-totais" class="form-section">
+                                    <div class="form-row">
+                                        <div class="form-group">
+                                            <label for="valorUnitarioVenda">Valor Unitário (média)</label>
+                                            <input type="text" id="valorUnitarioVenda" readonly class="readonly-field">
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="valorTotalVenda">Valor Total (R$)</label>
+                                            <input type="text" id="valorTotalVenda" readonly class="readonly-field highlight-field">
+                                        </div>
+                                    </div>
+                                </section>
+
+                                <section id="sec-observacoes" class="form-section">
+                                    <div class="form-group">
+                                        <label for="observacoesVenda">Observações</label>
+                                        <textarea id="observacoesVenda" rows="3" placeholder="Observações adicionais sobre a venda..."></textarea>
+                                    </div>
+                                </section>
                             </div>
-                            <div class="form-group">
-                                <label for="valorTotalVenda">Valor Total (R$)</label>
-                                <input type="text" id="valorTotalVenda" readonly class="readonly-field highlight-field">
-                            </div>
-                        </div>
-                        <div class="form-group">
-                            <label for="observacoesVenda">Observações</label>
-                            <textarea id="observacoesVenda" rows="3" placeholder="Observações adicionais sobre a venda..."></textarea>
                         </div>
                     </div>
                     <div class="modal-footer">

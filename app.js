@@ -632,6 +632,19 @@ function fecharModal(modalId) {
     }
 }
 
+// Restaurar z-index do header fixo quando qualquer modal for fechado
+const observerModalClose = new MutationObserver(() => {
+    try {
+        const clone = document.querySelector('.fixed-table-header');
+        if (clone && clone.dataset && clone.dataset._zBefore !== undefined) {
+            clone.style.zIndex = clone.dataset._zBefore || '';
+            delete clone.dataset._zBefore;
+        }
+    } catch (e) {}
+});
+
+observerModalClose.observe(document.body, { attributes: true, childList: true, subtree: true });
+
 window.onclick = function(event) {
     if (event.target.classList.contains('modal')) {
         event.target.style.display = 'none';
@@ -755,7 +768,8 @@ function salvarEntradaEstoque(event) {
 
 function abrirModalVendaDetalhada(vendaId = null) {
     // vendaId: se fornecido, abre o modal em modo de edição para essa venda
-    document.getElementById('modalVendaDetalhada').style.display = 'block';
+    const modalEl = document.getElementById('modalVendaDetalhada');
+    modalEl.style.display = 'block';
     document.getElementById('formVendaDetalhada').reset();
     document.getElementById('valorUnitarioVenda').value = '';
     document.getElementById('valorTotalVenda').value = '';
@@ -807,6 +821,15 @@ function abrirModalVendaDetalhada(vendaId = null) {
     }
 
     atualizarTotalVendaDetalhada();
+
+    // Rebaixar temporariamente o header fixo para ficar abaixo do modal (evitar sobreposição)
+    try {
+        const clone = document.querySelector('.fixed-table-header');
+        if (clone) {
+            clone.dataset._zBefore = clone.style.zIndex || '';
+            clone.style.zIndex = '900';
+        }
+    } catch (e) { console.warn(e); }
 }
 
 // Constrói opções de produtos (HTML) para selects dinâmicos
