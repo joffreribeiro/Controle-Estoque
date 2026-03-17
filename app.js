@@ -331,6 +331,7 @@ function criarHeaderFixoEstoque() {
 
     const cloneTable = document.createElement('table');
     cloneTable.className = tabela.className;
+    cloneTable.style.tableLayout = 'fixed';
     const cloneThead = thead.cloneNode(true);
     cloneTable.appendChild(cloneThead);
     cloneWrap.appendChild(cloneTable);
@@ -387,33 +388,45 @@ function atualizarHeaderFixoEstoque() {
         criarHeaderFixoEstoque();
         return;
     }
-
+    // Medição e aplicação de larguras em duas rAFs para garantir layout estável
     const origThs = Array.from(tabela.querySelectorAll('thead th'));
     const cloneThs = Array.from(clone.querySelectorAll('thead th'));
     if (origThs.length !== cloneThs.length) {
+        // estrutura mudou — recriar
         clone.remove();
         criarHeaderFixoEstoque();
         return;
     }
 
-    origThs.forEach((th, i) => {
-        const cloneTh = cloneThs[i];
-        const width = th.getBoundingClientRect().width;
-        cloneTh.style.width = `${width}px`;
-        cloneTh.style.minWidth = `${width}px`;
-        cloneTh.style.boxSizing = 'border-box';
+    // Usar duas rAFs para esperar pelo layout final
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+            try {
+                origThs.forEach((th, i) => {
+                    const cloneTh = cloneThs[i];
+                    const width = th.getBoundingClientRect().width;
+                    if (cloneTh) {
+                        cloneTh.style.width = `${width}px`;
+                        cloneTh.style.minWidth = `${width}px`;
+                        cloneTh.style.boxSizing = 'border-box';
+                    }
+                });
+
+                const origTableWidth = tabela.getBoundingClientRect().width;
+                const innerTable = clone.querySelector('table');
+                if (innerTable) innerTable.style.width = `${origTableWidth}px`;
+
+                const altura = clone.getBoundingClientRect().height || 0;
+                wrapper.style.paddingTop = altura + 'px';
+
+                // ocultar o thead original caso esteja visível
+                const thead = tabela.querySelector('thead');
+                if (thead) thead.style.display = 'none';
+            } catch (e) {
+                console.warn('Erro atualizando larguras do header fixo:', e);
+            }
+        });
     });
-
-    const origTableWidth = tabela.getBoundingClientRect().width;
-    const innerTable = clone.querySelector('table');
-    if (innerTable) innerTable.style.width = `${origTableWidth}px`;
-
-    try {
-        const altura = clone.getBoundingClientRect().height || 0;
-        wrapper.style.paddingTop = altura + 'px';
-    } catch (e) {
-        // ignore
-    }
 }
 
 // Inicializar ao carregar (se tabela já existia)
