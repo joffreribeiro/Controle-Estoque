@@ -11,8 +11,8 @@ let estoque = {
     registroDistribuicao: []
 };
 
-// Flag para logs de depuração do header fixo
-window.__DEBUG_HEADER_LOGS = true;
+// Flag para logs de depuração do header fixo (desative em produção)
+window.__DEBUG_HEADER_LOGS = false;
 
 // Configurações para medição do header fixo (ajustáveis para ambiente do usuário)
 const HEADER_MAX_RETRIES = 12;
