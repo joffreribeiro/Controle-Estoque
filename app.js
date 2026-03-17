@@ -11,6 +11,9 @@ let estoque = {
     registroDistribuicao: []
 };
 
+// Flag para logs de depuração do header fixo
+window.__DEBUG_HEADER_LOGS = true;
+
 // ID da venda que está sendo editada (null quando criando nova)
 let vendaEditandoId = null;
 
@@ -414,9 +417,12 @@ function atualizarHeaderFixoEstoque() {
                     const refCells = firstDataRow ? Array.from(firstDataRow.children) : [];
                     const subHeaderCells = Array.from(clone.querySelectorAll('thead tr:last-child th'));
 
+                    if (window.__DEBUG_HEADER_LOGS) console.log('[HEADER DEBUG] refCells:', refCells.length, 'subHeaderCells:', subHeaderCells.length);
                     if (refCells.length > 0 && subHeaderCells.length > 0 && (refCells.length - 1) === subHeaderCells.length) {
                         // Mapear widths: refCells[0] = produto, refCells[1..] -> subHeaderCells[0..]
                         const tdWidths = refCells.map(td => td.getBoundingClientRect().width);
+
+                        if (window.__DEBUG_HEADER_LOGS) console.log('[HEADER DEBUG] tdWidths (px):', tdWidths.map(w=>Math.round(w)));
 
                         // Aplicar larguras nas sub-headers (segunda linha do thead clonado)
                         subHeaderCells.forEach((th, idx) => {
@@ -424,6 +430,7 @@ function atualizarHeaderFixoEstoque() {
                             th.style.width = `${w}px`;
                             th.style.minWidth = `${w}px`;
                             th.style.boxSizing = 'border-box';
+                            if (window.__DEBUG_HEADER_LOGS) console.log(`[HEADER DEBUG] applied subHeader ${idx} width=${Math.round(w)}px`);
                         });
 
                         // Agora ajustar os ths da primeira linha (agrupar por colspan)
@@ -438,6 +445,7 @@ function atualizarHeaderFixoEstoque() {
                                     th.style.width = `${w}px`;
                                     th.style.minWidth = `${w}px`;
                                     th.style.boxSizing = 'border-box';
+                                    if (window.__DEBUG_HEADER_LOGS) console.log(`[HEADER DEBUG] applied topHeader (produto) width=${Math.round(w)}px`);
                                 } else {
                                     // somar largura das subheaders correspondentes
                                     let sum = 0;
@@ -447,6 +455,7 @@ function atualizarHeaderFixoEstoque() {
                                     th.style.width = `${sum}px`;
                                     th.style.minWidth = `${sum}px`;
                                     th.style.boxSizing = 'border-box';
+                                    if (window.__DEBUG_HEADER_LOGS) console.log(`[HEADER DEBUG] applied topHeader colspan=${colspan} width=${Math.round(sum)}px`);
                                     subIndex += colspan;
                                 }
                             });
@@ -458,6 +467,7 @@ function atualizarHeaderFixoEstoque() {
                         if (innerTable) innerTable.style.width = `${origTableWidth}px`;
 
                         var altura = clone.getBoundingClientRect().height || 0;
+                        if (window.__DEBUG_HEADER_LOGS) console.log('[HEADER DEBUG] clone altura (px):', Math.round(altura));
                     } else {
                         // Fallback para medir diretamente os ths do thead (modo anterior)
                         origThs.forEach((th, i) => {
@@ -474,17 +484,19 @@ function atualizarHeaderFixoEstoque() {
                         if (innerTable) innerTable.style.width = `${origTableWidth}px`;
 
                         var altura = clone.getBoundingClientRect().height || 0;
+                        if (window.__DEBUG_HEADER_LOGS) console.log('[HEADER DEBUG] fallback orgulho altura (px):', Math.round(altura));
                     }
 
                 // Se o clone não tem altura suficiente ou não tem ths, remover e restaurar original
                 const cloneThCount = clone.querySelectorAll('thead th').length;
                 if (altura <= 2 || cloneThCount === 0) {
                     // fallback: remover clone e restaurar original
+                    if (window.__DEBUG_HEADER_LOGS) console.warn('[HEADER DEBUG] clone inválido — removendo clone. altura=', altura, 'cloneThCount=', cloneThCount);
                     try { clone.remove(); } catch (e) {}
                     try { if (thead) thead.style.display = ''; wrapper.style.paddingTop = ''; } catch (e) {}
                     return;
                 }
-
+                if (window.__DEBUG_HEADER_LOGS) console.log('[HEADER DEBUG] aplicando paddingTop=', Math.round(altura));
                 wrapper.style.paddingTop = altura + 'px';
 
                 // tornar o clone visível agora que as medições foram aplicadas
