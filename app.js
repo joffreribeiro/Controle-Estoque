@@ -347,19 +347,13 @@ function criarHeaderFixoEstoque() {
     window.removeEventListener('resize', atualizarHeaderFixoEstoque);
     window.addEventListener('resize', atualizarHeaderFixoEstoque);
 
-    // Ocultar o thead original e adicionar padding-top para evitar que as linhas rolem por baixo
+    // Inicialmente esconder o clone até que as medidas sejam aplicadas
+    cloneWrap.style.visibility = 'hidden';
+    // Executar atualização imediata das larguras (atualizarHeaderFixoEstoque fará as medições e tornará visível)
     try {
-        const altura = cloneWrap.getBoundingClientRect().height || 0;
-        if (altura > 4) {
-            thead.style.display = 'none';
-            wrapper.style.paddingTop = altura + 'px';
-        } else {
-            cloneWrap.remove();
-            thead.style.display = '';
-            wrapper.style.paddingTop = '';
-        }
+        atualizarHeaderFixoEstoque();
     } catch (e) {
-        console.warn('Não foi possível ajustar padding do wrapper para header fixo:', e);
+        console.warn('Erro inicializando header fixo:', e);
         try { thead.style.display = ''; wrapper.style.paddingTop = ''; } catch (er) {}
     }
 }
@@ -417,7 +411,20 @@ function atualizarHeaderFixoEstoque() {
                 if (innerTable) innerTable.style.width = `${origTableWidth}px`;
 
                 const altura = clone.getBoundingClientRect().height || 0;
+
+                // Se o clone não tem altura suficiente ou não tem ths, remover e restaurar original
+                const cloneThCount = clone.querySelectorAll('thead th').length;
+                if (altura <= 2 || cloneThCount === 0) {
+                    // fallback: remover clone e restaurar original
+                    try { clone.remove(); } catch (e) {}
+                    try { const thead = tabela.querySelector('thead'); if (thead) thead.style.display = ''; wrapper.style.paddingTop = ''; } catch (e) {}
+                    return;
+                }
+
                 wrapper.style.paddingTop = altura + 'px';
+
+                // tornar o clone visível agora que as medições foram aplicadas
+                clone.style.visibility = 'visible';
 
                 // ocultar o thead original caso esteja visível
                 const thead = tabela.querySelector('thead');
