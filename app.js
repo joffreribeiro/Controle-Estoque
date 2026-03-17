@@ -938,39 +938,70 @@ function abrirModalDevolucao() {
     if (!modal) return;
     modal.style.display = 'flex';
     document.getElementById('formDevolucao').reset();
-
     // Popular select de produtos
     const selectProduto = document.getElementById('produtoDevolucao');
-    selectProduto.innerHTML = '<option value="">Selecione um produto</option>';
-    const produtosOrdenados = [...estoque.produtos].sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
-    produtosOrdenados.forEach(produto => {
-        const option = document.createElement('option');
-        option.value = produto.id;
-        option.textContent = produto.nome;
-        selectProduto.appendChild(option);
-    });
+    if (selectProduto) {
+        selectProduto.innerHTML = '<option value="">Selecione um produto</option>';
+        const produtosOrdenados = [...estoque.produtos].sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
+        produtosOrdenados.forEach(produto => {
+            const option = document.createElement('option');
+            option.value = produto.id;
+            option.textContent = produto.nome;
+            selectProduto.appendChild(option);
+        });
+    }
 
     // Popular select de representantes (origem)
     const selectRep = document.getElementById('representanteDevolucao');
-    selectRep.innerHTML = '<option value="">Selecione o representante</option>';
-    estoque.representantes.forEach(rep => {
-        const opt = document.createElement('option');
-        opt.value = rep;
-        opt.textContent = rep;
-        selectRep.appendChild(opt);
-    });
-
-    // Popular select destino (IMBEL por padrão, mas permitir redistribuir para qualquer rep)
-    const selectDestino = document.getElementById('destinoDevolucao');
-    selectDestino.innerHTML = '<option value="IMBEL">IMBEL (Retornar ao estoque central)</option>';
-    estoque.representantes.forEach(rep => {
-        if (rep !== 'IMBEL') {
+    if (selectRep) {
+        selectRep.innerHTML = '<option value="">Selecione o representante</option>';
+        estoque.representantes.forEach(rep => {
             const opt = document.createElement('option');
             opt.value = rep;
             opt.textContent = rep;
-            selectDestino.appendChild(opt);
+            selectRep.appendChild(opt);
+        });
+    }
+
+    // Popular select destino (IMBEL por padrão, mas permitir redistribuir para qualquer rep)
+    const selectDestino = document.getElementById('destinoDevolucao');
+    if (selectDestino) {
+        selectDestino.innerHTML = '<option value="IMBEL">IMBEL (Retornar ao estoque central)</option>';
+        estoque.representantes.forEach(rep => {
+            if (rep !== 'IMBEL') {
+                const opt = document.createElement('option');
+                opt.value = rep;
+                opt.textContent = rep;
+                selectDestino.appendChild(opt);
+            }
+        });
+    }
+}
+
+// Fecha um modal e restaura z-index do header fixo se necessário
+function fecharModal(modalId) {
+    try {
+        const modal = document.getElementById(modalId);
+        if (modal) modal.style.display = 'none';
+    } catch (e) { /* ignore */ }
+    // Sempre tentar restaurar z-index do header fixo quando um modal fechar
+    try { _restaurarZindexHeaderFixo(); } catch (e) { /* ignore */ }
+}
+
+// Restaura o z-index do header fixo (quando foi temporariamente rebaixado para exibir modal)
+function _restaurarZindexHeaderFixo() {
+    try {
+        const clone = document.querySelector('.fixed-table-header');
+        if (!clone) return;
+        const before = clone.dataset._zBefore;
+        if (before !== undefined) {
+            clone.style.zIndex = before || '950';
+            delete clone.dataset._zBefore;
+        } else {
+            // garantir valor padrão
+            clone.style.zIndex = '950';
         }
-    });
+    } catch (e) { /* ignore */ }
 }
 
 function mostrarEstoqueAtual() {
