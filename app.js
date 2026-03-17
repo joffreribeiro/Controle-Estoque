@@ -2077,8 +2077,16 @@ function salvarDevolucao(event) {
     produto.distribuicao[destino] = (produto.distribuicao[destino] || 0) + quantidade;
 
     salvarDados();
+    // Forçar atualização completa da UI e do header fixo
     renderizarTabela();
     renderizarDashboard();
+    atualizarSelectsProdutos();
+    try { criarHeaderFixoEstoque(); } catch (e) { console.warn('Erro recriando header fixo:', e); }
+    // Pequena pausa e tentar novamente para lidar com race conditions de medidas
+    setTimeout(() => {
+        try { atualizarHeaderFixoEstoque(); } catch (e) { /* ignore */ }
+    }, 120);
+
     fecharModal('modalDevolucao');
 
     mostrarNotificacao(`${quantidade} unidades movidas de ${representante} para ${destino}!`, 'success');
