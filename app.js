@@ -409,21 +409,72 @@ function atualizarHeaderFixoEstoque() {
     requestAnimationFrame(() => {
         requestAnimationFrame(() => {
             try {
-                origThs.forEach((th, i) => {
-                    const cloneTh = cloneThs[i];
-                    const width = th.getBoundingClientRect().width;
-                    if (cloneTh) {
-                        cloneTh.style.width = `${width}px`;
-                        cloneTh.style.minWidth = `${width}px`;
-                        cloneTh.style.boxSizing = 'border-box';
+                    // Preferir medir a partir da primeira linha de dados (tds) — mais confiável quando o thead usa colspan/rowspan
+                    const firstDataRow = tabela.querySelector('tbody tr:not(.total-row)');
+                    const refCells = firstDataRow ? Array.from(firstDataRow.children) : [];
+                    const subHeaderCells = Array.from(clone.querySelectorAll('thead tr:last-child th'));
+
+                    if (refCells.length > 0 && subHeaderCells.length > 0 && (refCells.length - 1) === subHeaderCells.length) {
+                        // Mapear widths: refCells[0] = produto, refCells[1..] -> subHeaderCells[0..]
+                        const tdWidths = refCells.map(td => td.getBoundingClientRect().width);
+
+                        // Aplicar larguras nas sub-headers (segunda linha do thead clonado)
+                        subHeaderCells.forEach((th, idx) => {
+                            const w = tdWidths[idx + 1] || tdWidths[0] || 0;
+                            th.style.width = `${w}px`;
+                            th.style.minWidth = `${w}px`;
+                            th.style.boxSizing = 'border-box';
+                        });
+
+                        // Agora ajustar os ths da primeira linha (agrupar por colspan)
+                        const topHeaderRow = clone.querySelector('thead tr:first-child');
+                        if (topHeaderRow) {
+                            let subIndex = 0;
+                            Array.from(topHeaderRow.children).forEach(th => {
+                                const colspan = parseInt(th.getAttribute('colspan')) || 1;
+                                if (th.getAttribute('rowspan')) {
+                                    // coluna de produto (rowspan=2) — usar primeira td width
+                                    const w = tdWidths[0] || 0;
+                                    th.style.width = `${w}px`;
+                                    th.style.minWidth = `${w}px`;
+                                    th.style.boxSizing = 'border-box';
+                                } else {
+                                    // somar largura das subheaders correspondentes
+                                    let sum = 0;
+                                    for (let i = 0; i < colspan; i++) {
+                                        sum += (tdWidths[1 + subIndex + i] || 0);
+                                    }
+                                    th.style.width = `${sum}px`;
+                                    th.style.minWidth = `${sum}px`;
+                                    th.style.boxSizing = 'border-box';
+                                    subIndex += colspan;
+                                }
+                            });
+                        }
+
+                        // Ajustar largura da tabela interna do clone
+                        const origTableWidth = tabela.getBoundingClientRect().width;
+                        const innerTable = clone.querySelector('table');
+                        if (innerTable) innerTable.style.width = `${origTableWidth}px`;
+
+                        var altura = clone.getBoundingClientRect().height || 0;
+                    } else {
+                        // Fallback para medir diretamente os ths do thead (modo anterior)
+                        origThs.forEach((th, i) => {
+                            const cloneTh = cloneThs[i];
+                            const width = th.getBoundingClientRect().width;
+                            if (cloneTh) {
+                                cloneTh.style.width = `${width}px`;
+                                cloneTh.style.minWidth = `${width}px`;
+                                cloneTh.style.boxSizing = 'border-box';
+                            }
+                        });
+                        const origTableWidth = tabela.getBoundingClientRect().width;
+                        const innerTable = clone.querySelector('table');
+                        if (innerTable) innerTable.style.width = `${origTableWidth}px`;
+
+                        var altura = clone.getBoundingClientRect().height || 0;
                     }
-                });
-
-                const origTableWidth = tabela.getBoundingClientRect().width;
-                const innerTable = clone.querySelector('table');
-                if (innerTable) innerTable.style.width = `${origTableWidth}px`;
-
-                const altura = clone.getBoundingClientRect().height || 0;
 
                 // Se o clone não tem altura suficiente ou não tem ths, remover e restaurar original
                 const cloneThCount = clone.querySelectorAll('thead th').length;
