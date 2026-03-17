@@ -898,6 +898,46 @@ function abrirModalEntradaEstoque() {
     });
 }
 
+function abrirModalDevolucao() {
+    const modal = document.getElementById('modalDevolucao');
+    if (!modal) return;
+    modal.style.display = 'flex';
+    document.getElementById('formDevolucao').reset();
+
+    // Popular select de produtos
+    const selectProduto = document.getElementById('produtoDevolucao');
+    selectProduto.innerHTML = '<option value="">Selecione um produto</option>';
+    const produtosOrdenados = [...estoque.produtos].sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
+    produtosOrdenados.forEach(produto => {
+        const option = document.createElement('option');
+        option.value = produto.id;
+        option.textContent = produto.nome;
+        selectProduto.appendChild(option);
+    });
+
+    // Popular select de representantes (origem)
+    const selectRep = document.getElementById('representanteDevolucao');
+    selectRep.innerHTML = '<option value="">Selecione o representante</option>';
+    estoque.representantes.forEach(rep => {
+        const opt = document.createElement('option');
+        opt.value = rep;
+        opt.textContent = rep;
+        selectRep.appendChild(opt);
+    });
+
+    // Popular select destino (IMBEL por padrão, mas permitir redistribuir para qualquer rep)
+    const selectDestino = document.getElementById('destinoDevolucao');
+    selectDestino.innerHTML = '<option value="IMBEL">IMBEL (Retornar ao estoque central)</option>';
+    estoque.representantes.forEach(rep => {
+        if (rep !== 'IMBEL') {
+            const opt = document.createElement('option');
+            opt.value = rep;
+            opt.textContent = rep;
+            selectDestino.appendChild(opt);
+        }
+    });
+}
+
 function mostrarEstoqueAtual() {
     const produtoId = parseInt(document.getElementById('produtoEntrada').value);
     const produto = estoque.produtos.find(p => p.id === produtoId);
@@ -2006,6 +2046,7 @@ function salvarDevolucao(event) {
     const produtoId = parseInt(document.getElementById('produtoDevolucao').value);
     const representante = document.getElementById('representanteDevolucao').value;
     const quantidade = parseInt(document.getElementById('quantidadeDevolucao').value);
+    const destino = document.getElementById('destinoDevolucao') ? document.getElementById('destinoDevolucao').value : 'IMBEL';
     
     const produto = estoque.produtos.find(p => p.id === produtoId);
     
@@ -2023,15 +2064,24 @@ function salvarDevolucao(event) {
         return;
     }
     
-    produto.distribuicao[representante] -= quantidade;
-    produto.distribuicao.IMBEL += quantidade;
-    
+    if (destino === representante) {
+        mostrarNotificacao('Destino selecionado é o mesmo representante de origem. Selecione outro destino.', 'error');
+        return;
+    }
+
+    // Subtrair do representante de origem
+    produto.distribuicao[representante] = (produto.distribuicao[representante] || 0) - quantidade;
+    if (produto.distribuicao[representante] < 0) produto.distribuicao[representante] = 0;
+
+    // Garantir chave de destino
+    produto.distribuicao[destino] = (produto.distribuicao[destino] || 0) + quantidade;
+
     salvarDados();
     renderizarTabela();
     renderizarDashboard();
     fecharModal('modalDevolucao');
-    
-    mostrarNotificacao(`${quantidade} unidades devolvidas de ${representante} para IMBEL!`, 'success');
+
+    mostrarNotificacao(`${quantidade} unidades movidas de ${representante} para ${destino}!`, 'success');
 }
 
 function limparFiltros() {
