@@ -340,6 +340,9 @@ function criarHeaderFixoEstoque() {
     cloneWrap.appendChild(cloneTable);
     wrapper.appendChild(cloneWrap);
 
+    // inicializar contador de tentativas (usado na medição para retries)
+    try { cloneWrap.dataset._retryCount = '0'; } catch (e) { /* ignore */ }
+
     // Sincronizar largura das colunas
     atualizarHeaderFixoEstoque();
 
@@ -490,14 +493,30 @@ function atualizarHeaderFixoEstoque() {
                 // Se o clone não tem altura suficiente ou não tem ths, remover e restaurar original
                 const cloneThCount = clone.querySelectorAll('thead th').length;
                 if (altura <= 2 || cloneThCount === 0) {
-                    // fallback: remover clone e restaurar original
-                    if (window.__DEBUG_HEADER_LOGS) console.warn('[HEADER DEBUG] clone inválido — removendo clone. altura=', altura, 'cloneThCount=', cloneThCount);
+                    // Se as medidas retornaram zero, tentar algumas vezes antes de remover o clone
+                    try {
+                        const maxRetries = 6;
+                        const current = parseInt(clone.dataset._retryCount || '0');
+                        if (window.__DEBUG_HEADER_LOGS) console.warn('[HEADER DEBUG] clone inválido — tentativa', current, 'de', maxRetries, 'altura=', altura, 'cloneThCount=', cloneThCount);
+                        if (current < maxRetries) {
+                            clone.dataset._retryCount = String(current + 1);
+                            // tentar novamente após pequena espera
+                            setTimeout(() => {
+                                try { atualizarHeaderFixoEstoque(); } catch (e) { /* ignore */ }
+                            }, 60);
+                            return;
+                        }
+                    } catch (e) { /* ignore */ }
+
+                    if (window.__DEBUG_HEADER_LOGS) console.warn('[HEADER DEBUG] remoção final do clone após retries. altura=', altura, 'cloneThCount=', cloneThCount);
                     try { clone.remove(); } catch (e) {}
                     try { if (thead) thead.style.display = ''; wrapper.style.paddingTop = ''; } catch (e) {}
                     return;
                 }
                 if (window.__DEBUG_HEADER_LOGS) console.log('[HEADER DEBUG] aplicando paddingTop=', Math.round(altura));
                 wrapper.style.paddingTop = altura + 'px';
+                // resetar contador de retries após sucesso
+                try { if (clone.dataset && clone.dataset._retryCount) clone.dataset._retryCount = '0'; } catch (e) {}
 
                 // tornar o clone visível agora que as medições foram aplicadas
                 clone.style.visibility = 'visible';
