@@ -383,6 +383,19 @@ function atualizarHeaderFixoEstoque() {
         return;
     }
     // Medição e aplicação de larguras em duas rAFs para garantir layout estável
+    // Garantir que o thead original esteja visível DURANTE a medição (pode ter sido ocultado anteriormente)
+    let thead = tabela.querySelector('thead');
+    let theadWasHidden = false;
+    try {
+        const compStyle = thead ? window.getComputedStyle(thead) : null;
+        if (thead && compStyle && compStyle.display === 'none') {
+            theadWasHidden = true;
+            thead.style.display = '';
+        }
+    } catch (e) {
+        // ignore
+    }
+
     const origThs = Array.from(tabela.querySelectorAll('thead th'));
     const cloneThs = Array.from(clone.querySelectorAll('thead th'));
     if (origThs.length !== cloneThs.length) {
@@ -417,7 +430,7 @@ function atualizarHeaderFixoEstoque() {
                 if (altura <= 2 || cloneThCount === 0) {
                     // fallback: remover clone e restaurar original
                     try { clone.remove(); } catch (e) {}
-                    try { const thead = tabela.querySelector('thead'); if (thead) thead.style.display = ''; wrapper.style.paddingTop = ''; } catch (e) {}
+                    try { if (thead) thead.style.display = ''; wrapper.style.paddingTop = ''; } catch (e) {}
                     return;
                 }
 
@@ -426,9 +439,11 @@ function atualizarHeaderFixoEstoque() {
                 // tornar o clone visível agora que as medições foram aplicadas
                 clone.style.visibility = 'visible';
 
-                // ocultar o thead original caso esteja visível
-                const thead = tabela.querySelector('thead');
-                if (thead) thead.style.display = 'none';
+                try {
+                    if (thead) thead.style.display = 'none';
+                } catch (e) { /* ignore */ }
+                // Se tínhamos mostrado o thead apenas para medição, garantir que sua exibição final está correta
+                theadWasHidden = false;
             } catch (e) {
                 console.warn('Erro atualizando larguras do header fixo:', e);
             }
