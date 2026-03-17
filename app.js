@@ -14,6 +14,10 @@ let estoque = {
 // Flag para logs de depuração do header fixo
 window.__DEBUG_HEADER_LOGS = true;
 
+// Configurações para medição do header fixo (ajustáveis para ambiente do usuário)
+const HEADER_MAX_RETRIES = 12;
+const HEADER_RETRY_DELAY = 100; // ms
+let __headerUpdateDebounceTimer = null;
 // ID da venda que está sendo editada (null quando criando nova)
 let vendaEditandoId = null;
 
@@ -495,7 +499,7 @@ function atualizarHeaderFixoEstoque() {
                 if (altura <= 2 || cloneThCount === 0) {
                     // Se as medidas retornaram zero, tentar algumas vezes antes de remover o clone
                     try {
-                        const maxRetries = 6;
+                        const maxRetries = HEADER_MAX_RETRIES;
                         const current = parseInt(clone.dataset._retryCount || '0');
                         if (window.__DEBUG_HEADER_LOGS) console.warn('[HEADER DEBUG] clone inválido — tentativa', current, 'de', maxRetries, 'altura=', altura, 'cloneThCount=', cloneThCount);
                         if (current < maxRetries) {
@@ -503,7 +507,7 @@ function atualizarHeaderFixoEstoque() {
                             // tentar novamente após pequena espera
                             setTimeout(() => {
                                 try { atualizarHeaderFixoEstoque(); } catch (e) { /* ignore */ }
-                            }, 60);
+                            }, HEADER_RETRY_DELAY);
                             return;
                         }
                     } catch (e) { /* ignore */ }
@@ -540,9 +544,45 @@ document.addEventListener('DOMContentLoaded', () => {
         const wrapper = document.querySelector('.table-wrapper');
         if (wrapper && wrapper.querySelector('#tabelaEstoque')) {
             criarHeaderFixoEstoque();
+            // instalar observer para reagir a mudanças no corpo da tabela (ajuda com race conditions)
+            try { instalarObserverTabela(); } catch (e) { /* ignore */ }
         }
     }, 200);
 });
+
+// Instala um MutationObserver no corpo da tabela para disparar atualização do header quando linhas mudarem
+function instalarObserverTabela() {
+    try {
+        const tbody = document.getElementById('corpoTabela');
+        if (!tbody) return;
+
+        const observer = new MutationObserver((mutations) => {
+            // Debounce para agrupar várias mudanças rápidas
+            if (__headerUpdateDebounceTimer) clearTimeout(__headerUpdateDebounceTimer);
+            __headerUpdateDebounceTimer = setTimeout(() => {
+                try {
+                    // Se não existir clone, criar; caso exista, apenas atualizar
+                    const wrapper = document.querySelector('.table-wrapper');
+                    if (!wrapper) return;
+                    const clone = wrapper.querySelector('.fixed-table-header');
+                    if (!clone) {
+                        criarHeaderFixoEstoque();
+                    } else {
+                        atualizarHeaderFixoEstoque();
+                    }
+                } catch (e) { /* ignore */ }
+            }, 80);
+        });
+
+        observer.disconnect();
+        observer.observe(tbody, { childList: true, subtree: true, characterData: false });
+        // guardar referência para debug (opcional)
+        window.__headerMutationObserver = observer;
+        if (window.__DEBUG_HEADER_LOGS) console.log('[HEADER DEBUG] MutationObserver instalado no corpo da tabela');
+    } catch (e) {
+        if (window.__DEBUG_HEADER_LOGS) console.warn('[HEADER DEBUG] falha ao instalar observer:', e);
+    }
+}
 
 // ========================================
 // RENDERIZAÇÃO DO DASHBOARD
@@ -2233,7 +2273,7 @@ function salvarDevolucao(event) {
     // Pequena pausa e tentar novamente para lidar com race conditions de medidas
     setTimeout(() => {
         try { atualizarHeaderFixoEstoque(); } catch (e) { /* ignore */ }
-    }, 120);
+    }, HEADER_RETRY_DELAY);
 
     fecharModal('modalDevolucao');
 
