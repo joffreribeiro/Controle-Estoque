@@ -162,9 +162,22 @@ function atualizarEstatisticas() {
             const venda = produto.vendas[rep] || 0;
             totalEstoque += (disp - venda);
             totalVendas += venda;
-            valorTotalVendas += venda * (produto.preco || 0);
         });
     });
+
+    // Corrigir cálculo de faturamento: somar valorTotal de todas vendas registradas
+    valorTotalVendas = 0;
+    if (Array.isArray(estoque.registroVendas)) {
+        estoque.registroVendas.forEach(venda => {
+            if (Array.isArray(venda.items) && venda.items.length > 0) {
+                venda.items.forEach(it => {
+                    valorTotalVendas += it.valorTotal || 0;
+                });
+            } else {
+                valorTotalVendas += venda.valorTotal || 0;
+            }
+        });
+    }
 
     document.getElementById('totalProdutos').textContent = estoque.produtos.length;
     document.getElementById('totalEstoque').textContent = totalEstoque.toLocaleString('pt-BR');
