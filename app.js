@@ -884,21 +884,151 @@ function imprimirTabelaSeparada(tableId, titulo, subtitulo = '', orientacao = 'l
 function imprimirControleEnvio() {
     renderizarControleEnvio();
 
-    const filtroRep = document.getElementById('filtroControleEnvioRep')?.value || 'Todos';
-    const filtroSistema = document.getElementById('filtroControleEnvioSistema')?.value || 'todos';
-    const filtroAssinado = document.getElementById('filtroControleEnvioAssinado')?.value || 'todos';
-    const filtroEnviado = document.getElementById('filtroControleEnvioEnviado')?.value || 'todos';
+    const tabela = document.getElementById('tabelaControleEnvio');
+    if (!tabela) { mostrarNotificacao('Tabela não encontrada.', 'error'); return; }
 
-    const formatarFiltro = (valor) => {
-        if (valor === 'sim') return 'Marcado';
-        if (valor === 'nao') return 'Não marcado';
-        if (valor === 'todos') return 'Todos';
-        return valor;
-    };
+    const filtroRep    = document.getElementById('filtroControleEnvioRep')?.value      || '';
+    const filtroSistema  = document.getElementById('filtroControleEnvioSistema')?.value  || '';
+    const filtroAssinado = document.getElementById('filtroControleEnvioAssinado')?.value || '';
+    const filtroEnviado  = document.getElementById('filtroControleEnvioEnviado')?.value  || '';
 
-    const subtitulo = `<strong>Representante:</strong> ${filtroRep} &nbsp;|&nbsp; <strong>Sistema:</strong> ${formatarFiltro(filtroSistema)} &nbsp;|&nbsp; <strong>Assinado:</strong> ${formatarFiltro(filtroAssinado)} &nbsp;|&nbsp; <strong>Enviado:</strong> ${formatarFiltro(filtroEnviado)}`;
+    const fmt = v => v === 'sim' ? 'Marcado' : v === 'nao' ? 'Não marcado' : 'Todos';
 
-    imprimirTabelaSeparada('tabelaControleEnvio', 'Controle de Envio de Contratos', subtitulo, 'landscape');
+    // Clonar tabela e converter campos editáveis para texto simples
+    const clone = tabela.cloneNode(true);
+
+    clone.querySelectorAll('td').forEach(td => {
+        const cb = td.querySelector('input[type="checkbox"]');
+        if (cb) { td.innerHTML = cb.checked ? '✔' : ''; return; }
+
+        const inp = td.querySelector('input[type="text"], textarea');
+        if (inp) { td.textContent = inp.value || '-'; return; }
+
+        const sel = td.querySelector('select');
+        if (sel) { td.textContent = sel.options[sel.selectedIndex]?.text || '-'; return; }
+    });
+
+    // Remover coluna Ações
+    const headerCells = Array.from(clone.querySelectorAll('thead tr:first-child th'));
+    const idxAcoes = headerCells.findIndex(th => /^a[çc][oõ]es$/i.test(th.textContent.trim()));
+    if (idxAcoes >= 0) {
+        clone.querySelectorAll('thead tr, tbody tr, tfoot tr').forEach(row => {
+            const cells = Array.from(row.children);
+            if (cells[idxAcoes]) cells[idxAcoes].remove();
+        });
+    }
+
+    const dataAgora = new Date().toLocaleString('pt-BR');
+    const filtrosHtml = `<div class="filtros-info">
+        <strong>Representante:</strong> ${filtroRep || 'Todos'} &nbsp;|&nbsp;
+        <strong>Sistema:</strong> ${fmt(filtroSistema)} &nbsp;|&nbsp;
+        <strong>Assinado:</strong> ${fmt(filtroAssinado)} &nbsp;|&nbsp;
+        <strong>Enviado:</strong> ${fmt(filtroEnviado)}
+    </div>`;
+
+    const win = window.open('', '_blank', 'width=1200,height=700');
+    if (!win) { alert('Permita popups para imprimir.'); return; }
+
+    win.document.write(`
+        <!doctype html>
+        <html lang="pt-BR">
+        <head>
+            <meta charset="utf-8">
+            <title>Controle de Envio de Contratos</title>
+            <style>
+                @page {
+                    size: A4 landscape;
+                    margin: 10mm 8mm;
+                }
+                * { box-sizing: border-box; margin: 0; padding: 0; }
+                body {
+                    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+                    font-size: 11px;
+                    color: #222;
+                    padding: 8px 10px;
+                }
+                h1 {
+                    font-size: 15px;
+                    margin-bottom: 4px;
+                    color: #1e3a5f;
+                }
+                .meta {
+                    font-size: 10px;
+                    color: #555;
+                    margin-bottom: 3px;
+                }
+                .filtros-info {
+                    font-size: 10px;
+                    color: #333;
+                    margin-bottom: 8px;
+                    padding: 4px 6px;
+                    background: #f4f6f9;
+                    border-left: 3px solid #1e3a5f;
+                }
+                table {
+                    width: 100%;
+                    border-collapse: collapse;
+                    table-layout: fixed;
+                    font-size: 10px;
+                }
+                th, td {
+                    border: 1px solid #ccc;
+                    padding: 5px 6px;
+                    text-align: left;
+                    overflow: hidden;
+                    text-overflow: ellipsis;
+                    white-space: nowrap;
+                    word-break: break-word;
+                }
+                thead th {
+                    background: #1e3a5f;
+                    color: #fff;
+                    font-size: 10px;
+                    font-weight: 600;
+                    text-align: center;
+                }
+                tbody tr:nth-child(even) { background: #f7f9fc; }
+                /* Larguras proporcionais: CTR | NOME | REP | SISTEMA | ASSINADO | ENVIADO | SOLICITAÇÃO */
+                col.col-ctr        { width: 6%; }
+                col.col-nome       { width: 30%; }
+                col.col-rep        { width: 12%; }
+                col.col-sistema    { width: 9%; }
+                col.col-assinado   { width: 9%; }
+                col.col-enviado    { width: 9%; }
+                col.col-solic      { width: 25%; }
+                /* Centralizar colunas de marcação */
+                td:nth-child(4), td:nth-child(5), td:nth-child(6) { text-align: center; }
+                .badge-rep {
+                    display: inline-block;
+                    padding: 1px 6px;
+                    border-radius: 4px;
+                    font-size: 9px;
+                    font-weight: 700;
+                    color: #fff;
+                    background: #1e3a5f;
+                }
+                @media print { body { padding: 0; } }
+            </style>
+        </head>
+        <body>
+            <h1>Controle de Envio de Contratos</h1>
+            <div class="meta"><strong>Data:</strong> ${dataAgora}</div>
+            ${filtrosHtml}
+            <colgroup>
+                <col class="col-ctr">
+                <col class="col-nome">
+                <col class="col-rep">
+                <col class="col-sistema">
+                <col class="col-assinado">
+                <col class="col-enviado">
+                <col class="col-solic">
+            </colgroup>
+            ${clone.outerHTML}
+            <script>window.onload = function(){ setTimeout(function(){ window.print(); }, 250); };<\/script>
+        </body>
+        </html>
+    `);
+    win.document.close();
 }
 
 function imprimirDashboardQtdProduto() {
