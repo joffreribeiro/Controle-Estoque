@@ -256,7 +256,29 @@
             </div>
         </div>
 
-
+        <!-- ========================================
+             ABA: REGISTRO DE VENDAS
+             ======================================== -->
+        <div class="tab-content" id="tab-vendas">
+            <div class="content-area">
+                <div class="section-header">
+                    <h2 class="section-title">Registro de Vendas</h2>
+                    <div class="header-actions">
+                        <button class="btn btn-success" onclick="abrirModalVendaDetalhada()">
+                            <span class="btn-icon">+</span>
+                            Nova Venda
+                        </button>
+                        <button class="btn btn-info" onclick="document.getElementById('inputImportarVendas').click()">
+                            <span class="btn-icon">📥</span>
+                            Importar Excel
+                        </button>
+                        <input type="file" id="inputImportarVendas" accept=".csv,.xlsx,.xls" style="display:none" onchange="importarVendas(event)">
+                        <button class="btn btn-outline" onclick="exportarVendas()">
+                            <span class="btn-icon">📤</span>
+                            Exportar Excel
+                        </button>
+                    </div>
+                </div>
 
                 <!-- Filtros -->
                 <div class="filtros-container">
