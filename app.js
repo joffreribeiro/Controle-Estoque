@@ -284,8 +284,13 @@ function renderizarTabela() {
         totais.GERAL.saldo += geralSaldo;
 
         const saldoGeralClass = geralSaldo < 0 ? 'negativo' : (geralSaldo > 0 && geralSaldo <= 10 ? 'baixo' : '');
-
         const animateGeral = geralSaldo < 0 ? 'animate-negativo' : '';
+
+        // Marcação vermelha quando saldo consolidado === 0
+        if (geralSaldo === 0) {
+            tr.classList.add('row-saldo-zero');
+        }
+
         tr.innerHTML += `
             <td class="geral-disp">${formatarNumero(geralDisp)}</td>
             <td class="geral-venda">${formatarNumero(geralVenda)}</td>

@@ -1658,6 +1658,22 @@ th.header-rep { border-right: 2px solid rgba(255,255,255,0.06); }
     color: white;
 }
 
+/* Linha com saldo consolidado zerado */
+tr.row-saldo-zero {
+    background-color: #fde8e8 !important;
+    border-left: 3px solid #dc3545;
+}
+tr.row-saldo-zero td {
+    color: #721c24;
+}
+tr.row-saldo-zero td.produto-nome {
+    font-weight: 700;
+}
+tr.row-saldo-zero .geral-saldo {
+    color: #dc3545;
+    font-weight: 700;
+}
+
 /* Impressão: esconder cabeçalho, navegação e elementos não relacionados ao relatório */
 @media print {
     body * { visibility: hidden; }
