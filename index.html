@@ -380,9 +380,15 @@
                     <div class="dashboard-section">
                         <div class="section-header">
                             <h2 class="section-title">Quantidade Vendida por Produto</h2>
+                            <div class="header-actions">
+                                <button class="btn btn-outline btn-sm" onclick="imprimirDashboardQtdProduto()">
+                                    <span class="btn-icon">🖨️</span>
+                                    Imprimir
+                                </button>
+                            </div>
                         </div>
                         <div class="table-container compact">
-                            <table class="dashboard-table">
+                            <table class="dashboard-table" id="tabelaDashboardQtdProduto">
                                 <thead>
                                     <tr>
                                         <th class="col-produto">Produto</th>
@@ -398,9 +404,15 @@
                     <div class="dashboard-section">
                         <div class="section-header">
                             <h2 class="section-title">Valor das Vendas por Produto</h2>
+                            <div class="header-actions">
+                                <button class="btn btn-outline btn-sm" onclick="imprimirDashboardValorProduto()">
+                                    <span class="btn-icon">🖨️</span>
+                                    Imprimir
+                                </button>
+                            </div>
                         </div>
                         <div class="table-container compact">
-                            <table class="dashboard-table">
+                            <table class="dashboard-table" id="tabelaDashboardValorProduto">
                                 <thead>
                                     <tr>
                                         <th class="col-produto">Produto</th>
@@ -417,6 +429,12 @@
                 <div class="dashboard-section full-width">
                     <div class="section-header">
                         <h2 class="section-title">Quantidade de Vendas por Representante</h2>
+                        <div class="header-actions">
+                            <button class="btn btn-outline btn-sm" onclick="imprimirDashboardVendasRepresentante()">
+                                <span class="btn-icon">🖨️</span>
+                                Imprimir
+                            </button>
+                        </div>
                     </div>
                     <div class="table-container">
                         <div class="table-wrapper">
@@ -495,7 +513,53 @@
                             <span class="btn-icon">📤</span>
                             Exportar Excel
                         </button>
+                        <button class="btn btn-outline" onclick="imprimirControleEnvio()">
+                            <span class="btn-icon">🖨️</span>
+                            Imprimir
+                        </button>
                     </div>
+                </div>
+
+                <div class="filtros-container">
+                    <div class="filtro-group">
+                        <label>Representante:</label>
+                        <select id="filtroControleEnvioRep" onchange="renderizarControleEnvio()">
+                            <option value="">Todos</option>
+                            <option value="KOLTE">KOLTE</option>
+                            <option value="ISA">ISA</option>
+                            <option value="LC">LC</option>
+                            <option value="ADES">ADES</option>
+                            <option value="FL">FL</option>
+                            <option value="IMBEL">IMBEL</option>
+                        </select>
+                    </div>
+                    <div class="filtro-group">
+                        <label>Sistema:</label>
+                        <select id="filtroControleEnvioSistema" onchange="renderizarControleEnvio()">
+                            <option value="">Todos</option>
+                            <option value="sim">Marcado</option>
+                            <option value="nao">Não marcado</option>
+                        </select>
+                    </div>
+                    <div class="filtro-group">
+                        <label>Assinado:</label>
+                        <select id="filtroControleEnvioAssinado" onchange="renderizarControleEnvio()">
+                            <option value="">Todos</option>
+                            <option value="sim">Marcado</option>
+                            <option value="nao">Não marcado</option>
+                        </select>
+                    </div>
+                    <div class="filtro-group">
+                        <label>Enviado:</label>
+                        <select id="filtroControleEnvioEnviado" onchange="renderizarControleEnvio()">
+                            <option value="">Todos</option>
+                            <option value="sim">Marcado</option>
+                            <option value="nao">Não marcado</option>
+                        </select>
+                    </div>
+                    <button class="btn btn-outline btn-sm" onclick="limparFiltrosControleEnvio()">
+                        <span>🔄</span> Limpar Filtros
+                    </button>
                 </div>
 
                 <div class="table-container">

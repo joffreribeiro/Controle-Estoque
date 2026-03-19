@@ -788,6 +788,134 @@ function imprimirInventario() {
     win.document.close();
 }
 
+function imprimirTabelaSeparada(tableId, titulo, subtitulo = '', orientacao = 'landscape') {
+    const tabela = document.getElementById(tableId);
+    if (!tabela) {
+        mostrarNotificacao('Tabela não encontrada para impressão.', 'error');
+        return;
+    }
+
+    const clone = tabela.cloneNode(true);
+
+    // Converter campos editáveis em texto para impressão limpa
+    clone.querySelectorAll('td').forEach(td => {
+        const checkbox = td.querySelector('input[type="checkbox"]');
+        if (checkbox) {
+            td.textContent = checkbox.checked ? 'Sim' : 'Não';
+            return;
+        }
+
+        const select = td.querySelector('select');
+        if (select) {
+            const opt = select.options[select.selectedIndex];
+            td.textContent = opt ? opt.text : '-';
+            return;
+        }
+
+        const inputTexto = td.querySelector('input[type="text"], input:not([type]), textarea');
+        if (inputTexto) {
+            td.textContent = inputTexto.value || '-';
+            return;
+        }
+    });
+
+    // Remover coluna de ações, se existir
+    const headerRow = clone.querySelector('thead tr');
+    let indiceAcoes = -1;
+    if (headerRow) {
+        const headers = Array.from(headerRow.children);
+        indiceAcoes = headers.findIndex(th => {
+            const txt = (th.textContent || '').trim().toUpperCase();
+            return txt === 'AÇÕES' || txt === 'ACOES';
+        });
+        if (indiceAcoes >= 0 && headers[indiceAcoes]) {
+            headers[indiceAcoes].remove();
+        }
+    }
+
+    if (indiceAcoes >= 0) {
+        clone.querySelectorAll('tbody tr, tfoot tr').forEach(row => {
+            const cells = Array.from(row.children);
+            if (cells[indiceAcoes]) {
+                cells[indiceAcoes].remove();
+            }
+        });
+    }
+
+    const dataAgora = new Date().toLocaleString('pt-BR');
+    const subtituloFinal = subtitulo ? `<div style="margin-bottom:8px;font-size:13px;color:#222">${subtitulo}</div>` : '';
+
+    const win = window.open('', '_blank', 'width=1100,height=700');
+    if (!win) {
+        alert('Não foi possível abrir a janela de impressão. Permita popups ou use a impressão do navegador.');
+        return;
+    }
+
+    win.document.write(`
+        <!doctype html>
+        <html lang="pt-BR">
+        <head>
+            <meta charset="utf-8">
+            <title>${titulo}</title>
+            <link rel="stylesheet" href="styles.css">
+            <style>
+                @page { size: A4 ${orientacao}; margin: 10mm; }
+                body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif; padding: 12px; color: #222; }
+                h1 { margin-bottom: 8px; font-size: 18px; }
+                .meta { margin-bottom: 10px; font-size: 13px; color: #222; }
+                .report-printable table { width: 100%; border-collapse: collapse; font-size: 12px; }
+                .report-printable th, .report-printable td { border: 1px solid #ddd; padding: 6px 8px; text-align: left; }
+                .report-printable thead th { background: #1e3a5f; color: #fff; }
+                @media print { body { margin: 0; } }
+            </style>
+        </head>
+        <body>
+            <h1>${titulo}</h1>
+            <div class="meta"><strong>Data:</strong> ${dataAgora}</div>
+            ${subtituloFinal}
+            <div class="report-printable">${clone.outerHTML}</div>
+            <script>window.onload = function(){ setTimeout(function(){ window.print(); }, 200); };</script>
+        </body>
+        </html>
+    `);
+    win.document.close();
+}
+
+function imprimirControleEnvio() {
+    renderizarControleEnvio();
+
+    const filtroRep = document.getElementById('filtroControleEnvioRep')?.value || 'Todos';
+    const filtroSistema = document.getElementById('filtroControleEnvioSistema')?.value || 'todos';
+    const filtroAssinado = document.getElementById('filtroControleEnvioAssinado')?.value || 'todos';
+    const filtroEnviado = document.getElementById('filtroControleEnvioEnviado')?.value || 'todos';
+
+    const formatarFiltro = (valor) => {
+        if (valor === 'sim') return 'Marcado';
+        if (valor === 'nao') return 'Não marcado';
+        if (valor === 'todos') return 'Todos';
+        return valor;
+    };
+
+    const subtitulo = `<strong>Representante:</strong> ${filtroRep} &nbsp;|&nbsp; <strong>Sistema:</strong> ${formatarFiltro(filtroSistema)} &nbsp;|&nbsp; <strong>Assinado:</strong> ${formatarFiltro(filtroAssinado)} &nbsp;|&nbsp; <strong>Enviado:</strong> ${formatarFiltro(filtroEnviado)}`;
+
+    imprimirTabelaSeparada('tabelaControleEnvio', 'Controle de Envio de Contratos', subtitulo, 'landscape');
+}
+
+function imprimirDashboardQtdProduto() {
+    renderizarDashboard();
+    imprimirTabelaSeparada('tabelaDashboardQtdProduto', 'Dashboard - Quantidade Vendida por Produto', '', 'portrait');
+}
+
+function imprimirDashboardValorProduto() {
+    renderizarDashboard();
+    imprimirTabelaSeparada('tabelaDashboardValorProduto', 'Dashboard - Valor das Vendas por Produto', '', 'portrait');
+}
+
+function imprimirDashboardVendasRepresentante() {
+    renderizarDashboard();
+    imprimirTabelaSeparada('tabelaVendasRep', 'Dashboard - Quantidade de Vendas por Representante', '', 'landscape');
+}
+
 
 function renderizarDashboard() {
     // Calcular dados
@@ -2861,9 +2989,18 @@ function limparTodosDados() {
 // CONTROLE DE ENVIO DE CONTRATOS
 // ========================================
 
+function campoMarcado(valor) {
+    return valor === true || valor === 'Sim' || valor === 'SAP' || valor === 'Outro' || valor === 'true';
+}
+
 function renderizarControleEnvio() {
     const tbody = document.getElementById('tabelaControleEnvioBody');
     if (!tbody) return;
+
+    const filtroRep = document.getElementById('filtroControleEnvioRep')?.value || '';
+    const filtroSistema = document.getElementById('filtroControleEnvioSistema')?.value || '';
+    const filtroAssinado = document.getElementById('filtroControleEnvioAssinado')?.value || '';
+    const filtroEnviado = document.getElementById('filtroControleEnvioEnviado')?.value || '';
 
     // Agrupa vendas por contrato (pega a primeira ocorrência de cada contrato)
     const contratoMap = {};
@@ -2879,7 +3016,31 @@ function renderizarControleEnvio() {
         }
     });
 
-    const contratos = Object.values(contratoMap).sort((a, b) => {
+    let contratos = Object.values(contratoMap);
+
+    if (filtroRep) {
+        contratos = contratos.filter(c => c.representante === filtroRep);
+    }
+
+    if (filtroSistema || filtroAssinado || filtroEnviado) {
+        contratos = contratos.filter(c => {
+            const envio = estoque.controleEnvio[c.contrato] || {};
+            const sistemaMarcado = campoMarcado(envio.sistema);
+            const assinadoMarcado = campoMarcado(envio.assinado);
+            const enviadoMarcado = campoMarcado(envio.enviado);
+
+            if (filtroSistema === 'sim' && !sistemaMarcado) return false;
+            if (filtroSistema === 'nao' && sistemaMarcado) return false;
+            if (filtroAssinado === 'sim' && !assinadoMarcado) return false;
+            if (filtroAssinado === 'nao' && assinadoMarcado) return false;
+            if (filtroEnviado === 'sim' && !enviadoMarcado) return false;
+            if (filtroEnviado === 'nao' && enviadoMarcado) return false;
+
+            return true;
+        });
+    }
+
+    contratos = contratos.sort((a, b) => {
         const contratoA = parseInt(a.contrato) || 0;
         const contratoB = parseInt(b.contrato) || 0;
         return contratoA - contratoB;
@@ -2902,7 +3063,7 @@ function renderizarControleEnvio() {
 
     contratos.forEach(contrato => {
         const envio = estoque.controleEnvio[contrato.contrato] || {};
-        const sistemaMarcado = envio.sistema === true || envio.sistema === 'Sim' || envio.sistema === 'SAP' || envio.sistema === 'Outro';
+        const sistemaMarcado = campoMarcado(envio.sistema);
         const repClass = (contrato.representante || '').toLowerCase();
 
         const tr = document.createElement('tr');
@@ -2943,6 +3104,20 @@ function salvarControleEnvio(contrato, campo, valor) {
     salvarDados();
 }
 
+function limparFiltrosControleEnvio() {
+    const filtroRep = document.getElementById('filtroControleEnvioRep');
+    const filtroSistema = document.getElementById('filtroControleEnvioSistema');
+    const filtroAssinado = document.getElementById('filtroControleEnvioAssinado');
+    const filtroEnviado = document.getElementById('filtroControleEnvioEnviado');
+
+    if (filtroRep) filtroRep.value = '';
+    if (filtroSistema) filtroSistema.value = '';
+    if (filtroAssinado) filtroAssinado.value = '';
+    if (filtroEnviado) filtroEnviado.value = '';
+
+    renderizarControleEnvio();
+}
+
 function limparControleEnvio(contrato) {
     if (confirm(`Deseja limpar os dados de envio do contrato ${contrato}?`)) {
         delete estoque.controleEnvio[contrato];
@@ -2973,7 +3148,7 @@ function exportarControleEnvio() {
 
     const dados = contratos.map(c => {
         const envio = estoque.controleEnvio[c.contrato] || {};
-        const sistemaMarcado = envio.sistema === true || envio.sistema === 'Sim' || envio.sistema === 'SAP' || envio.sistema === 'Outro';
+        const sistemaMarcado = campoMarcado(envio.sistema);
         return {
             'CTR': c.contrato,
             'NOME': c.loja,
