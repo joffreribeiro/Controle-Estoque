@@ -8,7 +8,8 @@ let estoque = {
     produtos: [],
     representantes: ['KOLTE', 'ISA', 'LC', 'ADES', 'FL', 'IMBEL'],
     registroVendas: [],
-    registroDistribuicao: []
+    registroDistribuicao: [],
+    controleEnvio: {}
 };
 
 // Flag para logs de depuração do header fixo (desative em produção)
@@ -107,6 +108,7 @@ function inicializar() {
     renderizarDashboard();
     renderizarRegistroVendas();
     renderizarRegistroDistribuicao();
+    renderizarControleEnvio();
     atualizarSelectsProdutos();
     atualizarSelectsRelatorios();
     atualizarEstatisticas();
@@ -125,6 +127,10 @@ function carregarDados() {
         if (!estoque.registroDistribuicao) {
             estoque.registroDistribuicao = [];
         }
+        // Garantir que controleEnvio existe
+        if (!estoque.controleEnvio) {
+            estoque.controleEnvio = {};
+        }
     } else {
         estoque.produtos = dadosIniciais.map((item, index) => ({
             id: index + 1,
@@ -135,6 +141,7 @@ function carregarDados() {
         }));
         estoque.registroVendas = [];
         estoque.registroDistribuicao = [];
+        estoque.controleEnvio = {};
         salvarDados();
     }
 }
@@ -216,6 +223,8 @@ function trocarAba(aba) {
         atualizarSelectDistribuicaoProduto();
     } else if (aba === 'relatorios') {
         prepararRelatorioInventario();
+    } else if (aba === 'controleenvio') {
+        renderizarControleEnvio();
     }
 }
 
@@ -1738,11 +1747,18 @@ function excluirVenda(vendaId) {
 
     // Remover do registro
     estoque.registroVendas = estoque.registroVendas.filter(v => v.id !== vendaId);
+    
+    // Remover do controle de envio se este era o último contrato
+    const contratoRestante = estoque.registroVendas.some(v => v.contrato === venda.contrato);
+    if (!contratoRestante && estoque.controleEnvio[venda.contrato]) {
+        delete estoque.controleEnvio[venda.contrato];
+    }
 
     salvarDados();
     renderizarTabela();
     renderizarDashboard();
     renderizarRegistroVendas();
+    renderizarControleEnvio();
 
     mostrarNotificacao(`Venda do contrato ${venda.contrato} excluída com sucesso!`, 'success');
 }
@@ -2827,16 +2843,164 @@ function limparTodosDados() {
     }));
     estoque.registroVendas = [];
     estoque.registroDistribuicao = [];
+    estoque.controleEnvio = {};
     
     salvarDados();
     renderizarTabela();
     renderizarDashboard();
     renderizarRegistroVendas();
     renderizarRegistroDistribuicao();
+    renderizarControleEnvio();
     atualizarSelectsProdutos();
     atualizarEstatisticas();
     
     mostrarNotificacao('Todos os dados foram apagados!', 'success');
+}
+
+// ========================================
+// CONTROLE DE ENVIO DE CONTRATOS
+// ========================================
+
+function renderizarControleEnvio() {
+    const tbody = document.getElementById('tabelaControleEnvioBody');
+    if (!tbody) return;
+
+    // Agrupa vendas por contrato (pega a primeira ocorrência de cada contrato)
+    const contratoMap = {};
+    
+    estoque.registroVendas.forEach(venda => {
+        if (!contratoMap[venda.contrato]) {
+            contratoMap[venda.contrato] = {
+                contrato: venda.contrato,
+                loja: venda.loja,
+                representante: venda.representante,
+                id: venda.id
+            };
+        }
+    });
+
+    const contratos = Object.values(contratoMap).sort((a, b) => {
+        const contratoA = parseInt(a.contrato) || 0;
+        const contratoB = parseInt(b.contrato) || 0;
+        return contratoA - contratoB;
+    });
+
+    tbody.innerHTML = '';
+
+    if (contratos.length === 0) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="8" class="empty-state">
+                    <div class="empty-icon">📮</div>
+                    <div class="empty-text">Nenhum contrato registrado</div>
+                    <div class="empty-hint">Registre vendas na aba "Registro de Vendas" para aparecerem aqui</div>
+                </td>
+            </tr>
+        `;
+        return;
+    }
+
+    contratos.forEach(contrato => {
+        const envio = estoque.controleEnvio[contrato.contrato] || {};
+        const repClass = (contrato.representante || '').toLowerCase();
+
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td class="col-contrato">${contrato.contrato}</td>
+            <td class="col-loja" title="${contrato.loja}">${contrato.loja}</td>
+            <td class="col-representante"><span class="badge-rep ${repClass}">${contrato.representante}</span></td>
+            <td class="col-sistema">
+                <select class="campo-editavel" onchange="salvarControleEnvio('${contrato.contrato}', 'sistema', this.value)">
+                    <option value="">Não informado</option>
+                    <option value="SAP" ${envio.sistema === 'SAP' ? 'selected' : ''}>SAP</option>
+                    <option value="Outro" ${envio.sistema === 'Outro' ? 'selected' : ''}>Outro</option>
+                </select>
+            </td>
+            <td class="col-assinado">
+                <input type="checkbox" class="checkbox-campo" ${envio.assinado ? 'checked' : ''} onchange="salvarControleEnvio('${contrato.contrato}', 'assinado', this.checked)">
+            </td>
+            <td class="col-enviado">
+                <input type="checkbox" class="checkbox-campo" ${envio.enviado ? 'checked' : ''} onchange="salvarControleEnvio('${contrato.contrato}', 'enviado', this.checked)">
+            </td>
+            <td class="col-solicitacao">
+                <input type="text" class="campo-editavel" value="${envio.solicitacao || ''}" placeholder="Data ou observação" onchange="salvarControleEnvio('${contrato.contrato}', 'solicitacao', this.value)">
+            </td>
+            <td class="col-acoes">
+                <button class="btn-action btn-delete" onclick="limparControleEnvio('${contrato.contrato}')" title="Limpar dados">🗑</button>
+            </td>
+        `;
+        tbody.appendChild(tr);
+    });
+}
+
+function salvarControleEnvio(contrato, campo, valor) {
+    if (!estoque.controleEnvio[contrato]) {
+        estoque.controleEnvio[contrato] = {};
+    }
+    
+    estoque.controleEnvio[contrato][campo] = valor;
+    salvarDados();
+}
+
+function limparControleEnvio(contrato) {
+    if (confirm(`Deseja limpar os dados de envio do contrato ${contrato}?`)) {
+        delete estoque.controleEnvio[contrato];
+        salvarDados();
+        renderizarControleEnvio();
+        mostrarNotificacao(`Dados de envio do contrato ${contrato} removidos`, 'success');
+    }
+}
+
+function exportarControleEnvio() {
+    const contratoMap = {};
+    
+    estoque.registroVendas.forEach(venda => {
+        if (!contratoMap[venda.contrato]) {
+            contratoMap[venda.contrato] = {
+                contrato: venda.contrato,
+                loja: venda.loja,
+                representante: venda.representante
+            };
+        }
+    });
+
+    const contratos = Object.values(contratoMap).sort((a, b) => {
+        const contratoA = parseInt(a.contrato) || 0;
+        const contratoB = parseInt(b.contrato) || 0;
+        return contratoA - contratoB;
+    });
+
+    const dados = contratos.map(c => {
+        const envio = estoque.controleEnvio[c.contrato] || {};
+        return {
+            'CTR': c.contrato,
+            'NOME': c.loja,
+            'REPRESENTANTE': c.representante,
+            'SISTEMA': envio.sistema || '',
+            'ASSINADO': envio.assinado ? 'Sim' : 'Não',
+            'ENVIADO': envio.enviado ? 'Sim' : 'Não',
+            'SOLICITAÇÃO': envio.solicitacao || ''
+        };
+    });
+
+    const csv = gerarCSV(dados);
+    const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `Controle_Envio_${new Date().toLocaleDateString('pt-BR').replace(/\//g, '-')}.csv`;
+    link.click();
+}
+
+function gerarCSV(dados) {
+    if (!dados || dados.length === 0) return '';
+    
+    const headers = Object.keys(dados[0]);
+    const csv = [
+        headers.join(';'),
+        ...dados.map(row => headers.map(header => `"${(row[header] || '').toString().replace(/"/g, '""')}"`).join(';'))
+    ].join('\n');
+    
+    return csv;
 }
 
 // ========================================

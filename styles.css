@@ -1665,3 +1665,57 @@ th.header-rep { border-right: 2px solid rgba(255,255,255,0.06); }
     .report-printable { position: absolute; left: 0; top: 0; width: 100%; }
     .fixed-table-header { display: none !important; }
 }
+
+/* ========================================
+   CONTROLE DE ENVIO - CAMPOS EDITÁVEIS
+   ======================================== */
+
+.campo-editavel {
+    width: 100%;
+    padding: 6px 8px;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    font-size: 13px;
+    font-family: inherit;
+    background-color: var(--bg-white);
+    color: var(--text-primary);
+    transition: var(--transition);
+}
+
+.campo-editavel:hover {
+    border-color: var(--primary-color);
+    background-color: #fafbfc;
+}
+
+.campo-editavel:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(30, 58, 95, 0.1);
+    background-color: var(--bg-white);
+}
+
+.checkbox-campo {
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+    accent-color: var(--success-color);
+}
+
+.checkbox-campo:hover {
+    transform: scale(1.1);
+}
+
+.col-sistema,
+.col-assinado,
+.col-enviado,
+.col-solicitacao {
+    text-align: center;
+}
+
+.col-sistema {
+    min-width: 100px;
+}
+
+.col-solicitacao {
+    min-width: 150px;
+}

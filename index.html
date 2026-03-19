@@ -59,6 +59,9 @@
             <button class="tab-btn" onclick="trocarAba('relatorios')">
                 <span>📑</span> Relatórios
             </button>
+            <button class="tab-btn" onclick="trocarAba('controleenvio')">
+                <span>📮</span> Controle de Envio
+            </button>
         </div>
 
         <!-- Barra de Ações -->
@@ -253,29 +256,7 @@
             </div>
         </div>
 
-        <!-- ========================================
-             ABA: REGISTRO DE VENDAS
-             ======================================== -->
-        <div class="tab-content" id="tab-vendas">
-            <div class="content-area">
-                <div class="section-header">
-                    <h2 class="section-title">Registro de Vendas</h2>
-                    <div class="header-actions">
-                        <button class="btn btn-success" onclick="abrirModalVendaDetalhada()">
-                            <span class="btn-icon">+</span>
-                            Nova Venda
-                        </button>
-                        <button class="btn btn-info" onclick="document.getElementById('inputImportarVendas').click()">
-                            <span class="btn-icon">📥</span>
-                            Importar Excel
-                        </button>
-                        <input type="file" id="inputImportarVendas" accept=".csv,.xlsx,.xls" style="display:none" onchange="importarVendas(event)">
-                        <button class="btn btn-outline" onclick="exportarVendas()">
-                            <span class="btn-icon">📤</span>
-                            Exportar Excel
-                        </button>
-                    </div>
-                </div>
+
 
                 <!-- Filtros -->
                 <div class="filtros-container">
@@ -472,6 +453,47 @@
 
                 <div class="report-preview">
                     <div id="relatoriosPreview"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ========================================
+             ABA: CONTROLE DE ENVIO DE CONTRATOS
+             ======================================== -->
+        <div class="tab-content" id="tab-controleenvio">
+            <div class="content-area">
+                <div class="section-header">
+                    <h2 class="section-title">Controle de Envio de Contratos</h2>
+                    <div class="header-actions">
+                        <button class="btn btn-outline" onclick="renderizarControleEnvio()">
+                            <span class="btn-icon">🔄</span>
+                            Atualizar
+                        </button>
+                        <button class="btn btn-outline" onclick="exportarControleEnvio()">
+                            <span class="btn-icon">📤</span>
+                            Exportar Excel
+                        </button>
+                    </div>
+                </div>
+
+                <div class="table-container">
+                    <div class="table-wrapper">
+                        <table class="dashboard-table" id="tabelaControleEnvio">
+                            <thead>
+                                <tr>
+                                    <th style="width: 80px;">CTR</th>
+                                    <th class="col-loja">NOME</th>
+                                    <th style="width: 120px;">REPRESENTANTE</th>
+                                    <th style="width: 100px;">SISTEMA</th>
+                                    <th style="width: 100px;">ASSINADO</th>
+                                    <th style="width: 100px;">ENVIADO</th>
+                                    <th style="width: 150px;">SOLICITAÇÃO</th>
+                                    <th style="width: 80px;">Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tabelaControleEnvioBody"></tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
         </div>
