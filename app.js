@@ -2902,6 +2902,7 @@ function renderizarControleEnvio() {
 
     contratos.forEach(contrato => {
         const envio = estoque.controleEnvio[contrato.contrato] || {};
+        const sistemaMarcado = envio.sistema === true || envio.sistema === 'Sim' || envio.sistema === 'SAP' || envio.sistema === 'Outro';
         const repClass = (contrato.representante || '').toLowerCase();
 
         const tr = document.createElement('tr');
@@ -2910,11 +2911,7 @@ function renderizarControleEnvio() {
             <td class="col-loja" title="${contrato.loja}">${contrato.loja}</td>
             <td class="col-representante"><span class="badge-rep ${repClass}">${contrato.representante}</span></td>
             <td class="col-sistema">
-                <select class="campo-editavel" onchange="salvarControleEnvio('${contrato.contrato}', 'sistema', this.value)">
-                    <option value="">Não informado</option>
-                    <option value="SAP" ${envio.sistema === 'SAP' ? 'selected' : ''}>SAP</option>
-                    <option value="Outro" ${envio.sistema === 'Outro' ? 'selected' : ''}>Outro</option>
-                </select>
+                <input type="checkbox" class="checkbox-campo" ${sistemaMarcado ? 'checked' : ''} onchange="salvarControleEnvio('${contrato.contrato}', 'sistema', this.checked)">
             </td>
             <td class="col-assinado">
                 <input type="checkbox" class="checkbox-campo" ${envio.assinado ? 'checked' : ''} onchange="salvarControleEnvio('${contrato.contrato}', 'assinado', this.checked)">
@@ -2936,6 +2933,10 @@ function renderizarControleEnvio() {
 function salvarControleEnvio(contrato, campo, valor) {
     if (!estoque.controleEnvio[contrato]) {
         estoque.controleEnvio[contrato] = {};
+    }
+
+    if (campo === 'sistema' || campo === 'assinado' || campo === 'enviado') {
+        valor = Boolean(valor);
     }
     
     estoque.controleEnvio[contrato][campo] = valor;
@@ -2972,11 +2973,12 @@ function exportarControleEnvio() {
 
     const dados = contratos.map(c => {
         const envio = estoque.controleEnvio[c.contrato] || {};
+        const sistemaMarcado = envio.sistema === true || envio.sistema === 'Sim' || envio.sistema === 'SAP' || envio.sistema === 'Outro';
         return {
             'CTR': c.contrato,
             'NOME': c.loja,
             'REPRESENTANTE': c.representante,
-            'SISTEMA': envio.sistema || '',
+            'SISTEMA': sistemaMarcado ? 'Sim' : 'Não',
             'ASSINADO': envio.assinado ? 'Sim' : 'Não',
             'ENVIADO': envio.enviado ? 'Sim' : 'Não',
             'SOLICITAÇÃO': envio.solicitacao || ''
