@@ -12,6 +12,42 @@ let estoque = {
     controleEnvio: {}
 };
 
+// =============================
+// Firebase (inicialização e helpers)
+// =============================
+try {
+    if (typeof firebase !== 'undefined') {
+        const firebaseConfig = {
+            apiKey: "AIzaSyBizembCnAJpVe4TCcTTJvCickREOa_f1Y",
+            authDomain: "estoquefi.firebaseapp.com",
+            databaseURL: "https://estoquefi-default-rtdb.firebaseio.com",
+            projectId: "estoquefi",
+            storageBucket: "estoquefi.firebasestorage.app",
+            messagingSenderId: "339770116384",
+            appId: "1:339770116384:web:3b51acfbc9f18162c5af45",
+            measurementId: "G-RVK6BC5TDP"
+        };
+
+        // Inicializa apenas se ainda não inicializado
+        if (!firebase.apps || firebase.apps.length === 0) {
+            firebase.initializeApp(firebaseConfig);
+        }
+
+        // Instância do Firestore para uso nas funções abaixo
+        try {
+            window.firestoreDB = firebase.firestore();
+        } catch (e) {
+            console.warn('Firestore não disponível:', e);
+            window.firestoreDB = null;
+        }
+    } else {
+        console.warn('Firebase SDK não carregado — funções cloud desativadas.');
+    }
+} catch (e) {
+    console.error('Erro inicializando Firebase:', e);
+}
+
+
 // Flag para logs de depuração do header fixo (desative em produção)
 window.__DEBUG_HEADER_LOGS = false;
 
@@ -149,6 +185,65 @@ function carregarDados() {
 function salvarDados() {
     localStorage.setItem('estoqueArmasV2', JSON.stringify(estoque));
     atualizarEstatisticas();
+}
+
+// =============================
+// Funções para salvar/carregar no Firestore
+// =============================
+async function salvarNoCloud() {
+    if (!window.firestoreDB) {
+        console.warn('Firestore não inicializado. Impossível salvar no cloud.');
+        return false;
+    }
+    try {
+        await window.firestoreDB.collection('app_data').doc('latest').set({
+            estado: estoque,
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        console.log('Dados salvos no Firestore (coleção app_data / doc latest)');
+        return true;
+    } catch (e) {
+        console.error('Erro salvando no Firestore:', e);
+        return false;
+    }
+}
+
+async function carregarDoCloud({confirmOverwrite=true} = {}) {
+    if (!window.firestoreDB) {
+        console.warn('Firestore não inicializado. Impossível carregar do cloud.');
+        return false;
+    }
+    try {
+        const docRef = window.firestoreDB.collection('app_data').doc('latest');
+        const doc = await docRef.get();
+        if (!doc.exists) {
+            console.warn('Nenhum backup encontrado no Firestore.');
+            return false;
+        }
+        const data = doc.data();
+        if (!data || !data.estado) {
+            console.warn('Documento encontrado não contém campo estado.');
+            return false;
+        }
+        if (confirmOverwrite) {
+            const ok = confirm('Carregar dados do cloud irá substituir os dados locais. Deseja continuar?');
+            if (!ok) return false;
+        }
+        estoque = data.estado;
+        salvarDados();
+        renderizarTabela();
+        renderizarDashboard();
+        renderizarRegistroVendas();
+        renderizarRegistroDistribuicao();
+        renderizarControleEnvio();
+        atualizarSelectsProdutos();
+        atualizarSelectsRelatorios();
+        console.log('Dados carregados do Firestore com sucesso.');
+        return true;
+    } catch (e) {
+        console.error('Erro carregando do Firestore:', e);
+        return false;
+    }
 }
 
 function atualizarData() {
