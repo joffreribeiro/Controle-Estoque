@@ -188,12 +188,9 @@ const dadosIniciais = [
 async function inicializar() {
     carregarDados();
 
-    // Tenta carregar do cloud automaticamente se disponível
-    try {
-        await carregarDoCloudAuto();
-    } catch (e) {
-        console.warn('carregarDoCloudAuto falhou:', e);
-    }
+    // Segurança: não carregar automaticamente do cloud nem iniciar auto-save
+    // para evitar sobrescritas inesperadas. O usuário deve disparar manualmente
+    // as operações de sincronização usando os botões/console.
 
     renderizarTabela();
     renderizarDashboard();
@@ -205,8 +202,9 @@ async function inicializar() {
     atualizarEstatisticas();
     atualizarData();
 
-    // Iniciar auto-save se Firestore estiver disponível
-    iniciarAutoSaveCloud();
+    // Reativar auto-save: habilita salvamento automático (debounced + periódico)
+    try { window.__AUTO_SAVE_CLOUD.enabled = true; } catch (e) {}
+    try { iniciarAutoSaveCloud(); } catch (e) { console.warn('Falha ao iniciar auto-save:', e); }
 }
 
 function carregarDados() {
