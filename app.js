@@ -138,8 +138,16 @@ const dadosIniciais = [
 // FUNÇÕES DE INICIALIZAÇÃO
 // ========================================
 
-function inicializar() {
+async function inicializar() {
     carregarDados();
+
+    // Tenta carregar do cloud automaticamente se disponível
+    try {
+        await carregarDoCloudAuto();
+    } catch (e) {
+        console.warn('carregarDoCloudAuto falhou:', e);
+    }
+
     renderizarTabela();
     renderizarDashboard();
     renderizarRegistroVendas();
@@ -149,6 +157,9 @@ function inicializar() {
     atualizarSelectsRelatorios();
     atualizarEstatisticas();
     atualizarData();
+
+    // Iniciar auto-save se Firestore estiver disponível
+    iniciarAutoSaveCloud();
 }
 
 function carregarDados() {
@@ -183,8 +194,13 @@ function carregarDados() {
 }
 
 function salvarDados() {
+    // marca hora local de atualização para comparação com o remoto
+    try { estoque._localUpdatedAt = new Date().toISOString(); } catch (e) {}
     localStorage.setItem('estoqueArmasV2', JSON.stringify(estoque));
     atualizarEstatisticas();
+
+    // agendar salvamento no cloud (debounced) se habilitado
+    try { scheduleCloudSaveDebounced(); } catch (e) {}
 }
 
 // =============================
@@ -243,6 +259,91 @@ async function carregarDoCloud({confirmOverwrite=true} = {}) {
     } catch (e) {
         console.error('Erro carregando do Firestore:', e);
         return false;
+    }
+}
+
+// Carrega automaticamente do cloud se o documento remoto for mais recente que o local
+async function carregarDoCloudAuto() {
+    if (!window.firestoreDB) return false;
+    try {
+        const docRef = window.firestoreDB.collection('app_data').doc('latest');
+        const doc = await docRef.get();
+        if (!doc.exists) return false;
+        const data = doc.data();
+        const remoteUpdated = data.updatedAt ? data.updatedAt.toDate().getTime() : null;
+        const localUpdated = estoque._localUpdatedAt ? new Date(estoque._localUpdatedAt).getTime() : 0;
+        if (remoteUpdated && remoteUpdated > localUpdated) {
+            // substituir local automaticamente
+            estoque = data.estado;
+            salvarDados();
+            renderizarTabela();
+            renderizarDashboard();
+            renderizarRegistroVendas();
+            renderizarRegistroDistribuicao();
+            renderizarControleEnvio();
+            atualizarSelectsProdutos();
+            atualizarSelectsRelatorios();
+            console.log('Dados carregados automaticamente do Firestore (remoto mais recente).');
+            return true;
+        }
+        return false;
+    } catch (e) {
+        console.error('Erro em carregarDoCloudAuto:', e);
+        return false;
+    }
+}
+
+// ============================
+// Auto-save (debounced) helpers
+// ============================
+window.__AUTO_SAVE_CLOUD = {
+    enabled: true,
+    debounceMs: 2500,
+    timerId: null,
+    inProgress: false
+};
+
+function scheduleCloudSaveDebounced() {
+    if (!window.__AUTO_SAVE_CLOUD.enabled) return;
+    if (!window.firestoreDB) return;
+    if (window.__AUTO_SAVE_CLOUD.timerId) clearTimeout(window.__AUTO_SAVE_CLOUD.timerId);
+    window.__AUTO_SAVE_CLOUD.timerId = setTimeout(async () => {
+        window.__AUTO_SAVE_CLOUD.timerId = null;
+        if (window.__AUTO_SAVE_CLOUD.inProgress) return;
+        window.__AUTO_SAVE_CLOUD.inProgress = true;
+        try {
+            await salvarNoCloud();
+        } catch (e) {
+            console.error('Auto-save falhou:', e);
+        } finally {
+            window.__AUTO_SAVE_CLOUD.inProgress = false;
+        }
+    }, window.__AUTO_SAVE_CLOUD.debounceMs);
+}
+
+function iniciarAutoSaveCloud() {
+    // ativa auto-save se Firestore presente
+    if (!window.firestoreDB) return;
+    window.__AUTO_SAVE_CLOUD.enabled = true;
+    // salvar a cada X minutos também (fallback periódico)
+    if (!window.__AUTO_SAVE_CLOUD.periodicId) {
+        window.__AUTO_SAVE_CLOUD.periodicId = setInterval(() => {
+            if (!window.__AUTO_SAVE_CLOUD.inProgress) {
+                salvarNoCloud().catch(e => console.error('Auto-save periódico falhou:', e));
+            }
+        }, 1000 * 60 * 5); // a cada 5 minutos
+    }
+}
+
+function pararAutoSaveCloud() {
+    window.__AUTO_SAVE_CLOUD.enabled = false;
+    if (window.__AUTO_SAVE_CLOUD.timerId) {
+        clearTimeout(window.__AUTO_SAVE_CLOUD.timerId);
+        window.__AUTO_SAVE_CLOUD.timerId = null;
+    }
+    if (window.__AUTO_SAVE_CLOUD.periodicId) {
+        clearInterval(window.__AUTO_SAVE_CLOUD.periodicId);
+        window.__AUTO_SAVE_CLOUD.periodicId = null;
     }
 }
 
