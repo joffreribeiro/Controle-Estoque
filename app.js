@@ -2303,14 +2303,34 @@ function exportarVendas() {
     let csv = `CONTRATO${sep}LOJA/CLIENTE${sep}REPRESENTANTE${sep}PRODUTO${sep}QUANTIDADE${sep}VALOR UNITÁRIO${sep}VALOR TOTAL${sep}OBSERVAÇÕES${sep}DATA\n`;
     
     if (vendasOrdenadas.length > 0) {
+        // Percorrer vendas; suportar vendas com múltiplos itens
         vendasOrdenadas.forEach(venda => {
-            const data = new Date(venda.data).toLocaleDateString('pt-BR');
-            csv += `${venda.contrato}${sep}${venda.loja}${sep}${venda.representante}${sep}${venda.produtoNome}${sep}${venda.quantidade}${sep}${venda.valorUnitario.toFixed(2).replace('.', ',')}${sep}${venda.valorTotal.toFixed(2).replace('.', ',')}${sep}${venda.observacoes || ''}${sep}${data}\n`;
+            const data = venda.data ? new Date(venda.data).toLocaleDateString('pt-BR') : '';
+            if (Array.isArray(venda.items) && venda.items.length > 0) {
+                venda.items.forEach(it => {
+                    const valorUnit = typeof it.valorUnitario === 'number' ? it.valorUnitario : 0;
+                    const valorTot = typeof it.valorTotal === 'number' ? it.valorTotal : (valorUnit * (it.quantidade || 0));
+                    csv += `${venda.contrato}${sep}${venda.loja}${sep}${venda.representante}${sep}${it.produtoNome}${sep}${it.quantidade}${sep}${valorUnit.toFixed(2).replace('.', ',')}${sep}${valorTot.toFixed(2).replace('.', ',')}${sep}${venda.observacoes || ''}${sep}${data}\n`;
+                });
+            } else {
+                // venda no formato antigo
+                const produtoNome = venda.produtoNome || '';
+                const quantidade = venda.quantidade || 0;
+                const valorUnit = (typeof venda.valorUnitario === 'number') ? venda.valorUnitario : 0;
+                const valorTot = (typeof venda.valorTotal === 'number') ? venda.valorTotal : 0;
+                csv += `${venda.contrato}${sep}${venda.loja}${sep}${venda.representante}${sep}${produtoNome}${sep}${quantidade}${sep}${valorUnit.toFixed(2).replace('.', ',')}${sep}${valorTot.toFixed(2).replace('.', ',')}${sep}${venda.observacoes || ''}${sep}${data}\n`;
+            }
         });
-        
-        // Linha de total
-        const totalQtd = vendas.reduce((sum, v) => sum + v.quantidade, 0);
-        const totalValor = vendas.reduce((sum, v) => sum + v.valorTotal, 0);
+
+        // Linha de total (somar corretamente considerando itens)
+        const totalQtd = vendas.reduce((sum, v) => {
+            if (Array.isArray(v.items) && v.items.length > 0) return sum + v.items.reduce((s, it) => s + (it.quantidade || 0), 0);
+            return sum + (v.quantidade || 0);
+        }, 0);
+        const totalValor = vendas.reduce((sum, v) => {
+            if (Array.isArray(v.items) && v.items.length > 0) return sum + v.items.reduce((s, it) => s + (typeof it.valorTotal === 'number' ? it.valorTotal : ((it.valorUnitario||0) * (it.quantidade||0))), 0);
+            return sum + (typeof v.valorTotal === 'number' ? v.valorTotal : 0);
+        }, 0);
         csv += `${sep}${sep}${sep}TOTAL${sep}${totalQtd}${sep}${sep}${totalValor.toFixed(2).replace('.', ',')}${sep}${sep}\n`;
     }
     
