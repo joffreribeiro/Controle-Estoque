@@ -942,72 +942,74 @@ function imprimirControleEnvio() {
             <title>Controle de Envio de Contratos</title>
             <style>
                 @page {
-                    size: A4 landscape;
-                    margin: 10mm 8mm;
+                    size: A4 portrait;
+                    margin: 8mm 6mm;
                 }
                 * { box-sizing: border-box; margin: 0; padding: 0; }
                 body {
                     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
-                    font-size: 11px;
+                    font-size: 8px;
                     color: #222;
-                    padding: 8px 10px;
+                    padding: 6px 6px;
                 }
                 h1 {
-                    font-size: 15px;
-                    margin-bottom: 4px;
+                    font-size: 12px;
+                    margin-bottom: 3px;
                     color: #1e3a5f;
                 }
                 .meta {
-                    font-size: 10px;
+                    font-size: 8px;
                     color: #555;
-                    margin-bottom: 3px;
+                    margin-bottom: 2px;
                 }
                 .filtros-info {
-                    font-size: 10px;
+                    font-size: 8px;
                     color: #333;
-                    margin-bottom: 8px;
-                    padding: 4px 6px;
+                    margin-bottom: 5px;
+                    padding: 2px 5px;
                     background: #f4f6f9;
                     border-left: 3px solid #1e3a5f;
+                    line-height: 1.3;
                 }
                 table {
                     width: 100%;
                     border-collapse: collapse;
                     table-layout: fixed;
-                    font-size: 10px;
+                    font-size: 7.5px;
                 }
                 th, td {
                     border: 1px solid #ccc;
-                    padding: 5px 6px;
+                    padding: 2px 3px;
                     text-align: left;
                     overflow: hidden;
                     text-overflow: ellipsis;
                     white-space: nowrap;
-                    word-break: break-word;
+                    line-height: 1.2;
                 }
                 thead th {
                     background: #1e3a5f;
                     color: #fff;
-                    font-size: 10px;
+                    font-size: 7.5px;
                     font-weight: 600;
                     text-align: center;
+                    padding: 3px 3px;
                 }
                 tbody tr:nth-child(even) { background: #f7f9fc; }
-                /* Larguras proporcionais: CTR | NOME | REP | SISTEMA | ASSINADO | ENVIADO | SOLICITAÇÃO */
-                col.col-ctr        { width: 6%; }
-                col.col-nome       { width: 30%; }
+                /* Larguras proporcionais retrato: CTR | NOME | REP | SISTEMA | ASSINADO | ENVIADO | SOLICITAÇÃO */
+                col.col-ctr        { width: 7%; }
+                col.col-nome       { width: 28%; }
                 col.col-rep        { width: 12%; }
                 col.col-sistema    { width: 9%; }
                 col.col-assinado   { width: 9%; }
                 col.col-enviado    { width: 9%; }
-                col.col-solic      { width: 25%; }
+                col.col-solic      { width: 26%; }
                 /* Centralizar colunas de marcação */
                 td:nth-child(4), td:nth-child(5), td:nth-child(6) { text-align: center; }
                 .badge-rep {
                     display: inline-block;
-                    padding: 1px 6px;
-                    border-radius: 4px;
-                    font-size: 9px;
+                    padding: 0px 4px;
+                    border-radius: 3px;
+                    font-size: 7px;
                     font-weight: 700;
                     color: #fff;
                     background: #1e3a5f;
