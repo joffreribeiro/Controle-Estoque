@@ -15,6 +15,35 @@ let estoque = {
 // =============================
 // Firebase (inicialização e helpers)
 // =============================
+// Atualiza o indicador visual de status do Firestore (presente no header)
+function updateFirestoreStatus(connected, lastSyncDate, message) {
+    try {
+        const el = document.getElementById('firestoreStatus');
+        const dot = document.getElementById('fsDot');
+        const text = document.getElementById('fsText');
+        if (!el || !dot || !text) return;
+        if (connected) {
+            dot.classList.remove('fs-offline');
+            dot.classList.remove('fs-warning');
+            dot.classList.add('fs-online');
+            const label = message || 'Cloud: conectado';
+            if (lastSyncDate) {
+                const dt = (lastSyncDate instanceof Date) ? lastSyncDate : new Date(lastSyncDate);
+                text.textContent = `${label} — último sync: ${dt.toLocaleString('pt-BR')}`;
+            } else {
+                text.textContent = message || 'Cloud: conectado — sem sync';
+            }
+        } else {
+            dot.classList.remove('fs-online');
+            dot.classList.remove('fs-warning');
+            dot.classList.add('fs-offline');
+            text.textContent = message || 'Cloud: desconectado';
+        }
+    } catch (e) {
+        // ignore UI update errors
+    }
+}
+
 try {
     if (typeof firebase !== 'undefined') {
         const firebaseConfig = {
@@ -36,12 +65,30 @@ try {
         // Instância do Firestore para uso nas funções abaixo
         try {
             window.firestoreDB = firebase.firestore();
+            // após inicializar, tentar ler o último timestamp para exibir
+            try {
+                window.firestoreDB.collection('app_data').doc('latest').get().then(doc => {
+                    if (doc && doc.exists) {
+                        const data = doc.data();
+                        const updatedAt = data && data.updatedAt ? data.updatedAt.toDate() : null;
+                        updateFirestoreStatus(true, updatedAt);
+                    } else {
+                        updateFirestoreStatus(true, null, 'Cloud: pronto (sem backup)');
+                    }
+                }).catch(err => {
+                    console.warn('Não foi possível ler último sync:', err);
+                    updateFirestoreStatus(true, null, 'Cloud: pronto');
+                });
+            } catch (inner) { updateFirestoreStatus(true, null, 'Cloud: pronto'); }
         } catch (e) {
             console.warn('Firestore não disponível:', e);
             window.firestoreDB = null;
+            updateFirestoreStatus(false, null, 'Cloud: não disponível');
         }
     } else {
         console.warn('Firebase SDK não carregado — funções cloud desativadas.');
+        // atualizar UI se possível
+        try { updateFirestoreStatus(false, null, 'SDK não carregado'); } catch (e) {}
     }
 } catch (e) {
     console.error('Erro inicializando Firebase:', e);
@@ -212,14 +259,25 @@ async function salvarNoCloud() {
         return false;
     }
     try {
-        await window.firestoreDB.collection('app_data').doc('latest').set({
+        const docRef = window.firestoreDB.collection('app_data').doc('latest');
+        await docRef.set({
             estado: estoque,
             updatedAt: firebase.firestore.FieldValue.serverTimestamp()
         });
+        // ler o documento para obter o updatedAt do servidor
+        try {
+            const savedDoc = await docRef.get();
+            const d = savedDoc && savedDoc.exists ? savedDoc.data() : null;
+            const updatedAt = d && d.updatedAt ? d.updatedAt.toDate() : new Date();
+            updateFirestoreStatus(true, updatedAt, 'Cloud: salvo');
+        } catch (inner) {
+            updateFirestoreStatus(true, new Date(), 'Cloud: salvo');
+        }
         console.log('Dados salvos no Firestore (coleção app_data / doc latest)');
         return true;
     } catch (e) {
         console.error('Erro salvando no Firestore:', e);
+        updateFirestoreStatus(false, null, 'Cloud: erro ao salvar');
         return false;
     }
 }
@@ -234,6 +292,7 @@ async function carregarDoCloud({confirmOverwrite=true} = {}) {
         const doc = await docRef.get();
         if (!doc.exists) {
             console.warn('Nenhum backup encontrado no Firestore.');
+            updateFirestoreStatus(true, null, 'Cloud: pronto (sem backup)');
             return false;
         }
         const data = doc.data();
@@ -241,6 +300,11 @@ async function carregarDoCloud({confirmOverwrite=true} = {}) {
             console.warn('Documento encontrado não contém campo estado.');
             return false;
         }
+        // obter timestamp de atualização remoto se disponível
+        try {
+            const updatedAt = data.updatedAt ? data.updatedAt.toDate() : null;
+            updateFirestoreStatus(true, updatedAt, 'Cloud: carregado');
+        } catch (inner) { updateFirestoreStatus(true, null, 'Cloud: carregado'); }
         if (confirmOverwrite) {
             const ok = confirm('Carregar dados do cloud irá substituir os dados locais. Deseja continuar?');
             if (!ok) return false;

@@ -151,6 +151,29 @@ header {
     border-radius: 6px;
 }
 
+/* Firestore status indicator */
+.firestore-status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px;
+    background: rgba(0,0,0,0.15);
+    border-radius: 8px;
+    color: rgba(255,255,255,0.9);
+    font-size: 0.8rem;
+}
+.firestore-status .fs-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    display: inline-block;
+    box-shadow: 0 0 6px rgba(0,0,0,0.25);
+}
+.fs-online { background: #28a745; box-shadow: 0 0 6px rgba(40,167,69,0.5); }
+.fs-offline { background: #dc3545; box-shadow: 0 0 6px rgba(220,53,69,0.4); }
+.fs-warning { background: #ffc107; box-shadow: 0 0 6px rgba(255,193,7,0.4); }
+.fs-text { color: rgba(255,255,255,0.9); font-weight:600; }
+
 /* ========================================
    NAVEGAÇÃO POR ABAS
    ======================================== */
