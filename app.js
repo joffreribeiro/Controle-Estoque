@@ -1275,6 +1275,11 @@ function imprimirControleEnvio() {
                     white-space: nowrap;
                     line-height: 1.2;
                 }
+                /* Permitir quebra de linha na coluna NOME para impressão */
+                th:nth-child(2), td:nth-child(2) {
+                    white-space: normal;
+                    overflow-wrap: anywhere;
+                }
                 thead th {
                     background: #1e3a5f;
                     color: #fff;
@@ -1284,14 +1289,15 @@ function imprimirControleEnvio() {
                     padding: 3px 3px;
                 }
                 tbody tr:nth-child(even) { background: #f7f9fc; }
-                /* Larguras proporcionais retrato: CTR | NOME | REP | SISTEMA | ASSINADO | ENVIADO | SOLICITAÇÃO */
-                col.col-ctr        { width: 7%; }
-                col.col-nome       { width: 28%; }
-                col.col-rep        { width: 12%; }
-                col.col-sistema    { width: 9%; }
-                col.col-assinado   { width: 9%; }
-                col.col-enviado    { width: 9%; }
-                col.col-solic      { width: 26%; }
+                /* Larguras ajustadas para impressão: CTR menor, REPRESENTANTE menor, NOME maior */
+                /* CTR | NOME | REP | SISTEMA | ASSINADO | ENVIADO | SOLICITAÇÃO */
+                col.col-ctr        { width: 5%; }
+                col.col-nome       { width: 45%; }
+                col.col-rep        { width: 8%; }
+                col.col-sistema    { width: 7%; }
+                col.col-assinado   { width: 7%; }
+                col.col-enviado    { width: 7%; }
+                col.col-solic      { width: 21%; }
                 /* Centralizar colunas de marcação */
                 td:nth-child(4), td:nth-child(5), td:nth-child(6) { text-align: center; }
                 .badge-rep {
