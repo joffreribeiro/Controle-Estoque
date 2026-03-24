@@ -280,6 +280,37 @@ async function salvarNoCloud() {
     }
 }
 
+// UI wrappers for manual save/load triggered by user buttons
+async function salvarNoCloudUI() {
+    try {
+        mostrarNotificacao('Salvando dados no cloud...', 'info');
+        const ok = await salvarNoCloud();
+        if (ok) mostrarNotificacao('Dados salvos no Firestore com sucesso.', 'success');
+        else mostrarNotificacao('Falha ao salvar no Firestore. Veja o console para detalhes.', 'error');
+        return ok;
+    } catch (e) {
+        console.error('salvarNoCloudUI erro:', e);
+        mostrarNotificacao('Erro ao salvar no cloud.', 'error');
+        return false;
+    }
+}
+
+async function carregarDoCloudUI() {
+    try {
+        const confirmed = confirm('Carregar do cloud substituirá os dados locais. Deseja continuar?');
+        if (!confirmed) return false;
+        mostrarNotificacao('Carregando dados do cloud...', 'info');
+        const ok = await carregarDoCloud({ confirmOverwrite: false });
+        if (ok) mostrarNotificacao('Dados carregados do Firestore com sucesso.', 'success');
+        else mostrarNotificacao('Nenhum backup encontrado no Firestore ou falha ao carregar.', 'warning');
+        return ok;
+    } catch (e) {
+        console.error('carregarDoCloudUI erro:', e);
+        mostrarNotificacao('Erro ao carregar do cloud.', 'error');
+        return false;
+    }
+}
+
 async function carregarDoCloud({confirmOverwrite=true} = {}) {
     if (!window.firestoreDB) {
         console.warn('Firestore não inicializado. Impossível carregar do cloud.');
