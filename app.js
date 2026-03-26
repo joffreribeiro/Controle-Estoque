@@ -499,7 +499,7 @@ function atualizarEstatisticas() {
     let totalComissoes = 0;
     if (Array.isArray(estoque.registroVendas)) {
         estoque.registroVendas.forEach(venda => {
-            const rep = (venda.representante || '').toString().toUpperCase();
+            const rep = (venda.representante || '').toString().trim().toUpperCase();
             if (rep === 'IMBEL') return; // sem comissão
             const valor = typeof venda.valorTotal === 'number' ? venda.valorTotal : 0;
             totalComissoes += (Math.round((valor * 0.05) * 100) / 100);
@@ -1123,7 +1123,7 @@ function prepararRelatorioComissoes() {
 
     // Agrupar vendas por representante (ignorar vendas da IMBEL — sem comissão)
     const vendas = Array.isArray(estoque.registroVendas) ? [...estoque.registroVendas] : [];
-    const vendasSemImbel = vendas.filter(v => ((v.representante || '').toString().toUpperCase() !== 'IMBEL'));
+    const vendasSemImbel = vendas.filter(v => ((v.representante || '').toString().trim().toUpperCase() !== 'IMBEL'));
 
     // Filtrar por intervalo de datas se fornecido (inclusive)
     let startTs = null, endTs = null;
@@ -1145,7 +1145,7 @@ function prepararRelatorioComissoes() {
     vendasFiltradas.sort((a, b) => (parseInt(a.contrato) || 0) - (parseInt(b.contrato) || 0));
 
     // Representantes presentes no conjunto filtrado (sem IMBEL)
-    const reps = filtroRep ? [filtroRep] : Array.from(new Set(vendasFiltradas.map(v => v.representante).filter(r => r && r.toString().toUpperCase() !== 'IMBEL')));
+    const reps = filtroRep ? [filtroRep] : Array.from(new Set(vendasFiltradas.map(v => v.representante).filter(r => r && r.toString().trim().toUpperCase() !== 'IMBEL')));
 
     let totalComissoes = 0;
 
@@ -1271,7 +1271,7 @@ function exportarComissoesCSV() {
     const dataInicio = document.getElementById('filtroRelatoriosDataInicio') ? document.getElementById('filtroRelatoriosDataInicio').value : '';
     const dataFim = document.getElementById('filtroRelatoriosDataFim') ? document.getElementById('filtroRelatoriosDataFim').value : '';
     const vendasRaw = Array.isArray(estoque.registroVendas) ? [...estoque.registroVendas] : [];
-    const vendasFiltradasPorRep = vendasRaw.filter(v => ((v.representante || '').toString().toUpperCase() !== 'IMBEL'));
+    const vendasFiltradasPorRep = vendasRaw.filter(v => ((v.representante || '').toString().trim().toUpperCase() !== 'IMBEL'));
     let startTs = null, endTs = null;
     try {
         if (dataInicio) startTs = new Date(dataInicio + 'T00:00:00').getTime();
