@@ -600,8 +600,8 @@ th.col-produto {
     background: var(--primary-dark);
     position: sticky;
     left: 0;
-    z-index: 949; /* este header é sticky tanto no topo quanto à esquerda - manter acima */
-    top: 0; /* garantir alinhamento quando combinado com thead sticky */
+    top: 0;
+    z-index: 951; /* acima de todos os outros th por ser sticky em 2 direções */
 }
 
 .header-rep {
@@ -618,13 +618,30 @@ th.col-produto {
 .header-geral { background: var(--primary-dark); }
 
 .sub-header {
-    /* Tornar transparente por padrão para que cores por representante prevaleçam */
-    background: transparent;
+    background: var(--primary-color); /* cor sólida para funcionar com sticky */
     font-size: 0.65rem;
     padding: 8px 6px;
     font-weight: 600;
     letter-spacing: 0.3px;
-    color: inherit;
+    color: white;
+}
+
+/* Herdar cores dos representantes nos sub-headers (cada grupo de 3) */
+thead tr:nth-child(2) th:nth-child(3n+1):nth-child(-n+3) { background: #3d5a80; }  /* KOLTE */
+thead tr:nth-child(2) th:nth-child(n+4):nth-child(-n+6) { background: #5c4d7d; }   /* ISA */
+thead tr:nth-child(2) th:nth-child(n+7):nth-child(-n+9) { background: #2d6a4f; }   /* LC */
+thead tr:nth-child(2) th:nth-child(n+10):nth-child(-n+12) { background: #9c4a1a; } /* ADES */
+thead tr:nth-child(2) th:nth-child(n+13):nth-child(-n+15) { background: #7b2d26; } /* FL */
+thead tr:nth-child(2) th:nth-child(n+16):nth-child(-n+18) { background: #1e3a5f; } /* IMBEL */
+thead tr:nth-child(2) th:nth-child(n+19):nth-child(-n+21) { background: var(--primary-dark); } /* CONSOLIDADO */
+
+/* Segunda linha do header (Disp/Venda/Saldo) precisa de top offset para sticky funcionar */
+thead tr:first-child th {
+    top: 0;
+}
+
+thead tr:nth-child(2) th {
+    top: 35px; /* altura da primeira linha do header */
 }
 
 td {
@@ -663,15 +680,19 @@ td.produto-nome {
     text-align: left;
     font-weight: 500;
     padding-left: 20px;
-    background: #f8fafc;
+    background: var(--bg-white);
     position: sticky;
     left: 0;
-    z-index: 10; /* garantir que a coluna fixa fique abaixo do cabeçalho, mas acima das células normais */
+    z-index: 10;
     border-right: 2px solid var(--border-color);
     max-width: 300px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+}
+
+tbody tr:nth-child(even) td.produto-nome {
+    background: #f8fafc;
 }
 
 /* Forçar th individuais a ficarem acima do corpo em navegadores com stacking contexts estranhos */
@@ -684,42 +705,11 @@ thead th {
 
 /* Aumentar z-index da primeira coluna do cabeçalho para evitar sobreposição */
 thead th.col-produto {
-    z-index: 949;
+    z-index: 951;
 }
 
 .table-wrapper {
-    position: relative; /* criar contexto empilhamento consistente */
-}
-
-/* Cabeçalho fixo duplicado (fallback robusto para sticky falhando) */
-.fixed-table-header {
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: auto;
-    pointer-events: none; /* deixar eventos passarem para a tabela abaixo */
-    overflow: hidden;
-    z-index: 950; /* acima da tabela, abaixo dos modais */
-}
-
-.fixed-table-header table {
-    border-collapse: separate;
-    border-spacing: 0;
-    width: 100%;
-    table-layout: fixed;
-}
-
-.fixed-table-header th {
-    background: var(--primary-color);
-    color: white;
-    padding: 12px 10px;
-    text-align: center;
-    font-weight: 600;
-    text-transform: uppercase;
-    font-size: 0.7rem;
-    letter-spacing: 0.5px;
-    border: none;
+    position: relative;
 }
 
 .cell-disp { color: var(--text-primary); font-weight: 500; }
@@ -1814,7 +1804,6 @@ tr.row-saldo-zero .geral-saldo {
     body * { visibility: hidden; }
     .report-printable, .report-printable * { visibility: visible; }
     .report-printable { position: absolute; left: 0; top: 0; width: 100%; }
-    .fixed-table-header { display: none !important; }
 }
 
 /* ========================================

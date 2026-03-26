@@ -95,13 +95,7 @@ try {
 }
 
 
-// Flag para logs de depuração do header fixo (desative em produção)
-window.__DEBUG_HEADER_LOGS = false;
 
-// Configurações para medição do header fixo (ajustáveis para ambiente do usuário)
-const HEADER_MAX_RETRIES = 12;
-const HEADER_RETRY_DELAY = 100; // ms
-let __headerUpdateDebounceTimer = null;
 // ID da venda que está sendo editada (null quando criando nova)
 let vendaEditandoId = null;
 
@@ -648,286 +642,21 @@ function renderizarTabela() {
 
     tbody.appendChild(trTotal);
 
-    // Atualizar cabeçalho fixo (se presente)
-    try {
-        atualizarHeaderFixoEstoque();
-    } catch (e) {
-        // não bloquear renderização se algo falhar
-        console.error('Erro atualizando header fixo:', e);
-    }
+    // Ajustar posição sticky da segunda linha do header
+    ajustarStickyHeader();
 }
 
-// ---------- Cabeçalho fixo duplicado (sincroniza largura e rolagem)
-function criarHeaderFixoEstoque() {
-    const wrapper = document.querySelector('.table-wrapper');
-    if (!wrapper) return;
-
-    // Remover qualquer clone anterior
-    const existente = wrapper.querySelector('.fixed-table-header');
-    if (existente) existente.remove();
-
-    const tabela = wrapper.querySelector('#tabelaEstoque');
+// Calcula e aplica o top correto para a segunda linha do thead (sub-headers)
+function ajustarStickyHeader() {
+    const tabela = document.getElementById('tabelaEstoque');
     if (!tabela) return;
-
-    const thead = tabela.querySelector('thead');
-    if (!thead) return;
-
-    const cloneWrap = document.createElement('div');
-    cloneWrap.className = 'fixed-table-header';
-    cloneWrap.style.position = 'absolute';
-    cloneWrap.style.top = '0';
-    cloneWrap.style.left = '0';
-    cloneWrap.style.right = '0';
-    cloneWrap.style.pointerEvents = 'none';
-    // fix: z-index abaixo de modais (modal z-index = 1000)
-    cloneWrap.style.zIndex = '950';
-
-    const cloneTable = document.createElement('table');
-    cloneTable.className = tabela.className;
-    cloneTable.style.tableLayout = 'fixed';
-    const cloneThead = thead.cloneNode(true);
-    cloneTable.appendChild(cloneThead);
-    cloneWrap.appendChild(cloneTable);
-    wrapper.appendChild(cloneWrap);
-
-    // inicializar contador de tentativas (usado na medição para retries)
-    try { cloneWrap.dataset._retryCount = '0'; } catch (e) { /* ignore */ }
-
-    // Sincronizar largura das colunas
-    atualizarHeaderFixoEstoque();
-
-    // Escutar scroll horizontal da wrapper para mover o cabeçalho duplicado
-    // remover listeners antigos para evitar duplicação
-    wrapper.removeEventListener('scroll', onWrapperScroll);
-    wrapper.addEventListener('scroll', onWrapperScroll);
-    window.removeEventListener('resize', atualizarHeaderFixoEstoque);
-    window.addEventListener('resize', atualizarHeaderFixoEstoque);
-
-    // Inicialmente esconder o clone até que as medidas sejam aplicadas
-    cloneWrap.style.visibility = 'hidden';
-    // Executar atualização imediata das larguras (atualizarHeaderFixoEstoque fará as medições e tornará visível)
-    try {
-        atualizarHeaderFixoEstoque();
-    } catch (e) {
-        console.warn('Erro inicializando header fixo:', e);
-        try { thead.style.display = ''; wrapper.style.paddingTop = ''; } catch (er) {}
-    }
-}
-
-function onWrapperScroll(e) {
-    const wrapper = e.currentTarget;
-    const clone = wrapper.querySelector('.fixed-table-header');
-    if (!clone) return;
-    const innerTable = clone.querySelector('table');
-    if (!innerTable) return;
-    innerTable.style.transform = `translateX(${ -wrapper.scrollLeft }px)`;
-}
-
-function atualizarHeaderFixoEstoque() {
-    const wrapper = document.querySelector('.table-wrapper');
-    if (!wrapper) return;
-    const tabela = wrapper.querySelector('#tabelaEstoque');
-    const clone = wrapper.querySelector('.fixed-table-header');
-    if (!tabela) {
-        if (clone) clone.remove();
-        if (wrapper) wrapper.style.paddingTop = '';
-        return;
-    }
-
-    if (!clone) {
-        criarHeaderFixoEstoque();
-        return;
-    }
-    // Medição e aplicação de larguras em duas rAFs para garantir layout estável
-    // Garantir que o thead original esteja visível DURANTE a medição (pode ter sido ocultado anteriormente)
-    let thead = tabela.querySelector('thead');
-    let theadWasHidden = false;
-    try {
-        const compStyle = thead ? window.getComputedStyle(thead) : null;
-        if (thead && compStyle && compStyle.display === 'none') {
-            theadWasHidden = true;
-            thead.style.display = '';
-        }
-    } catch (e) {
-        // ignore
-    }
-
-    const origThs = Array.from(tabela.querySelectorAll('thead th'));
-    const cloneThs = Array.from(clone.querySelectorAll('thead th'));
-    if (origThs.length !== cloneThs.length) {
-        // estrutura mudou — recriar
-        clone.remove();
-        criarHeaderFixoEstoque();
-        return;
-    }
-
-    // Usar duas rAFs para esperar pelo layout final
+    const firstRow = tabela.querySelector('thead tr:first-child');
+    if (!firstRow) return;
     requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-            try {
-                    // Preferir medir a partir da primeira linha de dados (tds) — mais confiável quando o thead usa colspan/rowspan
-                    const firstDataRow = tabela.querySelector('tbody tr:not(.total-row)');
-                    const refCells = firstDataRow ? Array.from(firstDataRow.children) : [];
-                    const subHeaderCells = Array.from(clone.querySelectorAll('thead tr:last-child th'));
-
-                    if (window.__DEBUG_HEADER_LOGS) console.log('[HEADER DEBUG] refCells:', refCells.length, 'subHeaderCells:', subHeaderCells.length);
-                    if (refCells.length > 0 && subHeaderCells.length > 0 && (refCells.length - 1) === subHeaderCells.length) {
-                        // Mapear widths: refCells[0] = produto, refCells[1..] -> subHeaderCells[0..]
-                        const tdWidths = refCells.map(td => td.getBoundingClientRect().width);
-
-                        if (window.__DEBUG_HEADER_LOGS) console.log('[HEADER DEBUG] tdWidths (px):', tdWidths.map(w=>Math.round(w)));
-
-                        // Aplicar larguras nas sub-headers (segunda linha do thead clonado)
-                        subHeaderCells.forEach((th, idx) => {
-                            const w = tdWidths[idx + 1] || tdWidths[0] || 0;
-                            th.style.width = `${w}px`;
-                            th.style.minWidth = `${w}px`;
-                            th.style.boxSizing = 'border-box';
-                            if (window.__DEBUG_HEADER_LOGS) console.log(`[HEADER DEBUG] applied subHeader ${idx} width=${Math.round(w)}px`);
-                        });
-
-                        // Agora ajustar os ths da primeira linha (agrupar por colspan)
-                        const topHeaderRow = clone.querySelector('thead tr:first-child');
-                        if (topHeaderRow) {
-                            let subIndex = 0;
-                            Array.from(topHeaderRow.children).forEach(th => {
-                                const colspan = parseInt(th.getAttribute('colspan')) || 1;
-                                if (th.getAttribute('rowspan')) {
-                                    // coluna de produto (rowspan=2) — usar primeira td width
-                                    const w = tdWidths[0] || 0;
-                                    th.style.width = `${w}px`;
-                                    th.style.minWidth = `${w}px`;
-                                    th.style.boxSizing = 'border-box';
-                                    if (window.__DEBUG_HEADER_LOGS) console.log(`[HEADER DEBUG] applied topHeader (produto) width=${Math.round(w)}px`);
-                                } else {
-                                    // somar largura das subheaders correspondentes
-                                    let sum = 0;
-                                    for (let i = 0; i < colspan; i++) {
-                                        sum += (tdWidths[1 + subIndex + i] || 0);
-                                    }
-                                    th.style.width = `${sum}px`;
-                                    th.style.minWidth = `${sum}px`;
-                                    th.style.boxSizing = 'border-box';
-                                    if (window.__DEBUG_HEADER_LOGS) console.log(`[HEADER DEBUG] applied topHeader colspan=${colspan} width=${Math.round(sum)}px`);
-                                    subIndex += colspan;
-                                }
-                            });
-                        }
-
-                        // Ajustar largura da tabela interna do clone
-                        const origTableWidth = tabela.getBoundingClientRect().width;
-                        const innerTable = clone.querySelector('table');
-                        if (innerTable) innerTable.style.width = `${origTableWidth}px`;
-
-                        var altura = clone.getBoundingClientRect().height || 0;
-                        if (window.__DEBUG_HEADER_LOGS) console.log('[HEADER DEBUG] clone altura (px):', Math.round(altura));
-                    } else {
-                        // Fallback para medir diretamente os ths do thead (modo anterior)
-                        origThs.forEach((th, i) => {
-                            const cloneTh = cloneThs[i];
-                            const width = th.getBoundingClientRect().width;
-                            if (cloneTh) {
-                                cloneTh.style.width = `${width}px`;
-                                cloneTh.style.minWidth = `${width}px`;
-                                cloneTh.style.boxSizing = 'border-box';
-                            }
-                        });
-                        const origTableWidth = tabela.getBoundingClientRect().width;
-                        const innerTable = clone.querySelector('table');
-                        if (innerTable) innerTable.style.width = `${origTableWidth}px`;
-
-                        var altura = clone.getBoundingClientRect().height || 0;
-                        if (window.__DEBUG_HEADER_LOGS) console.log('[HEADER DEBUG] fallback orgulho altura (px):', Math.round(altura));
-                    }
-
-                // Se o clone não tem altura suficiente ou não tem ths, remover e restaurar original
-                const cloneThCount = clone.querySelectorAll('thead th').length;
-                if (altura <= 2 || cloneThCount === 0) {
-                    // Se as medidas retornaram zero, tentar algumas vezes antes de remover o clone
-                    try {
-                        const maxRetries = HEADER_MAX_RETRIES;
-                        const current = parseInt(clone.dataset._retryCount || '0');
-                        if (window.__DEBUG_HEADER_LOGS) console.warn('[HEADER DEBUG] clone inválido — tentativa', current, 'de', maxRetries, 'altura=', altura, 'cloneThCount=', cloneThCount);
-                        if (current < maxRetries) {
-                            clone.dataset._retryCount = String(current + 1);
-                            // tentar novamente após pequena espera
-                            setTimeout(() => {
-                                try { atualizarHeaderFixoEstoque(); } catch (e) { /* ignore */ }
-                            }, HEADER_RETRY_DELAY);
-                            return;
-                        }
-                    } catch (e) { /* ignore */ }
-
-                    if (window.__DEBUG_HEADER_LOGS) console.warn('[HEADER DEBUG] remoção final do clone após retries. altura=', altura, 'cloneThCount=', cloneThCount);
-                    try { clone.remove(); } catch (e) {}
-                    try { if (thead) thead.style.display = ''; wrapper.style.paddingTop = ''; } catch (e) {}
-                    return;
-                }
-                if (window.__DEBUG_HEADER_LOGS) console.log('[HEADER DEBUG] aplicando paddingTop=', Math.round(altura));
-                wrapper.style.paddingTop = altura + 'px';
-                // resetar contador de retries após sucesso
-                try { if (clone.dataset && clone.dataset._retryCount) clone.dataset._retryCount = '0'; } catch (e) {}
-
-                // tornar o clone visível agora que as medições foram aplicadas
-                clone.style.visibility = 'visible';
-
-                try {
-                    if (thead) thead.style.display = 'none';
-                } catch (e) { /* ignore */ }
-                // Se tínhamos mostrado o thead apenas para medição, garantir que sua exibição final está correta
-                theadWasHidden = false;
-            } catch (e) {
-                console.warn('Erro atualizando larguras do header fixo:', e);
-            }
-        });
+        const h = firstRow.getBoundingClientRect().height;
+        const secondRowThs = tabela.querySelectorAll('thead tr:nth-child(2) th');
+        secondRowThs.forEach(th => { th.style.top = h + 'px'; });
     });
-}
-
-// Inicializar ao carregar (se tabela já existia)
-document.addEventListener('DOMContentLoaded', () => {
-    setTimeout(() => {
-        // criar apenas para a tabela principal se existir
-        const wrapper = document.querySelector('.table-wrapper');
-        if (wrapper && wrapper.querySelector('#tabelaEstoque')) {
-            criarHeaderFixoEstoque();
-            // instalar observer para reagir a mudanças no corpo da tabela (ajuda com race conditions)
-            try { instalarObserverTabela(); } catch (e) { /* ignore */ }
-        }
-    }, 200);
-});
-
-// Instala um MutationObserver no corpo da tabela para disparar atualização do header quando linhas mudarem
-function instalarObserverTabela() {
-    try {
-        const tbody = document.getElementById('corpoTabela');
-        if (!tbody) return;
-
-        const observer = new MutationObserver((mutations) => {
-            // Debounce para agrupar várias mudanças rápidas
-            if (__headerUpdateDebounceTimer) clearTimeout(__headerUpdateDebounceTimer);
-            __headerUpdateDebounceTimer = setTimeout(() => {
-                try {
-                    // Se não existir clone, criar; caso exista, apenas atualizar
-                    const wrapper = document.querySelector('.table-wrapper');
-                    if (!wrapper) return;
-                    const clone = wrapper.querySelector('.fixed-table-header');
-                    if (!clone) {
-                        criarHeaderFixoEstoque();
-                    } else {
-                        atualizarHeaderFixoEstoque();
-                    }
-                } catch (e) { /* ignore */ }
-            }, 80);
-        });
-
-        observer.disconnect();
-        observer.observe(tbody, { childList: true, subtree: true, characterData: false });
-        // guardar referência para debug (opcional)
-        window.__headerMutationObserver = observer;
-        if (window.__DEBUG_HEADER_LOGS) console.log('[HEADER DEBUG] MutationObserver instalado no corpo da tabela');
-    } catch (e) {
-        if (window.__DEBUG_HEADER_LOGS) console.warn('[HEADER DEBUG] falha ao instalar observer:', e);
-    }
 }
 
 // ========================================
@@ -1773,8 +1502,6 @@ document.addEventListener('keydown', function(event) {
         document.querySelectorAll('.modal').forEach(modal => {
             modal.style.display = 'none';
         });
-        // Restaura z-index se o header foi rebaixado
-        _restaurarZindexHeaderFixo();
         vendaEditandoId = null;
     }
 });
@@ -1927,23 +1654,6 @@ function fecharModal(modalId) {
         if (modal) modal.style.display = 'none';
     } catch (e) { /* ignore */ }
     // Sempre tentar restaurar z-index do header fixo quando um modal fechar
-    try { _restaurarZindexHeaderFixo(); } catch (e) { /* ignore */ }
-}
-
-// Restaura o z-index do header fixo (quando foi temporariamente rebaixado para exibir modal)
-function _restaurarZindexHeaderFixo() {
-    try {
-        const clone = document.querySelector('.fixed-table-header');
-        if (!clone) return;
-        const before = clone.dataset._zBefore;
-        if (before !== undefined) {
-            clone.style.zIndex = before || '950';
-            delete clone.dataset._zBefore;
-        } else {
-            // garantir valor padrão
-            clone.style.zIndex = '950';
-        }
-    } catch (e) { /* ignore */ }
 }
 
 function mostrarEstoqueAtual() {
@@ -2044,14 +1754,6 @@ function abrirModalVendaDetalhada(vendaId = null) {
 
     atualizarTotalVendaDetalhada();
 
-    // Rebaixar temporariamente o header fixo para ficar abaixo do modal (evitar sobreposição)
-    try {
-        const clone = document.querySelector('.fixed-table-header');
-        if (clone) {
-            clone.dataset._zBefore = clone.style.zIndex || '';
-            clone.style.zIndex = '900';
-        }
-    } catch (e) { console.warn(e); }
 }
 
 // Constrói opções de produtos (HTML) para selects dinâmicos
@@ -3112,15 +2814,9 @@ function salvarDevolucao(event) {
     produto.distribuicao[destino] = (produto.distribuicao[destino] || 0) + quantidade;
 
     salvarDados();
-    // Forçar atualização completa da UI e do header fixo
     renderizarTabela();
     renderizarDashboard();
     atualizarSelectsProdutos();
-    try { criarHeaderFixoEstoque(); } catch (e) { console.warn('Erro recriando header fixo:', e); }
-    // Pequena pausa e tentar novamente para lidar com race conditions de medidas
-    setTimeout(() => {
-        try { atualizarHeaderFixoEstoque(); } catch (e) { /* ignore */ }
-    }, HEADER_RETRY_DELAY);
 
     fecharModal('modalDevolucao');
 
