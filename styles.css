@@ -247,13 +247,7 @@ header {
     font-size: 1.05rem;
 }
 
-.tab-content {
-    display: none;
-}
-
-.tab-content.active {
-    display: block;
-}
+/* tab-content transitions handled in new section below */
 
 /* ========================================
    BARRA DE AÇÕES
@@ -1953,4 +1947,453 @@ tr.row-saldo-zero .geral-saldo {
 
 .col-solicitacao {
     min-width: 150px;
+}
+
+/* ========================================
+   BUSCA GLOBAL (HEADER)
+   ======================================== */
+
+.header-search {
+    flex: 0 0 auto;
+    margin: 0 16px;
+}
+
+.header-search input {
+    padding: 8px 16px;
+    border-radius: var(--radius-md);
+    border: 1px solid rgba(255,255,255,0.15);
+    background: rgba(255,255,255,0.08);
+    color: #e2e8f0;
+    font-size: 0.85rem;
+    width: 280px;
+    transition: var(--transition);
+    outline: none;
+}
+
+.header-search input::placeholder {
+    color: rgba(255,255,255,0.45);
+}
+
+.header-search input:focus {
+    background: rgba(255,255,255,0.15);
+    border-color: var(--accent-color);
+    box-shadow: 0 0 0 3px rgba(201,162,39,0.2);
+    width: 340px;
+}
+
+/* ========================================
+   BUSCA NA TABELA ESTOQUE
+   ======================================== */
+
+.input-busca-tabela {
+    padding: 8px 14px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    font-size: 0.85rem;
+    width: 250px;
+    transition: var(--transition);
+    outline: none;
+}
+
+.input-busca-tabela:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(30,58,95,0.1);
+}
+
+/* ========================================
+   TRANSIÇÕES DE ABA (FADE)
+   ======================================== */
+
+.tab-content {
+    display: none;
+    opacity: 0;
+    transform: translateY(8px);
+    transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.tab-content.active {
+    display: block;
+    opacity: 1;
+    transform: translateY(0);
+    animation: fadeSlideIn 0.3s ease;
+}
+
+@keyframes fadeSlideIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* ========================================
+   MENU HAMBÚRGUER (MOBILE)
+   ======================================== */
+
+.hamburger-btn {
+    display: none;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 10px 15px;
+    z-index: 101;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.hamburger-btn span {
+    display: block;
+    width: 24px;
+    height: 3px;
+    background: var(--text-secondary);
+    border-radius: 2px;
+    transition: var(--transition);
+}
+
+.hamburger-btn.active span:nth-child(1) { transform: rotate(45deg) translate(5px, 6px); }
+.hamburger-btn.active span:nth-child(2) { opacity: 0; }
+.hamburger-btn.active span:nth-child(3) { transform: rotate(-45deg) translate(5px, -6px); }
+
+@media (max-width: 768px) {
+    .hamburger-btn {
+        display: flex;
+        position: sticky;
+        top: 60px;
+        background: var(--bg-white);
+        border-bottom: 1px solid var(--border-color);
+        width: 100%;
+    }
+
+    .tabs-navigation {
+        display: none;
+        flex-direction: column;
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        background: var(--bg-white);
+        box-shadow: var(--shadow-lg);
+        z-index: 99;
+        padding: 8px;
+        border-bottom: 2px solid var(--border-color);
+    }
+
+    .tabs-navigation.mobile-open {
+        display: flex;
+    }
+
+    .tab-btn {
+        padding: 12px 16px;
+        border-bottom: none;
+        border-left: 3px solid transparent;
+        border-radius: var(--radius-sm);
+    }
+
+    .tab-btn.active {
+        border-left-color: var(--accent-color);
+        border-bottom: none;
+        background: rgba(30,58,95,0.06);
+    }
+
+    .header-search {
+        display: none;
+    }
+}
+
+/* ========================================
+   ORDENAÇÃO CLICÁVEL NAS COLUNAS
+   ======================================== */
+
+th.sortable {
+    cursor: pointer;
+    user-select: none;
+    position: relative;
+}
+
+th.sortable:hover {
+    background: rgba(255,255,255,0.1);
+}
+
+th.sortable .sort-icon {
+    font-size: 0.7rem;
+    opacity: 0.5;
+    margin-left: 4px;
+}
+
+th.sortable.sort-asc .sort-icon::after { content: ' ▲'; opacity: 1; }
+th.sortable.sort-desc .sort-icon::after { content: ' ▼'; opacity: 1; }
+
+/* ========================================
+   PAGINAÇÃO
+   ======================================== */
+
+.pagination-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 6px;
+    padding: 14px 20px;
+    background: var(--bg-white);
+    border-top: 1px solid var(--border-color);
+    border-radius: 0 0 var(--radius-md) var(--radius-md);
+    flex-wrap: wrap;
+}
+
+.pagination-container .page-btn {
+    padding: 6px 12px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    background: var(--bg-white);
+    color: var(--text-secondary);
+    cursor: pointer;
+    font-size: 0.82rem;
+    font-weight: 500;
+    transition: var(--transition);
+}
+
+.pagination-container .page-btn:hover {
+    background: var(--bg-light);
+    border-color: var(--primary-color);
+    color: var(--primary-color);
+}
+
+.pagination-container .page-btn.active {
+    background: var(--primary-color);
+    color: white;
+    border-color: var(--primary-color);
+}
+
+.pagination-container .page-info {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    margin: 0 10px;
+}
+
+.pagination-container select {
+    padding: 5px 8px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    font-size: 0.82rem;
+    margin-left: 8px;
+}
+
+/* ========================================
+   GRÁFICOS DO DASHBOARD
+   ======================================== */
+
+.dashboard-charts {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 20px;
+    margin-bottom: 25px;
+}
+
+.chart-container {
+    background: var(--bg-white);
+    border-radius: var(--radius-lg);
+    padding: 20px;
+    box-shadow: var(--shadow-sm);
+    border: 1px solid var(--border-color);
+}
+
+.chart-title {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 14px;
+    padding-left: 10px;
+    border-left: 3px solid var(--accent-color);
+}
+
+.chart-container canvas {
+    max-height: 280px;
+}
+
+@media (max-width: 768px) {
+    .dashboard-charts {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* ========================================
+   PROGRESS BAR (CLOUD)
+   ======================================== */
+
+.progress-bar-container {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: rgba(0,0,0,0.08);
+    z-index: 10000;
+}
+
+.progress-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent-color), var(--success-color));
+    width: 0%;
+    transition: width 0.3s ease;
+    border-radius: 0 2px 2px 0;
+}
+
+.progress-bar-text {
+    position: absolute;
+    right: 12px;
+    top: 6px;
+    font-size: 0.7rem;
+    color: var(--text-secondary);
+    font-weight: 600;
+}
+
+/* ========================================
+   ALERTA ESTOQUE BAIXO
+   ======================================== */
+
+.alerta-estoque-baixo {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    z-index: 9000;
+    background: linear-gradient(135deg, #fef3c7, #fde68a);
+    border: 1px solid #f59e0b;
+    border-left: 4px solid #d97706;
+    border-radius: var(--radius-md);
+    padding: 14px 18px;
+    max-width: 380px;
+    max-height: 300px;
+    overflow-y: auto;
+    box-shadow: var(--shadow-lg);
+    font-size: 0.82rem;
+    color: #92400e;
+    animation: slideInRight 0.3s ease;
+}
+
+.alerta-estoque-baixo .alerta-titulo {
+    font-weight: 700;
+    font-size: 0.88rem;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.alerta-estoque-baixo .alerta-item {
+    padding: 4px 0;
+    border-bottom: 1px solid rgba(217,119,6,0.15);
+    display: flex;
+    justify-content: space-between;
+}
+
+.alerta-estoque-baixo .alerta-close {
+    cursor: pointer;
+    font-size: 1.1rem;
+    opacity: 0.6;
+}
+
+.alerta-estoque-baixo .alerta-close:hover {
+    opacity: 1;
+}
+
+/* ========================================
+   HISTÓRICO DE ALTERAÇÕES
+   ======================================== */
+
+.historico-lista {
+    max-height: 50vh;
+    overflow-y: auto;
+}
+
+.historico-item {
+    display: flex;
+    gap: 12px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border-color);
+    font-size: 0.85rem;
+}
+
+.historico-item:last-child { border-bottom: none; }
+
+.historico-item .hist-data {
+    min-width: 140px;
+    color: var(--text-secondary);
+    font-size: 0.78rem;
+    font-weight: 500;
+}
+
+.historico-item .hist-tipo {
+    min-width: 80px;
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 0.7rem;
+    letter-spacing: 0.5px;
+}
+
+.historico-item .hist-tipo.venda { color: var(--success-color); }
+.historico-item .hist-tipo.distribuicao { color: var(--info-color); }
+.historico-item .hist-tipo.entrada { color: var(--warning-color); }
+.historico-item .hist-tipo.exclusao { color: var(--danger-color); }
+.historico-item .hist-tipo.importacao { color: #8b5cf6; }
+
+.historico-item .hist-descricao {
+    flex: 1;
+    color: var(--text-primary);
+}
+
+/* ========================================
+   RESULTADOS BUSCA GLOBAL
+   ======================================== */
+
+.busca-resultados {
+    max-height: 60vh;
+    overflow-y: auto;
+}
+
+.busca-categoria {
+    margin-bottom: 16px;
+}
+
+.busca-categoria h4 {
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-secondary);
+    margin-bottom: 8px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.busca-resultado-item {
+    padding: 8px 12px;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: var(--transition);
+    font-size: 0.88rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.busca-resultado-item:hover {
+    background: var(--bg-light);
+}
+
+.busca-resultado-item .resultado-aba {
+    font-size: 0.72rem;
+    background: rgba(30,58,95,0.08);
+    padding: 2px 8px;
+    border-radius: 10px;
+    color: var(--primary-color);
+    font-weight: 500;
+}
+
+/* ========================================
+   EDIT BUTTON STYLE
+   ======================================== */
+
+.btn-action.btn-edit {
+    background: rgba(14,165,233,0.1);
+    color: var(--info-color);
+}
+
+.btn-action.btn-edit:hover {
+    background: var(--info-color);
+    color: white;
 }

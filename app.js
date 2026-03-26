@@ -3875,3 +3875,938 @@ function gerarCSV(dados) {
 // ========================================
 
 document.addEventListener('DOMContentLoaded', inicializar);
+
+// ========================================
+// BUSCA / FILTRO NA TABELA DE ESTOQUE
+// ========================================
+
+function filtrarTabelaEstoque(termo) {
+    const tbody = document.getElementById('corpoTabela');
+    if (!tbody) return;
+    const rows = tbody.querySelectorAll('tr:not(.total-row)');
+    const termoLower = (termo || '').toLowerCase().trim();
+
+    rows.forEach(row => {
+        const nome = (row.querySelector('.produto-nome')?.textContent || '').toLowerCase();
+        row.style.display = (!termoLower || nome.includes(termoLower)) ? '' : 'none';
+    });
+}
+
+// ========================================
+// BUSCA GLOBAL
+// ========================================
+
+let _buscaGlobalTimer = null;
+function executarBuscaGlobal(termo) {
+    if (_buscaGlobalTimer) clearTimeout(_buscaGlobalTimer);
+    _buscaGlobalTimer = setTimeout(() => {
+        _executarBuscaGlobalReal(termo);
+    }, 400);
+}
+
+function _executarBuscaGlobalReal(termo) {
+    if (!termo || termo.trim().length < 2) return;
+    const t = termo.toLowerCase().trim();
+    const resultados = { produtos: [], vendas: [], distribuicoes: [], contratos: [] };
+
+    // Buscar em produtos
+    estoque.produtos.forEach(p => {
+        if (p.nome.toLowerCase().includes(t)) {
+            resultados.produtos.push(p);
+        }
+    });
+
+    // Buscar em vendas
+    (estoque.registroVendas || []).forEach(v => {
+        const match = (v.contrato || '').toLowerCase().includes(t) ||
+                      (v.loja || '').toLowerCase().includes(t) ||
+                      (v.representante || '').toLowerCase().includes(t);
+        if (match) resultados.vendas.push(v);
+    });
+
+    // Buscar em distribuições
+    (estoque.registroDistribuicao || []).forEach(d => {
+        const match = (d.produtoNome || '').toLowerCase().includes(t) ||
+                      (d.representante || '').toLowerCase().includes(t);
+        if (match) resultados.distribuicoes.push(d);
+    });
+
+    const container = document.getElementById('resultadosBuscaGlobal');
+    if (!container) return;
+
+    let html = '';
+    const total = resultados.produtos.length + resultados.vendas.length + resultados.distribuicoes.length;
+
+    if (total === 0) {
+        html = '<p style="text-align:center;color:var(--text-secondary);padding:20px">Nenhum resultado encontrado.</p>';
+    } else {
+        if (resultados.produtos.length > 0) {
+            html += '<div class="busca-categoria"><h4>📦 Produtos (' + resultados.produtos.length + ')</h4>';
+            resultados.produtos.forEach(p => {
+                html += `<div class="busca-resultado-item" onclick="fecharModal('modalBuscaGlobal');trocarAba('estoque')"><span>${p.nome}</span><span class="resultado-aba">Estoque</span></div>`;
+            });
+            html += '</div>';
+        }
+        if (resultados.vendas.length > 0) {
+            html += '<div class="busca-categoria"><h4>📝 Vendas (' + resultados.vendas.length + ')</h4>';
+            resultados.vendas.slice(0, 20).forEach(v => {
+                html += `<div class="busca-resultado-item" onclick="fecharModal('modalBuscaGlobal');trocarAba('vendas')"><span>CTR ${v.contrato} — ${v.loja} (${v.representante})</span><span class="resultado-aba">Vendas</span></div>`;
+            });
+            html += '</div>';
+        }
+        if (resultados.distribuicoes.length > 0) {
+            html += '<div class="busca-categoria"><h4>🚚 Distribuições (' + resultados.distribuicoes.length + ')</h4>';
+            resultados.distribuicoes.slice(0, 20).forEach(d => {
+                html += `<div class="busca-resultado-item" onclick="fecharModal('modalBuscaGlobal');trocarAba('distribuicao')"><span>${d.produtoNome} → ${d.representante} (${d.quantidade})</span><span class="resultado-aba">Distribuição</span></div>`;
+            });
+            html += '</div>';
+        }
+    }
+
+    container.innerHTML = html;
+    document.getElementById('modalBuscaGlobal').style.display = 'flex';
+}
+
+// ========================================
+// MENU HAMBÚRGUER (MOBILE)
+// ========================================
+
+function toggleMenuMobile() {
+    const btn = document.getElementById('hamburgerBtn');
+    const nav = document.getElementById('tabsNav');
+    btn.classList.toggle('active');
+    nav.classList.toggle('mobile-open');
+}
+
+// Fechar menu ao trocar aba (mobile)
+const _trocarAbaOriginal = trocarAba;
+trocarAba = function(aba) {
+    _trocarAbaOriginal(aba);
+    try {
+        document.getElementById('hamburgerBtn')?.classList.remove('active');
+        document.getElementById('tabsNav')?.classList.remove('mobile-open');
+    } catch(e) {}
+};
+
+// ========================================
+// ORDENAÇÃO CLICÁVEL NAS COLUNAS
+// ========================================
+
+let _ordenVendas = { campo: 'contrato', direcao: 'asc' };
+let _ordenDistribuicao = { campo: 'data', direcao: 'desc' };
+
+function ordenarVendas(campo) {
+    if (_ordenVendas.campo === campo) {
+        _ordenVendas.direcao = _ordenVendas.direcao === 'asc' ? 'desc' : 'asc';
+    } else {
+        _ordenVendas.campo = campo;
+        _ordenVendas.direcao = 'asc';
+    }
+    // Atualizar ícones
+    document.querySelectorAll('#tabelaRegistroVendas th.sortable').forEach(th => {
+        th.classList.remove('sort-asc', 'sort-desc');
+        if (th.dataset.sort === campo) th.classList.add('sort-' + _ordenVendas.direcao);
+    });
+    renderizarRegistroVendas();
+}
+
+function ordenarDistribuicao(campo) {
+    if (_ordenDistribuicao.campo === campo) {
+        _ordenDistribuicao.direcao = _ordenDistribuicao.direcao === 'asc' ? 'desc' : 'asc';
+    } else {
+        _ordenDistribuicao.campo = campo;
+        _ordenDistribuicao.direcao = 'asc';
+    }
+    document.querySelectorAll('#tabelaRegistroDistribuicao th.sortable').forEach(th => {
+        th.classList.remove('sort-asc', 'sort-desc');
+        if (th.dataset.sort === campo) th.classList.add('sort-' + _ordenDistribuicao.direcao);
+    });
+    renderizarRegistroDistribuicao();
+}
+
+// ========================================
+// PAGINAÇÃO
+// ========================================
+
+const ITENS_POR_PAGINA_OPCOES = [15, 30, 50, 100];
+let _paginaVendas = 1;
+let _itensPorPaginaVendas = 30;
+let _paginaDistribuicao = 1;
+let _itensPorPaginaDistribuicao = 30;
+
+function renderizarPaginacao(containerId, paginaAtual, totalItens, itensPorPagina, onChangePage, onChangePerPage) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+
+    const totalPaginas = Math.max(1, Math.ceil(totalItens / itensPorPagina));
+    if (totalItens <= itensPorPagina) {
+        container.innerHTML = '';
+        return;
+    }
+
+    let html = '';
+    html += `<button class="page-btn" ${paginaAtual <= 1 ? 'disabled' : ''} onclick="${onChangePage}(${paginaAtual - 1})">‹</button>`;
+
+    const maxBtns = 5;
+    let start = Math.max(1, paginaAtual - Math.floor(maxBtns / 2));
+    let end = Math.min(totalPaginas, start + maxBtns - 1);
+    if (end - start < maxBtns - 1) start = Math.max(1, end - maxBtns + 1);
+
+    if (start > 1) html += `<button class="page-btn" onclick="${onChangePage}(1)">1</button><span class="page-info">...</span>`;
+
+    for (let i = start; i <= end; i++) {
+        html += `<button class="page-btn ${i === paginaAtual ? 'active' : ''}" onclick="${onChangePage}(${i})">${i}</button>`;
+    }
+
+    if (end < totalPaginas) html += `<span class="page-info">...</span><button class="page-btn" onclick="${onChangePage}(${totalPaginas})">${totalPaginas}</button>`;
+
+    html += `<button class="page-btn" ${paginaAtual >= totalPaginas ? 'disabled' : ''} onclick="${onChangePage}(${paginaAtual + 1})">›</button>`;
+    html += `<span class="page-info">${totalItens} registros</span>`;
+    html += `<select onchange="${onChangePerPage}(parseInt(this.value))">`;
+    ITENS_POR_PAGINA_OPCOES.forEach(n => {
+        html += `<option value="${n}" ${n === itensPorPagina ? 'selected' : ''}>${n} por pág.</option>`;
+    });
+    html += '</select>';
+
+    container.innerHTML = html;
+}
+
+function mudarPaginaVendas(p) { _paginaVendas = p; renderizarRegistroVendas(); }
+function mudarItensPaginaVendas(n) { _itensPorPaginaVendas = n; _paginaVendas = 1; renderizarRegistroVendas(); }
+function mudarPaginaDistribuicao(p) { _paginaDistribuicao = p; renderizarRegistroDistribuicao(); }
+function mudarItensPaginaDistribuicao(n) { _itensPorPaginaDistribuicao = n; _paginaDistribuicao = 1; renderizarRegistroDistribuicao(); }
+
+// ========================================
+// NOTIFICAÇÕES DE ESTOQUE BAIXO
+// ========================================
+
+const LIMITE_ESTOQUE_BAIXO = 3;
+
+function verificarEstoqueBaixo() {
+    const alertas = [];
+    estoque.produtos.forEach(produto => {
+        let totalDisp = 0, totalVenda = 0;
+        estoque.representantes.forEach(rep => {
+            totalDisp += (produto.distribuicao[rep] || 0);
+            totalVenda += (produto.vendas[rep] || 0);
+        });
+        const saldo = totalDisp - totalVenda;
+        if (saldo > 0 && saldo <= LIMITE_ESTOQUE_BAIXO) {
+            alertas.push({ nome: produto.nome, saldo: saldo });
+        }
+    });
+
+    const el = document.getElementById('alertaEstoqueBaixo');
+    if (!el) return;
+
+    if (alertas.length === 0) {
+        el.style.display = 'none';
+        return;
+    }
+
+    let html = '<div class="alerta-titulo"><span>⚠️ Estoque Baixo</span><span class="alerta-close" onclick="this.closest(\'.alerta-estoque-baixo\').style.display=\'none\'">✕</span></div>';
+    alertas.forEach(a => {
+        html += `<div class="alerta-item"><span>${a.nome}</span><strong>${a.saldo} un.</strong></div>`;
+    });
+    el.innerHTML = html;
+    el.style.display = 'block';
+}
+
+// ========================================
+// DASHBOARD COM GRÁFICOS (Chart.js)
+// ========================================
+
+let _chartVendasRep = null;
+let _chartTopProdutos = null;
+
+function renderizarGraficos() {
+    if (typeof Chart === 'undefined') return;
+
+    // Dados por representante
+    const reps = ['KOLTE', 'ISA', 'LC', 'ADES', 'FL', 'IMBEL'];
+    const coresReps = ['#3d5a80', '#5c4d7d', '#2d6a4f', '#9c4a1a', '#7b2d26', '#1e3a5f'];
+    const vendasPorRep = reps.map(rep => {
+        let total = 0;
+        estoque.produtos.forEach(p => { total += (p.vendas[rep] || 0); });
+        return total;
+    });
+
+    // Chart 1: Vendas por Representante (bar)
+    const ctx1 = document.getElementById('chartVendasRep');
+    if (ctx1) {
+        if (_chartVendasRep) _chartVendasRep.destroy();
+        _chartVendasRep = new Chart(ctx1, {
+            type: 'bar',
+            data: {
+                labels: reps,
+                datasets: [{
+                    label: 'Unidades Vendidas',
+                    data: vendasPorRep,
+                    backgroundColor: coresReps.map(c => c + 'cc'),
+                    borderColor: coresReps,
+                    borderWidth: 1,
+                    borderRadius: 6
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: { legend: { display: false } },
+                scales: { y: { beginAtZero: true, ticks: { precision: 0 } } }
+            }
+        });
+    }
+
+    // Chart 2: Top Produtos (doughnut)
+    const dadosProdutos = estoque.produtos.map(p => {
+        let total = 0;
+        estoque.representantes.forEach(r => { total += (p.vendas[r] || 0); });
+        return { nome: p.nome.substring(0, 20), total };
+    }).filter(p => p.total > 0).sort((a, b) => b.total - a.total).slice(0, 6);
+
+    const ctx2 = document.getElementById('chartTopProdutos');
+    if (ctx2) {
+        if (_chartTopProdutos) _chartTopProdutos.destroy();
+        const palette = ['#3b82f6', '#22c55e', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4'];
+        _chartTopProdutos = new Chart(ctx2, {
+            type: 'doughnut',
+            data: {
+                labels: dadosProdutos.map(p => p.nome),
+                datasets: [{
+                    data: dadosProdutos.map(p => p.total),
+                    backgroundColor: palette.slice(0, dadosProdutos.length),
+                    borderWidth: 2,
+                    borderColor: '#fff'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: {
+                    legend: { position: 'bottom', labels: { font: { size: 11 }, padding: 10 } }
+                }
+            }
+        });
+    }
+}
+
+// ========================================
+// PROGRESS BAR (CLOUD OPERATIONS)
+// ========================================
+
+function showProgressBar(text) {
+    const el = document.getElementById('progressBar');
+    const fill = document.getElementById('progressBarFill');
+    const txt = document.getElementById('progressBarText');
+    if (!el) return;
+    el.style.display = 'block';
+    fill.style.width = '10%';
+    txt.textContent = text || 'Processando...';
+    // Simulate progress
+    let pct = 10;
+    window._progressInterval = setInterval(() => {
+        pct = Math.min(pct + Math.random() * 15, 90);
+        fill.style.width = pct + '%';
+    }, 300);
+}
+
+function hideProgressBar() {
+    const el = document.getElementById('progressBar');
+    const fill = document.getElementById('progressBarFill');
+    if (!el) return;
+    clearInterval(window._progressInterval);
+    fill.style.width = '100%';
+    setTimeout(() => {
+        el.style.display = 'none';
+        fill.style.width = '0%';
+    }, 500);
+}
+
+// Override cloud UI functions to use progress bar
+const _salvarNoCloudUI_original = salvarNoCloudUI;
+salvarNoCloudUI = async function() {
+    showProgressBar('Salvando no Cloud...');
+    try {
+        return await _salvarNoCloudUI_original();
+    } finally {
+        hideProgressBar();
+    }
+};
+
+const _carregarDoCloudUI_original = carregarDoCloudUI;
+carregarDoCloudUI = async function() {
+    showProgressBar('Carregando do Cloud...');
+    try {
+        return await _carregarDoCloudUI_original();
+    } finally {
+        hideProgressBar();
+    }
+};
+
+// ========================================
+// HISTÓRICO DE ALTERAÇÕES (AUDIT LOG)
+// ========================================
+
+function getHistorico() {
+    try {
+        return JSON.parse(localStorage.getItem('estoqueHistorico') || '[]');
+    } catch(e) { return []; }
+}
+
+function salvarHistorico(hist) {
+    // Manter últimos 200 registros
+    const trimmed = hist.slice(-200);
+    localStorage.setItem('estoqueHistorico', JSON.stringify(trimmed));
+}
+
+function registrarHistorico(tipo, descricao) {
+    const hist = getHistorico();
+    hist.push({
+        data: new Date().toISOString(),
+        tipo: tipo,
+        descricao: descricao
+    });
+    salvarHistorico(hist);
+}
+
+function abrirHistorico() {
+    const hist = getHistorico().reverse();
+    const container = document.getElementById('historicoConteudo');
+    if (!container) return;
+
+    if (hist.length === 0) {
+        container.innerHTML = '<p style="text-align:center;color:var(--text-secondary);padding:20px">Nenhuma alteração registrada.</p>';
+    } else {
+        container.innerHTML = hist.map(h => {
+            const dt = new Date(h.data).toLocaleString('pt-BR');
+            return `<div class="historico-item">
+                <span class="hist-data">${dt}</span>
+                <span class="hist-tipo ${h.tipo}">${h.tipo}</span>
+                <span class="hist-descricao">${h.descricao}</span>
+            </div>`;
+        }).join('');
+    }
+
+    document.getElementById('modalHistorico').style.display = 'flex';
+}
+
+function limparHistorico() {
+    if (!confirm('Deseja limpar todo o histórico de alterações?')) return;
+    localStorage.removeItem('estoqueHistorico');
+    mostrarNotificacao('Histórico limpo com sucesso!', 'success');
+}
+
+// ========================================
+// VALIDAÇÃO ROBUSTA
+// ========================================
+
+function validarContratoUnico(contrato, vendaIdEditando) {
+    const existente = estoque.registroVendas.find(v =>
+        v.contrato === contrato && v.id !== vendaIdEditando
+    );
+    return !existente;
+}
+
+// ========================================
+// RELATÓRIO DE DISTRIBUIÇÃO
+// ========================================
+
+function prepararRelatorioDistribuicao() {
+    const preview = document.getElementById('relatoriosPreview');
+    if (!preview) return;
+
+    const filtroRep = document.getElementById('filtroRelatoriosRep')?.value || '';
+    const dataInicio = document.getElementById('filtroRelatoriosDataInicio')?.value || '';
+    const dataFim = document.getElementById('filtroRelatoriosDataFim')?.value || '';
+
+    let distribuicoes = [...(estoque.registroDistribuicao || [])];
+
+    if (filtroRep) distribuicoes = distribuicoes.filter(d => d.representante === filtroRep);
+
+    // Filtrar por data
+    if (dataInicio || dataFim) {
+        const start = dataInicio ? new Date(dataInicio + 'T00:00:00').getTime() : null;
+        const end = dataFim ? new Date(dataFim + 'T23:59:59').getTime() : null;
+        distribuicoes = distribuicoes.filter(d => {
+            if (!d.data) return false;
+            const t = new Date(d.data).getTime();
+            if (start && t < start) return false;
+            if (end && t > end) return false;
+            return true;
+        });
+    }
+
+    distribuicoes.sort((a, b) => new Date(b.data) - new Date(a.data));
+
+    // Agrupar por representante
+    const porRep = {};
+    distribuicoes.forEach(d => {
+        if (!porRep[d.representante]) porRep[d.representante] = [];
+        porRep[d.representante].push(d);
+    });
+
+    const container = document.createElement('div');
+    container.className = 'report-distribuicao';
+
+    let totalGeral = 0;
+
+    Object.keys(porRep).sort().forEach(rep => {
+        const items = porRep[rep];
+        const titulo = document.createElement('h3');
+        titulo.textContent = `Representante: ${rep}`;
+        titulo.style.margin = '12px 0 6px 0';
+        container.appendChild(titulo);
+
+        const table = document.createElement('table');
+        table.style.width = '100%';
+        table.style.borderCollapse = 'collapse';
+        table.innerHTML = `<thead><tr>
+            <th style="padding:6px;border:1px solid #ddd;text-align:left">Produto</th>
+            <th style="padding:6px;border:1px solid #ddd;text-align:center">Qtd</th>
+            <th style="padding:6px;border:1px solid #ddd;text-align:center">Data</th>
+            <th style="padding:6px;border:1px solid #ddd;text-align:left">Obs</th>
+        </tr></thead><tbody></tbody>`;
+
+        const tbody = table.querySelector('tbody');
+        let subtotal = 0;
+        items.forEach(d => {
+            subtotal += d.quantidade;
+            totalGeral += d.quantidade;
+            const dataFmt = d.data ? new Date(d.data + 'T00:00:00').toLocaleDateString('pt-BR') : '-';
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td style="padding:6px;border:1px solid #ddd">${d.produtoNome}</td>
+                <td style="padding:6px;border:1px solid #ddd;text-align:center">${d.quantidade}</td>
+                <td style="padding:6px;border:1px solid #ddd;text-align:center">${dataFmt}</td>
+                <td style="padding:6px;border:1px solid #ddd">${d.observacoes || '-'}</td>`;
+            tbody.appendChild(tr);
+        });
+
+        const trTotal = document.createElement('tr');
+        trTotal.innerHTML = `<td colspan="1" style="padding:6px;border:1px solid #ddd;text-align:right"><strong>Subtotal ${rep}</strong></td>
+            <td style="padding:6px;border:1px solid #ddd;text-align:center"><strong>${subtotal}</strong></td>
+            <td colspan="2" style="padding:6px;border:1px solid #ddd"></td>`;
+        tbody.appendChild(trTotal);
+        container.appendChild(table);
+    });
+
+    const resumo = document.createElement('div');
+    resumo.style.cssText = 'margin:12px 0;font-size:1rem;font-weight:700';
+    resumo.textContent = `Total Geral Distribuído: ${totalGeral} unidades`;
+    container.insertBefore(resumo, container.firstChild);
+
+    preview.innerHTML = '';
+    const wrapper = document.createElement('div');
+    wrapper.className = 'report-printable';
+    wrapper.appendChild(container);
+    preview.appendChild(wrapper);
+}
+
+// ========================================
+// EXPORTAR PDF (jsPDF)
+// ========================================
+
+function exportarRelatorioPDF() {
+    if (typeof jspdf === 'undefined' && typeof window.jspdf === 'undefined') {
+        mostrarNotificacao('Biblioteca jsPDF não carregada. Tente novamente.', 'error');
+        return;
+    }
+
+    const { jsPDF } = window.jspdf;
+    const tipo = document.getElementById('filtroRelatoriosTipo')?.value || 'inventario';
+    const orient = document.getElementById('filtroRelatoriosOrientacao')?.value || 'landscape';
+
+    const doc = new jsPDF({ orientation: orient, unit: 'mm', format: 'a4' });
+    doc.setFont('helvetica');
+
+    const dataAgora = new Date().toLocaleString('pt-BR');
+    let titulo = 'Relatório';
+
+    if (tipo === 'inventario') {
+        titulo = 'Inventário de Produtos';
+        // Build table data from estoque
+        const headers = [['Produto', 'Disp', 'Venda', 'Saldo']];
+        const data = estoque.produtos.map(p => {
+            let d = 0, v = 0;
+            estoque.representantes.forEach(r => { d += (p.distribuicao[r]||0); v += (p.vendas[r]||0); });
+            return [p.nome, d.toString(), v.toString(), (d-v).toString()];
+        });
+        doc.setFontSize(14);
+        doc.text(titulo, 14, 15);
+        doc.setFontSize(9);
+        doc.text(`Data: ${dataAgora}`, 14, 22);
+        doc.autoTable({ head: headers, body: data, startY: 26, styles: { fontSize: 8 } });
+    } else if (tipo === 'comissoes') {
+        titulo = 'Relatório de Comissões (5%)';
+        const vendas = (estoque.registroVendas || []).filter(v => (v.representante||'').toUpperCase() !== 'IMBEL');
+        const headers = [['Rep', 'Contrato', 'Cliente', 'Valor', 'Comissão 5%']];
+        const data = vendas.map(v => {
+            const valor = v.valorTotal || 0;
+            return [v.representante, v.contrato, v.loja, formatarMoedaValor(valor), formatarMoedaValor(Math.round(valor*0.05*100)/100)];
+        });
+        doc.setFontSize(14);
+        doc.text(titulo, 14, 15);
+        doc.setFontSize(9);
+        doc.text(`Data: ${dataAgora}`, 14, 22);
+        doc.autoTable({ head: headers, body: data, startY: 26, styles: { fontSize: 8 } });
+    } else if (tipo === 'distribuicao') {
+        titulo = 'Relatório de Distribuição';
+        const headers = [['Rep', 'Produto', 'Qtd', 'Data', 'Obs']];
+        const data = (estoque.registroDistribuicao || []).map(d => {
+            return [d.representante, d.produtoNome, d.quantidade.toString(), d.data ? new Date(d.data+'T00:00:00').toLocaleDateString('pt-BR') : '-', d.observacoes || '-'];
+        });
+        doc.setFontSize(14);
+        doc.text(titulo, 14, 15);
+        doc.setFontSize(9);
+        doc.text(`Data: ${dataAgora}`, 14, 22);
+        doc.autoTable({ head: headers, body: data, startY: 26, styles: { fontSize: 8 } });
+    }
+
+    doc.save(`${titulo.replace(/\s+/g, '_')}_${new Date().toISOString().slice(0,10)}.pdf`);
+    mostrarNotificacao('PDF exportado com sucesso!', 'success');
+}
+
+// ========================================
+// VISUALIZAR RELATÓRIO (atualizado com distribuição)
+// ========================================
+
+// Override visualizarRelatorioSelecionado
+const _visualizarRelatorioOriginal = visualizarRelatorioSelecionado;
+visualizarRelatorioSelecionado = function() {
+    const tipo = document.getElementById('filtroRelatoriosTipo')?.value || 'inventario';
+    if (tipo === 'distribuicao') {
+        prepararRelatorioDistribuicao();
+    } else if (tipo === 'comissoes') {
+        prepararRelatorioComissoes();
+    } else {
+        prepararRelatorioInventario();
+    }
+};
+
+// ========================================
+// HOOK: REGISTRAR HISTÓRICO EM OPERAÇÕES
+// ========================================
+
+// Wrap salvarVendaDetalhada
+const _salvarVendaDetalhadaOriginal = salvarVendaDetalhada;
+// Note: can't easily wrap form submit handlers, so we hook into salvarDados
+const _salvarDadosOriginal = salvarDados;
+
+// Hook renderizarDashboard to include charts
+const _renderizarDashboardOriginal = renderizarDashboard;
+renderizarDashboard = function() {
+    _renderizarDashboardOriginal();
+    try { renderizarGraficos(); } catch(e) { console.warn('Erro renderizando gráficos:', e); }
+};
+
+// Hook renderizarRegistroVendas to include pagination and date filters
+const _renderizarRegistroVendasOriginal = renderizarRegistroVendas;
+renderizarRegistroVendas = function() {
+    const tbody = document.getElementById('tabelaRegistroVendasBody');
+    if (!tbody) return;
+
+    const filtroRep = document.getElementById('filtroRepresentante')?.value || '';
+    const filtroProduto = document.getElementById('filtroProduto')?.value || '';
+    const filtroProdutoId = filtroProduto ? parseInt(filtroProduto) : null;
+    const dataInicio = document.getElementById('filtroVendasDataInicio')?.value || '';
+    const dataFim = document.getElementById('filtroVendasDataFim')?.value || '';
+
+    let vendasFiltradas = [...(estoque.registroVendas || [])];
+
+    if (filtroRep) vendasFiltradas = vendasFiltradas.filter(v => v.representante === filtroRep);
+    if (filtroProdutoId) {
+        vendasFiltradas = vendasFiltradas.filter(v => {
+            if (Array.isArray(v.items) && v.items.length > 0) return v.items.some(it => it.produtoId === filtroProdutoId);
+            return v.produtoId === filtroProdutoId;
+        });
+    }
+
+    // Filtro por data
+    if (dataInicio || dataFim) {
+        const start = dataInicio ? new Date(dataInicio + 'T00:00:00').getTime() : null;
+        const end = dataFim ? new Date(dataFim + 'T23:59:59').getTime() : null;
+        vendasFiltradas = vendasFiltradas.filter(v => {
+            if (!v.data) return false;
+            const t = new Date(v.data).getTime();
+            if (start && t < start) return false;
+            if (end && t > end) return false;
+            return true;
+        });
+    }
+
+    // Ordenação
+    const campo = _ordenVendas.campo;
+    const dir = _ordenVendas.direcao === 'asc' ? 1 : -1;
+    vendasFiltradas.sort((a, b) => {
+        let va, vb;
+        if (campo === 'contrato') { va = parseInt(a.contrato) || 0; vb = parseInt(b.contrato) || 0; }
+        else if (campo === 'loja') { va = (a.loja || '').toLowerCase(); vb = (b.loja || '').toLowerCase(); }
+        else if (campo === 'representante') { va = (a.representante || ''); vb = (b.representante || ''); }
+        else if (campo === 'valorTotal') { va = a.valorTotal || 0; vb = b.valorTotal || 0; }
+        else { va = parseInt(a.contrato) || 0; vb = parseInt(b.contrato) || 0; }
+        if (va < vb) return -1 * dir;
+        if (va > vb) return 1 * dir;
+        return 0;
+    });
+
+    tbody.innerHTML = '';
+
+    if (vendasFiltradas.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="9" class="empty-state"><div class="empty-icon">📋</div><div class="empty-text">Nenhuma venda registrada</div><div class="empty-hint">Clique em "Nova Venda" para adicionar</div></td></tr>`;
+        atualizarTotaisVendas(0, 0);
+        renderizarPaginacao('paginacaoVendas', 1, 0, _itensPorPaginaVendas, 'mudarPaginaVendas', 'mudarItensPaginaVendas');
+        return;
+    }
+
+    // Flatten items for pagination
+    let linhas = [];
+    vendasFiltradas.forEach(venda => {
+        if (Array.isArray(venda.items) && venda.items.length > 0) {
+            let items = venda.items;
+            if (filtroProdutoId) items = items.filter(it => it.produtoId === filtroProdutoId);
+            items.forEach(it => linhas.push({ venda, item: it }));
+        } else {
+            linhas.push({ venda, item: null });
+        }
+    });
+
+    const totalLinhas = linhas.length;
+    const totalPaginas = Math.max(1, Math.ceil(totalLinhas / _itensPorPaginaVendas));
+    if (_paginaVendas > totalPaginas) _paginaVendas = totalPaginas;
+    const inicio = (_paginaVendas - 1) * _itensPorPaginaVendas;
+    const linhasPagina = linhas.slice(inicio, inicio + _itensPorPaginaVendas);
+
+    let totalQtd = 0, totalValor = 0;
+    // Calcular totais de TODAS as linhas (não só da página)
+    linhas.forEach(l => {
+        if (l.item) {
+            totalQtd += l.item.quantidade || 0;
+            totalValor += l.item.valorTotal || ((l.item.valorUnitario||0) * (l.item.quantidade||0));
+        } else {
+            totalQtd += l.venda.quantidade || 0;
+            totalValor += l.venda.valorTotal || 0;
+        }
+    });
+
+    linhasPagina.forEach(l => {
+        const venda = l.venda;
+        const repClass = (venda.representante || '').toLowerCase();
+        const tr = document.createElement('tr');
+
+        if (l.item) {
+            const it = l.item;
+            const valorUn = it.valorUnitario ? formatarMoedaValor(it.valorUnitario) : '-';
+            const valorTot = it.valorTotal || (it.valorUnitario||0) * (it.quantidade||0);
+            tr.innerHTML = `
+                <td class="col-contrato">${venda.contrato}</td>
+                <td class="col-loja" title="${venda.loja}">${venda.loja}</td>
+                <td class="col-representante"><span class="badge-rep ${repClass}">${venda.representante}</span></td>
+                <td class="col-produto-venda" title="${it.produtoNome}">${it.produtoNome}</td>
+                <td class="col-qtd">${it.quantidade}</td>
+                <td class="col-valor-un">${valorUn}</td>
+                <td class="col-valor-total">${valorTot > 0 ? formatarMoedaValor(valorTot) : '-'}</td>
+                <td class="col-obs" title="${venda.observacoes||'-'}">${venda.observacoes||'-'}</td>
+                <td class="col-acoes">
+                    <button class="btn-action btn-edit" onclick="abrirModalVendaDetalhada(${venda.id})" title="Editar">✎</button>
+                    <button class="btn-action btn-delete" onclick="excluirVenda(${venda.id})" title="Excluir">🗑</button>
+                </td>`;
+        } else {
+            const qtd = venda.quantidade || 0;
+            const valorUn = venda.valorUnitario ? formatarMoedaValor(venda.valorUnitario) : '-';
+            const valorTot = venda.valorTotal || 0;
+            tr.innerHTML = `
+                <td class="col-contrato">${venda.contrato}</td>
+                <td class="col-loja" title="${venda.loja}">${venda.loja}</td>
+                <td class="col-representante"><span class="badge-rep ${repClass}">${venda.representante}</span></td>
+                <td class="col-produto-venda" title="${venda.produtoNome||'-'}">${venda.produtoNome||'-'}</td>
+                <td class="col-qtd">${qtd}</td>
+                <td class="col-valor-un">${valorUn}</td>
+                <td class="col-valor-total">${valorTot > 0 ? formatarMoedaValor(valorTot) : '-'}</td>
+                <td class="col-obs" title="${venda.observacoes||'-'}">${venda.observacoes||'-'}</td>
+                <td class="col-acoes">
+                    <button class="btn-action btn-edit" onclick="abrirModalVendaDetalhada(${venda.id})" title="Editar">✎</button>
+                    <button class="btn-action btn-delete" onclick="excluirVenda(${venda.id})" title="Excluir">🗑</button>
+                </td>`;
+        }
+        tbody.appendChild(tr);
+    });
+
+    atualizarTotaisVendas(totalQtd, totalValor);
+    renderizarPaginacao('paginacaoVendas', _paginaVendas, totalLinhas, _itensPorPaginaVendas, 'mudarPaginaVendas', 'mudarItensPaginaVendas');
+};
+
+// Hook renderizarRegistroDistribuicao to include pagination, date filters and sorting
+const _renderizarRegistroDistribuicaoOriginal = renderizarRegistroDistribuicao;
+renderizarRegistroDistribuicao = function() {
+    const tbody = document.getElementById('tabelaRegistroDistribuicaoBody');
+    if (!tbody) return;
+
+    const filtroRep = document.getElementById('filtroDistribuicaoRep')?.value || '';
+    const filtroProduto = document.getElementById('filtroDistribuicaoProduto')?.value || '';
+    const dataInicio = document.getElementById('filtroDistribuicaoDataInicio')?.value || '';
+    const dataFim = document.getElementById('filtroDistribuicaoDataFim')?.value || '';
+
+    let distribuicoesFiltradas = [...(estoque.registroDistribuicao || [])];
+
+    if (filtroRep) distribuicoesFiltradas = distribuicoesFiltradas.filter(d => d.representante === filtroRep);
+    if (filtroProduto) distribuicoesFiltradas = distribuicoesFiltradas.filter(d => d.produtoId === parseInt(filtroProduto));
+
+    // Filtro por data
+    if (dataInicio || dataFim) {
+        const start = dataInicio ? new Date(dataInicio + 'T00:00:00').getTime() : null;
+        const end = dataFim ? new Date(dataFim + 'T23:59:59').getTime() : null;
+        distribuicoesFiltradas = distribuicoesFiltradas.filter(d => {
+            if (!d.data) return false;
+            const t = new Date(d.data).getTime();
+            if (start && t < start) return false;
+            if (end && t > end) return false;
+            return true;
+        });
+    }
+
+    // Ordenação
+    const campo = _ordenDistribuicao.campo;
+    const dir = _ordenDistribuicao.direcao === 'asc' ? 1 : -1;
+    distribuicoesFiltradas.sort((a, b) => {
+        let va, vb;
+        if (campo === 'representante') { va = a.representante || ''; vb = b.representante || ''; }
+        else if (campo === 'produtoNome') { va = a.produtoNome || ''; vb = b.produtoNome || ''; }
+        else if (campo === 'quantidade') { va = a.quantidade || 0; vb = b.quantidade || 0; }
+        else if (campo === 'data') { va = a.data || ''; vb = b.data || ''; }
+        else { va = a.data || ''; vb = b.data || ''; }
+        if (va < vb) return -1 * dir;
+        if (va > vb) return 1 * dir;
+        return 0;
+    });
+
+    tbody.innerHTML = '';
+
+    if (distribuicoesFiltradas.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="7" class="empty-state"><div class="empty-icon">🚚</div><div class="empty-text">Nenhuma distribuição registrada</div><div class="empty-hint">Clique em "Nova Distribuição"</div></td></tr>`;
+        atualizarTotaisDistribuicao(0);
+        renderizarPaginacao('paginacaoDistribuicao', 1, 0, _itensPorPaginaDistribuicao, 'mudarPaginaDistribuicao', 'mudarItensPaginaDistribuicao');
+        return;
+    }
+
+    const totalLinhas = distribuicoesFiltradas.length;
+    const totalPaginas = Math.max(1, Math.ceil(totalLinhas / _itensPorPaginaDistribuicao));
+    if (_paginaDistribuicao > totalPaginas) _paginaDistribuicao = totalPaginas;
+    const inicio = (_paginaDistribuicao - 1) * _itensPorPaginaDistribuicao;
+    const pagina = distribuicoesFiltradas.slice(inicio, inicio + _itensPorPaginaDistribuicao);
+
+    let totalQtd = 0;
+    distribuicoesFiltradas.forEach(d => { totalQtd += d.quantidade; });
+
+    let numero = totalLinhas - inicio;
+
+    pagina.forEach(dist => {
+        const repClass = dist.representante.toLowerCase();
+        const dataFormatada = dist.data ? new Date(dist.data + 'T00:00:00').toLocaleDateString('pt-BR') : '-';
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td class="col-contrato">${numero--}</td>
+            <td class="col-loja"><span class="badge-rep ${repClass}">${dist.representante}</span></td>
+            <td class="col-produto-venda" title="${dist.produtoNome}">${dist.produtoNome}</td>
+            <td class="col-qtd">${dist.quantidade}</td>
+            <td>${dataFormatada}</td>
+            <td class="col-obs" title="${dist.observacoes||'-'}">${dist.observacoes||'-'}</td>
+            <td class="col-acoes">
+                <button class="btn-action btn-delete" onclick="excluirDistribuicao(${dist.id})" title="Excluir">🗑</button>
+            </td>`;
+        tbody.appendChild(tr);
+    });
+
+    atualizarTotaisDistribuicao(totalQtd);
+    renderizarPaginacao('paginacaoDistribuicao', _paginaDistribuicao, totalLinhas, _itensPorPaginaDistribuicao, 'mudarPaginaDistribuicao', 'mudarItensPaginaDistribuicao');
+};
+
+// Hook limparFiltrosVendas to clear date fields
+const _limparFiltrosVendasOriginal = limparFiltrosVendas;
+limparFiltrosVendas = function() {
+    const filtroRep = document.getElementById('filtroRepresentante');
+    const filtroProduto = document.getElementById('filtroProduto');
+    const dataInicio = document.getElementById('filtroVendasDataInicio');
+    const dataFim = document.getElementById('filtroVendasDataFim');
+
+    if (filtroRep) filtroRep.value = '';
+    if (filtroProduto) filtroProduto.value = '';
+    if (dataInicio) dataInicio.value = '';
+    if (dataFim) dataFim.value = '';
+
+    _paginaVendas = 1;
+    renderizarRegistroVendas();
+};
+
+// Hook limparFiltrosDistribuicao to clear date fields
+const _limparFiltrosDistribuicaoOriginal = limparFiltrosDistribuicao;
+limparFiltrosDistribuicao = function() {
+    const filtroRep = document.getElementById('filtroDistribuicaoRep');
+    const filtroProduto = document.getElementById('filtroDistribuicaoProduto');
+    const dataInicio = document.getElementById('filtroDistribuicaoDataInicio');
+    const dataFim = document.getElementById('filtroDistribuicaoDataFim');
+
+    if (filtroRep) filtroRep.value = '';
+    if (filtroProduto) filtroProduto.value = '';
+    if (dataInicio) dataInicio.value = '';
+    if (dataFim) dataFim.value = '';
+
+    _paginaDistribuicao = 1;
+    renderizarRegistroDistribuicao();
+};
+
+// Hook inicializar to check for low stock and integrate audit log
+const _inicializarOriginal = inicializar;
+inicializar = async function() {
+    await _inicializarOriginal();
+    try { verificarEstoqueBaixo(); } catch(e) {}
+};
+
+// Hook salvarDados to check low stock and register audit
+const _salvarDadosHook = salvarDados;
+// We can't easily re-declare salvarDados since it's used everywhere,
+// but we do check low stock after renders
+const _renderizarTabelaOriginal = renderizarTabela;
+renderizarTabela = function() {
+    _renderizarTabelaOriginal();
+    try { verificarEstoqueBaixo(); } catch(e) {}
+};
+
+// Hooks for audit log on key operations
+const _salvarNovaDistribuicaoOriginal = salvarNovaDistribuicao;
+salvarNovaDistribuicao = function(event) {
+    _salvarNovaDistribuicaoOriginal(event);
+    try {
+        const rep = document.getElementById('representanteDistDet')?.value || '';
+        const prod = document.getElementById('produtoDistDet')?.selectedOptions[0]?.text || '';
+        const qtd = document.getElementById('quantidadeDistDet')?.value || '';
+        registrarHistorico('distribuicao', `${qtd}x ${prod} → ${rep}`);
+    } catch(e) {}
+};
+
+const _salvarEntradaEstoqueOriginal = salvarEntradaEstoque;
+salvarEntradaEstoque = function(event) {
+    const prodEl = document.getElementById('produtoEntrada');
+    const qtdEl = document.getElementById('quantidadeEntrada');
+    const prodNome = prodEl?.selectedOptions[0]?.text || '';
+    const qtd = qtdEl?.value || '';
+    _salvarEntradaEstoqueOriginal(event);
+    try { registrarHistorico('entrada', `+${qtd} ${prodNome} (IMBEL)`); } catch(e) {}
+};
+
+const _excluirVendaOriginal = excluirVenda;
+excluirVenda = function(vendaId) {
+    const venda = estoque.registroVendas.find(v => v.id === vendaId);
+    _excluirVendaOriginal(vendaId);
+    if (venda) {
+        try { registrarHistorico('exclusao', `Venda CTR ${venda.contrato} excluída`); } catch(e) {}
+    }
+};
+
+const _excluirDistribuicaoOriginal = excluirDistribuicao;
+excluirDistribuicao = function(distId) {
+    const dist = estoque.registroDistribuicao.find(d => d.id === distId);
+    _excluirDistribuicaoOriginal(distId);
+    if (dist) {
+        try { registrarHistorico('exclusao', `Distribuição ${dist.produtoNome} x${dist.quantidade} (${dist.representante}) excluída`); } catch(e) {}
+    }
+};

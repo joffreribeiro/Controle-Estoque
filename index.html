@@ -7,6 +7,9 @@
     <link rel="stylesheet" href="styles.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎯</text></svg>">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
 </head>
 <body>
     <div class="container">
@@ -21,6 +24,9 @@
                     </div>
                 </div>
                 
+                <div class="header-search">
+                    <input type="text" id="buscaGlobal" placeholder="🔍 Buscar produtos, contratos, lojas..." oninput="executarBuscaGlobal(this.value)">
+                </div>
                 <div class="header-info">
                     <div class="header-stat">
                         <div class="stat-value" id="totalProdutos">0</div>
@@ -52,7 +58,10 @@
         </header>
 
         <!-- Navegação por Abas -->
-        <div class="tabs-navigation">
+        <button class="hamburger-btn" id="hamburgerBtn" onclick="toggleMenuMobile()">
+            <span></span><span></span><span></span>
+        </button>
+        <div class="tabs-navigation" id="tabsNav">
             <button class="tab-btn active" data-tab="estoque" onclick="trocarAba('estoque')">
                 <span>📦</span> Estoque
             </button>
@@ -128,7 +137,10 @@
             <div class="content-area">
                 <div class="section-header">
                     <h2 class="section-title">Inventário de Produtos</h2>
-                    <span class="badge badge-info" id="ultimaAtualizacao">Atualizado agora</span>
+                    <div class="header-actions">
+                        <input type="text" id="filtroEstoqueBusca" placeholder="🔍 Filtrar produtos..." oninput="filtrarTabelaEstoque(this.value)" class="input-busca-tabela">
+                        <span class="badge badge-info" id="ultimaAtualizacao">Atualizado agora</span>
+                    </div>
                 </div>
 
                 <div class="table-container">
@@ -210,6 +222,14 @@
                             <option value="">Todos</option>
                         </select>
                     </div>
+                    <div class="filtro-group">
+                        <label>De:</label>
+                        <input type="date" id="filtroDistribuicaoDataInicio" onchange="renderizarRegistroDistribuicao()">
+                    </div>
+                    <div class="filtro-group">
+                        <label>Até:</label>
+                        <input type="date" id="filtroDistribuicaoDataFim" onchange="renderizarRegistroDistribuicao()">
+                    </div>
                     <button class="btn btn-outline btn-sm" onclick="limparFiltrosDistribuicao()">
                         <span>🔄</span> Limpar Filtros
                     </button>
@@ -221,10 +241,10 @@
                             <thead>
                                 <tr>
                                     <th style="width: 80px;">Nº</th>
-                                    <th class="col-loja">Representante</th>
-                                    <th class="col-produto">Produto</th>
-                                    <th style="width: 100px;">Quantidade</th>
-                                    <th style="width: 150px;">Data</th>
+                                    <th class="col-loja sortable" data-sort="representante" onclick="ordenarDistribuicao('representante')">Representante <span class="sort-icon">⇅</span></th>
+                                    <th class="col-produto sortable" data-sort="produtoNome" onclick="ordenarDistribuicao('produtoNome')">Produto <span class="sort-icon">⇅</span></th>
+                                    <th style="width: 100px;" class="sortable" data-sort="quantidade" onclick="ordenarDistribuicao('quantidade')">Quantidade <span class="sort-icon">⇅</span></th>
+                                    <th style="width: 150px;" class="sortable" data-sort="data" onclick="ordenarDistribuicao('data')">Data <span class="sort-icon">⇅</span></th>
                                     <th style="width: 200px;">Observações</th>
                                     <th style="width: 80px;">Ações</th>
                                 </tr>
@@ -240,6 +260,7 @@
                         </table>
                     </div>
                 </div>
+                <div class="pagination-container" id="paginacaoDistribuicao"></div>
             </div>
         </div>
 
@@ -278,6 +299,14 @@
                             <option value="">Todos</option>
                         </select>
                     </div>
+                    <div class="filtro-group">
+                        <label>De:</label>
+                        <input type="date" id="filtroVendasDataInicio" onchange="filtrarVendas()">
+                    </div>
+                    <div class="filtro-group">
+                        <label>Até:</label>
+                        <input type="date" id="filtroVendasDataFim" onchange="filtrarVendas()">
+                    </div>
                     <button class="btn btn-outline btn-sm" onclick="limparFiltrosVendas()">
                         <span>🔄</span> Limpar Filtros
                     </button>
@@ -288,13 +317,13 @@
                         <table class="dashboard-table" id="tabelaRegistroVendas">
                             <thead>
                                 <tr>
-                                    <th style="width: 80px;">Contrato</th>
-                                    <th class="col-loja">Loja / Cliente</th>
-                                    <th style="width: 120px;">Representante</th>
+                                    <th style="width: 80px;" class="sortable" data-sort="contrato" onclick="ordenarVendas('contrato')">Contrato <span class="sort-icon">⇅</span></th>
+                                    <th class="col-loja sortable" data-sort="loja" onclick="ordenarVendas('loja')">Loja / Cliente <span class="sort-icon">⇅</span></th>
+                                    <th style="width: 120px;" class="sortable" data-sort="representante" onclick="ordenarVendas('representante')">Representante <span class="sort-icon">⇅</span></th>
                                     <th class="col-produto">Produto</th>
                                     <th style="width: 90px;">Qtd</th>
                                     <th style="width: 120px;">Valor Un.</th>
-                                    <th style="width: 130px;">Valor Total</th>
+                                    <th style="width: 130px;" class="sortable" data-sort="valorTotal" onclick="ordenarVendas('valorTotal')">Valor Total <span class="sort-icon">⇅</span></th>
                                     <th style="width: 150px;">Obs</th>
                                     <th style="width: 80px;">Ações</th>
                                 </tr>
@@ -312,6 +341,7 @@
                         </table>
                     </div>
                 </div>
+                <div class="pagination-container" id="paginacaoVendas"></div>
             </div>
         </div>
 
@@ -349,6 +379,18 @@
                             <div class="dash-card-value" id="dashProdutoTop">-</div>
                             <div class="dash-card-label">Produto Mais Vendido</div>
                         </div>
+                    </div>
+                </div>
+
+                <!-- Gráficos -->
+                <div class="dashboard-charts">
+                    <div class="chart-container">
+                        <h3 class="chart-title">Vendas por Representante</h3>
+                        <canvas id="chartVendasRep"></canvas>
+                    </div>
+                    <div class="chart-container">
+                        <h3 class="chart-title">Top Produtos Vendidos</h3>
+                        <canvas id="chartTopProdutos"></canvas>
                     </div>
                 </div>
 
@@ -461,6 +503,7 @@
                         <select id="filtroRelatoriosTipo" style="margin-right:8px">
                             <option value="inventario">Inventário</option>
                             <option value="comissoes">Comissões</option>
+                            <option value="distribuicao">Distribuição</option>
                         </select>
                         <button class="btn btn-outline" onclick="visualizarRelatorioSelecionado()">
                             <span class="btn-icon">🔍</span>
@@ -481,6 +524,10 @@
                         <button class="btn btn-outline" onclick="exportarComissoesCSV()" style="margin-left:6px">
                             <span class="btn-icon">📤</span>
                             Exportar Comissões
+                        </button>
+                        <button class="btn btn-info" onclick="exportarRelatorioPDF()" style="margin-left:6px">
+                            <span class="btn-icon">📄</span>
+                            Exportar PDF
                         </button>
                         <label style="margin:0 8px">Orientação:</label>
                         <select id="filtroRelatoriosOrientacao" style="margin-right:8px">
@@ -662,6 +709,19 @@
                             </button>
                             <button class="btn btn-outline" onclick="carregarDoCloudUI()" title="Carregar dados do Firestore">
                                 <span class="btn-icon">📥</span> Carregar do Cloud
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Histórico de Alterações -->
+                    <div class="config-card">
+                        <h3>📋 Histórico de Alterações</h3>
+                        <div class="config-actions">
+                            <button class="btn btn-outline" onclick="abrirHistorico()">
+                                <span class="btn-icon">📋</span> Ver Histórico
+                            </button>
+                            <button class="btn btn-outline" onclick="limparHistorico()">
+                                <span class="btn-icon">🗑</span> Limpar Histórico
                             </button>
                         </div>
                     </div>
@@ -1030,6 +1090,47 @@
             </div>
         </div>
     </div>
+
+    <!-- Progress Bar -->
+    <div id="progressBar" class="progress-bar-container" style="display:none">
+        <div class="progress-bar-fill" id="progressBarFill"></div>
+        <span class="progress-bar-text" id="progressBarText">0%</span>
+    </div>
+
+    <!-- Modal Histórico -->
+    <div id="modalHistorico" class="modal">
+        <div class="modal-content modal-lg">
+            <div class="modal-header">
+                <h2><span>📋</span> Histórico de Alterações</h2>
+                <span class="close" onclick="fecharModal('modalHistorico')">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div id="historicoConteudo" class="historico-lista"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline" onclick="fecharModal('modalHistorico')">Fechar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Busca Global -->
+    <div id="modalBuscaGlobal" class="modal">
+        <div class="modal-content modal-lg">
+            <div class="modal-header">
+                <h2><span>🔍</span> Resultados da Busca</h2>
+                <span class="close" onclick="fecharModal('modalBuscaGlobal')">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div id="resultadosBuscaGlobal" class="busca-resultados"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline" onclick="fecharModal('modalBuscaGlobal')">Fechar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Alertas de Estoque Baixo -->
+    <div id="alertaEstoqueBaixo" class="alerta-estoque-baixo" style="display:none"></div>
 
     <!-- Firebase SDKs (compat) - required for cloud save/load -->
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
