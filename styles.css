@@ -1177,7 +1177,9 @@ tr.total-row:hover {
 
 @media (max-width: 992px) {
     .header-info {
-        display: none;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
     }
 }
 
