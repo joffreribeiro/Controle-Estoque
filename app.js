@@ -188,9 +188,25 @@ const dadosIniciais = [
 async function inicializar() {
     carregarDados();
 
-    // Segurança: não carregar automaticamente do cloud nem iniciar auto-save
-    // para evitar sobrescritas inesperadas. O usuário deve disparar manualmente
-    // as operações de sincronização usando os botões/console.
+    // Tentar carregar automaticamente do Cloud se o Firestore estiver disponível
+    // e se o backup remoto for mais recente que os dados locais. Isso usa a
+    // lógica segura em `carregarDoCloudAuto()` que compara timestamps para
+    // evitar sobrescritas indesejadas.
+    try {
+        if (window.firestoreDB) {
+            try {
+                const autoLoaded = await carregarDoCloudAuto();
+                if (autoLoaded) {
+                    try { mostrarNotificacao('Dados carregados automaticamente do Cloud (remoto mais recente).', 'success'); } catch (e) {}
+                }
+            } catch (e) {
+                console.warn('Carregamento automático do cloud falhou:', e);
+            }
+        }
+    } catch (e) {
+        // não bloquear inicialização se algo falhar
+        console.warn('Erro verificando carregamento automático do cloud:', e);
+    }
 
     renderizarTabela();
     renderizarDashboard();
