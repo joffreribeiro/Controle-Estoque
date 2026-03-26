@@ -37,6 +37,10 @@
                         <div class="stat-value" id="valorTotalVendas">R$ 0</div>
                         <div class="stat-label">Faturamento</div>
                     </div>
+                    <div class="header-stat">
+                        <div class="stat-value" id="totalComissoes">R$ 0</div>
+                        <div class="stat-label">Comissões</div>
+                    </div>
                     <div class="current-date" id="dataAtual"></div>
                     <div id="firestoreStatus" class="firestore-status" title="Status do Cloud Firestore">
                         <span class="fs-dot fs-offline" id="fsDot"></span>
@@ -491,6 +495,19 @@
                         <select id="filtroRelatoriosProduto" onchange="prepararRelatorioInventario()">
                             <option value="">Todos</option>
                         </select>
+                        <label style="margin:0 8px">De:</label>
+                        <input type="date" id="filtroRelatoriosDataInicio" />
+                        <label style="margin:0 8px">Até:</label>
+                        <input type="date" id="filtroRelatoriosDataFim" />
+                        <label style="margin:0 8px">Tipo:</label>
+                        <select id="filtroRelatoriosTipo" style="margin-right:8px">
+                            <option value="inventario">Inventário</option>
+                            <option value="comissoes">Comissões</option>
+                        </select>
+                        <button class="btn btn-outline" onclick="visualizarRelatorioSelecionado()">
+                            <span class="btn-icon">🔍</span>
+                            Visualizar Relatório
+                        </button>
                         <button class="btn btn-primary" onclick="prepararRelatorioInventario(); imprimirInventario()">
                             <span class="btn-icon">🖨️</span>
                             Imprimir Inventário

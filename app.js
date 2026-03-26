@@ -495,6 +495,17 @@ function atualizarEstatisticas() {
     document.getElementById('totalEstoque').textContent = totalEstoque.toLocaleString('pt-BR');
     document.getElementById('totalVendas').textContent = totalVendas.toLocaleString('pt-BR');
     document.getElementById('valorTotalVendas').textContent = formatarMoedaValor(valorTotalVendas);
+    // Calcular total de comissões (5%) excluindo vendas da IMBEL
+    let totalComissoes = 0;
+    if (Array.isArray(estoque.registroVendas)) {
+        estoque.registroVendas.forEach(venda => {
+            const rep = (venda.representante || '').toString().toUpperCase();
+            if (rep === 'IMBEL') return; // sem comissão
+            const valor = typeof venda.valorTotal === 'number' ? venda.valorTotal : 0;
+            totalComissoes += (Math.round((valor * 0.05) * 100) / 100);
+        });
+    }
+    try { document.getElementById('totalComissoes').textContent = formatarMoedaValor(totalComissoes); } catch (e) {}
 }
 
 // ========================================
@@ -1107,14 +1118,34 @@ function prepararRelatorioComissoes() {
     if (!preview) return;
 
     const filtroRep = document.getElementById('filtroRelatoriosRep') ? document.getElementById('filtroRelatoriosRep').value : '';
+    const dataInicio = document.getElementById('filtroRelatoriosDataInicio') ? document.getElementById('filtroRelatoriosDataInicio').value : '';
+    const dataFim = document.getElementById('filtroRelatoriosDataFim') ? document.getElementById('filtroRelatoriosDataFim').value : '';
 
     // Agrupar vendas por representante (ignorar vendas da IMBEL — sem comissão)
     const vendas = Array.isArray(estoque.registroVendas) ? [...estoque.registroVendas] : [];
     const vendasSemImbel = vendas.filter(v => ((v.representante || '').toString().toUpperCase() !== 'IMBEL'));
-    // Ordenar por contrato
-    vendas.sort((a, b) => (parseInt(a.contrato) || 0) - (parseInt(b.contrato) || 0));
 
-    const reps = filtroRep ? [filtroRep] : estoque.representantes.filter(r => (r || '').toString().toUpperCase() !== 'IMBEL').slice();
+    // Filtrar por intervalo de datas se fornecido (inclusive)
+    let startTs = null, endTs = null;
+    try {
+        if (dataInicio) startTs = new Date(dataInicio + 'T00:00:00').getTime();
+        if (dataFim) endTs = new Date(dataFim + 'T23:59:59').getTime();
+    } catch (e) { startTs = null; endTs = null; }
+
+    const vendasFiltradas = vendasSemImbel.filter(v => {
+        if (!startTs && !endTs) return true;
+        if (!v.data) return false;
+        const t = new Date(v.data).getTime();
+        if (startTs && t < startTs) return false;
+        if (endTs && t > endTs) return false;
+        return true;
+    });
+
+    // Ordenar por contrato
+    vendasFiltradas.sort((a, b) => (parseInt(a.contrato) || 0) - (parseInt(b.contrato) || 0));
+
+    // Representantes presentes no conjunto filtrado (sem IMBEL)
+    const reps = filtroRep ? [filtroRep] : Array.from(new Set(vendasFiltradas.map(v => v.representante).filter(r => r && r.toString().toUpperCase() !== 'IMBEL')));
 
     let totalComissoes = 0;
 
@@ -1128,7 +1159,7 @@ function prepararRelatorioComissoes() {
     container.appendChild(resumo);
 
     reps.forEach(rep => {
-        const vendasRep = vendasSemImbel.filter(v => (v.representante || '') === rep);
+        const vendasRep = vendasFiltradas.filter(v => (v.representante || '') === rep);
         if (!vendasRep || vendasRep.length === 0) return;
 
         const titulo = document.createElement('h3');
@@ -1199,7 +1230,9 @@ function imprimirComissoes() {
     if (!preview) return;
     const content = preview.innerHTML;
     const filtroRep = document.getElementById('filtroRelatoriosRep') ? document.getElementById('filtroRelatoriosRep').value : 'Todos';
-    const dataAgora = new Date().toLocaleString('pt-BR');
+    const dataInicio = document.getElementById('filtroRelatoriosDataInicio') ? document.getElementById('filtroRelatoriosDataInicio').value : '';
+    const dataFim = document.getElementById('filtroRelatoriosDataFim') ? document.getElementById('filtroRelatoriosDataFim').value : '';
+    const dataAgora = (dataInicio || dataFim) ? `${dataInicio || '-'} até ${dataFim || '-'}` : new Date().toLocaleString('pt-BR');
 
     const win = window.open('', '_blank', 'width=900,height=700');
     if (!win) { alert('Não foi possível abrir janela de impressão. Permita popups.'); return; }
@@ -1234,8 +1267,24 @@ function imprimirComissoes() {
 
 function exportarComissoesCSV() {
     const filtroRep = document.getElementById('filtroRelatoriosRep') ? document.getElementById('filtroRelatoriosRep').value : '';
-    // Excluir vendas da IMBEL (sem comissão)
-    const vendas = Array.isArray(estoque.registroVendas) ? [...estoque.registroVendas].filter(v => ((v.representante || '').toString().toUpperCase() !== 'IMBEL')) : [];
+    // Excluir vendas da IMBEL (sem comissão) e aplicar filtro de datas se fornecido
+    const dataInicio = document.getElementById('filtroRelatoriosDataInicio') ? document.getElementById('filtroRelatoriosDataInicio').value : '';
+    const dataFim = document.getElementById('filtroRelatoriosDataFim') ? document.getElementById('filtroRelatoriosDataFim').value : '';
+    const vendasRaw = Array.isArray(estoque.registroVendas) ? [...estoque.registroVendas] : [];
+    const vendasFiltradasPorRep = vendasRaw.filter(v => ((v.representante || '').toString().toUpperCase() !== 'IMBEL'));
+    let startTs = null, endTs = null;
+    try {
+        if (dataInicio) startTs = new Date(dataInicio + 'T00:00:00').getTime();
+        if (dataFim) endTs = new Date(dataFim + 'T23:59:59').getTime();
+    } catch (e) { startTs = null; endTs = null; }
+    const vendas = vendasFiltradasPorRep.filter(v => {
+        if (!startTs && !endTs) return true;
+        if (!v.data) return false;
+        const t = new Date(v.data).getTime();
+        if (startTs && t < startTs) return false;
+        if (endTs && t > endTs) return false;
+        return true;
+    });
     vendas.sort((a, b) => (parseInt(a.contrato) || 0) - (parseInt(b.contrato) || 0));
 
     const sep = ';';
@@ -1257,6 +1306,15 @@ function exportarComissoesCSV() {
     a.click();
     a.remove();
     URL.revokeObjectURL(url);
+}
+
+function visualizarRelatorioSelecionado() {
+    const tipo = document.getElementById('filtroRelatoriosTipo') ? document.getElementById('filtroRelatoriosTipo').value : 'inventario';
+    if (tipo === 'comissoes') {
+        prepararRelatorioComissoes();
+    } else {
+        prepararRelatorioInventario();
+    }
 }
 
 function imprimirTabelaSeparada(tableId, titulo, subtitulo = '', orientacao = 'landscape') {
