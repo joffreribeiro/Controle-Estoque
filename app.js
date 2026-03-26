@@ -521,7 +521,8 @@ function atualizarEstatisticas() {
 function trocarAba(aba) {
     // Atualizar botões
     document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
-    event.target.closest('.tab-btn').classList.add('active');
+    const activeBtn = document.querySelector(`.tab-btn[data-tab="${aba}"]`);
+    if (activeBtn) activeBtn.classList.add('active');
     
     // Atualizar conteúdo
     document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
