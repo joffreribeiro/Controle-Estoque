@@ -19,25 +19,10 @@
                         <h1>Controle de Estoque</h1>
                         
                     </div>
-                </div>
-                
-                <div class="header-info">
-                    <div class="header-stat">
-                        <div class="stat-value" id="totalProdutos">0</div>
-                        <div class="stat-label">Produtos</div>
-                    </div>
-                    <div class="header-stat">
-                        <div class="stat-value" id="totalEstoque">0</div>
-                        <div class="stat-label">Em Estoque</div>
-                    </div>
-                    <div class="header-stat accent">
-                        <div class="stat-value" id="totalVendas">0</div>
-                        <div class="stat-label">Vendidos</div>
-                    </div>
-                    <div class="header-stat highlight">
-                        <div class="stat-value" id="valorTotalVendas">R$ 0</div>
-                        <div class="stat-label">Faturamento</div>
-                    </div>
+                <button class="btn btn-outline" onclick="trocarAba('configuracoes')">
+                    <span class="btn-icon">⚙️</span>
+                    Configurações
+                </button>
                     <div class="header-stat">
                         <div class="stat-value" id="totalComissoes">R$ 0</div>
                         <div class="stat-label">Comissões</div>
@@ -78,6 +63,9 @@
             <button class="tab-btn" onclick="trocarAba('controleenvio')">
                 <span>📮</span> Controle de Envio
             </button>
+            <button class="tab-btn" onclick="trocarAba('configuracoes')">
+                <span>⚙️</span> Configurações
+            </button>
         </div>
 
         <!-- Barra de Ações -->
@@ -106,24 +94,9 @@
             <div class="actions-divider"></div>
 
             <div class="actions-group">
-                <button class="btn btn-info" onclick="document.getElementById('inputImportarEstoque').click()">
-                    <span class="btn-icon">📥</span>
-                    Importar Excel
-                </button>
-                <input type="file" id="inputImportarEstoque" accept=".csv,.xlsx,.xls" style="display:none" onchange="importarEstoque(event)">
-                <button class="btn btn-outline" onclick="exportarEstoqueCompleto()">
-                    <span class="btn-icon">📤</span>
-                    Exportar Excel
-                </button>
-                
-                <button class="btn btn-outline" onclick="document.getElementById('inputImportarSistema').click()">
-                    <span class="btn-icon">🔁</span>
-                    Importar Sistema
-                </button>
-                <input type="file" id="inputImportarSistema" accept=".json,application/json" style="display:none" onchange="importarSistema(event)">
-                <button class="btn btn-outline" onclick="exportarSistema()">
-                    <span class="btn-icon">💾</span>
-                    Exportar Sistema
+                <button class="btn btn-outline" onclick="trocarAba('configuracoes')">
+                    <span class="btn-icon">⚙️</span>
+                    Configurações
                 </button>
             </div>
 
@@ -133,10 +106,6 @@
                 <button class="btn btn-outline" onclick="limparFiltros()">
                     <span class="btn-icon">🔄</span>
                     Atualizar
-                </button>
-                <button class="btn btn-danger" onclick="limparTodosDados()">
-                    <span class="btn-icon">🗑</span>
-                    Limpar Dados
                 </button>
             </div>
             
@@ -220,15 +189,6 @@
                             <span class="btn-icon">+</span>
                             Nova Distribuição
                         </button>
-                        <button class="btn btn-info" onclick="document.getElementById('inputImportarDistribuicao').click()">
-                            <span class="btn-icon">📥</span>
-                            Importar Excel
-                        </button>
-                        <input type="file" id="inputImportarDistribuicao" accept=".csv,.xlsx,.xls" style="display:none" onchange="importarDistribuicao(event)">
-                        <button class="btn btn-outline" onclick="exportarDistribuicao()">
-                            <span class="btn-icon">📤</span>
-                            Exportar Excel
-                        </button>
                     </div>
                 </div>
 
@@ -295,15 +255,6 @@
                         <button class="btn btn-success" onclick="abrirModalVendaDetalhada()">
                             <span class="btn-icon">+</span>
                             Nova Venda
-                        </button>
-                        <button class="btn btn-info" onclick="document.getElementById('inputImportarVendas').click()">
-                            <span class="btn-icon">📥</span>
-                            Importar Excel
-                        </button>
-                        <input type="file" id="inputImportarVendas" accept=".csv,.xlsx,.xls" style="display:none" onchange="importarVendas(event)">
-                        <button class="btn btn-outline" onclick="exportarVendas()">
-                            <span class="btn-icon">📤</span>
-                            Exportar Excel
                         </button>
                     </div>
                 </div>
@@ -496,6 +447,8 @@
                     <h2 class="section-title">Relatórios</h2>
                     <div class="header-actions">
                         <label style="margin-right:8px">Representante:</label>
+            <button class="tab-btn" onclick="trocarAba('configuracoes')">
+                <span>⚙️</span> Configurações
                         <select id="filtroRelatoriosRep" onchange="prepararRelatorioInventario()">
                             <option value="">Todos</option>
                         </select>
@@ -528,25 +481,9 @@
                             <span class="btn-icon">🖨️</span>
                             Imprimir Comissões
                         </button>
-                        <button class="btn btn-outline" onclick="exportarComissoesCSV()" style="margin-left:6px">
-                            <span class="btn-icon">📤</span>
-                            Exportar Comissões
-                        </button>
-                        <label style="margin:0 8px">Orientação:</label>
-                        <select id="filtroRelatoriosOrientacao" style="margin-right:8px">
-                            <option value="landscape">Paisagem</option>
-                            <option value="portrait">Retrato</option>
-                        </select>
-                        <button class="btn btn-outline" onclick="prepararRelatorioInventario()">
-                            <span class="btn-icon">🔍</span>
-                            Atualizar Preview
-                        </button>
-                    </div>
-                </div>
-
-                <div class="report-preview">
-                    <div id="relatoriosPreview"></div>
-                </div>
+                        <div class="report-preview">
+                            <div id="relatoriosPreview"></div>
+                        </div>
             </div>
         </div>
 
@@ -633,6 +570,67 @@
                             <tbody id="tabelaControleEnvioBody"></tbody>
                         </table>
                     </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- ========================================
+             ABA: CONFIGURAÇÕES
+             ======================================== -->
+        <div class="tab-content" id="tab-configuracoes">
+            <div class="content-area">
+                <div class="section-header">
+                    <h2 class="section-title">Configurações</h2>
+                    <div class="header-actions">
+                        <button class="btn btn-info" onclick="document.getElementById('inputImportarEstoque').click()">
+                            <span class="btn-icon">📥</span>
+                            Importar Estoque
+                        </button>
+                        <input type="file" id="inputImportarEstoque" accept=".csv,.xlsx,.xls" style="display:none" onchange="importarEstoque(event)">
+                        <button class="btn btn-outline" onclick="exportarEstoqueCompleto()">
+                            <span class="btn-icon">📤</span>
+                            Exportar Estoque
+                        </button>
+
+                        <button class="btn btn-outline" onclick="document.getElementById('inputImportarSistema').click()">
+                            <span class="btn-icon">🔁</span>
+                            Importar Sistema
+                        </button>
+                        <input type="file" id="inputImportarSistema" accept=".json,application/json" style="display:none" onchange="importarSistema(event)">
+                        <button class="btn btn-outline" onclick="exportarSistema()">
+                            <span class="btn-icon">💾</span>
+                            Exportar Sistema
+                        </button>
+
+                        <button class="btn btn-info" onclick="document.getElementById('inputImportarDistribuicao').click()">
+                            <span class="btn-icon">📥</span>
+                            Importar Distribuição
+                        </button>
+                        <input type="file" id="inputImportarDistribuicao" accept=".csv,.xlsx,.xls" style="display:none" onchange="importarDistribuicao(event)">
+                        <button class="btn btn-outline" onclick="exportarDistribuicao()">
+                            <span class="btn-icon">📤</span>
+                            Exportar Distribuição
+                        </button>
+
+                        <button class="btn btn-info" onclick="document.getElementById('inputImportarVendas').click()">
+                            <span class="btn-icon">📥</span>
+                            Importar Vendas
+                        </button>
+                        <input type="file" id="inputImportarVendas" accept=".csv,.xlsx,.xls" style="display:none" onchange="importarVendas(event)">
+                        <button class="btn btn-outline" onclick="exportarVendas()">
+                            <span class="btn-icon">📤</span>
+                            Exportar Vendas
+                        </button>
+
+                        <div style="margin-left:12px"></div>
+                        <button class="btn btn-danger" onclick="limparTodosDados()">
+                            <span class="btn-icon">🗑</span>
+                            Limpar Dados
+                        </button>
+                    </div>
+                </div>
+                <div class="content-body">
+                    <p>Use esta seção para importar/exportar dados do sistema e gerenciar backups locais.</p>
                 </div>
             </div>
         </div>
