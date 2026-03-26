@@ -1098,6 +1098,165 @@ function imprimirInventario() {
     win.document.close();
 }
 
+// =============================
+// RELATÓRIO: COMISSÕES (5%)
+// =============================
+
+function prepararRelatorioComissoes() {
+    const preview = document.getElementById('relatoriosPreview');
+    if (!preview) return;
+
+    const filtroRep = document.getElementById('filtroRelatoriosRep') ? document.getElementById('filtroRelatoriosRep').value : '';
+
+    // Agrupar vendas por representante
+    const vendas = Array.isArray(estoque.registroVendas) ? [...estoque.registroVendas] : [];
+    // Ordenar por contrato
+    vendas.sort((a, b) => (parseInt(a.contrato) || 0) - (parseInt(b.contrato) || 0));
+
+    const reps = filtroRep ? [filtroRep] : estoque.representantes.slice();
+
+    let totalComissoes = 0;
+
+    const container = document.createElement('div');
+    container.className = 'report-comissoes';
+    // Card resumo
+    const resumo = document.createElement('div');
+    resumo.className = 'comissoes-resumo';
+    resumo.style.marginBottom = '12px';
+    resumo.innerHTML = `<strong>Total Comissões:</strong> <span id="totalComissoesCard">R$ 0,00</span>`;
+    container.appendChild(resumo);
+
+    reps.forEach(rep => {
+        const vendasRep = vendas.filter(v => v.representante === rep);
+        if (!vendasRep || vendasRep.length === 0) return;
+
+        const titulo = document.createElement('h3');
+        titulo.textContent = `Representante: ${rep}`;
+        titulo.style.margin = '8px 0 6px 0';
+        container.appendChild(titulo);
+
+        const table = document.createElement('table');
+        table.className = 'tabela-relatorio comissoes-table';
+        table.style.width = '100%';
+        table.style.borderCollapse = 'collapse';
+        table.innerHTML = `
+            <thead>
+                <tr>
+                    <th style="text-align:left;padding:6px;border:1px solid #ddd">Contrato</th>
+                    <th style="text-align:left;padding:6px;border:1px solid #ddd">Cliente / Loja</th>
+                    <th style="text-align:right;padding:6px;border:1px solid #ddd">Valor Contrato (R$)</th>
+                    <th style="text-align:right;padding:6px;border:1px solid #ddd">Comissão 5% (R$)</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        `;
+
+        const tbody = table.querySelector('tbody');
+        let subtotalRep = 0;
+        vendasRep.forEach(v => {
+            const valor = typeof v.valorTotal === 'number' ? v.valorTotal : 0;
+            const comissao = Math.round((valor * 0.05) * 100) / 100;
+            subtotalRep += comissao;
+            totalComissoes += comissao;
+
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td style="padding:6px;border:1px solid #ddd">${v.contrato || ''}</td>
+                <td style="padding:6px;border:1px solid #ddd">${v.loja || ''}</td>
+                <td style="padding:6px;border:1px solid #ddd;text-align:right">${formatarMoedaValor(valor)}</td>
+                <td style="padding:6px;border:1px solid #ddd;text-align:right">${formatarMoedaValor(comissao)}</td>
+            `;
+            tbody.appendChild(tr);
+        });
+
+        // subtotal por representante
+        const trTotal = document.createElement('tr');
+        trTotal.innerHTML = `
+            <td colspan="3" style="padding:6px;border:1px solid #ddd;text-align:right"><strong>Subtotal ${rep}</strong></td>
+            <td style="padding:6px;border:1px solid #ddd;text-align:right"><strong>${formatarMoedaValor(subtotalRep)}</strong></td>
+        `;
+        tbody.appendChild(trTotal);
+
+        container.appendChild(table);
+    });
+
+    // Atualizar card total
+    const totalEl = container.querySelector('#totalComissoesCard');
+    if (totalEl) totalEl.textContent = formatarMoedaValor(totalComissoes);
+
+    // Renderizar no preview (substitui o conteúdo atual de relatoriosPreview)
+    preview.innerHTML = '';
+    const wrapper = document.createElement('div');
+    wrapper.className = 'report-printable';
+    wrapper.appendChild(container);
+    preview.appendChild(wrapper);
+}
+
+function imprimirComissoes() {
+    prepararRelatorioComissoes();
+    const preview = document.getElementById('relatoriosPreview');
+    if (!preview) return;
+    const content = preview.innerHTML;
+    const filtroRep = document.getElementById('filtroRelatoriosRep') ? document.getElementById('filtroRelatoriosRep').value : 'Todos';
+    const dataAgora = new Date().toLocaleString('pt-BR');
+
+    const win = window.open('', '_blank', 'width=900,height=700');
+    if (!win) { alert('Não foi possível abrir janela de impressão. Permita popups.'); return; }
+
+    win.document.write(`
+        <!doctype html>
+        <html lang="pt-BR">
+        <head>
+            <meta charset="utf-8">
+            <title>Relatório - Comissões</title>
+            <link rel="stylesheet" href="styles.css">
+            <style>
+                @page { size: A4 portrait; margin: 10mm; }
+                body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif; padding: 12px; color: #222; }
+                h1 { margin-bottom: 12px; font-size: 16px; }
+                table { width: 100%; border-collapse: collapse; font-size: 12px; }
+                th, td { border:1px solid #ddd; padding:6px 8px; }
+                thead { background:#1e3a5f; color:white; }
+                .comissoes-resumo { margin-bottom:12px; font-size:14px; }
+            </style>
+        </head>
+        <body>
+            <h1>Relatório de Comissões (5%)</h1>
+            <div style="margin-bottom:8px;font-size:13px;color:#222"><strong>Representante:</strong> ${filtroRep || 'Todos'} &nbsp;|&nbsp; <strong>Data:</strong> ${dataAgora}</div>
+            ${content}
+            <script>window.onload = function(){ setTimeout(function(){ window.print(); }, 200); };</script>
+        </body>
+        </html>
+    `);
+    win.document.close();
+}
+
+function exportarComissoesCSV() {
+    const filtroRep = document.getElementById('filtroRelatoriosRep') ? document.getElementById('filtroRelatoriosRep').value : '';
+    const vendas = Array.isArray(estoque.registroVendas) ? [...estoque.registroVendas] : [];
+    vendas.sort((a, b) => (parseInt(a.contrato) || 0) - (parseInt(b.contrato) || 0));
+
+    const sep = ';';
+    let csv = `REPRESENTANTE${sep}CONTRATO${sep}CLIENTE/LOJA${sep}VALOR_CONTRATO${sep}COMISSAO_5%\n`;
+
+    vendas.forEach(v => {
+        if (filtroRep && filtroRep !== '' && v.representante !== filtroRep) return;
+        const valor = typeof v.valorTotal === 'number' ? v.valorTotal : 0;
+        const comissao = Math.round((valor * 0.05) * 100) / 100;
+        csv += `${v.representante || ''}${sep}${v.contrato || ''}${sep}${(v.loja || '').replace(/\n/g,' ')}${sep}${valor.toFixed(2).replace('.',',')}${sep}${comissao.toFixed(2).replace('.',',')}\n`;
+    });
+
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `comissoes_${new Date().toISOString().slice(0,10)}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+}
+
 function imprimirTabelaSeparada(tableId, titulo, subtitulo = '', orientacao = 'landscape') {
     const tabela = document.getElementById(tableId);
     if (!tabela) {
