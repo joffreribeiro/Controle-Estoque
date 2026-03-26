@@ -299,7 +299,6 @@ async function salvarNoCloud() {
 // UI wrappers for manual save/load triggered by user buttons
 async function salvarNoCloudUI() {
     try {
-        showSpinner();
         mostrarNotificacao('Salvando dados no cloud...', 'info');
         const ok = await salvarNoCloud();
         if (ok) mostrarNotificacao('Dados salvos no Firestore com sucesso.', 'success');
@@ -309,8 +308,6 @@ async function salvarNoCloudUI() {
         console.error('salvarNoCloudUI erro:', e);
         mostrarNotificacao('Erro ao salvar no cloud.', 'error');
         return false;
-    } finally {
-        hideSpinner();
     }
 }
 
@@ -318,7 +315,6 @@ async function carregarDoCloudUI() {
     try {
         const confirmed = confirm('Carregar do cloud substituirá os dados locais. Deseja continuar?');
         if (!confirmed) return false;
-        showSpinner();
         mostrarNotificacao('Carregando dados do cloud...', 'info');
         const ok = await carregarDoCloud({ confirmOverwrite: false });
         if (ok) mostrarNotificacao('Dados carregados do Firestore com sucesso.', 'success');
@@ -328,8 +324,6 @@ async function carregarDoCloudUI() {
         console.error('carregarDoCloudUI erro:', e);
         mostrarNotificacao('Erro ao carregar do cloud.', 'error');
         return false;
-    } finally {
-        hideSpinner();
     }
 }
 
@@ -521,8 +515,7 @@ function atualizarEstatisticas() {
 function trocarAba(aba) {
     // Atualizar botões
     document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
-    const activeBtn = document.querySelector(`.tab-btn[data-tab="${aba}"]`);
-    if (activeBtn) activeBtn.classList.add('active');
+    event.target.closest('.tab-btn').classList.add('active');
     
     // Atualizar conteúdo
     document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
@@ -3201,21 +3194,6 @@ function mostrarNotificacao(mensagem, tipo = 'info') {
         notificacao.style.animation = 'slideOutRight 0.3s ease forwards';
         setTimeout(() => notificacao.remove(), 300);
     }, 4000);
-}
-
-// Spinner helpers (show/hide global spinner overlay)
-function showSpinner() {
-    try {
-        const el = document.getElementById('globalSpinner');
-        if (el) el.style.display = 'block';
-    } catch (e) {}
-}
-
-function hideSpinner() {
-    try {
-        const el = document.getElementById('globalSpinner');
-        if (el) el.style.display = 'none';
-    } catch (e) {}
 }
 
 // ========================================

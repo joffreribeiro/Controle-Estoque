@@ -10,12 +10,6 @@
 }
 
 :root {
-    /* Additional unified variables */
-    --bg: #f5f7fb;
-    --surface: var(--bg-white);
-    --muted: #9aa6b2;
-    --radius: 10px;
-    --gap: 12px;
     --primary-color: #1e3a5f;
     --primary-dark: #152a45;
     --primary-light: #2d5a8b;
@@ -38,8 +32,8 @@
 }
 
 body {
-    font-family: 'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, 'Helvetica Neue', Arial, sans-serif;
-    background: var(--bg);
+    font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, 'Helvetica Neue', Arial, sans-serif;
+    background: var(--bg-light);
     min-height: 100vh;
     color: var(--text-primary);
     line-height: 1.5;
@@ -110,20 +104,14 @@ header {
 .header-info {
     display: flex;
     align-items: center;
-    gap: 14px;
+    gap: 20px;
 }
 
-/* Header stat cards — more compact, card-like */
 .header-stat {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    justify-content: center;
-    padding: 8px 14px;
-    background: var(--surface);
-    border-radius: var(--radius);
-    min-width: 110px;
-    box-shadow: var(--shadow-sm);
+    text-align: center;
+    padding: 8px 18px;
+    background: rgba(255,255,255,0.1);
+    border-radius: 8px;
 }
 
 .header-stat.accent {
@@ -135,9 +123,9 @@ header {
 }
 
 .header-stat .stat-value {
-    font-size: 1.05rem;
+    font-size: 1.2rem;
     font-weight: 700;
-    color: var(--text-primary);
+    color: var(--accent-color);
 }
 
 .header-stat.accent .stat-value {
@@ -156,18 +144,11 @@ header {
 }
 
 .current-date {
-    color: rgba(255,255,255,0.9);
-    font-size: 0.85rem;
-    padding: 6px 12px;
-    background: rgba(0,0,0,0.15);
-    border-radius: 8px;
-}
-
-/* make header smaller on narrower screens */
-@media (max-width: 1000px) {
-    .header-content { padding: 12px 16px; }
-    .header-stat { min-width: 90px; padding: 6px 10px; }
-    .logo-icon { width:44px; height:44px; }
+    color: rgba(255,255,255,0.8);
+    font-size: 0.8rem;
+    padding: 8px 15px;
+    background: rgba(0,0,0,0.2);
+    border-radius: 6px;
 }
 
 /* Firestore status indicator */
@@ -552,11 +533,11 @@ thead {
 th {
     background: var(--primary-color);
     color: white;
-    padding: 8px 8px;
+    padding: 12px 10px;
     text-align: center;
     font-weight: 600;
     text-transform: uppercase;
-    font-size: 0.68rem;
+    font-size: 0.7rem;
     letter-spacing: 0.5px;
     border: none;
     white-space: nowrap;
@@ -602,7 +583,7 @@ th.col-produto {
 }
 
 td {
-    padding: 8px 6px;
+    padding: 10px 8px;
     text-align: center;
     border-bottom: 1px solid var(--border-color);
     font-variant-numeric: tabular-nums;
@@ -622,11 +603,11 @@ tbody tr {
 }
 
 tbody tr:nth-child(even) {
-    background: #fbfdff;
+    background: #f8fafc;
 }
 
 tbody tr:hover {
-    background: rgba(30,58,95,0.03);
+    background: #eef2f7;
 }
 
 tbody tr:hover td.produto-nome {
@@ -635,9 +616,9 @@ tbody tr:hover td.produto-nome {
 
 td.produto-nome {
     text-align: left;
-    font-weight: 600;
-    padding-left: 16px;
-    background: #fbfdff;
+    font-weight: 500;
+    padding-left: 20px;
+    background: #f8fafc;
     position: sticky;
     left: 0;
     z-index: 10; /* garantir que a coluna fixa fique abaixo do cabeçalho, mas acima das células normais */
@@ -647,25 +628,6 @@ td.produto-nome {
     text-overflow: ellipsis;
     white-space: nowrap;
 }
-
-/* Compact table mode for printing and dense views */
-.table-container.compact table, .table-container.compact td, .table-container.compact th {
-    font-size: 12px;
-}
-
-/* Modal & form improvements */
-.modal { border-radius: 10px; box-shadow: var(--shadow-lg); }
-input, select, textarea { border: 1px solid #e6eef6; padding: 8px 10px; border-radius: 8px; }
-input:focus, select:focus, textarea:focus { outline: 3px solid rgba(0,120,212,0.08); border-color: var(--primary-color); }
-
-/* Spinner overlay */
-#globalSpinner .spinner-overlay { position: fixed; inset: 0; display:flex; align-items:center; justify-content:center; background: rgba(20,30,40,0.28); z-index: 99999; }
-.spinner { width:56px; height:56px; border-radius:50%; border:6px solid rgba(255,255,255,0.12); border-top-color: var(--primary-color); animation: spin 1s linear infinite; box-shadow: 0 8px 24px rgba(0,0,0,0.25); }
-@keyframes spin { to { transform: rotate(360deg); } }
-
-/* Keep existing single-notification styling but slightly refined */
-.notificacao { border-left-width:6px; }
-
 
 /* Forçar th individuais a ficarem acima do corpo em navegadores com stacking contexts estranhos */
 thead th {
@@ -1177,9 +1139,7 @@ tr.total-row:hover {
 
 @media (max-width: 992px) {
     .header-info {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 8px;
+        display: none;
     }
 }
 
