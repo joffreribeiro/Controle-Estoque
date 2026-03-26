@@ -1108,12 +1108,13 @@ function prepararRelatorioComissoes() {
 
     const filtroRep = document.getElementById('filtroRelatoriosRep') ? document.getElementById('filtroRelatoriosRep').value : '';
 
-    // Agrupar vendas por representante
+    // Agrupar vendas por representante (ignorar vendas da IMBEL — sem comissão)
     const vendas = Array.isArray(estoque.registroVendas) ? [...estoque.registroVendas] : [];
+    const vendasSemImbel = vendas.filter(v => ((v.representante || '').toString().toUpperCase() !== 'IMBEL'));
     // Ordenar por contrato
     vendas.sort((a, b) => (parseInt(a.contrato) || 0) - (parseInt(b.contrato) || 0));
 
-    const reps = filtroRep ? [filtroRep] : estoque.representantes.slice();
+    const reps = filtroRep ? [filtroRep] : estoque.representantes.filter(r => (r || '').toString().toUpperCase() !== 'IMBEL').slice();
 
     let totalComissoes = 0;
 
@@ -1127,7 +1128,7 @@ function prepararRelatorioComissoes() {
     container.appendChild(resumo);
 
     reps.forEach(rep => {
-        const vendasRep = vendas.filter(v => v.representante === rep);
+        const vendasRep = vendasSemImbel.filter(v => (v.representante || '') === rep);
         if (!vendasRep || vendasRep.length === 0) return;
 
         const titulo = document.createElement('h3');
@@ -1233,7 +1234,8 @@ function imprimirComissoes() {
 
 function exportarComissoesCSV() {
     const filtroRep = document.getElementById('filtroRelatoriosRep') ? document.getElementById('filtroRelatoriosRep').value : '';
-    const vendas = Array.isArray(estoque.registroVendas) ? [...estoque.registroVendas] : [];
+    // Excluir vendas da IMBEL (sem comissão)
+    const vendas = Array.isArray(estoque.registroVendas) ? [...estoque.registroVendas].filter(v => ((v.representante || '').toString().toUpperCase() !== 'IMBEL')) : [];
     vendas.sort((a, b) => (parseInt(a.contrato) || 0) - (parseInt(b.contrato) || 0));
 
     const sep = ';';
