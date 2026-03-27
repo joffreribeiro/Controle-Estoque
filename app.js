@@ -2190,74 +2190,87 @@ function renderizarRegistroVendas() {
     let totalQtd = 0;
     let totalValor = 0;
 
-    vendasFiltradas.forEach(venda => {
-        const repClass = (venda.representante || '').toLowerCase();
+    // Agrupar vendas por contrato para mesclar colunas do contrato/cliente/representante
+    const grupos = {};
+    vendasFiltradas.forEach(v => {
+        const key = String(v.contrato || '');
+        if (!grupos[key]) grupos[key] = [];
+        grupos[key].push(v);
+    });
 
-        if (Array.isArray(venda.items) && venda.items.length > 0) {
-            // Se houver filtro de produto, considerar apenas os itens correspondentes
-            let itemsToRender = venda.items;
-            if (filtroProdutoId) {
-                itemsToRender = itemsToRender.filter(it => it.produtoId === filtroProdutoId);
+    // Ordenar chaves por contrato numérico
+    const chavesOrdenadas = Object.keys(grupos).sort((a,b) => (parseInt(a)||0) - (parseInt(b)||0));
+
+    chavesOrdenadas.forEach(contratoKey => {
+        const grupo = grupos[contratoKey];
+        // calcular total do contrato (soma de valorTotal dos registros/items)
+        let totalContrato = 0;
+        grupo.forEach(venda => {
+            if (Array.isArray(venda.items) && venda.items.length > 0) {
+                totalContrato += venda.items.reduce((s,it) => s + (it.valorTotal || 0), 0);
+            } else {
+                totalContrato += (venda.valorTotal || 0);
             }
+        });
 
-            itemsToRender.forEach(it => {
-                const valorUn = it.valorUnitario ? formatarMoedaValor(it.valorUnitario) : '-';
-                const valorTot = it.valorTotal || (it.valorUnitario || 0) * (it.quantidade || 0);
-
-                totalQtd += it.quantidade || 0;
-                totalValor += valorTot || 0;
-
+        // Renderizar linhas por item dentro do contrato
+        let primeiroRegistroDoContrato = true;
+        grupo.forEach(venda => {
+            const repClass = (venda.representante || '').toLowerCase();
+            if (Array.isArray(venda.items) && venda.items.length > 0) {
+                let itemsToRender = venda.items;
+                if (filtroProdutoId) itemsToRender = itemsToRender.filter(it => it.produtoId === filtroProdutoId);
+                itemsToRender.forEach((it, idx) => {
+                    const valorUn = it.valorUnitario ? formatarMoedaValor(it.valorUnitario) : '-';
+                    const valorTot = it.valorTotal || (it.valorUnitario || 0) * (it.quantidade || 0);
+                    totalQtd += it.quantidade || 0;
+                    totalValor += valorTot || 0;
+                    const dataDisplay = venda.data ? (parseDateToYYYYMMDD(venda.data) ? new Date(parseDateToYYYYMMDD(venda.data)).toLocaleDateString('pt-BR') : '-') : '-';
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td class="col-contrato">${primeiroRegistroDoContrato ? venda.contrato : ''}</td>
+                        <td class="col-loja" title="${primeiroRegistroDoContrato ? venda.loja : ''}">${primeiroRegistroDoContrato ? venda.loja : ''}</td>
+                        <td class="col-representante">${primeiroRegistroDoContrato ? `<span class="badge-rep ${repClass}">${venda.representante}</span>` : ''}</td>
+                        <td class="col-produto-venda" title="${it.produtoNome}">${it.produtoNome}</td>
+                        <td class="col-qtd">${it.quantidade}</td>
+                        <td class="col-valor-un">${valorUn}</td>
+                        <td class="col-valor-total">${valorTot > 0 ? formatarMoedaValor(valorTot) : '-'}</td>
+                        <td class="col-data">${primeiroRegistroDoContrato ? dataDisplay : ''}</td>
+                        <td class="col-total-contrato">${primeiroRegistroDoContrato ? formatarMoedaValor(totalContrato) : ''}</td>
+                        <td class="col-obs" title="${primeiroRegistroDoContrato ? (venda.observacoes || '-') : ''}">${primeiroRegistroDoContrato ? (venda.observacoes || '-') : ''}</td>
+                        <td class="col-acoes">${primeiroRegistroDoContrato ? `<button class="btn-action btn-edit" onclick="abrirModalVendaDetalhada(${venda.id})" title="Editar venda">✎</button><button class="btn-action btn-delete" onclick="excluirVenda(${venda.id})" title="Excluir venda">🗑</button>` : ''}</td>
+                    `;
+                    tbody.appendChild(tr);
+                    primeiroRegistroDoContrato = false;
+                });
+            } else {
+                // venda antiga com único produto
+                if (filtroProdutoId && venda.produtoId !== filtroProdutoId) return;
+                const produtoNome = venda.produtoNome || '-';
+                const qtd = venda.quantidade || 0;
+                const valorUn = venda.valorUnitario ? formatarMoedaValor(venda.valorUnitario) : '-';
+                const valorTot = venda.valorTotal || 0;
+                totalQtd += qtd;
+                totalValor += valorTot;
                 const dataDisplay = venda.data ? (parseDateToYYYYMMDD(venda.data) ? new Date(parseDateToYYYYMMDD(venda.data)).toLocaleDateString('pt-BR') : '-') : '-';
                 const tr = document.createElement('tr');
                 tr.innerHTML = `
-                    <td class="col-contrato">${venda.contrato}</td>
-                    <td class="col-loja" title="${venda.loja}">${venda.loja}</td>
-                    <td class="col-representante"><span class="badge-rep ${repClass}">${venda.representante}</span></td>
-                    <td class="col-produto-venda" title="${it.produtoNome}">${it.produtoNome}</td>
-                    <td class="col-qtd">${it.quantidade}</td>
+                    <td class="col-contrato">${primeiroRegistroDoContrato ? venda.contrato : ''}</td>
+                    <td class="col-loja" title="${primeiroRegistroDoContrato ? venda.loja : ''}">${primeiroRegistroDoContrato ? venda.loja : ''}</td>
+                    <td class="col-representante">${primeiroRegistroDoContrato ? `<span class="badge-rep ${repClass}">${venda.representante}</span>` : ''}</td>
+                    <td class="col-produto-venda" title="${produtoNome}">${produtoNome}</td>
+                    <td class="col-qtd">${qtd}</td>
                     <td class="col-valor-un">${valorUn}</td>
                     <td class="col-valor-total">${valorTot > 0 ? formatarMoedaValor(valorTot) : '-'}</td>
-                    <td class="col-data">${dataDisplay}</td>
-                    <td class="col-obs" title="${venda.observacoes || '-'}">${venda.observacoes || '-'}</td>
-                    <td class="col-acoes">
-                        <button class="btn-action btn-edit" onclick="abrirModalVendaDetalhada(${venda.id})" title="Editar venda">✎</button>
-                        <button class="btn-action btn-delete" onclick="excluirVenda(${venda.id})" title="Excluir venda">🗑</button>
-                    </td>
+                    <td class="col-data">${primeiroRegistroDoContrato ? dataDisplay : ''}</td>
+                    <td class="col-total-contrato">${primeiroRegistroDoContrato ? formatarMoedaValor(totalContrato) : ''}</td>
+                    <td class="col-obs" title="${primeiroRegistroDoContrato ? (venda.observacoes || '-') : ''}">${primeiroRegistroDoContrato ? (venda.observacoes || '-') : ''}</td>
+                    <td class="col-acoes">${primeiroRegistroDoContrato ? `<button class="btn-action btn-edit" onclick="abrirModalVendaDetalhada(${venda.id})" title="Editar venda">✎</button><button class="btn-action btn-delete" onclick="excluirVenda(${venda.id})" title="Excluir venda">🗑</button>` : ''}</td>
                 `;
                 tbody.appendChild(tr);
-            });
-        } else {
-            // venda antiga com único produto
-            // Se filtro de produto estiver ativo, garantir que o produto bate (filtro aplicado antes, mas manter checagem)
-            if (filtroProdutoId && venda.produtoId !== filtroProdutoId) return;
-
-            const produtoNome = venda.produtoNome || '-';
-            const qtd = venda.quantidade || 0;
-            const valorUn = venda.valorUnitario ? formatarMoedaValor(venda.valorUnitario) : '-';
-            const valorTot = venda.valorTotal || 0;
-
-            totalQtd += qtd;
-            totalValor += valorTot;
-
-            const dataDisplay = venda.data ? (parseDateToYYYYMMDD(venda.data) ? new Date(parseDateToYYYYMMDD(venda.data)).toLocaleDateString('pt-BR') : '-') : '-';
-            const tr = document.createElement('tr');
-            tr.innerHTML = `
-                <td class="col-contrato">${venda.contrato}</td>
-                <td class="col-loja" title="${venda.loja}">${venda.loja}</td>
-                <td class="col-representante"><span class="badge-rep ${repClass}">${venda.representante}</span></td>
-                <td class="col-produto-venda" title="${produtoNome}">${produtoNome}</td>
-                <td class="col-qtd">${qtd}</td>
-                <td class="col-valor-un">${valorUn}</td>
-                <td class="col-valor-total">${valorTot > 0 ? formatarMoedaValor(valorTot) : '-'}</td>
-                <td class="col-data">${dataDisplay}</td>
-                <td class="col-obs" title="${venda.observacoes || '-'}">${venda.observacoes || '-'}</td>
-                <td class="col-acoes">
-                    <button class="btn-action btn-edit" onclick="abrirModalVendaDetalhada(${venda.id})" title="Editar venda">✎</button>
-                    <button class="btn-action btn-delete" onclick="excluirVenda(${venda.id})" title="Excluir venda">🗑</button>
-                </td>
-            `;
-            tbody.appendChild(tr);
-        }
+                primeiroRegistroDoContrato = false;
+            }
+        });
     });
     
     atualizarTotaisVendas(totalQtd, totalValor);
