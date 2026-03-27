@@ -504,11 +504,31 @@ function atualizarEstatisticas() {
 
 // Helper global: normaliza várias formas de data para YYYY-MM-DD
 function parseDateToYYYYMMDD(input) {
-    if (!input) return null;
+    if (!input && input !== 0) return null;
+    // Firestore Timestamp-like objects (has toDate)
+    try {
+        if (input && typeof input.toDate === 'function') {
+            const dt = input.toDate();
+            if (dt instanceof Date && !isNaN(dt.getTime())) return dt.toISOString().slice(0,10);
+        }
+    } catch (e) {}
+    // Objects with seconds (e.g., { seconds, nanoseconds })
+    if (input && typeof input === 'object') {
+        if (typeof input.seconds === 'number') {
+            const dt = new Date(input.seconds * 1000);
+            if (!isNaN(dt.getTime())) return dt.toISOString().slice(0,10);
+        }
+        if (typeof input._seconds === 'number') {
+            const dt = new Date(input._seconds * 1000);
+            if (!isNaN(dt.getTime())) return dt.toISOString().slice(0,10);
+        }
+    }
+
     if (input instanceof Date) {
         if (isNaN(input.getTime())) return null;
         return input.toISOString().slice(0,10);
     }
+
     let s = String(input).trim();
     // ISO-like (starts with YYYY-MM-DD)
     const iso = s.match(/^(\d{4}-\d{2}-\d{2})/);
@@ -516,7 +536,7 @@ function parseDateToYYYYMMDD(input) {
     // BR format DD/MM/YYYY
     const br = s.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
     if (br) return `${br[3]}-${br[2]}-${br[1]}`;
-    // Fallback: try Date parse
+    // Try parsing general string
     const d = new Date(s);
     if (!isNaN(d.getTime())) return d.toISOString().slice(0,10);
     return null;
@@ -876,6 +896,23 @@ function prepararRelatorioComissoes() {
     // Agrupar vendas por representante (ignorar vendas da IMBEL — sem comissão)
     const vendas = Array.isArray(estoque.registroVendas) ? [...estoque.registroVendas] : [];
     const vendasSemImbel = vendas.filter(v => ((v.representante || '').toString().trim().toUpperCase() !== 'IMBEL'));
+    // Painel de debug (amostras) — mostra original vs normalizado para auxiliar diagnóstico
+    const debugSamples = vendas.slice(0, 10);
+    const debugDiv = document.createElement('div');
+    debugDiv.className = 'relatorios-debug-dates';
+    debugDiv.style.margin = '8px 0';
+    try {
+        let debugHTML = `<details open style="background:#fff;padding:8px;border:1px solid #e0e0e0;border-radius:4px"><summary><strong>Debug: amostras de datas (original → normalizada)</strong></summary><div style="margin-top:8px;overflow:auto"><table style="width:100%;border-collapse:collapse;font-size:13px"><thead><tr><th style="padding:6px;border:1px solid #ddd">#</th><th style="padding:6px;border:1px solid #ddd">Original</th><th style="padding:6px;border:1px solid #ddd">Tipo</th><th style="padding:6px;border:1px solid #ddd">Normalizada (YYYY-MM-DD)</th></tr></thead><tbody>`;
+        debugSamples.forEach((v, i) => {
+            const original = v && v.data !== undefined ? String(v.data) : '<sem campo data>';
+            let tipo = typeof v.data;
+            try { if (v && v.data && v.data.constructor && v.data.constructor.name) tipo = v.data.constructor.name; } catch (e) {}
+            const parsed = parseDateToYYYYMMDD(v.data) || '<inválida>';
+            debugHTML += `<tr><td style="padding:6px;border:1px solid #ddd">${i+1}</td><td style="padding:6px;border:1px solid #ddd">${original}</td><td style="padding:6px;border:1px solid #ddd">${tipo}</td><td style="padding:6px;border:1px solid #ddd">${parsed}</td></tr>`;
+        });
+        debugHTML += `</tbody></table></div></details>`;
+        debugDiv.innerHTML = debugHTML;
+    } catch (e) { debugDiv.textContent = 'Erro gerando debug das datas.'; }
     
     // Filtrar por intervalo de datas se fornecido (comparação por DATA apenas, formato YYYY-MM-DD)
     const vendasFiltradas = vendasSemImbel.filter(v => {
@@ -969,6 +1006,8 @@ function prepararRelatorioComissoes() {
     const wrapper = document.createElement('div');
     wrapper.className = 'report-printable';
     wrapper.appendChild(container);
+    // anexar debug (se houver) antes do conteúdo principal
+    preview.appendChild(debugDiv);
     preview.appendChild(wrapper);
 }
 
