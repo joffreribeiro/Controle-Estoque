@@ -2198,10 +2198,12 @@ function renderizarRegistroVendas() {
     // Agrupar vendas por contrato para mesclar colunas do contrato/cliente/representante
     const grupos = {};
     vendasFiltradas.forEach(v => {
-        // Normalizar contrato: trim e usar valor numérico quando fizer sentido (unificar '005' e '5')
-        const raw = (v.contrato || '').toString().trim();
-        const parsed = parseInt(raw, 10);
-        const key = (!isNaN(parsed) && raw !== '') ? String(parsed) : raw;
+        // Normalizar contrato: remover espaços invisíveis, usar valor numérico quando fizer sentido
+        let raw = (v.contrato || '').toString();
+        // remover qualquer whitespace (inclui espaços normais, NBSP, tabs, etc.)
+        const cleaned = raw.replace(/\s+/g, '');
+        const parsed = parseInt(cleaned, 10);
+        const key = (!isNaN(parsed) && cleaned !== '') ? String(parsed) : cleaned;
         if (!grupos[key]) grupos[key] = [];
         grupos[key].push(v);
     });
@@ -2215,7 +2217,29 @@ function renderizarRegistroVendas() {
     });
 
     // Depuração: mostrar contratos agrupados e quantidades + exemplos
-    console.log('RegistroVendas - contratos agrupados:', chavesOrdenadas.map(k => ({ contrato: k, vendas: grupos[k].length, exemplos: grupos[k].slice(0,3).map(v=>({ contratoRaw: v.contrato, loja: v.loja })) })));
+    const debugGroups = chavesOrdenadas.map(k => ({ contrato: k, vendas: grupos[k].length, exemplos: grupos[k].slice(0,3).map(v=>({ contratoRaw: v.contrato, loja: v.loja })) }));
+    console.log('RegistroVendas - contratos agrupados:', debugGroups);
+
+    // Atualizar overlay de debug visível (ajuda quando console estiver filtrado/cached)
+    try {
+        let dbg = document.getElementById('debug-grupos-vendas');
+        if (!dbg) {
+            dbg = document.createElement('div');
+            dbg.id = 'debug-grupos-vendas';
+            dbg.style.position = 'fixed';
+            dbg.style.right = '12px';
+            dbg.style.top = '72px';
+            dbg.style.background = 'rgba(0,0,0,0.7)';
+            dbg.style.color = 'white';
+            dbg.style.padding = '8px 10px';
+            dbg.style.fontSize = '12px';
+            dbg.style.zIndex = 9999;
+            dbg.style.maxHeight = '40vh';
+            dbg.style.overflow = 'auto';
+            document.body.appendChild(dbg);
+        }
+        dbg.innerText = 'Grupos (contrato:count): ' + debugGroups.map(g => `${g.contrato}:${g.vendas}`).join(', ');
+    } catch (e) { /* ignore */ }
 
     chavesOrdenadas.forEach(contratoKey => {
         const grupo = grupos[contratoKey];
