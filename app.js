@@ -2193,13 +2193,22 @@ function renderizarRegistroVendas() {
     // Agrupar vendas por contrato para mesclar colunas do contrato/cliente/representante
     const grupos = {};
     vendasFiltradas.forEach(v => {
-        const key = String(v.contrato || '');
+        // Normalizar contrato: garantir string sem espaços para agrupar corretamente
+        const key = (v.contrato || '').toString().trim();
         if (!grupos[key]) grupos[key] = [];
         grupos[key].push(v);
     });
 
     // Ordenar chaves por contrato numérico
-    const chavesOrdenadas = Object.keys(grupos).sort((a,b) => (parseInt(a)||0) - (parseInt(b)||0));
+    const chavesOrdenadas = Object.keys(grupos).sort((a,b) => {
+        const na = parseInt(a);
+        const nb = parseInt(b);
+        if (!isNaN(na) && !isNaN(nb)) return na - nb;
+        return a.localeCompare(b);
+    });
+
+    // Depuração: mostrar contratos agrupados e quantidades
+    console.log('RegistroVendas - contratos agrupados:', chavesOrdenadas.map(k => ({ contrato: k, vendas: grupos[k].length })));
 
     chavesOrdenadas.forEach(contratoKey => {
         const grupo = grupos[contratoKey];
