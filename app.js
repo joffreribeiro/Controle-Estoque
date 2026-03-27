@@ -857,19 +857,16 @@ function prepararRelatorioComissoes() {
     const vendas = Array.isArray(estoque.registroVendas) ? [...estoque.registroVendas] : [];
     const vendasSemImbel = vendas.filter(v => ((v.representante || '').toString().trim().toUpperCase() !== 'IMBEL'));
 
-    // Filtrar por intervalo de datas se fornecido (inclusive)
-    let startTs = null, endTs = null;
-    try {
-        if (dataInicio) startTs = new Date(dataInicio + 'T00:00:00').getTime();
-        if (dataFim) endTs = new Date(dataFim + 'T23:59:59').getTime();
-    } catch (e) { startTs = null; endTs = null; }
-
+    // Filtrar por intervalo de datas se fornecido (comparação por DATA apenas, formato YYYY-MM-DD)
     const vendasFiltradas = vendasSemImbel.filter(v => {
-        if (!startTs && !endTs) return true;
+        if ((!dataInicio || dataInicio === '') && (!dataFim || dataFim === '')) return true;
         if (!v.data) return false;
-        const t = new Date(v.data).getTime();
-        if (startTs && t < startTs) return false;
-        if (endTs && t > endTs) return false;
+        // Normalizar data do registro para YYYY-MM-DD
+        let registroDateStr = null;
+        try { registroDateStr = new Date(v.data).toISOString().slice(0,10); } catch (e) { registroDateStr = null; }
+        if (!registroDateStr) return false;
+        if (dataInicio && dataInicio !== '' && registroDateStr < dataInicio) return false;
+        if (dataFim && dataFim !== '' && registroDateStr > dataFim) return false;
         return true;
     });
 
@@ -4019,15 +4016,15 @@ function prepararRelatorioDistribuicao() {
 
     if (filtroRep) distribuicoes = distribuicoes.filter(d => d.representante === filtroRep);
 
-    // Filtrar por data
-    if (dataInicio || dataFim) {
-        const start = dataInicio ? new Date(dataInicio + 'T00:00:00').getTime() : null;
-        const end = dataFim ? new Date(dataFim + 'T23:59:59').getTime() : null;
+    // Filtrar por data (comparação por DATA YYYY-MM-DD para evitar timezone/formato)
+    if ((dataInicio && dataInicio !== '') || (dataFim && dataFim !== '')) {
         distribuicoes = distribuicoes.filter(d => {
             if (!d.data) return false;
-            const t = new Date(d.data).getTime();
-            if (start && t < start) return false;
-            if (end && t > end) return false;
+            let registroDateStr = null;
+            try { registroDateStr = new Date(d.data).toISOString().slice(0,10); } catch (e) { registroDateStr = null; }
+            if (!registroDateStr) return false;
+            if (dataInicio && dataInicio !== '' && registroDateStr < dataInicio) return false;
+            if (dataFim && dataFim !== '' && registroDateStr > dataFim) return false;
             return true;
         });
     }
