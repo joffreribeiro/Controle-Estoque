@@ -902,7 +902,27 @@ function prepararRelatorioComissoes() {
     debugDiv.className = 'relatorios-debug-dates';
     debugDiv.style.margin = '8px 0';
     try {
-        let debugHTML = `<details open style="background:#fff;padding:8px;border:1px solid #e0e0e0;border-radius:4px"><summary><strong>Debug: amostras de datas (original → normalizada)</strong></summary><div style="margin-top:8px;overflow:auto"><table style="width:100%;border-collapse:collapse;font-size:13px"><thead><tr><th style="padding:6px;border:1px solid #ddd">#</th><th style="padding:6px;border:1px solid #ddd">Original</th><th style="padding:6px;border:1px solid #ddd">Tipo</th><th style="padding:6px;border:1px solid #ddd">Normalizada (YYYY-MM-DD)</th></tr></thead><tbody>`;
+        // resumo: total de vendas, total filtradas, inputs entrados, min/max datas
+        const allDates = vendas.map(v => parseDateToYYYYMMDD(v.data)).filter(x => x !== null);
+        const minAll = allDates.length ? allDates.reduce((a,b)=> a<b? a:b) : '-';
+        const maxAll = allDates.length ? allDates.reduce((a,b)=> a>b? a:b) : '-';
+        const parsedInicio = dataInicio || '-';
+        const parsedFim = dataFim || '-';
+        const totalVendas = vendas.length;
+        // aplicar filtro localmente to report counts
+        const totalFiltradasCount = vendasSemImbel.filter(v => {
+            if ((!dataInicio || dataInicio === '') && (!dataFim || dataFim === '')) return true;
+            if (!v.data) return false;
+            const registroDateStr = parseDateToYYYYMMDD(v.data);
+            if (!registroDateStr) return false;
+            if (dataInicio && dataInicio !== '' && registroDateStr < dataInicio) return false;
+            if (dataFim && dataFim !== '' && registroDateStr > dataFim) return false;
+            return true;
+        }).length;
+
+        let debugHTML = `<details open style="background:#fff;padding:8px;border:1px solid #e0e0e0;border-radius:4px"><summary><strong>Debug: amostras de datas (original → normalizada)</strong></summary><div style="margin-top:8px;">
+            <div style="margin-bottom:8px;font-size:13px;color:#222">Total vendas: <strong>${totalVendas}</strong> — Total após filtros (esperado): <strong>${totalFiltradasCount}</strong> — Data range inputs: <strong>${parsedInicio}</strong> → <strong>${parsedFim}</strong> — Dataset min/max: <strong>${minAll}</strong> / <strong>${maxAll}</strong></div>
+            <div style="overflow:auto"><table style="width:100%;border-collapse:collapse;font-size:13px"><thead><tr><th style="padding:6px;border:1px solid #ddd">#</th><th style="padding:6px;border:1px solid #ddd">Original</th><th style="padding:6px;border:1px solid #ddd">Tipo</th><th style="padding:6px;border:1px solid #ddd">Normalizada (YYYY-MM-DD)</th></tr></thead><tbody>`;
         debugSamples.forEach((v, i) => {
             const original = v && v.data !== undefined ? String(v.data) : '<sem campo data>';
             let tipo = typeof v.data;
@@ -910,7 +930,7 @@ function prepararRelatorioComissoes() {
             const parsed = parseDateToYYYYMMDD(v.data) || '<inválida>';
             debugHTML += `<tr><td style="padding:6px;border:1px solid #ddd">${i+1}</td><td style="padding:6px;border:1px solid #ddd">${original}</td><td style="padding:6px;border:1px solid #ddd">${tipo}</td><td style="padding:6px;border:1px solid #ddd">${parsed}</td></tr>`;
         });
-        debugHTML += `</tbody></table></div></details>`;
+        debugHTML += `</tbody></table></div></div></details>`;
         debugDiv.innerHTML = debugHTML;
     } catch (e) { debugDiv.textContent = 'Erro gerando debug das datas.'; }
     
@@ -925,6 +945,34 @@ function prepararRelatorioComissoes() {
         if (dataFim && dataFim !== '' && registroDateStr > dataFim) return false;
         return true;
     });
+
+    // Diagnostics: lista de registros excluídos pelo filtro com motivo
+    const excluded = vendasSemImbel.filter(v => !vendasFiltradas.includes(v));
+    const excludedDiv = document.createElement('div');
+    excludedDiv.style.margin = '8px 0';
+    if (excluded && excluded.length > 0) {
+        try {
+            function motivoExclusao(v) {
+                if (!v.data) return 'Sem campo data';
+                const parsed = parseDateToYYYYMMDD(v.data);
+                if (!parsed) return 'Data inválida';
+                if (dataInicio && dataInicio !== '' && parsed < dataInicio) return `Antes de ${dataInicio}`;
+                if (dataFim && dataFim !== '' && parsed > dataFim) return `Depois de ${dataFim}`;
+                return 'Outro motivo';
+            }
+
+            let excHTML = `<details style="background:#fff;padding:8px;border:1px solid #f5c6cb;border-radius:4px;margin-top:6px"><summary><strong>Registros EXCLUÍDOS pelo filtro (mostra até 50)</strong></summary><div style="margin-top:8px;overflow:auto"><table style="width:100%;border-collapse:collapse;font-size:13px"><thead><tr><th style="padding:6px;border:1px solid #ddd">#</th><th style="padding:6px;border:1px solid #ddd">Contrato</th><th style="padding:6px;border:1px solid #ddd">Representante</th><th style="padding:6px;border:1px solid #ddd">Loja/Cliente</th><th style="padding:6px;border:1px solid #ddd">Original Data</th><th style="padding:6px;border:1px solid #ddd">Normalizada</th><th style="padding:6px;border:1px solid #ddd">Motivo</th></tr></thead><tbody>`;
+            excluded.slice(0,50).forEach((v, i) => {
+                const original = v && v.data !== undefined ? String(v.data) : '<sem campo data>';
+                const parsed = parseDateToYYYYMMDD(v.data) || '<inválida>';
+                excHTML += `<tr><td style="padding:6px;border:1px solid #ddd">${i+1}</td><td style="padding:6px;border:1px solid #ddd">${v.contrato||''}</td><td style="padding:6px;border:1px solid #ddd">${v.representante||''}</td><td style="padding:6px;border:1px solid #ddd">${v.loja||''}</td><td style="padding:6px;border:1px solid #ddd">${original}</td><td style="padding:6px;border:1px solid #ddd">${parsed}</td><td style="padding:6px;border:1px solid #ddd">${motivoExclusao(v)}</td></tr>`;
+            });
+            excHTML += `</tbody></table></div></details>`;
+            excludedDiv.innerHTML = excHTML;
+        } catch (e) { excludedDiv.textContent = 'Erro gerando lista de excluídos.'; }
+    } else {
+        excludedDiv.innerHTML = `<div style="margin-top:6px;font-size:13px;color:#666">Nenhum registro excluído pelo filtro de datas.</div>`;
+    }
 
     // Ordenar por contrato
     vendasFiltradas.sort((a, b) => (parseInt(a.contrato) || 0) - (parseInt(b.contrato) || 0));
@@ -1006,8 +1054,9 @@ function prepararRelatorioComissoes() {
     const wrapper = document.createElement('div');
     wrapper.className = 'report-printable';
     wrapper.appendChild(container);
-    // anexar debug (se houver) antes do conteúdo principal
+    // anexar debug(s) antes do conteúdo principal
     preview.appendChild(debugDiv);
+    try { preview.appendChild(excludedDiv); } catch (e) {}
     preview.appendChild(wrapper);
 }
 
