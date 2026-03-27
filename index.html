@@ -10,6 +10,7 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 </head>
 <body>
     <div class="container">
@@ -276,6 +277,10 @@
                             <span class="btn-icon">+</span>
                             Nova Venda
                         </button>
+                        <button class="btn btn-outline" onclick="abrirHistoricoContrato()">
+                            <span class="btn-icon">🕘</span>
+                            Histórico do Contrato
+                        </button>
                     </div>
                 </div>
 
@@ -526,6 +531,18 @@
                         <button class="btn btn-outline" onclick="exportarComissoesCSV()" style="margin-left:6px">
                             <span class="btn-icon">📤</span>
                             Exportar Comissões
+                        </button>
+                        <button class="btn btn-outline" onclick="gerarFechamentoMensalComissoes()" style="margin-left:6px">
+                            <span class="btn-icon">🧊</span>
+                            Fechar Mês
+                        </button>
+                        <button class="btn btn-outline" onclick="abrirFechamentosComissoes()" style="margin-left:6px">
+                            <span class="btn-icon">📚</span>
+                            Ver Fechamentos
+                        </button>
+                        <button class="btn btn-success" onclick="exportarExcelCompleto()" style="margin-left:6px">
+                            <span class="btn-icon">📗</span>
+                            Exportar Excel (.xlsx)
                         </button>
                         <button class="btn btn-info" onclick="exportarRelatorioPDF()" style="margin-left:6px">
                             <span class="btn-icon">📄</span>
@@ -1093,6 +1110,22 @@
                         <button type="submit" class="btn btn-info">🚚 Registrar Distribuição</button>
                     </div>
                 </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Fechamentos de Comissões -->
+    <div id="modalFechamentosComissoes" class="modal">
+        <div class="modal-content modal-lg">
+            <div class="modal-header">
+                <h2><span>🧊</span> Fechamentos Mensais de Comissões</h2>
+                <span class="close" onclick="fecharModal('modalFechamentosComissoes')">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div id="fechamentosComissoesConteudo" class="historico-lista"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline" onclick="fecharModal('modalFechamentosComissoes')">Fechar</button>
             </div>
         </div>
     </div>

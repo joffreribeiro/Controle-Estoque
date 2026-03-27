@@ -9,7 +9,9 @@ let estoque = {
     representantes: ['KOLTE', 'ISA', 'LC', 'ADES', 'FL', 'IMBEL'],
     registroVendas: [],
     registroDistribuicao: [],
-    controleEnvio: {}
+    controleEnvio: {},
+    auditoriaVendas: [],
+    fechamentosComissoes: []
 };
 
 // =============================
@@ -233,6 +235,12 @@ function carregarDados() {
         if (!estoque.controleEnvio) {
             estoque.controleEnvio = {};
         }
+        if (!Array.isArray(estoque.auditoriaVendas)) {
+            estoque.auditoriaVendas = [];
+        }
+        if (!Array.isArray(estoque.fechamentosComissoes)) {
+            estoque.fechamentosComissoes = [];
+        }
     } else {
         estoque.produtos = dadosIniciais.map((item, index) => ({
             id: index + 1,
@@ -244,6 +252,8 @@ function carregarDados() {
         estoque.registroVendas = [];
         estoque.registroDistribuicao = [];
         estoque.controleEnvio = {};
+        estoque.auditoriaVendas = [];
+        estoque.fechamentosComissoes = [];
         salvarDados();
     }
 }
@@ -349,6 +359,8 @@ async function carregarDoCloud({confirmOverwrite=true} = {}) {
             if (!ok) return false;
         }
         estoque = data.estado;
+        if (!Array.isArray(estoque.auditoriaVendas)) estoque.auditoriaVendas = [];
+        if (!Array.isArray(estoque.fechamentosComissoes)) estoque.fechamentosComissoes = [];
         salvarDados();
         renderizarTabela();
         renderizarDashboard();
@@ -378,6 +390,8 @@ async function carregarDoCloudAuto() {
         if (remoteUpdated && remoteUpdated > localUpdated) {
             // substituir local automaticamente
             estoque = data.estado;
+            if (!Array.isArray(estoque.auditoriaVendas)) estoque.auditoriaVendas = [];
+            if (!Array.isArray(estoque.fechamentosComissoes)) estoque.fechamentosComissoes = [];
             salvarDados();
             renderizarTabela();
             renderizarDashboard();
@@ -540,6 +554,52 @@ function parseDateToYYYYMMDD(input) {
     const d = new Date(s);
     if (!isNaN(d.getTime())) return d.toISOString().slice(0,10);
     return null;
+}
+
+function normalizarContratoKey(valor) {
+    const bruto = (valor ?? '').toString().normalize('NFKC');
+    const clean = bruto.replace(/[\u200B-\u200D\uFEFF\s]+/g, '');
+    const digitos = clean.replace(/\D+/g, '');
+    return digitos ? String(parseInt(digitos, 10)) : clean.toUpperCase();
+}
+
+function getUsuarioAtual() {
+    let usuario = '';
+    try { usuario = (localStorage.getItem('estoqueUsuarioAtual') || '').trim(); } catch (e) {}
+    if (!usuario) {
+        usuario = (prompt('Informe seu nome/usuário para auditoria:') || '').trim();
+        if (!usuario) usuario = 'Usuário';
+        try { localStorage.setItem('estoqueUsuarioAtual', usuario); } catch (e) {}
+    }
+    return usuario;
+}
+
+function registrarAuditoriaVenda(acao, vendaAntes, vendaDepois, detalhes = '') {
+    if (!Array.isArray(estoque.auditoriaVendas)) estoque.auditoriaVendas = [];
+    const base = vendaDepois || vendaAntes || {};
+    const contrato = normalizarContratoKey(base.contrato || '');
+    const entry = {
+        id: Date.now() + Math.floor(Math.random() * 1000),
+        quando: new Date().toISOString(),
+        quem: getUsuarioAtual(),
+        acao: acao,
+        contrato: contrato || '-',
+        vendaId: base.id || null,
+        antes: vendaAntes || null,
+        depois: vendaDepois || null,
+        detalhes: detalhes || ''
+    };
+    estoque.auditoriaVendas.push(entry);
+    if (estoque.auditoriaVendas.length > 1000) {
+        estoque.auditoriaVendas = estoque.auditoriaVendas.slice(-1000);
+    }
+}
+
+function obterAuditoriaPorContrato(contrato) {
+    const key = normalizarContratoKey(contrato || '');
+    const lista = Array.isArray(estoque.auditoriaVendas) ? estoque.auditoriaVendas : [];
+    return lista.filter(a => normalizarContratoKey(a.contrato || '') === key)
+        .sort((a, b) => new Date(b.quando).getTime() - new Date(a.quando).getTime());
 }
 
 // ========================================
@@ -885,6 +945,68 @@ function imprimirInventario() {
 // RELATÓRIO: COMISSÕES (5%)
 // =============================
 
+function obterComissoesConsolidadas({ filtroRep = '', dataInicio = '', dataFim = '' } = {}) {
+    const vendas = Array.isArray(estoque.registroVendas) ? [...estoque.registroVendas] : [];
+    const vendasSemImbel = vendas.filter(v => ((v.representante || '').toString().trim().toUpperCase() !== 'IMBEL'));
+
+    const vendasFiltradas = vendasSemImbel.filter(v => {
+        if (filtroRep && (v.representante || '') !== filtroRep) return false;
+        if ((!dataInicio || dataInicio === '') && (!dataFim || dataFim === '')) return true;
+        const d = parseDateToYYYYMMDD(v.data);
+        if (!d) return false;
+        if (dataInicio && d < dataInicio) return false;
+        if (dataFim && d > dataFim) return false;
+        return true;
+    });
+
+    const obterValorVenda = (venda) => {
+        if (typeof venda.valorTotal === 'number') return venda.valorTotal;
+        if (Array.isArray(venda.items) && venda.items.length > 0) {
+            return venda.items.reduce((s, it) => s + (Number(it.valorTotal) || ((Number(it.valorUnitario) || 0) * (Number(it.quantidade) || 0))), 0);
+        }
+        return ((Number(venda.valorUnitario) || 0) * (Number(venda.quantidade) || 0));
+    };
+
+    const ordenarContrato = (a, b) => {
+        const na = parseInt(a);
+        const nb = parseInt(b);
+        if (!isNaN(na) && !isNaN(nb)) return na - nb;
+        return a.localeCompare(b);
+    };
+
+    const contratosMap = new Map();
+    vendasFiltradas.forEach(v => {
+        const contratoKey = normalizarContratoKey(v.contrato);
+        if (!contratoKey) return;
+        const dataNorm = parseDateToYYYYMMDD(v.data);
+        const atual = contratosMap.get(contratoKey) || {
+            contrato: contratoKey,
+            loja: v.loja || '',
+            representantes: new Set(),
+            valorContrato: 0,
+            dataMin: null,
+            dataMax: null
+        };
+        atual.valorContrato += obterValorVenda(v);
+        if (!atual.loja && v.loja) atual.loja = v.loja;
+        if (v.representante) atual.representantes.add(v.representante);
+        if (dataNorm) {
+            if (!atual.dataMin || dataNorm < atual.dataMin) atual.dataMin = dataNorm;
+            if (!atual.dataMax || dataNorm > atual.dataMax) atual.dataMax = dataNorm;
+        }
+        contratosMap.set(contratoKey, atual);
+    });
+
+    const contratos = Array.from(contratosMap.values()).sort((a, b) => ordenarContrato(a.contrato, b.contrato));
+    let totalComissoes = 0;
+    contratos.forEach(c => {
+        c.comissao = Math.round((c.valorContrato * 0.05) * 100) / 100;
+        totalComissoes += c.comissao;
+    });
+
+    return { contratos, totalComissoes };
+}
+
 function prepararRelatorioComissoes() {
     const preview = document.getElementById('relatoriosPreview');
     if (!preview) return;
@@ -1174,6 +1296,244 @@ function exportarComissoesCSV() {
     a.click();
     a.remove();
     URL.revokeObjectURL(url);
+}
+
+function gerarFechamentoMensalComissoes() {
+    const hoje = new Date();
+    const competenciaDefault = `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, '0')}`;
+    const competencia = (prompt('Informe a competência (AAAA-MM):', competenciaDefault) || '').trim();
+    if (!/^\d{4}-\d{2}$/.test(competencia)) {
+        mostrarNotificacao('Competência inválida. Use AAAA-MM.', 'error');
+        return;
+    }
+
+    const [ano, mes] = competencia.split('-').map(n => parseInt(n, 10));
+    const dataInicio = `${ano}-${String(mes).padStart(2, '0')}-01`;
+    const ultimoDia = new Date(ano, mes, 0).getDate();
+    const dataFim = `${ano}-${String(mes).padStart(2, '0')}-${String(ultimoDia).padStart(2, '0')}`;
+    const filtroRep = document.getElementById('filtroRelatoriosRep')?.value || '';
+
+    const { contratos, totalComissoes } = obterComissoesConsolidadas({ filtroRep, dataInicio, dataFim });
+    const chave = `${competencia}||${filtroRep || 'TODOS'}`;
+    if (!Array.isArray(estoque.fechamentosComissoes)) estoque.fechamentosComissoes = [];
+    const idxExistente = estoque.fechamentosComissoes.findIndex(f => f.chave === chave);
+    if (idxExistente !== -1) {
+        const ok = confirm(`Já existe fechamento para ${competencia} (${filtroRep || 'Todos'}). Deseja substituir?`);
+        if (!ok) return;
+    }
+
+    const snapshot = {
+        id: Date.now(),
+        chave,
+        competencia,
+        filtroRep: filtroRep || '',
+        criadoEm: new Date().toISOString(),
+        criadoPor: getUsuarioAtual(),
+        linhas: contratos.map(c => ({
+            contrato: c.contrato,
+            loja: c.loja,
+            representantes: Array.from(c.representantes || []),
+            dataMin: c.dataMin || null,
+            dataMax: c.dataMax || null,
+            valorContrato: c.valorContrato,
+            comissao: c.comissao
+        })),
+        totalComissoes
+    };
+
+    if (idxExistente !== -1) estoque.fechamentosComissoes[idxExistente] = snapshot;
+    else estoque.fechamentosComissoes.push(snapshot);
+
+    salvarDados();
+    mostrarNotificacao(`Fechamento ${competencia} salvo com ${snapshot.linhas.length} contrato(s).`, 'success');
+    abrirFechamentosComissoes();
+}
+
+function abrirFechamentosComissoes() {
+    const container = document.getElementById('fechamentosComissoesConteudo');
+    const modal = document.getElementById('modalFechamentosComissoes');
+    if (!container || !modal) return;
+
+    const lista = Array.isArray(estoque.fechamentosComissoes) ? [...estoque.fechamentosComissoes] : [];
+    lista.sort((a, b) => (a.competencia < b.competencia ? 1 : -1));
+
+    if (lista.length === 0) {
+        container.innerHTML = '<p style="text-align:center;color:var(--text-secondary);padding:20px">Nenhum fechamento mensal registrado.</p>';
+    } else {
+        container.innerHTML = lista.map(f => {
+            const criado = f.criadoEm ? new Date(f.criadoEm).toLocaleString('pt-BR') : '-';
+            return `
+                <div class="historico-item">
+                    <span class="hist-data"><strong>${f.competencia}</strong><br><small>${criado}</small></span>
+                    <span class="hist-tipo venda">SNAPSHOT</span>
+                    <span class="hist-descricao">
+                        ${f.filtroRep ? `Rep: ${f.filtroRep} | ` : ''}${f.linhas.length} contrato(s) | Total comissão: ${formatarMoedaValor(f.totalComissoes || 0)}
+                        <div style="margin-top:6px">
+                            <button class="btn btn-outline btn-sm" onclick="visualizarFechamentoComissoes(${f.id})">Visualizar</button>
+                            <button class="btn btn-outline btn-sm" onclick="excluirFechamentoComissoes(${f.id})">Excluir</button>
+                        </div>
+                    </span>
+                </div>
+            `;
+        }).join('');
+    }
+
+    modal.style.display = 'flex';
+}
+
+function visualizarFechamentoComissoes(id) {
+    const fechamento = (estoque.fechamentosComissoes || []).find(f => f.id === id);
+    if (!fechamento) return;
+    const preview = document.getElementById('relatoriosPreview');
+    if (!preview) return;
+
+    const container = document.createElement('div');
+    container.className = 'report-comissoes';
+    container.innerHTML = `<div class="comissoes-resumo" style="margin-bottom:12px"><strong>Fechamento:</strong> ${fechamento.competencia} ${fechamento.filtroRep ? `| Rep: ${fechamento.filtroRep}` : ''} | <strong>Total:</strong> ${formatarMoedaValor(fechamento.totalComissoes || 0)}</div>`;
+
+    const table = document.createElement('table');
+    table.className = 'tabela-relatorio comissoes-table';
+    table.style.width = '100%';
+    table.style.borderCollapse = 'collapse';
+    table.innerHTML = `
+        <thead><tr>
+            <th style="text-align:left;padding:6px;border:1px solid #ddd">Contrato</th>
+            <th style="text-align:left;padding:6px;border:1px solid #ddd">Cliente / Loja</th>
+            <th style="text-align:left;padding:6px;border:1px solid #ddd">Representante(s)</th>
+            <th style="text-align:left;padding:6px;border:1px solid #ddd">Data</th>
+            <th style="text-align:right;padding:6px;border:1px solid #ddd">Valor Contrato (R$)</th>
+            <th style="text-align:right;padding:6px;border:1px solid #ddd">Comissão 5% (R$)</th>
+        </tr></thead>
+        <tbody></tbody>
+    `;
+    const tbody = table.querySelector('tbody');
+    (fechamento.linhas || []).forEach(l => {
+        const dataTexto = l.dataMin
+            ? (l.dataMax && l.dataMax !== l.dataMin
+                ? `${new Date(l.dataMin + 'T00:00:00').toLocaleDateString('pt-BR')} até ${new Date(l.dataMax + 'T00:00:00').toLocaleDateString('pt-BR')}`
+                : new Date(l.dataMin + 'T00:00:00').toLocaleDateString('pt-BR'))
+            : '-';
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td style="padding:6px;border:1px solid #ddd">${l.contrato || ''}</td>
+            <td style="padding:6px;border:1px solid #ddd">${l.loja || ''}</td>
+            <td style="padding:6px;border:1px solid #ddd">${(l.representantes || []).join(', ') || '-'}</td>
+            <td style="padding:6px;border:1px solid #ddd">${dataTexto}</td>
+            <td style="padding:6px;border:1px solid #ddd;text-align:right">${formatarMoedaValor(l.valorContrato || 0)}</td>
+            <td style="padding:6px;border:1px solid #ddd;text-align:right">${formatarMoedaValor(l.comissao || 0)}</td>
+        `;
+        tbody.appendChild(tr);
+    });
+
+    container.appendChild(table);
+    preview.innerHTML = '';
+    const wrapper = document.createElement('div');
+    wrapper.className = 'report-printable';
+    wrapper.appendChild(container);
+    preview.appendChild(wrapper);
+    trocarAba('relatorios');
+    fecharModal('modalFechamentosComissoes');
+}
+
+function excluirFechamentoComissoes(id) {
+    const fechamento = (estoque.fechamentosComissoes || []).find(f => f.id === id);
+    if (!fechamento) return;
+    if (!confirm(`Excluir fechamento ${fechamento.competencia}?`)) return;
+    estoque.fechamentosComissoes = (estoque.fechamentosComissoes || []).filter(f => f.id !== id);
+    salvarDados();
+    abrirFechamentosComissoes();
+}
+
+function exportarExcelCompleto() {
+    if (typeof XLSX === 'undefined') {
+        mostrarNotificacao('Biblioteca XLSX não carregada.', 'error');
+        return;
+    }
+
+    const wb = XLSX.utils.book_new();
+
+    const invRows = estoque.produtos.map(p => {
+        const row = { Produto: p.nome, Preco: p.preco || 0 };
+        let totalDisp = 0, totalVenda = 0;
+        (estoque.representantes || []).forEach(rep => {
+            const disp = p.distribuicao?.[rep] || 0;
+            const venda = p.vendas?.[rep] || 0;
+            row[`${rep}_Disp`] = disp;
+            row[`${rep}_Venda`] = venda;
+            row[`${rep}_Saldo`] = disp - venda;
+            totalDisp += disp;
+            totalVenda += venda;
+        });
+        row.Total_Disp = totalDisp;
+        row.Total_Venda = totalVenda;
+        row.Total_Saldo = totalDisp - totalVenda;
+        return row;
+    });
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(invRows), 'Inventario');
+
+    const vendasRows = [];
+    (estoque.registroVendas || []).forEach(v => {
+        const data = parseDateToYYYYMMDD(v.data) || '';
+        if (Array.isArray(v.items) && v.items.length > 0) {
+            v.items.forEach(it => vendasRows.push({
+                Contrato: v.contrato,
+                Cliente: v.loja,
+                Representante: v.representante,
+                Produto: it.produtoNome,
+                Quantidade: it.quantidade || 0,
+                Valor_Unitario: it.valorUnitario || 0,
+                Valor_Total_Item: it.valorTotal || 0,
+                Data: data,
+                Observacoes: v.observacoes || ''
+            }));
+        } else {
+            vendasRows.push({
+                Contrato: v.contrato,
+                Cliente: v.loja,
+                Representante: v.representante,
+                Produto: v.produtoNome || '',
+                Quantidade: v.quantidade || 0,
+                Valor_Unitario: v.valorUnitario || 0,
+                Valor_Total_Item: v.valorTotal || 0,
+                Data: data,
+                Observacoes: v.observacoes || ''
+            });
+        }
+    });
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(vendasRows), 'Vendas');
+
+    const distRows = (estoque.registroDistribuicao || []).map(d => ({
+        Representante: d.representante,
+        Produto: d.produtoNome,
+        Quantidade: d.quantidade || 0,
+        Data: parseDateToYYYYMMDD(d.data) || d.data || '',
+        Observacoes: d.observacoes || ''
+    }));
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(distRows), 'Distribuicao');
+
+    const filtroRep = document.getElementById('filtroRelatoriosRep')?.value || '';
+    const dataInicio = document.getElementById('filtroRelatoriosDataInicio')?.value || '';
+    const dataFim = document.getElementById('filtroRelatoriosDataFim')?.value || '';
+    const { contratos } = obterComissoesConsolidadas({ filtroRep, dataInicio, dataFim });
+    const comRows = contratos.map(c => {
+        const dataTexto = c.dataMin
+            ? (c.dataMax && c.dataMax !== c.dataMin
+                ? `${new Date(c.dataMin + 'T00:00:00').toLocaleDateString('pt-BR')} até ${new Date(c.dataMax + 'T00:00:00').toLocaleDateString('pt-BR')}`
+                : new Date(c.dataMin + 'T00:00:00').toLocaleDateString('pt-BR'))
+            : '-';
+        return {
+            Contrato: c.contrato,
+            Cliente: c.loja,
+            Representantes: Array.from(c.representantes || []).join(', '),
+            Data: dataTexto,
+            Valor_Contrato: c.valorContrato || 0,
+            Comissao_5: c.comissao || 0
+        };
+    });
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(comRows), 'Comissoes');
+
+    XLSX.writeFile(wb, `controle_estoque_${new Date().toISOString().slice(0,10)}.xlsx`);
+    mostrarNotificacao('Excel exportado com sucesso!', 'success');
 }
 
 function visualizarRelatorioSelecionado() {
@@ -2099,6 +2459,7 @@ function salvarVendaDetalhada(event) {
     // Se estivermos editando, primeiro reverter os efeitos da venda anterior
     const isEditing = vendaEditandoId !== null;
     let vendaAnterior = null;
+    let vendaAnteriorSnapshot = null;
     if (isEditing) {
         vendaAnterior = estoque.registroVendas.find(v => v.id === vendaEditandoId);
         if (!vendaAnterior) {
@@ -2106,6 +2467,7 @@ function salvarVendaDetalhada(event) {
             vendaEditandoId = null;
             return;
         }
+        try { vendaAnteriorSnapshot = JSON.parse(JSON.stringify(vendaAnterior)); } catch (e) { vendaAnteriorSnapshot = null; }
 
         // Reverter quantidades da venda anterior no representante antigo
         if (Array.isArray(vendaAnterior.items) && vendaAnterior.items.length > 0) {
@@ -2178,6 +2540,14 @@ function salvarVendaDetalhada(event) {
             } else {
                 estoque.registroVendas[idx].data = new Date().toISOString();
             }
+            try {
+                registrarAuditoriaVenda(
+                    'edicao',
+                    vendaAnteriorSnapshot,
+                    JSON.parse(JSON.stringify(estoque.registroVendas[idx])),
+                    `Contrato ${contrato} atualizado (${totalQtd} itens / ${formatarMoedaValor(totalValor)})`
+                );
+            } catch (e) {}
         }
         vendaEditandoId = null;
 
@@ -2206,6 +2576,15 @@ function salvarVendaDetalhada(event) {
     };
 
     estoque.registroVendas.push(novaVenda);
+
+    try {
+        registrarAuditoriaVenda(
+            'criacao',
+            null,
+            JSON.parse(JSON.stringify(novaVenda)),
+            `Contrato ${contrato} criado (${totalQtd} itens / ${formatarMoedaValor(totalValor)})`
+        );
+    } catch (e) {}
 
     salvarDados();
     renderizarTabela();
@@ -2359,43 +2738,64 @@ function renderizarRegistroVendas() {
         if (!linhasDoContrato) return;
 
         const totalContrato = grupo.reduce((sum, linha) => sum + (Number(linha.valorTotal) || 0), 0);
+        const totalQtdContrato = grupo.reduce((sum, linha) => sum + (Number(linha.quantidade) || 0), 0);
         const primeira = grupo[0];
         const repClass = (primeira.representante || '').toLowerCase();
-        const dataDisplay = primeira.dataNorm ? new Date(primeira.dataNorm).toLocaleDateString('pt-BR') : '-';
         const obsGrupo = grupo.find(g => g.observacoes && g.observacoes !== '-')?.observacoes || primeira.observacoes || '-';
+        const minData = grupo.map(g => g.dataNorm).filter(Boolean).sort()[0] || null;
+        const maxData = grupo.map(g => g.dataNorm).filter(Boolean).sort().slice(-1)[0] || null;
+        const dataDisplay = minData
+            ? (maxData && maxData !== minData
+                ? `${new Date(minData + 'T00:00:00').toLocaleDateString('pt-BR')} até ${new Date(maxData + 'T00:00:00').toLocaleDateString('pt-BR')}`
+                : new Date(minData + 'T00:00:00').toLocaleDateString('pt-BR'))
+            : '-';
 
-        grupo.forEach((linha, idx) => {
+        const expandido = !!_contratosExpandidos[contratoKey];
+        const resumo = document.createElement('tr');
+        resumo.className = 'row-contrato-resumo';
+        resumo.innerHTML = `
+            <td class="col-contrato">${contratoKey || '-'}</td>
+            <td class="col-loja" title="${primeira.loja}">${primeira.loja}</td>
+            <td class="col-representante"><span class="badge-rep ${repClass}">${primeira.representante}</span></td>
+            <td class="col-produto-venda"><button class="btn-expand-contrato" onclick="toggleContratoExpandido('${contratoKey}')">${expandido ? '▾' : '▸'} ${linhasDoContrato} item(ns)</button></td>
+            <td class="col-qtd">${totalQtdContrato}</td>
+            <td class="col-valor-un">-</td>
+            <td class="col-valor-total">${formatarMoedaValor(totalContrato)}</td>
+            <td class="col-data">${dataDisplay}</td>
+            <td class="col-total-contrato">${formatarMoedaValor(totalContrato)}</td>
+            <td class="col-obs" title="${obsGrupo}">${obsGrupo}</td>
+            <td class="col-acoes">
+                <button class="btn-action btn-edit" onclick="abrirModalVendaDetalhada(${primeira.vendaId})" title="Editar venda">✎</button>
+                <button class="btn-action btn-delete" onclick="excluirVenda(${primeira.vendaId})" title="Excluir venda">🗑</button>
+                <button class="btn-action" onclick="abrirHistoricoContrato('${contratoKey}')" title="Histórico do Contrato">🕘</button>
+            </td>
+        `;
+        tbody.appendChild(resumo);
+
+        grupo.forEach((linha) => {
             const tr = document.createElement('tr');
+            tr.className = `row-contrato-detalhe ${expandido ? '' : 'hidden-row'}`;
             const valorUn = linha.valorUnitario ? formatarMoedaValor(linha.valorUnitario) : '-';
             const valorTot = linha.valorTotal || 0;
-
             totalQtd += linha.quantidade || 0;
             totalValor += valorTot || 0;
 
-            if (idx === 0) {
-                tr.innerHTML = `
-                    <td class="col-contrato" rowspan="${linhasDoContrato}">${contratoKey || '-'}</td>
-                    <td class="col-loja" title="${primeira.loja}" rowspan="${linhasDoContrato}">${primeira.loja}</td>
-                    <td class="col-representante" rowspan="${linhasDoContrato}"><span class="badge-rep ${repClass}">${primeira.representante}</span></td>
-                    <td class="col-produto-venda" title="${linha.produtoNome}">${linha.produtoNome}</td>
-                    <td class="col-qtd">${linha.quantidade}</td>
-                    <td class="col-valor-un">${valorUn}</td>
-                    <td class="col-valor-total">${valorTot > 0 ? formatarMoedaValor(valorTot) : '-'}</td>
-                    <td class="col-data" rowspan="${linhasDoContrato}">${dataDisplay}</td>
-                    <td class="col-total-contrato" rowspan="${linhasDoContrato}">${formatarMoedaValor(totalContrato)}</td>
-                    <td class="col-obs" title="${obsGrupo}" rowspan="${linhasDoContrato}">${obsGrupo}</td>
-                    <td class="col-acoes"><button class="btn-action btn-edit" onclick="abrirModalVendaDetalhada(${linha.vendaId})" title="Editar venda">✎</button><button class="btn-action btn-delete" onclick="excluirVenda(${linha.vendaId})" title="Excluir venda">🗑</button></td>
-                `;
-            } else {
-                tr.innerHTML = `
-                    <td class="col-produto-venda" title="${linha.produtoNome}">${linha.produtoNome}</td>
-                    <td class="col-qtd">${linha.quantidade}</td>
-                    <td class="col-valor-un">${valorUn}</td>
-                    <td class="col-valor-total">${valorTot > 0 ? formatarMoedaValor(valorTot) : '-'}</td>
-                    <td class="col-acoes"><button class="btn-action btn-edit" onclick="abrirModalVendaDetalhada(${linha.vendaId})" title="Editar venda">✎</button><button class="btn-action btn-delete" onclick="excluirVenda(${linha.vendaId})" title="Excluir venda">🗑</button></td>
-                `;
-            }
-
+            tr.innerHTML = `
+                <td class="col-contrato detalhe-vazio"></td>
+                <td class="col-loja detalhe-vazio"></td>
+                <td class="col-representante detalhe-vazio"></td>
+                <td class="col-produto-venda" title="${linha.produtoNome}">↳ ${linha.produtoNome}</td>
+                <td class="col-qtd">${linha.quantidade}</td>
+                <td class="col-valor-un">${valorUn}</td>
+                <td class="col-valor-total">${valorTot > 0 ? formatarMoedaValor(valorTot) : '-'}</td>
+                <td class="col-data">${linha.dataNorm ? new Date(linha.dataNorm + 'T00:00:00').toLocaleDateString('pt-BR') : '-'}</td>
+                <td class="col-total-contrato">-</td>
+                <td class="col-obs" title="${linha.observacoes || '-'}">${linha.observacoes || '-'}</td>
+                <td class="col-acoes">
+                    <button class="btn-action btn-edit" onclick="abrirModalVendaDetalhada(${linha.vendaId})" title="Editar venda">✎</button>
+                    <button class="btn-action btn-delete" onclick="excluirVenda(${linha.vendaId})" title="Excluir venda">🗑</button>
+                </td>
+            `;
             tbody.appendChild(tr);
         });
     });
@@ -2409,6 +2809,38 @@ function atualizarTotaisVendas(totalQtd, totalValor) {
     
     if (spanQtd) spanQtd.innerHTML = `<strong>${totalQtd.toLocaleString('pt-BR')}</strong>`;
     if (spanValor) spanValor.innerHTML = `<strong>${formatarMoedaValor(totalValor)}</strong>`;
+}
+
+function toggleContratoExpandido(contratoKey) {
+    _contratosExpandidos[contratoKey] = !_contratosExpandidos[contratoKey];
+    renderizarRegistroVendas();
+}
+
+function abrirHistoricoContrato(contratoInformado = '') {
+    const contrato = (contratoInformado || prompt('Informe o contrato para visualizar o histórico:') || '').trim();
+    if (!contrato) return;
+
+    const lista = obterAuditoriaPorContrato(contrato);
+    const container = document.getElementById('historicoConteudo');
+    if (!container) return;
+
+    if (lista.length === 0) {
+        container.innerHTML = `<p style="text-align:center;color:var(--text-secondary);padding:20px">Nenhum histórico encontrado para o contrato ${contrato}.</p>`;
+    } else {
+        container.innerHTML = lista.map(h => {
+            const dt = h.quando ? new Date(h.quando).toLocaleString('pt-BR') : '-';
+            const quem = h.quem || 'Usuário';
+            const acao = (h.acao || '-').toUpperCase();
+            const desc = h.detalhes || '-';
+            return `<div class="historico-item">
+                <span class="hist-data">${dt}<br><small>${quem}</small></span>
+                <span class="hist-tipo venda">${acao}</span>
+                <span class="hist-descricao">${desc}</span>
+            </div>`;
+        }).join('');
+    }
+
+    document.getElementById('modalHistorico').style.display = 'flex';
 }
 
 function filtrarVendas() {
@@ -2427,6 +2859,8 @@ function limparFiltrosVendas() {
 
 function excluirVenda(vendaId) {
     const venda = estoque.registroVendas.find(v => v.id === vendaId);
+    let vendaSnapshot = null;
+    try { vendaSnapshot = venda ? JSON.parse(JSON.stringify(venda)) : null; } catch (e) { vendaSnapshot = null; }
 
     if (!venda) {
         mostrarNotificacao('Venda não encontrada!', 'error');
@@ -2476,6 +2910,15 @@ function excluirVenda(vendaId) {
     renderizarControleEnvio();
 
     mostrarNotificacao(`Venda do contrato ${venda.contrato} excluída com sucesso!`, 'success');
+
+    try {
+        registrarAuditoriaVenda(
+            'exclusao',
+            vendaSnapshot,
+            null,
+            `Contrato ${venda.contrato} excluído`
+        );
+    } catch (e) {}
 }
 
 function exportarVendas() {
@@ -3905,6 +4348,7 @@ trocarAba = function(aba) {
 
 let _ordenVendas = { campo: 'contrato', direcao: 'asc' };
 let _ordenDistribuicao = { campo: 'data', direcao: 'desc' };
+let _contratosExpandidos = {};
 
 function ordenarVendas(campo) {
     if (_ordenVendas.campo === campo) {

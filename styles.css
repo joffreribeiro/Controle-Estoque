@@ -1488,6 +1488,32 @@ tr.total-row:hover {
     background: #eef2f7;
 }
 
+.row-contrato-resumo {
+    background: #eef3f9 !important;
+}
+
+.row-contrato-detalhe.hidden-row {
+    display: none;
+}
+
+.detalhe-vazio {
+    background: #fafbfc;
+}
+
+.btn-expand-contrato {
+    border: none;
+    background: transparent;
+    color: var(--primary-color);
+    font-weight: 600;
+    cursor: pointer;
+    padding: 0;
+    text-align: left;
+}
+
+.btn-expand-contrato:hover {
+    text-decoration: underline;
+}
+
 .btn-action {
     border: none;
     padding: 6px 10px;
