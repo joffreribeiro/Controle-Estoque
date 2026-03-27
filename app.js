@@ -2143,6 +2143,11 @@ function renderizarRegistroVendas() {
         });
     }
     
+    // Depuração rápida: inspecionar valores brutos de contrato para detectar inconsistências
+    try {
+        console.log('renderizarRegistroVendas - vendasFiltradas contratos (raw):', vendasFiltradas.map(v => ({ contrato: v.contrato, tipo: typeof v.contrato })));
+    } catch (e) { /* ignore */ }
+
     // Ordenar conforme seleção do usuário (_ordenVendas)
     vendasFiltradas.sort((a, b) => {
         const campo = _ordenVendas.campo || 'contrato';
@@ -2264,7 +2269,7 @@ function renderizarRegistroVendas() {
                             <td class="col-data" rowspan="${linhasDoContrato}">${dataDisplay}</td>
                             <td class="col-total-contrato" rowspan="${linhasDoContrato}">${formatarMoedaValor(totalContrato)}</td>
                             <td class="col-obs" title="${venda.observacoes || '-'}" rowspan="${linhasDoContrato}">${venda.observacoes || '-'}</td>
-                            <td class="col-acoes" rowspan="${linhasDoContrato}"><button class="btn-action btn-edit" onclick="abrirModalVendaDetalhada(${venda.id})" title="Editar venda">✎</button><button class="btn-action btn-delete" onclick="excluirVenda(${venda.id})" title="Excluir venda">🗑</button></td>
+                            <td class="col-acoes"><button class="btn-action btn-edit" onclick="abrirModalVendaDetalhada(${venda.id})" title="Editar venda">✎</button><button class="btn-action btn-delete" onclick="excluirVenda(${venda.id})" title="Excluir venda">🗑</button></td>
                         `;
                         primeiroRegistroDoContrato = false;
                     } else {
@@ -2273,6 +2278,7 @@ function renderizarRegistroVendas() {
                             <td class="col-qtd">${it.quantidade}</td>
                             <td class="col-valor-un">${valorUn}</td>
                             <td class="col-valor-total">${valorTot > 0 ? formatarMoedaValor(valorTot) : '-'}</td>
+                            <td class="col-acoes"><button class="btn-action btn-edit" onclick="abrirModalVendaDetalhada(${venda.id})" title="Editar venda">✎</button><button class="btn-action btn-delete" onclick="excluirVenda(${venda.id})" title="Excluir venda">🗑</button></td>
                         `;
                     }
                     tbody.appendChild(tr);
