@@ -5116,6 +5116,8 @@ firebase.auth().onAuthStateChanged(async function(user) {
     const formEl = document.getElementById('authPanelForm');
     const signedEl = document.getElementById('authSignedIn');
     const userDisplay = document.getElementById('authUserDisplay');
+    const loggedEmailEl = document.getElementById('loggedAccountEmail');
+    const loggedBadgeEl = document.getElementById('loggedAccountBadge');
     if (user) {
         if (formEl) formEl.style.display = 'none';
         if (signedEl) signedEl.style.display = 'flex';
@@ -5133,17 +5135,38 @@ firebase.auth().onAuthStateChanged(async function(user) {
 
         if (isAdmin) {
             document.body.classList.add('is-admin');
+            if (loggedBadgeEl) loggedBadgeEl.style.display = 'inline-block';
         } else {
             document.body.classList.remove('is-admin');
+            if (loggedBadgeEl) loggedBadgeEl.style.display = 'none';
         }
+        if (loggedEmailEl) loggedEmailEl.textContent = user.email || '';
+
+        // Persist a short record of current user in localStorage for quick reference
+        try {
+            localStorage.setItem('currentUser', JSON.stringify({ email: user.email || null, uid: user.uid || null, isAdmin }));
+        } catch(e) {}
 
     } else {
         if (formEl) formEl.style.display = 'flex';
         if (signedEl) signedEl.style.display = 'none';
         if (userDisplay) userDisplay.textContent = '';
         document.body.classList.remove('is-admin');
+        if (loggedEmailEl) loggedEmailEl.textContent = '';
+        if (loggedBadgeEl) loggedBadgeEl.style.display = 'none';
+        try { localStorage.removeItem('currentUser'); } catch(e) {}
     }
 });
+
+// Helper to check admin state synchronously from localStorage/cache
+function isCurrentUserAdmin() {
+    try {
+        const raw = localStorage.getItem('currentUser');
+        if (!raw) return false;
+        const parsed = JSON.parse(raw);
+        return !!parsed && !!parsed.isAdmin;
+    } catch(e) { return false; }
+}
 
 // Forçar chamada inicial para ajustar UI caso o listener já tenha ocorrido
 try { if (firebase && firebase.auth) firebase.auth().currentUser; } catch(e) {}
