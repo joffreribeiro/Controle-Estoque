@@ -2193,8 +2193,10 @@ function renderizarRegistroVendas() {
     // Agrupar vendas por contrato para mesclar colunas do contrato/cliente/representante
     const grupos = {};
     vendasFiltradas.forEach(v => {
-        // Normalizar contrato: garantir string sem espaços para agrupar corretamente
-        const key = (v.contrato || '').toString().trim();
+        // Normalizar contrato: trim e usar valor numérico quando fizer sentido (unificar '005' e '5')
+        const raw = (v.contrato || '').toString().trim();
+        const parsed = parseInt(raw, 10);
+        const key = (!isNaN(parsed) && raw !== '') ? String(parsed) : raw;
         if (!grupos[key]) grupos[key] = [];
         grupos[key].push(v);
     });
