@@ -1433,7 +1433,7 @@ function exportarExcelCompleto() {
     const wb = XLSX.utils.book_new();
 
     const invRows = estoque.produtos.map(p => {
-        const row = { Produto: p.nome, Preco: p.preco || 0 };
+        const row = { Produto: p.nome };
         let totalDisp = 0, totalVenda = 0;
         (estoque.representantes || []).forEach(rep => {
             const disp = p.distribuicao?.[rep] || 0;
@@ -1799,6 +1799,28 @@ function renderizarDashboard() {
     let totalUnidades = 0;
     let totalFaturamento = 0;
 
+    // Valor por produto deve vir apenas das vendas registradas
+    const valorPorProduto = {};
+    (estoque.registroVendas || []).forEach(venda => {
+        if (Array.isArray(venda.items) && venda.items.length > 0) {
+            venda.items.forEach(it => {
+                const nome = it.produtoNome || '';
+                if (!nome) return;
+                const valorItem = typeof it.valorTotal === 'number'
+                    ? it.valorTotal
+                    : ((Number(it.valorUnitario) || 0) * (Number(it.quantidade) || 0));
+                valorPorProduto[nome] = (valorPorProduto[nome] || 0) + valorItem;
+            });
+        } else {
+            const nome = venda.produtoNome || '';
+            if (!nome) return;
+            const valorLegacy = typeof venda.valorTotal === 'number'
+                ? venda.valorTotal
+                : ((Number(venda.valorUnitario) || 0) * (Number(venda.quantidade) || 0));
+            valorPorProduto[nome] = (valorPorProduto[nome] || 0) + valorLegacy;
+        }
+    });
+
     estoque.produtos.forEach(produto => {
         let totalProduto = 0;
         let vendasProdutoPorRep = {};
@@ -1810,13 +1832,12 @@ function renderizarDashboard() {
             vendasProdutoPorRep[rep] = venda;
         });
 
-        const valorTotal = totalProduto * (produto.preco || 0);
+        const valorTotal = valorPorProduto[produto.nome] || 0;
         
         dadosVendas.push({
             nome: produto.nome,
             quantidade: totalProduto,
             valor: valorTotal,
-            preco: produto.preco || 0,
             vendasPorRep: vendasProdutoPorRep
         });
 
@@ -2275,7 +2296,7 @@ function adicionarItemVendaRow(preProdutoId = '', preQuantidade = 1, preValor = 
         row.innerHTML = `
             <select class="item-produto" onchange="atualizarItemRow(this)">${opcoesHtml}</select>
             <input type="number" class="item-quantidade" min="1" value="${preQuantidade}" style="width:90px" onchange="atualizarItemRow(this)" />
-            <input type="text" class="item-valor" placeholder="Valor unit. (opcional)" style="width:140px" oninput="formatarMoeda(this); atualizarItemRow(this)" />
+            <input type="text" class="item-valor" placeholder="Valor unit. (obrigatório)" style="width:140px" oninput="formatarMoeda(this); atualizarItemRow(this)" />
             <div class="item-subtotal" style="min-width:120px">-</div>
             <button type="button" class="btn btn-outline btn-sm" onclick="removerItemRow(this)">Remover</button>
         `;
@@ -2306,26 +2327,22 @@ function atualizarItemRow(el) {
     const row = el.closest ? el.closest('.item-venda-row') : el.parentElement;
     if (!row) return;
 
-    const produtoId = parseInt(row.querySelector('.item-produto').value) || null;
     const quantidade = parseInt(row.querySelector('.item-quantidade').value) || 0;
     const valorInput = row.querySelector('.item-valor').value || '';
-    const produto = estoque.produtos.find(p => p.id === produtoId);
 
     let unit = 0;
     if (valorInput && valorInput.trim() !== '') {
         unit = converterMoedaParaNumero(valorInput);
-    } else if (produto && produto.preco) {
-        unit = produto.preco;
     }
 
     const subtotal = unit * quantidade;
     const subtotalEl = row.querySelector('.item-subtotal');
     subtotalEl.textContent = quantidade > 0 ? formatarMoedaValor(subtotal) : '-';
 
-    // Mostrar placeholder do preço padrão se o campo estiver vazio
+    // Placeholder fixo para reforçar valor informado na venda
     const valorEl = row.querySelector('.item-valor');
     if (valorEl && (!valorEl.value || valorEl.value.trim() === '')) {
-        valorEl.placeholder = produto && produto.preco ? formatarMoedaValor(produto.preco) : 'Opcional';
+        valorEl.placeholder = 'Valor unit. (obrigatório)';
     }
 
     atualizarTotalVendaDetalhada();
@@ -2341,14 +2358,10 @@ function atualizarTotalVendaDetalhada() {
     rows.forEach(row => {
         const quantidade = parseInt(row.querySelector('.item-quantidade').value) || 0;
         const valorInput = row.querySelector('.item-valor').value || '';
-        const produtoId = parseInt(row.querySelector('.item-produto').value) || null;
-        const produto = estoque.produtos.find(p => p.id === produtoId);
 
         let unit = 0;
         if (valorInput && valorInput.trim() !== '') {
             unit = converterMoedaParaNumero(valorInput);
-        } else if (produto && produto.preco) {
-            unit = produto.preco;
         }
 
         total += unit * quantidade;
@@ -2362,21 +2375,9 @@ function atualizarTotalVendaDetalhada() {
 // Layout toggle removed per user request (button removed from modal)
 
 function atualizarPrecoVenda() {
-    const produtoId = parseInt(document.getElementById('produtoVendaDet').value);
-    const quantidade = parseInt(document.getElementById('quantidadeVendaDet').value) || 0;
-    
-    const produto = estoque.produtos.find(p => p.id === produtoId);
-    
-    if (produto && produto.preco) {
-        const valorUnitario = produto.preco;
-        const valorTotal = valorUnitario * quantidade;
-        
-        document.getElementById('valorUnitarioVenda').value = formatarMoedaValor(valorUnitario);
-        document.getElementById('valorTotalVenda').value = quantidade > 0 ? formatarMoedaValor(valorTotal) : '';
-    } else {
-        document.getElementById('valorUnitarioVenda').value = '';
-        document.getElementById('valorTotalVenda').value = '';
-    }
+    // Valor de venda não é mais vinculado ao cadastro do produto.
+    // Mantemos o total com base apenas nos valores informados nos itens da venda.
+    atualizarTotalVendaDetalhada();
 }
 
 function salvarVendaDetalhada(event) {
@@ -2421,12 +2422,18 @@ function salvarVendaDetalhada(event) {
             return;
         }
 
-        // Determinar preço unitário (opcional)
+        // Determinar preço unitário (obrigatório por item)
         let unit = 0;
         if (valorInput && valorInput.trim() !== '') {
             unit = converterMoedaParaNumero(valorInput);
-        } else if (produto.preco) {
-            unit = produto.preco;
+        } else {
+            erros.push(`Item ${idx + 1}: informe o valor unitário.`);
+            return;
+        }
+
+        if (!unit || unit <= 0) {
+            erros.push(`Item ${idx + 1}: valor unitário inválido.`);
+            return;
         }
 
         const valorTotalItem = unit * quantidade;
@@ -3334,7 +3341,6 @@ function salvarProduto(event) {
     
     const nome = document.getElementById('nomeProduto').value.trim().toUpperCase();
     const estoqueTotal = parseInt(document.getElementById('estoqueTotal').value);
-    const preco = converterMoedaParaNumero(document.getElementById('precoProduto').value);
     
     if (estoque.produtos.some(p => p.nome === nome)) {
         mostrarNotificacao('Este produto já existe no sistema!', 'error');
@@ -3344,7 +3350,6 @@ function salvarProduto(event) {
     const novoProduto = {
         id: Date.now(),
         nome: nome,
-        preco: preco,
         distribuicao: { KOLTE: 0, ISA: 0, LC: 0, ADES: 0, FL: 0, IMBEL: estoqueTotal },
         vendas: { KOLTE: 0, ISA: 0, LC: 0, ADES: 0, FL: 0, IMBEL: 0 }
     };
@@ -3424,8 +3429,7 @@ function salvarVenda(event) {
     renderizarDashboard();
     fecharModal('modalVenda');
     
-    const valorVenda = quantidade * (produto.preco || 0);
-    mostrarNotificacao(`Venda registrada: ${quantidade}x "${produto.nome}" - ${formatarMoedaValor(valorVenda)}`, 'success');
+    mostrarNotificacao(`Venda registrada: ${quantidade}x "${produto.nome}"`, 'success');
 }
 
 function salvarDevolucao(event) {
@@ -3551,7 +3555,28 @@ function mostrarNotificacao(mensagem, tipo = 'info') {
 // ========================================
 
 function exportarDados() {
-    let csv = 'PRODUTO;PREÇO UNITÁRIO;';
+    let csv = 'PRODUTO;';
+
+    const valorPorProduto = {};
+    (estoque.registroVendas || []).forEach(venda => {
+        if (Array.isArray(venda.items) && venda.items.length > 0) {
+            venda.items.forEach(it => {
+                const nome = it.produtoNome || '';
+                if (!nome) return;
+                const valorItem = typeof it.valorTotal === 'number'
+                    ? it.valorTotal
+                    : ((Number(it.valorUnitario) || 0) * (Number(it.quantidade) || 0));
+                valorPorProduto[nome] = (valorPorProduto[nome] || 0) + valorItem;
+            });
+        } else {
+            const nome = venda.produtoNome || '';
+            if (!nome) return;
+            const valorLegacy = typeof venda.valorTotal === 'number'
+                ? venda.valorTotal
+                : ((Number(venda.valorUnitario) || 0) * (Number(venda.quantidade) || 0));
+            valorPorProduto[nome] = (valorPorProduto[nome] || 0) + valorLegacy;
+        }
+    });
     
     estoque.representantes.forEach(rep => {
         csv += `${rep} Disp;${rep} Venda;${rep} Saldo;`;
@@ -3559,7 +3584,7 @@ function exportarDados() {
     csv += 'GERAL Disp;GERAL Venda;GERAL Saldo;VALOR TOTAL VENDAS\n';
     
     estoque.produtos.forEach(produto => {
-        csv += `"${produto.nome}";${(produto.preco || 0).toFixed(2).replace('.', ',')};`;
+        csv += `"${produto.nome}";`;
         
         let geralDisp = 0, geralVenda = 0;
         
@@ -3574,7 +3599,7 @@ function exportarDados() {
             csv += `${disp};${venda};${saldo};`;
         });
         
-        const valorVendas = geralVenda * (produto.preco || 0);
+        const valorVendas = valorPorProduto[produto.nome] || 0;
         csv += `${geralDisp};${geralVenda};${geralDisp - geralVenda};${valorVendas.toFixed(2).replace('.', ',')}\n`;
     });
     
@@ -3602,8 +3627,8 @@ function exportarDados() {
 function exportarEstoqueCompleto() {
     const sep = ';';
     
-    // Cabeçalho simples: Produto, Preço, Quantidade Total
-    let csv = `PRODUTO${sep}PRECO${sep}QUANTIDADE_TOTAL\n`;
+    // Cabeçalho simples: Produto, Quantidade Total
+    let csv = `PRODUTO${sep}QUANTIDADE_TOTAL\n`;
     
     // Dados
     estoque.produtos.forEach(produto => {
@@ -3619,7 +3644,7 @@ function exportarEstoqueCompleto() {
             }
         });
         
-        csv += `${produto.nome}${sep}${(produto.preco || 0).toFixed(2).replace('.', ',')}${sep}${totalEstoque}\n`;
+        csv += `${produto.nome}${sep}${totalEstoque}\n`;
     });
     
     const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
@@ -3764,16 +3789,12 @@ function importarEstoque(event) {
                     continue;
                 }
                 
-                // Atualizar preço se fornecido (coluna 2)
-                const precoStr = colunas[1]?.trim();
-                if (precoStr) {
-                    const preco = parseFloat(precoStr.replace(/\./g, '').replace(',', '.')) || 0;
-                    if (preco > 0) produto.preco = preco;
-                }
-                
-                // Atualizar quantidade total no estoque IMBEL (coluna 3)
-                if (colunas[2] !== undefined) {
-                    const quantidade = parseInt(colunas[2]) || 0;
+                // Atualizar quantidade total no estoque IMBEL
+                // Formato novo: PRODUTO;QUANTIDADE_TOTAL
+                // Compatibilidade: se vier formato antigo (PRODUTO;PRECO;QUANTIDADE_TOTAL), usa a 3a coluna
+                const qtdCol = (colunas.length >= 3) ? colunas[2] : colunas[1];
+                if (qtdCol !== undefined) {
+                    const quantidade = parseInt(qtdCol) || 0;
                     produto.distribuicao.IMBEL = quantidade;
                 }
                 
@@ -3893,8 +3914,10 @@ function importarVendas(event) {
                     continue;
                 }
                 
-                const valorUnitario = produto.preco || 0;
-                const valorTotal = valorUnitario * quantidade;
+                // Valor deve vir do registro da venda (arquivo), sem vínculo com cadastro de produto
+                const valorUnitario = parseFloat((colunas[5] || '0').toString().replace(/\./g, '').replace(',', '.')) || 0;
+                const valorTotalArquivo = parseFloat((colunas[6] || '0').toString().replace(/\./g, '').replace(',', '.')) || 0;
+                const valorTotal = valorTotalArquivo > 0 ? valorTotalArquivo : (valorUnitario * quantidade);
                 
                 // Criar registro da venda
                 const novaVenda = {
