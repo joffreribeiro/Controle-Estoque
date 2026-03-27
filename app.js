@@ -2126,50 +2126,93 @@ function renderizarRegistroVendas() {
     const filtroRep = document.getElementById('filtroRepresentante')?.value || '';
     const filtroProduto = document.getElementById('filtroProduto')?.value || '';
     const filtroProdutoId = filtroProduto ? parseInt(filtroProduto) : null;
+    const filtroDataInicio = document.getElementById('filtroVendasDataInicio')?.value || '';
+    const filtroDataFim = document.getElementById('filtroVendasDataFim')?.value || '';
     
-    // Filtrar vendas
     let vendasFiltradas = estoque.registroVendas || [];
     
     if (filtroRep) {
         vendasFiltradas = vendasFiltradas.filter(v => v.representante === filtroRep);
     }
 
-    if (filtroProdutoId) {
-        vendasFiltradas = vendasFiltradas.filter(v => {
-            if (Array.isArray(v.items) && v.items.length > 0) {
-                return v.items.some(it => it.produtoId === filtroProdutoId);
-            }
-            return v.produtoId === filtroProdutoId;
-        });
-    }
-    
-    // Depuração rápida: inspecionar valores brutos de contrato para detectar inconsistências
-    try {
-        console.log('renderizarRegistroVendas - vendasFiltradas contratos (raw):', vendasFiltradas.map(v => ({ contrato: v.contrato, tipo: typeof v.contrato })));
-    } catch (e) { /* ignore */ }
+    // Expandir vendas para linhas de item (cada produto vira uma linha)
+    const linhas = [];
+    vendasFiltradas.forEach(venda => {
+        const dataNorm = parseDateToYYYYMMDD(venda.data) || '';
+        if (filtroDataInicio && dataNorm && dataNorm < filtroDataInicio) return;
+        if (filtroDataFim && dataNorm && dataNorm > filtroDataFim) return;
+        if ((filtroDataInicio || filtroDataFim) && !dataNorm) return;
+
+        const rawContrato = (venda.contrato ?? '').toString().normalize('NFKC');
+        const contratoClean = rawContrato.replace(/[\u200B-\u200D\uFEFF\s]+/g, '');
+        const somenteDigitos = contratoClean.replace(/\D+/g, '');
+        const contratoKey = somenteDigitos ? String(parseInt(somenteDigitos, 10)) : contratoClean.toUpperCase();
+
+        if (Array.isArray(venda.items) && venda.items.length > 0) {
+            venda.items.forEach(it => {
+                if (filtroProdutoId && it.produtoId !== filtroProdutoId) return;
+                const qtd = Number(it.quantidade || 0);
+                const valorUnNum = Number(it.valorUnitario || 0);
+                const valorTotNum = Number(it.valorTotal || (valorUnNum * qtd) || 0);
+                linhas.push({
+                    vendaId: venda.id,
+                    contratoKey,
+                    contratoRaw: venda.contrato,
+                    loja: venda.loja || '-',
+                    representante: venda.representante || '-',
+                    dataNorm,
+                    observacoes: venda.observacoes || '-',
+                    produtoNome: it.produtoNome || '-',
+                    quantidade: qtd,
+                    valorUnitario: valorUnNum,
+                    valorTotal: valorTotNum
+                });
+            });
+        } else {
+            if (filtroProdutoId && venda.produtoId !== filtroProdutoId) return;
+            const qtd = Number(venda.quantidade || 0);
+            const valorUnNum = Number(venda.valorUnitario || 0);
+            const valorTotNum = Number(venda.valorTotal || (valorUnNum * qtd) || 0);
+            linhas.push({
+                vendaId: venda.id,
+                contratoKey,
+                contratoRaw: venda.contrato,
+                loja: venda.loja || '-',
+                representante: venda.representante || '-',
+                dataNorm,
+                observacoes: venda.observacoes || '-',
+                produtoNome: venda.produtoNome || '-',
+                quantidade: qtd,
+                valorUnitario: valorUnNum,
+                valorTotal: valorTotNum
+            });
+        }
+    });
 
     // Ordenar conforme seleção do usuário (_ordenVendas)
-    vendasFiltradas.sort((a, b) => {
+    linhas.sort((a, b) => {
         const campo = _ordenVendas.campo || 'contrato';
         const dire = _ordenVendas.direcao === 'asc' ? 1 : -1;
         try {
             if (campo === 'contrato') {
-                return dire * ((parseInt(a.contrato) || 0) - (parseInt(b.contrato) || 0));
+                const na = parseInt(a.contratoKey);
+                const nb = parseInt(b.contratoKey);
+                if (!isNaN(na) && !isNaN(nb)) return dire * (na - nb);
+                return dire * a.contratoKey.localeCompare(b.contratoKey);
             }
             if (campo === 'valorTotal') {
-                const va = typeof a.valorTotal === 'number' ? a.valorTotal : (Array.isArray(a.items) ? a.items.reduce((s, it) => s + (it.valorTotal || 0), 0) : 0);
-                const vb = typeof b.valorTotal === 'number' ? b.valorTotal : (Array.isArray(b.items) ? b.items.reduce((s, it) => s + (it.valorTotal || 0), 0) : 0);
-                return dire * (va - vb);
+                return dire * ((a.valorTotal || 0) - (b.valorTotal || 0));
             }
             if (campo === 'data') {
-                const da = parseDateToYYYYMMDD(a.data) || '';
-                const db = parseDateToYYYYMMDD(b.data) || '';
+                const da = a.dataNorm || '';
+                const db = b.dataNorm || '';
                 if (da === db) return 0;
                 return dire * (da < db ? -1 : 1);
             }
-            // strings: loja, representante
-            const aa = (a[campo] || '').toString().toLowerCase();
-            const bb = (b[campo] || '').toString().toLowerCase();
+            const mapaCampo = { loja: 'loja', representante: 'representante' };
+            const chave = mapaCampo[campo] || 'contratoKey';
+            const aa = (a[chave] || '').toString().toLowerCase();
+            const bb = (b[chave] || '').toString().toLowerCase();
             if (aa < bb) return -1 * dire;
             if (aa > bb) return 1 * dire;
             return 0;
@@ -2178,10 +2221,10 @@ function renderizarRegistroVendas() {
     
     tbody.innerHTML = '';
     
-    if (vendasFiltradas.length === 0) {
+    if (linhas.length === 0) {
         tbody.innerHTML = `
             <tr>
-                <td colspan="10" class="empty-state">
+                <td colspan="11" class="empty-state">
                     <div class="empty-icon">📋</div>
                     <div class="empty-text">Nenhuma venda registrada</div>
                     <div class="empty-hint">Clique em "Nova Venda" para adicionar o primeiro registro</div>
@@ -2195,17 +2238,10 @@ function renderizarRegistroVendas() {
     let totalQtd = 0;
     let totalValor = 0;
 
-    // Agrupar vendas por contrato para mesclar colunas do contrato/cliente/representante
     const grupos = {};
-    vendasFiltradas.forEach(v => {
-        // Normalizar contrato: remover espaços invisíveis, usar valor numérico quando fizer sentido
-        let raw = (v.contrato || '').toString();
-        // remover qualquer whitespace (inclui espaços normais, NBSP, tabs, etc.)
-        const cleaned = raw.replace(/\s+/g, '');
-        const parsed = parseInt(cleaned, 10);
-        const key = (!isNaN(parsed) && cleaned !== '') ? String(parsed) : cleaned;
-        if (!grupos[key]) grupos[key] = [];
-        grupos[key].push(v);
+    linhas.forEach(linha => {
+        if (!grupos[linha.contratoKey]) grupos[linha.contratoKey] = [];
+        grupos[linha.contratoKey].push(linha);
     });
 
     // Ordenar chaves por contrato numérico
@@ -2216,135 +2252,54 @@ function renderizarRegistroVendas() {
         return a.localeCompare(b);
     });
 
-    // Depuração: mostrar contratos agrupados e quantidades + exemplos
-    const debugGroups = chavesOrdenadas.map(k => ({ contrato: k, vendas: grupos[k].length, exemplos: grupos[k].slice(0,3).map(v=>({ contratoRaw: v.contrato, loja: v.loja })) }));
-    console.log('RegistroVendas - contratos agrupados:', debugGroups);
-
-    // Atualizar overlay de debug visível (ajuda quando console estiver filtrado/cached)
-    try {
-        let dbg = document.getElementById('debug-grupos-vendas');
-        if (!dbg) {
-            dbg = document.createElement('div');
-            dbg.id = 'debug-grupos-vendas';
-            dbg.style.position = 'fixed';
-            dbg.style.right = '12px';
-            dbg.style.top = '72px';
-            dbg.style.background = 'rgba(0,0,0,0.7)';
-            dbg.style.color = 'white';
-            dbg.style.padding = '8px 10px';
-            dbg.style.fontSize = '12px';
-            dbg.style.zIndex = 9999;
-            dbg.style.maxHeight = '40vh';
-            dbg.style.overflow = 'auto';
-            document.body.appendChild(dbg);
-        }
-        dbg.innerText = 'Grupos (contrato:count): ' + debugGroups.map(g => `${g.contrato}:${g.vendas}`).join(', ');
-    } catch (e) { /* ignore */ }
+    // Remover overlay de debug temporário se existir
+    const dbg = document.getElementById('debug-grupos-vendas');
+    if (dbg) dbg.remove();
 
     chavesOrdenadas.forEach(contratoKey => {
-        const grupo = grupos[contratoKey];
-        // calcular total do contrato (soma de valorTotal dos registros/items)
-        let totalContrato = 0;
-        grupo.forEach(venda => {
-            if (Array.isArray(venda.items) && venda.items.length > 0) {
-                totalContrato += venda.items.reduce((s,it) => s + (it.valorTotal || 0), 0);
-            } else {
-                totalContrato += (venda.valorTotal || 0);
-            }
-        });
+        const grupo = grupos[contratoKey] || [];
+        const linhasDoContrato = grupo.length;
+        if (!linhasDoContrato) return;
 
-        // calcular quantas linhas esse contrato vai ocupar (considerando filtro de produto)
-        let linhasDoContrato = 0;
-        grupo.forEach(venda => {
-            if (Array.isArray(venda.items) && venda.items.length > 0) {
-                const itemsCount = (filtroProdutoId) ? venda.items.filter(it => it.produtoId === filtroProdutoId).length : venda.items.length;
-                linhasDoContrato += itemsCount;
-            } else {
-                if (!filtroProdutoId || venda.produtoId === filtroProdutoId) linhasDoContrato += 1;
-            }
-        });
-        if (linhasDoContrato === 0) return; // nada a renderizar para este contrato com os filtros aplicados
+        const totalContrato = grupo.reduce((sum, linha) => sum + (Number(linha.valorTotal) || 0), 0);
+        const primeira = grupo[0];
+        const repClass = (primeira.representante || '').toLowerCase();
+        const dataDisplay = primeira.dataNorm ? new Date(primeira.dataNorm).toLocaleDateString('pt-BR') : '-';
+        const obsGrupo = grupo.find(g => g.observacoes && g.observacoes !== '-')?.observacoes || primeira.observacoes || '-';
 
-        // Renderizar linhas por item dentro do contrato usando rowspan para mesclar colunas do contrato
-        let primeiroRegistroDoContrato = true;
-        let linhasRenderizadas = 0;
-        grupo.forEach(venda => {
-            const repClass = (venda.representante || '').toLowerCase();
-            if (Array.isArray(venda.items) && venda.items.length > 0) {
-                let itemsToRender = venda.items;
-                if (filtroProdutoId) itemsToRender = itemsToRender.filter(it => it.produtoId === filtroProdutoId);
-                itemsToRender.forEach((it, idx) => {
-                    const valorUn = it.valorUnitario ? formatarMoedaValor(it.valorUnitario) : '-';
-                    const valorTot = it.valorTotal || (it.valorUnitario || 0) * (it.quantidade || 0);
-                    totalQtd += it.quantidade || 0;
-                    totalValor += valorTot || 0;
-                    const dataDisplay = venda.data ? (parseDateToYYYYMMDD(venda.data) ? new Date(parseDateToYYYYMMDD(venda.data)).toLocaleDateString('pt-BR') : '-') : '-';
-                    const tr = document.createElement('tr');
-                    // se for o primeiro registro do contrato, adicionar células com rowspan
-                    if (primeiroRegistroDoContrato) {
-                        tr.innerHTML = `
-                            <td class="col-contrato" rowspan="${linhasDoContrato}">${contratoKey}</td>
-                            <td class="col-loja" title="${venda.loja}" rowspan="${linhasDoContrato}">${venda.loja}</td>
-                            <td class="col-representante" rowspan="${linhasDoContrato}"><span class="badge-rep ${repClass}">${venda.representante}</span></td>
-                            <td class="col-produto-venda" title="${it.produtoNome}">${it.produtoNome}</td>
-                            <td class="col-qtd">${it.quantidade}</td>
-                            <td class="col-valor-un">${valorUn}</td>
-                            <td class="col-valor-total">${valorTot > 0 ? formatarMoedaValor(valorTot) : '-'}</td>
-                            <td class="col-data" rowspan="${linhasDoContrato}">${dataDisplay}</td>
-                            <td class="col-total-contrato" rowspan="${linhasDoContrato}">${formatarMoedaValor(totalContrato)}</td>
-                            <td class="col-obs" title="${venda.observacoes || '-'}" rowspan="${linhasDoContrato}">${venda.observacoes || '-'}</td>
-                            <td class="col-acoes"><button class="btn-action btn-edit" onclick="abrirModalVendaDetalhada(${venda.id})" title="Editar venda">✎</button><button class="btn-action btn-delete" onclick="excluirVenda(${venda.id})" title="Excluir venda">🗑</button></td>
-                        `;
-                        primeiroRegistroDoContrato = false;
-                    } else {
-                        tr.innerHTML = `
-                            <td class="col-produto-venda" title="${it.produtoNome}">${it.produtoNome}</td>
-                            <td class="col-qtd">${it.quantidade}</td>
-                            <td class="col-valor-un">${valorUn}</td>
-                            <td class="col-valor-total">${valorTot > 0 ? formatarMoedaValor(valorTot) : '-'}</td>
-                            <td class="col-acoes"><button class="btn-action btn-edit" onclick="abrirModalVendaDetalhada(${venda.id})" title="Editar venda">✎</button><button class="btn-action btn-delete" onclick="excluirVenda(${venda.id})" title="Excluir venda">🗑</button></td>
-                        `;
-                    }
-                    tbody.appendChild(tr);
-                    linhasRenderizadas++;
-                });
+        grupo.forEach((linha, idx) => {
+            const tr = document.createElement('tr');
+            const valorUn = linha.valorUnitario ? formatarMoedaValor(linha.valorUnitario) : '-';
+            const valorTot = linha.valorTotal || 0;
+
+            totalQtd += linha.quantidade || 0;
+            totalValor += valorTot || 0;
+
+            if (idx === 0) {
+                tr.innerHTML = `
+                    <td class="col-contrato" rowspan="${linhasDoContrato}">${contratoKey || '-'}</td>
+                    <td class="col-loja" title="${primeira.loja}" rowspan="${linhasDoContrato}">${primeira.loja}</td>
+                    <td class="col-representante" rowspan="${linhasDoContrato}"><span class="badge-rep ${repClass}">${primeira.representante}</span></td>
+                    <td class="col-produto-venda" title="${linha.produtoNome}">${linha.produtoNome}</td>
+                    <td class="col-qtd">${linha.quantidade}</td>
+                    <td class="col-valor-un">${valorUn}</td>
+                    <td class="col-valor-total">${valorTot > 0 ? formatarMoedaValor(valorTot) : '-'}</td>
+                    <td class="col-data" rowspan="${linhasDoContrato}">${dataDisplay}</td>
+                    <td class="col-total-contrato" rowspan="${linhasDoContrato}">${formatarMoedaValor(totalContrato)}</td>
+                    <td class="col-obs" title="${obsGrupo}" rowspan="${linhasDoContrato}">${obsGrupo}</td>
+                    <td class="col-acoes"><button class="btn-action btn-edit" onclick="abrirModalVendaDetalhada(${linha.vendaId})" title="Editar venda">✎</button><button class="btn-action btn-delete" onclick="excluirVenda(${linha.vendaId})" title="Excluir venda">🗑</button></td>
+                `;
             } else {
-                // venda antiga com único produto
-                if (filtroProdutoId && venda.produtoId !== filtroProdutoId) return;
-                const produtoNome = venda.produtoNome || '-';
-                const qtd = venda.quantidade || 0;
-                const valorUn = venda.valorUnitario ? formatarMoedaValor(venda.valorUnitario) : '-';
-                const valorTot = venda.valorTotal || 0;
-                totalQtd += qtd;
-                totalValor += valorTot;
-                const dataDisplay = venda.data ? (parseDateToYYYYMMDD(venda.data) ? new Date(parseDateToYYYYMMDD(venda.data)).toLocaleDateString('pt-BR') : '-') : '-';
-                const tr = document.createElement('tr');
-                if (primeiroRegistroDoContrato) {
-                    tr.innerHTML = `
-                        <td class="col-contrato" rowspan="${linhasDoContrato}">${contratoKey}</td>
-                        <td class="col-loja" title="${venda.loja}" rowspan="${linhasDoContrato}">${venda.loja}</td>
-                        <td class="col-representante" rowspan="${linhasDoContrato}"><span class="badge-rep ${repClass}">${venda.representante}</span></td>
-                        <td class="col-produto-venda" title="${produtoNome}">${produtoNome}</td>
-                        <td class="col-qtd">${qtd}</td>
-                        <td class="col-valor-un">${valorUn}</td>
-                        <td class="col-valor-total">${valorTot > 0 ? formatarMoedaValor(valorTot) : '-'}</td>
-                        <td class="col-data" rowspan="${linhasDoContrato}">${dataDisplay}</td>
-                        <td class="col-total-contrato" rowspan="${linhasDoContrato}">${formatarMoedaValor(totalContrato)}</td>
-                        <td class="col-obs" title="${venda.observacoes || '-'}" rowspan="${linhasDoContrato}">${venda.observacoes || '-'}</td>
-                        <td class="col-acoes"><button class="btn-action btn-edit" onclick="abrirModalVendaDetalhada(${venda.id})" title="Editar venda">✎</button><button class="btn-action btn-delete" onclick="excluirVenda(${venda.id})" title="Excluir venda">🗑</button></td>
-                    `;
-                    primeiroRegistroDoContrato = false;
-                } else {
-                    tr.innerHTML = `
-                        <td class="col-produto-venda" title="${produtoNome}">${produtoNome}</td>
-                        <td class="col-qtd">${qtd}</td>
-                        <td class="col-valor-un">${valorUn}</td>
-                        <td class="col-valor-total">${valorTot > 0 ? formatarMoedaValor(valorTot) : '-'}</td>
-                        <td class="col-acoes"><button class="btn-action btn-edit" onclick="abrirModalVendaDetalhada(${venda.id})" title="Editar venda">✎</button><button class="btn-action btn-delete" onclick="excluirVenda(${venda.id})" title="Excluir venda">🗑</button></td>
-                    `;
-                }
-                tbody.appendChild(tr);
+                tr.innerHTML = `
+                    <td class="col-produto-venda" title="${linha.produtoNome}">${linha.produtoNome}</td>
+                    <td class="col-qtd">${linha.quantidade}</td>
+                    <td class="col-valor-un">${valorUn}</td>
+                    <td class="col-valor-total">${valorTot > 0 ? formatarMoedaValor(valorTot) : '-'}</td>
+                    <td class="col-acoes"><button class="btn-action btn-edit" onclick="abrirModalVendaDetalhada(${linha.vendaId})" title="Editar venda">✎</button><button class="btn-action btn-delete" onclick="excluirVenda(${linha.vendaId})" title="Excluir venda">🗑</button></td>
+                `;
             }
+
+            tbody.appendChild(tr);
         });
     });
     
