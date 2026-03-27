@@ -496,11 +496,11 @@
                             <option value="">Todos</option>
                         </select>
                         <label style="margin:0 8px">De:</label>
-                        <input type="date" id="filtroRelatoriosDataInicio" />
+                        <input type="date" id="filtroRelatoriosDataInicio" onchange="visualizarRelatorioSelecionado()" />
                         <label style="margin:0 8px">Até:</label>
-                        <input type="date" id="filtroRelatoriosDataFim" />
+                        <input type="date" id="filtroRelatoriosDataFim" onchange="visualizarRelatorioSelecionado()" />
                         <label style="margin:0 8px">Tipo:</label>
-                        <select id="filtroRelatoriosTipo" style="margin-right:8px">
+                        <select id="filtroRelatoriosTipo" style="margin-right:8px" onchange="visualizarRelatorioSelecionado()">
                             <option value="inventario">Inventário</option>
                             <option value="comissoes">Comissões</option>
                             <option value="distribuicao">Distribuição</option>
