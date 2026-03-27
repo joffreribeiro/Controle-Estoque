@@ -1514,6 +1514,30 @@ tr.total-row:hover {
     text-decoration: underline;
 }
 
+/* Ajustes compactos para Registro de Vendas */
+#tabelaRegistroVendas td {
+    padding: 6px 8px;
+    line-height: 1.2;
+}
+
+#tabelaRegistroVendas .row-contrato-resumo td,
+#tabelaRegistroVendas .row-contrato-detalhe td {
+    vertical-align: middle;
+}
+
+#tabelaRegistroVendas td.col-acoes {
+    white-space: nowrap;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+#tabelaRegistroVendas td.col-acoes .btn-action {
+    padding: 4px 7px;
+    font-size: 0.78rem;
+    line-height: 1;
+}
+
 .btn-action {
     border: none;
     padding: 6px 10px;
