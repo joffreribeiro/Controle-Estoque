@@ -1891,38 +1891,43 @@ th.header-rep { border-right: 2px solid rgba(255,255,255,0.06); }
     color: white;
 }
 
-/* Forçar cabeçalho da tabela de Inventário a ficar igual ao Relatório */
-/* Torna todas as células do thead com fundo uniforme e texto branco */
+/* Cabeçalho do preview/relatório mantém cor primária */
+.report-printable thead th {
+    background: var(--primary-color);
+    color: white;
+}
+
+/* Restaurar cores por representante especificamente na tabela de Inventário
+   para facilitar a identificação visual (mesma paleta usada no layout geral). */
 #tabelaEstoque thead th {
-    background: var(--primary-color) !important;
-    color: #ffffff !important;
-    border: 1px solid #e6e9ee !important;
+    border: 1px solid #e6e9ee;
+    padding: 8px 10px;
+    text-align: center;
+    color: #ffffff;
 }
 
-/* Segunda linha de sub-headers também em cor única */
-#tabelaEstoque thead tr:nth-child(2) th.sub-header {
-    background: var(--primary-color) !important;
-    color: #ffffff !important;
-}
+/* Cores por representante (mesmas usadas globalmente, aplicadas com maior especificidade)
+   para que a tabela de inventário reflita a imagem fornecida. */
+#tabelaEstoque thead th.header-rep.kolte { background: #3d5a80 !important; }
+#tabelaEstoque thead th.header-rep.isa   { background: #5c4d7d !important; }
+#tabelaEstoque thead th.header-rep.lc    { background: #2d6a4f !important; }
+#tabelaEstoque thead th.header-rep.ades  { background: #9c4a1a !important; }
+#tabelaEstoque thead th.header-rep.fl    { background: #7b2d26 !important; }
+#tabelaEstoque thead th.header-rep.imbel { background: #1e3a5f !important; }
+#tabelaEstoque thead th.header-geral     { background: var(--primary-dark) !important; }
 
-/* Remover as variações de cores por representante apenas para a visual igual ao relatório */
-#tabelaEstoque thead tr:nth-child(1) th.header-rep.kolte,
-#tabelaEstoque thead tr:nth-child(1) th.header-rep.isa,
-#tabelaEstoque thead tr:nth-child(1) th.header-rep.lc,
-#tabelaEstoque thead tr:nth-child(1) th.header-rep.ades,
-#tabelaEstoque thead tr:nth-child(1) th.header-rep.fl,
-#tabelaEstoque thead tr:nth-child(1) th.header-rep.imbel,
-#tabelaEstoque thead tr:nth-child(1) th.header-geral {
-    background: var(--primary-color) !important;
-    color: #ffffff !important;
-}
+/* Segunda linha (sub-headers Disp/Venda/Saldo) com as mesmas tonalidades por grupo */
+#tabelaEstoque thead tr:nth-child(2) th.sub-header { color: #ffffff !important; }
+#tabelaEstoque thead tr:nth-child(2) th:nth-child(3n+1):nth-child(-n+3) { background: #3d5a80 !important; }
+#tabelaEstoque thead tr:nth-child(2) th:nth-child(n+4):nth-child(-n+6) { background: #5c4d7d !important; }
+#tabelaEstoque thead tr:nth-child(2) th:nth-child(n+7):nth-child(-n+9) { background: #2d6a4f !important; }
+#tabelaEstoque thead tr:nth-child(2) th:nth-child(n+10):nth-child(-n+12) { background: #9c4a1a !important; }
+#tabelaEstoque thead tr:nth-child(2) th:nth-child(n+13):nth-child(-n+15) { background: #7b2d26 !important; }
+#tabelaEstoque thead tr:nth-child(2) th:nth-child(n+16):nth-child(-n+18) { background: #1e3a5f !important; }
+#tabelaEstoque thead tr:nth-child(2) th:nth-child(n+19):nth-child(-n+21) { background: var(--primary-dark) !important; }
 
-/* Ajustes de padding/contraste para combinar visualmente com o relatório */
-#tabelaEstoque thead th,
-#tabelaEstoque thead td {
-    padding: 8px 10px !important;
-    text-align: center !important;
-}
+/* Reforçar texto branco nas células do thead da tabela de inventário */
+#tabelaEstoque thead th { color: #ffffff !important; }
 
 /* Linha com saldo consolidado zerado */
 tr.row-saldo-zero {
