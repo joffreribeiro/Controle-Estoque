@@ -1127,14 +1127,21 @@ function exportarComissoesCSV() {
         const contratoKey = normalizarContrato(v.contrato);
         if (!contratoKey) return;
         const mapKey = `${v.representante || ''}||${contratoKey}`;
+        const dataNorm = parseDateToYYYYMMDD(v.data);
         const atual = contratosMap.get(mapKey) || {
             representante: v.representante || '',
             contrato: contratoKey,
             loja: v.loja || '',
-            valorContrato: 0
+            valorContrato: 0,
+            dataMin: null,
+            dataMax: null
         };
         atual.valorContrato += obterValorVenda(v);
         if (!atual.loja && v.loja) atual.loja = v.loja;
+        if (dataNorm) {
+            if (!atual.dataMin || dataNorm < atual.dataMin) atual.dataMin = dataNorm;
+            if (!atual.dataMax || dataNorm > atual.dataMax) atual.dataMax = dataNorm;
+        }
         contratosMap.set(mapKey, atual);
     });
 
@@ -1145,12 +1152,17 @@ function exportarComissoesCSV() {
     });
 
     const sep = ';';
-    let csv = `REPRESENTANTE${sep}CONTRATO${sep}CLIENTE/LOJA${sep}VALOR_CONTRATO${sep}COMISSAO_5%\n`;
+    let csv = `REPRESENTANTE${sep}CONTRATO${sep}CLIENTE/LOJA${sep}DATA${sep}VALOR_CONTRATO${sep}COMISSAO_5%\n`;
 
     contratos.forEach(c => {
         const valor = c.valorContrato || 0;
         const comissao = Math.round((valor * 0.05) * 100) / 100;
-        csv += `${c.representante || ''}${sep}${c.contrato || ''}${sep}${(c.loja || '').replace(/\n/g,' ')}${sep}${valor.toFixed(2).replace('.',',')}${sep}${comissao.toFixed(2).replace('.',',')}\n`;
+        const dataTexto = c.dataMin
+            ? (c.dataMax && c.dataMax !== c.dataMin
+                ? `${new Date(c.dataMin + 'T00:00:00').toLocaleDateString('pt-BR')} até ${new Date(c.dataMax + 'T00:00:00').toLocaleDateString('pt-BR')}`
+                : new Date(c.dataMin + 'T00:00:00').toLocaleDateString('pt-BR'))
+            : '-';
+        csv += `${c.representante || ''}${sep}${c.contrato || ''}${sep}${(c.loja || '').replace(/\n/g,' ')}${sep}${dataTexto}${sep}${valor.toFixed(2).replace('.',',')}${sep}${comissao.toFixed(2).replace('.',',')}\n`;
     });
 
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
@@ -4361,16 +4373,26 @@ function exportarRelatorioPDF() {
             const contratoKey = normalizarContrato(v.contrato);
             if (!contratoKey) return;
             const mapKey = `${v.representante || ''}||${contratoKey}`;
-            const atual = contratosMap.get(mapKey) || { representante: v.representante || '', contrato: contratoKey, loja: v.loja || '', valor: 0 };
+            const dataNorm = parseDateToYYYYMMDD(v.data);
+            const atual = contratosMap.get(mapKey) || { representante: v.representante || '', contrato: contratoKey, loja: v.loja || '', valor: 0, dataMin: null, dataMax: null };
             atual.valor += obterValorVenda(v);
             if (!atual.loja && v.loja) atual.loja = v.loja;
+            if (dataNorm) {
+                if (!atual.dataMin || dataNorm < atual.dataMin) atual.dataMin = dataNorm;
+                if (!atual.dataMax || dataNorm > atual.dataMax) atual.dataMax = dataNorm;
+            }
             contratosMap.set(mapKey, atual);
         });
         const contratos = Array.from(contratosMap.values());
-        const headers = [['Rep', 'Contrato', 'Cliente', 'Valor', 'Comissão 5%']];
+        const headers = [['Rep', 'Contrato', 'Cliente', 'Data', 'Valor', 'Comissão 5%']];
         const data = contratos.map(c => {
             const valor = c.valor || 0;
-            return [c.representante, c.contrato, c.loja, formatarMoedaValor(valor), formatarMoedaValor(Math.round(valor*0.05*100)/100)];
+            const dataTexto = c.dataMin
+                ? (c.dataMax && c.dataMax !== c.dataMin
+                    ? `${new Date(c.dataMin + 'T00:00:00').toLocaleDateString('pt-BR')} até ${new Date(c.dataMax + 'T00:00:00').toLocaleDateString('pt-BR')}`
+                    : new Date(c.dataMin + 'T00:00:00').toLocaleDateString('pt-BR'))
+                : '-';
+            return [c.representante, c.contrato, c.loja, dataTexto, formatarMoedaValor(valor), formatarMoedaValor(Math.round(valor*0.05*100)/100)];
         });
         doc.setFontSize(14);
         doc.text(titulo, 14, 15);
