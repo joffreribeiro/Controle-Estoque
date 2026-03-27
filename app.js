@@ -5079,3 +5079,71 @@ excluirDistribuicao = function(distId) {
         try { registrarHistorico('exclusao', `Distribuição ${dist.produtoNome} x${dist.quantidade} (${dist.representante}) excluída`); } catch(e) {}
     }
 };
+
+// ---------------------------
+// Autenticação (Firebase Auth - client)
+// ---------------------------
+
+// Realiza login com email/senha usando Firebase Auth (compat)
+async function signIn() {
+    const emailEl = document.getElementById('authEmail');
+    const passEl = document.getElementById('authPassword');
+    if (!emailEl || !passEl) return;
+    const email = emailEl.value.trim();
+    const password = passEl.value;
+    try {
+        await firebase.auth().signInWithEmailAndPassword(email, password);
+        mostrarNotificacao('Login efetuado', 'success');
+    } catch (err) {
+        console.error('Erro signIn', err);
+        mostrarNotificacao('Falha no login: ' + (err.message || err), 'error');
+    }
+}
+
+// Desloga o usuário
+async function signOut() {
+    try {
+        await firebase.auth().signOut();
+        mostrarNotificacao('Sessão encerrada', 'info');
+    } catch (err) {
+        console.error('Erro signOut', err);
+        mostrarNotificacao('Erro ao sair: ' + (err.message || err), 'error');
+    }
+}
+
+// Atualiza UI conforme estado de autenticação
+firebase.auth().onAuthStateChanged(async function(user) {
+    const formEl = document.getElementById('authPanelForm');
+    const signedEl = document.getElementById('authSignedIn');
+    const userDisplay = document.getElementById('authUserDisplay');
+    if (user) {
+        if (formEl) formEl.style.display = 'none';
+        if (signedEl) signedEl.style.display = 'flex';
+        if (userDisplay) userDisplay.textContent = user.email || user.uid;
+
+        // Verifica claims para habilitar controles de admin
+        let isAdmin = false;
+        try {
+            const idt = await user.getIdTokenResult();
+            isAdmin = !!idt.claims && !!idt.claims.admin;
+        } catch (e) { /* ignore */ }
+
+        // Fallback por email (temporário) — remove se preferir depender apenas da claim
+        if (!isAdmin && user.email === 'joffre.ribeiro@gmail.com') isAdmin = true;
+
+        if (isAdmin) {
+            document.body.classList.add('is-admin');
+        } else {
+            document.body.classList.remove('is-admin');
+        }
+
+    } else {
+        if (formEl) formEl.style.display = 'flex';
+        if (signedEl) signedEl.style.display = 'none';
+        if (userDisplay) userDisplay.textContent = '';
+        document.body.classList.remove('is-admin');
+    }
+});
+
+// Forçar chamada inicial para ajustar UI caso o listener já tenha ocorrido
+try { if (firebase && firebase.auth) firebase.auth().currentUser; } catch(e) {}

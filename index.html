@@ -54,6 +54,18 @@
                         <span class="fs-dot fs-offline" id="fsDot"></span>
                         <span class="fs-text" id="fsText">Cloud: desconectado</span>
                     </div>
+                    <!-- Auth Panel -->
+                    <div id="authPanel" class="auth-panel">
+                        <form id="authPanelForm" onsubmit="event.preventDefault(); signIn()">
+                            <input type="email" id="authEmail" placeholder="email" autocomplete="username" required>
+                            <input type="password" id="authPassword" placeholder="senha" autocomplete="current-password" required>
+                            <button type="submit" class="btn btn-primary btn-sm" id="btnAuthSignIn">Entrar</button>
+                        </form>
+                        <div id="authSignedIn" class="auth-signedin" style="display:none; align-items:center; gap:8px;">
+                            <span id="authUserDisplay" style="font-weight:600"></span>
+                            <button class="btn btn-outline btn-sm" id="btnAuthSignOut" onclick="signOut()">Sair</button>
+                        </div>
+                    </div>
                 </div>
             </div>
         </header>
