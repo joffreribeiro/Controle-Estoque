@@ -67,21 +67,8 @@ try {
         // Instância do Firestore para uso nas funções abaixo
         try {
             window.firestoreDB = firebase.firestore();
-            // após inicializar, tentar ler o último timestamp para exibir
-            try {
-                window.firestoreDB.collection('app_data').doc('latest').get().then(doc => {
-                    if (doc && doc.exists) {
-                        const data = doc.data();
-                        const updatedAt = data && data.updatedAt ? data.updatedAt.toDate() : null;
-                        updateFirestoreStatus(true, updatedAt);
-                    } else {
-                        updateFirestoreStatus(true, null, 'Cloud: pronto (sem backup)');
-                    }
-                }).catch(err => {
-                    console.warn('Não foi possível ler último sync:', err);
-                    updateFirestoreStatus(true, null, 'Cloud: pronto');
-                });
-            } catch (inner) { updateFirestoreStatus(true, null, 'Cloud: pronto'); }
+            // Não tentar ler do cloud antes da autenticação para evitar erros de permissão
+            updateFirestoreStatus(true, null, 'Cloud: aguardando login');
         } catch (e) {
             console.warn('Firestore não disponível:', e);
             window.firestoreDB = null;
@@ -184,25 +171,7 @@ const dadosIniciais = [
 async function inicializar() {
     carregarDados();
 
-    // Tentar carregar automaticamente do Cloud se o Firestore estiver disponível
-    // e se o backup remoto for mais recente que os dados locais. Isso usa a
-    // lógica segura em `carregarDoCloudAuto()` que compara timestamps para
-    // evitar sobrescritas indesejadas.
-    try {
-        if (window.firestoreDB) {
-            try {
-                const autoLoaded = await carregarDoCloudAuto();
-                if (autoLoaded) {
-                    try { mostrarNotificacao('Dados carregados automaticamente do Cloud (remoto mais recente).', 'success'); } catch (e) {}
-                }
-            } catch (e) {
-                console.warn('Carregamento automático do cloud falhou:', e);
-            }
-        }
-    } catch (e) {
-        // não bloquear inicialização se algo falhar
-        console.warn('Erro verificando carregamento automático do cloud:', e);
-    }
+    // Sync automático com cloud ocorre após autenticação (onAuthStateChanged)
 
     renderizarTabela();
     renderizarDashboard();
@@ -380,6 +349,15 @@ async function carregarDoCloud({confirmOverwrite=true} = {}) {
 // Carrega automaticamente do cloud se o documento remoto for mais recente que o local
 async function carregarDoCloudAuto() {
     if (!window.firestoreDB) return false;
+    // Evitar leitura sem autenticação (causa Missing or insufficient permissions)
+    try {
+        if (!firebase || !firebase.auth || !firebase.auth().currentUser) {
+            updateFirestoreStatus(true, null, 'Cloud: aguardando login');
+            return false;
+        }
+    } catch (e) {
+        return false;
+    }
     try {
         const docRef = window.firestoreDB.collection('app_data').doc('latest');
         const doc = await docRef.get();
@@ -405,7 +383,8 @@ async function carregarDoCloudAuto() {
         }
         return false;
     } catch (e) {
-        console.error('Erro em carregarDoCloudAuto:', e);
+        // Quando regras bloquearem leitura, não poluir console com erro fatal
+        console.warn('carregarDoCloudAuto: leitura não permitida pelo perfil atual.');
         return false;
     }
 }
@@ -423,6 +402,7 @@ window.__AUTO_SAVE_CLOUD = {
 function scheduleCloudSaveDebounced() {
     if (!window.__AUTO_SAVE_CLOUD.enabled) return;
     if (!window.firestoreDB) return;
+    if (!isCurrentUserAdmin()) return;
     if (window.__AUTO_SAVE_CLOUD.timerId) clearTimeout(window.__AUTO_SAVE_CLOUD.timerId);
     window.__AUTO_SAVE_CLOUD.timerId = setTimeout(async () => {
         window.__AUTO_SAVE_CLOUD.timerId = null;
@@ -5177,6 +5157,33 @@ firebase.auth().onAuthStateChanged(async function(user) {
             localStorage.setItem('currentUser', JSON.stringify({ email: user.email || null, uid: user.uid || null, isAdmin }));
         } catch(e) {}
 
+        // Após autenticar, atualizar status do cloud e tentar auto-load 1x por usuário
+        try {
+            if (window.firestoreDB) {
+                try {
+                    const doc = await window.firestoreDB.collection('app_data').doc('latest').get();
+                    if (doc && doc.exists) {
+                        const data = doc.data();
+                        const updatedAt = data && data.updatedAt ? data.updatedAt.toDate() : null;
+                        updateFirestoreStatus(true, updatedAt, 'Cloud: pronto');
+                    } else {
+                        updateFirestoreStatus(true, null, 'Cloud: pronto (sem backup)');
+                    }
+                } catch (e) {
+                    updateFirestoreStatus(true, null, 'Cloud: sem permissão de leitura');
+                }
+
+                // Auto-load somente uma vez por usuário autenticado
+                if (window.__cloudAutoLoadDoneForUid !== user.uid) {
+                    const autoLoaded = await carregarDoCloudAuto();
+                    window.__cloudAutoLoadDoneForUid = user.uid;
+                    if (autoLoaded) {
+                        try { mostrarNotificacao('Dados carregados automaticamente do Cloud (remoto mais recente).', 'success'); } catch (e) {}
+                    }
+                }
+            }
+        } catch (e) { /* ignore */ }
+
     } else {
         if (formEl) formEl.style.display = 'flex';
         if (signedEl) signedEl.style.display = 'none';
@@ -5185,6 +5192,8 @@ firebase.auth().onAuthStateChanged(async function(user) {
         if (loggedEmailEl) loggedEmailEl.textContent = '';
         if (loggedBadgeEl) loggedBadgeEl.style.display = 'none';
         try { localStorage.removeItem('currentUser'); } catch(e) {}
+        try { window.__cloudAutoLoadDoneForUid = null; } catch (e) {}
+        try { updateFirestoreStatus(true, null, 'Cloud: aguardando login'); } catch (e) {}
     }
 });
 
