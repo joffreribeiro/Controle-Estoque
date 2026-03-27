@@ -914,9 +914,6 @@ function prepararRelatorioComissoes() {
     // Ordenar por contrato
     vendasFiltradas.sort((a, b) => (parseInt(a.contrato) || 0) - (parseInt(b.contrato) || 0));
 
-    // Representantes presentes no conjunto filtrado (sem IMBEL)
-    const reps = filtroRep ? [filtroRep] : Array.from(new Set(vendasFiltradas.map(v => v.representante).filter(r => r && r.toString().trim().toUpperCase() !== 'IMBEL')));
-
     let totalComissoes = 0;
 
     const container = document.createElement('div');
@@ -949,76 +946,85 @@ function prepararRelatorioComissoes() {
         return a.localeCompare(b);
     };
 
-    reps.forEach(rep => {
-        const vendasRep = vendasFiltradas.filter(v => (v.representante || '') === rep);
-        if (!vendasRep || vendasRep.length === 0) return;
+    const vendasConsideradas = filtroRep
+        ? vendasFiltradas.filter(v => (v.representante || '') === filtroRep)
+        : vendasFiltradas;
 
-        const contratosMap = new Map();
-        vendasRep.forEach(v => {
-            const contratoKey = normalizarContrato(v.contrato);
-            if (!contratoKey) return;
-            const atual = contratosMap.get(contratoKey) || {
-                contrato: contratoKey,
-                loja: v.loja || '',
-                valorContrato: 0
-            };
-            atual.valorContrato += obterValorVenda(v);
-            if (!atual.loja && v.loja) atual.loja = v.loja;
-            contratosMap.set(contratoKey, atual);
-        });
-
-        const contratosRep = Array.from(contratosMap.values()).sort((a, b) => ordenarContrato(a.contrato, b.contrato));
-        if (contratosRep.length === 0) return;
-
-        const titulo = document.createElement('h3');
-        titulo.textContent = `Representante: ${rep}`;
-        titulo.style.margin = '8px 0 6px 0';
-        container.appendChild(titulo);
-
-        const table = document.createElement('table');
-        table.className = 'tabela-relatorio comissoes-table';
-        table.style.width = '100%';
-        table.style.borderCollapse = 'collapse';
-        table.innerHTML = `
-            <thead>
-                <tr>
-                    <th style="text-align:left;padding:6px;border:1px solid #ddd">Contrato</th>
-                    <th style="text-align:left;padding:6px;border:1px solid #ddd">Cliente / Loja</th>
-                    <th style="text-align:right;padding:6px;border:1px solid #ddd">Valor Contrato (R$)</th>
-                    <th style="text-align:right;padding:6px;border:1px solid #ddd">Comissão 5% (R$)</th>
-                </tr>
-            </thead>
-            <tbody></tbody>
-        `;
-
-        const tbody = table.querySelector('tbody');
-        let subtotalRep = 0;
-        contratosRep.forEach(c => {
-            const valor = c.valorContrato || 0;
-            const comissao = Math.round((valor * 0.05) * 100) / 100;
-            subtotalRep += comissao;
-            totalComissoes += comissao;
-
-            const tr = document.createElement('tr');
-            tr.innerHTML = `
-                <td style="padding:6px;border:1px solid #ddd">${c.contrato || ''}</td>
-                <td style="padding:6px;border:1px solid #ddd">${c.loja || ''}</td>
-                <td style="padding:6px;border:1px solid #ddd;text-align:right">${formatarMoedaValor(valor)}</td>
-                <td style="padding:6px;border:1px solid #ddd;text-align:right">${formatarMoedaValor(comissao)}</td>
-            `;
-            tbody.appendChild(tr);
-        });
-
-        // subtotal por representante
-        const trTotal = document.createElement('tr');
-        trTotal.innerHTML = `
-            <td colspan="3" style="padding:6px;border:1px solid #ddd;text-align:right"><strong>Subtotal ${rep}</strong></td>
-            <td style="padding:6px;border:1px solid #ddd;text-align:right"><strong>${formatarMoedaValor(subtotalRep)}</strong></td>
-        `;
-        tbody.appendChild(trTotal);
-
-        container.appendChild(table);
+    const contratosMap = new Map();
+    vendasConsideradas.forEach(v => {
+        const contratoKey = normalizarContrato(v.contrato);
+        if (!contratoKey) return;
+        const dataNorm = parseDateToYYYYMMDD(v.data);
+        const atual = contratosMap.get(contratoKey) || {
+            contrato: contratoKey,
+            loja: v.loja || '',
+            representantes: new Set(),
+            valorContrato: 0,
+            dataMin: null,
+            dataMax: null
+        };
+        atual.valorContrato += obterValorVenda(v);
+        if (!atual.loja && v.loja) atual.loja = v.loja;
+        if (v.representante) atual.representantes.add(v.representante);
+        if (dataNorm) {
+            if (!atual.dataMin || dataNorm < atual.dataMin) atual.dataMin = dataNorm;
+            if (!atual.dataMax || dataNorm > atual.dataMax) atual.dataMax = dataNorm;
+        }
+        contratosMap.set(contratoKey, atual);
     });
+
+    const contratos = Array.from(contratosMap.values()).sort((a, b) => ordenarContrato(a.contrato, b.contrato));
+
+    const table = document.createElement('table');
+    table.className = 'tabela-relatorio comissoes-table';
+    table.style.width = '100%';
+    table.style.borderCollapse = 'collapse';
+    table.innerHTML = `
+        <thead>
+            <tr>
+                <th style="text-align:left;padding:6px;border:1px solid #ddd">Contrato</th>
+                <th style="text-align:left;padding:6px;border:1px solid #ddd">Cliente / Loja</th>
+                <th style="text-align:left;padding:6px;border:1px solid #ddd">Representante(s)</th>
+                <th style="text-align:left;padding:6px;border:1px solid #ddd">Data</th>
+                <th style="text-align:right;padding:6px;border:1px solid #ddd">Valor Contrato (R$)</th>
+                <th style="text-align:right;padding:6px;border:1px solid #ddd">Comissão 5% (R$)</th>
+            </tr>
+        </thead>
+        <tbody></tbody>
+    `;
+
+    const tbody = table.querySelector('tbody');
+    contratos.forEach(c => {
+        const valor = c.valorContrato || 0;
+        const comissao = Math.round((valor * 0.05) * 100) / 100;
+        totalComissoes += comissao;
+        const repsTexto = Array.from(c.representantes || []).join(', ');
+        const dataTexto = c.dataMin
+            ? (c.dataMax && c.dataMax !== c.dataMin
+                ? `${new Date(c.dataMin + 'T00:00:00').toLocaleDateString('pt-BR')} até ${new Date(c.dataMax + 'T00:00:00').toLocaleDateString('pt-BR')}`
+                : new Date(c.dataMin + 'T00:00:00').toLocaleDateString('pt-BR'))
+            : '-';
+
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td style="padding:6px;border:1px solid #ddd">${c.contrato || ''}</td>
+            <td style="padding:6px;border:1px solid #ddd">${c.loja || ''}</td>
+            <td style="padding:6px;border:1px solid #ddd">${repsTexto || '-'}</td>
+            <td style="padding:6px;border:1px solid #ddd">${dataTexto}</td>
+            <td style="padding:6px;border:1px solid #ddd;text-align:right">${formatarMoedaValor(valor)}</td>
+            <td style="padding:6px;border:1px solid #ddd;text-align:right">${formatarMoedaValor(comissao)}</td>
+        `;
+        tbody.appendChild(tr);
+    });
+
+    const trTotal = document.createElement('tr');
+    trTotal.innerHTML = `
+        <td colspan="5" style="padding:6px;border:1px solid #ddd;text-align:right"><strong>Total Geral de Comissões</strong></td>
+        <td style="padding:6px;border:1px solid #ddd;text-align:right"><strong>${formatarMoedaValor(totalComissoes)}</strong></td>
+    `;
+    tbody.appendChild(trTotal);
+
+    container.appendChild(table);
 
     // Atualizar card total
     const totalEl = container.querySelector('#totalComissoesCard');
