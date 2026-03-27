@@ -896,43 +896,6 @@ function prepararRelatorioComissoes() {
     // Agrupar vendas por representante (ignorar vendas da IMBEL — sem comissão)
     const vendas = Array.isArray(estoque.registroVendas) ? [...estoque.registroVendas] : [];
     const vendasSemImbel = vendas.filter(v => ((v.representante || '').toString().trim().toUpperCase() !== 'IMBEL'));
-    // Painel de debug (amostras) — mostra original vs normalizado para auxiliar diagnóstico
-    const debugSamples = vendas.slice(0, 10);
-    const debugDiv = document.createElement('div');
-    debugDiv.className = 'relatorios-debug-dates';
-    debugDiv.style.margin = '8px 0';
-    try {
-        // resumo: total de vendas, total filtradas, inputs entrados, min/max datas
-        const allDates = vendas.map(v => parseDateToYYYYMMDD(v.data)).filter(x => x !== null);
-        const minAll = allDates.length ? allDates.reduce((a,b)=> a<b? a:b) : '-';
-        const maxAll = allDates.length ? allDates.reduce((a,b)=> a>b? a:b) : '-';
-        const parsedInicio = dataInicio || '-';
-        const parsedFim = dataFim || '-';
-        const totalVendas = vendas.length;
-        // aplicar filtro localmente to report counts
-        const totalFiltradasCount = vendasSemImbel.filter(v => {
-            if ((!dataInicio || dataInicio === '') && (!dataFim || dataFim === '')) return true;
-            if (!v.data) return false;
-            const registroDateStr = parseDateToYYYYMMDD(v.data);
-            if (!registroDateStr) return false;
-            if (dataInicio && dataInicio !== '' && registroDateStr < dataInicio) return false;
-            if (dataFim && dataFim !== '' && registroDateStr > dataFim) return false;
-            return true;
-        }).length;
-
-        let debugHTML = `<details open style="background:#fff;padding:8px;border:1px solid #e0e0e0;border-radius:4px"><summary><strong>Debug: amostras de datas (original → normalizada)</strong></summary><div style="margin-top:8px;">
-            <div style="margin-bottom:8px;font-size:13px;color:#222">Total vendas: <strong>${totalVendas}</strong> — Total após filtros (esperado): <strong>${totalFiltradasCount}</strong> — Data range inputs: <strong>${parsedInicio}</strong> → <strong>${parsedFim}</strong> — Dataset min/max: <strong>${minAll}</strong> / <strong>${maxAll}</strong></div>
-            <div style="overflow:auto"><table style="width:100%;border-collapse:collapse;font-size:13px"><thead><tr><th style="padding:6px;border:1px solid #ddd">#</th><th style="padding:6px;border:1px solid #ddd">Original</th><th style="padding:6px;border:1px solid #ddd">Tipo</th><th style="padding:6px;border:1px solid #ddd">Normalizada (YYYY-MM-DD)</th></tr></thead><tbody>`;
-        debugSamples.forEach((v, i) => {
-            const original = v && v.data !== undefined ? String(v.data) : '<sem campo data>';
-            let tipo = typeof v.data;
-            try { if (v && v.data && v.data.constructor && v.data.constructor.name) tipo = v.data.constructor.name; } catch (e) {}
-            const parsed = parseDateToYYYYMMDD(v.data) || '<inválida>';
-            debugHTML += `<tr><td style="padding:6px;border:1px solid #ddd">${i+1}</td><td style="padding:6px;border:1px solid #ddd">${original}</td><td style="padding:6px;border:1px solid #ddd">${tipo}</td><td style="padding:6px;border:1px solid #ddd">${parsed}</td></tr>`;
-        });
-        debugHTML += `</tbody></table></div></div></details>`;
-        debugDiv.innerHTML = debugHTML;
-    } catch (e) { debugDiv.textContent = 'Erro gerando debug das datas.'; }
     
     // Filtrar por intervalo de datas se fornecido (comparação por DATA apenas, formato YYYY-MM-DD)
     const vendasFiltradas = vendasSemImbel.filter(v => {
@@ -946,33 +909,7 @@ function prepararRelatorioComissoes() {
         return true;
     });
 
-    // Diagnostics: lista de registros excluídos pelo filtro com motivo
-    const excluded = vendasSemImbel.filter(v => !vendasFiltradas.includes(v));
-    const excludedDiv = document.createElement('div');
-    excludedDiv.style.margin = '8px 0';
-    if (excluded && excluded.length > 0) {
-        try {
-            function motivoExclusao(v) {
-                if (!v.data) return 'Sem campo data';
-                const parsed = parseDateToYYYYMMDD(v.data);
-                if (!parsed) return 'Data inválida';
-                if (dataInicio && dataInicio !== '' && parsed < dataInicio) return `Antes de ${dataInicio}`;
-                if (dataFim && dataFim !== '' && parsed > dataFim) return `Depois de ${dataFim}`;
-                return 'Outro motivo';
-            }
-
-            let excHTML = `<details style="background:#fff;padding:8px;border:1px solid #f5c6cb;border-radius:4px;margin-top:6px"><summary><strong>Registros EXCLUÍDOS pelo filtro (mostra até 50)</strong></summary><div style="margin-top:8px;overflow:auto"><table style="width:100%;border-collapse:collapse;font-size:13px"><thead><tr><th style="padding:6px;border:1px solid #ddd">#</th><th style="padding:6px;border:1px solid #ddd">Contrato</th><th style="padding:6px;border:1px solid #ddd">Representante</th><th style="padding:6px;border:1px solid #ddd">Loja/Cliente</th><th style="padding:6px;border:1px solid #ddd">Original Data</th><th style="padding:6px;border:1px solid #ddd">Normalizada</th><th style="padding:6px;border:1px solid #ddd">Motivo</th></tr></thead><tbody>`;
-            excluded.slice(0,50).forEach((v, i) => {
-                const original = v && v.data !== undefined ? String(v.data) : '<sem campo data>';
-                const parsed = parseDateToYYYYMMDD(v.data) || '<inválida>';
-                excHTML += `<tr><td style="padding:6px;border:1px solid #ddd">${i+1}</td><td style="padding:6px;border:1px solid #ddd">${v.contrato||''}</td><td style="padding:6px;border:1px solid #ddd">${v.representante||''}</td><td style="padding:6px;border:1px solid #ddd">${v.loja||''}</td><td style="padding:6px;border:1px solid #ddd">${original}</td><td style="padding:6px;border:1px solid #ddd">${parsed}</td><td style="padding:6px;border:1px solid #ddd">${motivoExclusao(v)}</td></tr>`;
-            });
-            excHTML += `</tbody></table></div></details>`;
-            excludedDiv.innerHTML = excHTML;
-        } catch (e) { excludedDiv.textContent = 'Erro gerando lista de excluídos.'; }
-    } else {
-        excludedDiv.innerHTML = `<div style="margin-top:6px;font-size:13px;color:#666">Nenhum registro excluído pelo filtro de datas.</div>`;
-    }
+    // (debug panels removed)
 
     // Ordenar por contrato
     vendasFiltradas.sort((a, b) => (parseInt(a.contrato) || 0) - (parseInt(b.contrato) || 0));
@@ -1054,9 +991,7 @@ function prepararRelatorioComissoes() {
     const wrapper = document.createElement('div');
     wrapper.className = 'report-printable';
     wrapper.appendChild(container);
-    // anexar debug(s) antes do conteúdo principal
-    preview.appendChild(debugDiv);
-    try { preview.appendChild(excludedDiv); } catch (e) {}
+    preview.appendChild(wrapper);
     preview.appendChild(wrapper);
 }
 
@@ -1824,6 +1759,8 @@ function abrirModalVendaDetalhada(vendaId = null) {
             ? Math.max(...estoque.registroVendas.map(v => parseInt(v.contrato) || 0)) 
             : 0;
         document.getElementById('contratoVenda').value = ultimoContrato + 1;
+        // Preencher data padrão como hoje
+        try { document.getElementById('dataVenda').value = new Date().toISOString().slice(0,10); } catch (e) {}
         return;
     }
 
@@ -1844,6 +1781,8 @@ function abrirModalVendaDetalhada(vendaId = null) {
     document.getElementById('lojaVenda').value = venda.loja || '';
     document.getElementById('representanteVendaDet').value = venda.representante || '';
     document.getElementById('observacoesVenda').value = venda.observacoes || '';
+    // Preencher campo de data com valor existente (normalizado para YYYY-MM-DD)
+    try { document.getElementById('dataVenda').value = parseDateToYYYYMMDD(venda.data) || ''; } catch (e) {}
 
     if (Array.isArray(venda.items) && venda.items.length > 0) {
         venda.items.forEach(it => {
@@ -2135,7 +2074,13 @@ function salvarVendaDetalhada(event) {
             estoque.registroVendas[idx].quantidadeTotal = totalQtd;
             estoque.registroVendas[idx].valorTotal = totalValor;
             estoque.registroVendas[idx].observacoes = observacoes;
-            estoque.registroVendas[idx].data = new Date().toISOString();
+            // usar data informada pelo usuário, se presente; caso contrário, registrar timestamp atual
+            const dataInput = document.getElementById('dataVenda') ? document.getElementById('dataVenda').value : '';
+            if (dataInput && dataInput !== '') {
+                try { estoque.registroVendas[idx].data = new Date(dataInput + 'T00:00:00Z').toISOString(); } catch (e) { estoque.registroVendas[idx].data = new Date().toISOString(); }
+            } else {
+                estoque.registroVendas[idx].data = new Date().toISOString();
+            }
         }
         vendaEditandoId = null;
 
@@ -2159,7 +2104,8 @@ function salvarVendaDetalhada(event) {
         quantidadeTotal: totalQtd,
         valorTotal: totalValor,
         observacoes: observacoes,
-        data: new Date().toISOString()
+        // usar data informada pelo usuário (YYYY-MM-DD) convertida para ISO, ou timestamp atual
+        data: (function(){ const di = document.getElementById('dataVenda') ? document.getElementById('dataVenda').value : ''; if (di && di !== '') { try { return new Date(di + 'T00:00:00Z').toISOString(); } catch(e){} } return new Date().toISOString(); })()
     };
 
     estoque.registroVendas.push(novaVenda);
@@ -2197,11 +2143,32 @@ function renderizarRegistroVendas() {
         });
     }
     
-    // Ordenar por contrato
+    // Ordenar conforme seleção do usuário (_ordenVendas)
     vendasFiltradas.sort((a, b) => {
-        const contratoA = parseInt(a.contrato) || 0;
-        const contratoB = parseInt(b.contrato) || 0;
-        return contratoA - contratoB;
+        const campo = _ordenVendas.campo || 'contrato';
+        const dire = _ordenVendas.direcao === 'asc' ? 1 : -1;
+        try {
+            if (campo === 'contrato') {
+                return dire * ((parseInt(a.contrato) || 0) - (parseInt(b.contrato) || 0));
+            }
+            if (campo === 'valorTotal') {
+                const va = typeof a.valorTotal === 'number' ? a.valorTotal : (Array.isArray(a.items) ? a.items.reduce((s, it) => s + (it.valorTotal || 0), 0) : 0);
+                const vb = typeof b.valorTotal === 'number' ? b.valorTotal : (Array.isArray(b.items) ? b.items.reduce((s, it) => s + (it.valorTotal || 0), 0) : 0);
+                return dire * (va - vb);
+            }
+            if (campo === 'data') {
+                const da = parseDateToYYYYMMDD(a.data) || '';
+                const db = parseDateToYYYYMMDD(b.data) || '';
+                if (da === db) return 0;
+                return dire * (da < db ? -1 : 1);
+            }
+            // strings: loja, representante
+            const aa = (a[campo] || '').toString().toLowerCase();
+            const bb = (b[campo] || '').toString().toLowerCase();
+            if (aa < bb) return -1 * dire;
+            if (aa > bb) return 1 * dire;
+            return 0;
+        } catch (e) { return 0; }
     });
     
     tbody.innerHTML = '';
@@ -2209,7 +2176,7 @@ function renderizarRegistroVendas() {
     if (vendasFiltradas.length === 0) {
         tbody.innerHTML = `
             <tr>
-                <td colspan="9" class="empty-state">
+                <td colspan="10" class="empty-state">
                     <div class="empty-icon">📋</div>
                     <div class="empty-text">Nenhuma venda registrada</div>
                     <div class="empty-hint">Clique em "Nova Venda" para adicionar o primeiro registro</div>
@@ -2240,6 +2207,7 @@ function renderizarRegistroVendas() {
                 totalQtd += it.quantidade || 0;
                 totalValor += valorTot || 0;
 
+                const dataDisplay = venda.data ? (parseDateToYYYYMMDD(venda.data) ? new Date(parseDateToYYYYMMDD(venda.data)).toLocaleDateString('pt-BR') : '-') : '-';
                 const tr = document.createElement('tr');
                 tr.innerHTML = `
                     <td class="col-contrato">${venda.contrato}</td>
@@ -2249,6 +2217,7 @@ function renderizarRegistroVendas() {
                     <td class="col-qtd">${it.quantidade}</td>
                     <td class="col-valor-un">${valorUn}</td>
                     <td class="col-valor-total">${valorTot > 0 ? formatarMoedaValor(valorTot) : '-'}</td>
+                    <td class="col-data">${dataDisplay}</td>
                     <td class="col-obs" title="${venda.observacoes || '-'}">${venda.observacoes || '-'}</td>
                     <td class="col-acoes">
                         <button class="btn-action btn-edit" onclick="abrirModalVendaDetalhada(${venda.id})" title="Editar venda">✎</button>
@@ -2270,6 +2239,7 @@ function renderizarRegistroVendas() {
             totalQtd += qtd;
             totalValor += valorTot;
 
+            const dataDisplay = venda.data ? (parseDateToYYYYMMDD(venda.data) ? new Date(parseDateToYYYYMMDD(venda.data)).toLocaleDateString('pt-BR') : '-') : '-';
             const tr = document.createElement('tr');
             tr.innerHTML = `
                 <td class="col-contrato">${venda.contrato}</td>
@@ -2279,6 +2249,7 @@ function renderizarRegistroVendas() {
                 <td class="col-qtd">${qtd}</td>
                 <td class="col-valor-un">${valorUn}</td>
                 <td class="col-valor-total">${valorTot > 0 ? formatarMoedaValor(valorTot) : '-'}</td>
+                <td class="col-data">${dataDisplay}</td>
                 <td class="col-obs" title="${venda.observacoes || '-'}">${venda.observacoes || '-'}</td>
                 <td class="col-acoes">
                     <button class="btn-action btn-edit" onclick="abrirModalVendaDetalhada(${venda.id})" title="Editar venda">✎</button>

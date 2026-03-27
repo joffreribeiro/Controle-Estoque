@@ -324,6 +324,7 @@
                                     <th style="width: 90px;">Qtd</th>
                                     <th style="width: 120px;">Valor Un.</th>
                                     <th style="width: 130px;" class="sortable" data-sort="valorTotal" onclick="ordenarVendas('valorTotal')">Valor Total <span class="sort-icon">⇅</span></th>
+                                    <th style="width: 120px;" class="sortable" data-sort="data" onclick="ordenarVendas('data')">Data <span class="sort-icon">⇅</span></th>
                                     <th style="width: 150px;">Obs</th>
                                     <th style="width: 80px;">Ações</th>
                                 </tr>
@@ -976,6 +977,10 @@
                                         <div class="form-group">
                                             <label for="lojaVenda">Loja/Cliente <span class="required">*</span></label>
                                             <input type="text" id="lojaVenda" required placeholder="Nome da loja ou cliente">
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="dataVenda">Data da Venda</label>
+                                            <input type="date" id="dataVenda" placeholder="YYYY-MM-DD">
                                         </div>
                                     </div>
                                 </section>
