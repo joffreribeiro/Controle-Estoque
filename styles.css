@@ -1891,6 +1891,39 @@ th.header-rep { border-right: 2px solid rgba(255,255,255,0.06); }
     color: white;
 }
 
+/* Forçar cabeçalho da tabela de Inventário a ficar igual ao Relatório */
+/* Torna todas as células do thead com fundo uniforme e texto branco */
+#tabelaEstoque thead th {
+    background: var(--primary-color) !important;
+    color: #ffffff !important;
+    border: 1px solid #e6e9ee !important;
+}
+
+/* Segunda linha de sub-headers também em cor única */
+#tabelaEstoque thead tr:nth-child(2) th.sub-header {
+    background: var(--primary-color) !important;
+    color: #ffffff !important;
+}
+
+/* Remover as variações de cores por representante apenas para a visual igual ao relatório */
+#tabelaEstoque thead tr:nth-child(1) th.header-rep.kolte,
+#tabelaEstoque thead tr:nth-child(1) th.header-rep.isa,
+#tabelaEstoque thead tr:nth-child(1) th.header-rep.lc,
+#tabelaEstoque thead tr:nth-child(1) th.header-rep.ades,
+#tabelaEstoque thead tr:nth-child(1) th.header-rep.fl,
+#tabelaEstoque thead tr:nth-child(1) th.header-rep.imbel,
+#tabelaEstoque thead tr:nth-child(1) th.header-geral {
+    background: var(--primary-color) !important;
+    color: #ffffff !important;
+}
+
+/* Ajustes de padding/contraste para combinar visualmente com o relatório */
+#tabelaEstoque thead th,
+#tabelaEstoque thead td {
+    padding: 8px 10px !important;
+    text-align: center !important;
+}
+
 /* Linha com saldo consolidado zerado */
 tr.row-saldo-zero {
     background-color: #fde8e8 !important;
