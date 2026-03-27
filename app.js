@@ -928,9 +928,47 @@ function prepararRelatorioComissoes() {
     resumo.innerHTML = `<strong>Total Comissões:</strong> <span id="totalComissoesCard">R$ 0,00</span>`;
     container.appendChild(resumo);
 
+    const obterValorVenda = (venda) => {
+        if (typeof venda.valorTotal === 'number') return venda.valorTotal;
+        if (Array.isArray(venda.items) && venda.items.length > 0) {
+            return venda.items.reduce((s, it) => s + (Number(it.valorTotal) || ((Number(it.valorUnitario) || 0) * (Number(it.quantidade) || 0))), 0);
+        }
+        return ((Number(venda.valorUnitario) || 0) * (Number(venda.quantidade) || 0));
+    };
+
+    const normalizarContrato = (valor) => {
+        const bruto = (valor ?? '').toString().normalize('NFKC').replace(/[\u200B-\u200D\uFEFF\s]+/g, '');
+        const digitos = bruto.replace(/\D+/g, '');
+        return digitos ? String(parseInt(digitos, 10)) : bruto.toUpperCase();
+    };
+
+    const ordenarContrato = (a, b) => {
+        const na = parseInt(a);
+        const nb = parseInt(b);
+        if (!isNaN(na) && !isNaN(nb)) return na - nb;
+        return a.localeCompare(b);
+    };
+
     reps.forEach(rep => {
         const vendasRep = vendasFiltradas.filter(v => (v.representante || '') === rep);
         if (!vendasRep || vendasRep.length === 0) return;
+
+        const contratosMap = new Map();
+        vendasRep.forEach(v => {
+            const contratoKey = normalizarContrato(v.contrato);
+            if (!contratoKey) return;
+            const atual = contratosMap.get(contratoKey) || {
+                contrato: contratoKey,
+                loja: v.loja || '',
+                valorContrato: 0
+            };
+            atual.valorContrato += obterValorVenda(v);
+            if (!atual.loja && v.loja) atual.loja = v.loja;
+            contratosMap.set(contratoKey, atual);
+        });
+
+        const contratosRep = Array.from(contratosMap.values()).sort((a, b) => ordenarContrato(a.contrato, b.contrato));
+        if (contratosRep.length === 0) return;
 
         const titulo = document.createElement('h3');
         titulo.textContent = `Representante: ${rep}`;
@@ -955,16 +993,16 @@ function prepararRelatorioComissoes() {
 
         const tbody = table.querySelector('tbody');
         let subtotalRep = 0;
-        vendasRep.forEach(v => {
-            const valor = typeof v.valorTotal === 'number' ? v.valorTotal : 0;
+        contratosRep.forEach(c => {
+            const valor = c.valorContrato || 0;
             const comissao = Math.round((valor * 0.05) * 100) / 100;
             subtotalRep += comissao;
             totalComissoes += comissao;
 
             const tr = document.createElement('tr');
             tr.innerHTML = `
-                <td style="padding:6px;border:1px solid #ddd">${v.contrato || ''}</td>
-                <td style="padding:6px;border:1px solid #ddd">${v.loja || ''}</td>
+                <td style="padding:6px;border:1px solid #ddd">${c.contrato || ''}</td>
+                <td style="padding:6px;border:1px solid #ddd">${c.loja || ''}</td>
                 <td style="padding:6px;border:1px solid #ddd;text-align:right">${formatarMoedaValor(valor)}</td>
                 <td style="padding:6px;border:1px solid #ddd;text-align:right">${formatarMoedaValor(comissao)}</td>
             `;
@@ -991,7 +1029,6 @@ function prepararRelatorioComissoes() {
     const wrapper = document.createElement('div');
     wrapper.className = 'report-printable';
     wrapper.appendChild(container);
-    preview.appendChild(wrapper);
     preview.appendChild(wrapper);
 }
 
@@ -1056,16 +1093,58 @@ function exportarComissoesCSV() {
         if (endTs && t > endTs) return false;
         return true;
     });
-    vendas.sort((a, b) => (parseInt(a.contrato) || 0) - (parseInt(b.contrato) || 0));
+
+    const obterValorVenda = (venda) => {
+        if (typeof venda.valorTotal === 'number') return venda.valorTotal;
+        if (Array.isArray(venda.items) && venda.items.length > 0) {
+            return venda.items.reduce((s, it) => s + (Number(it.valorTotal) || ((Number(it.valorUnitario) || 0) * (Number(it.quantidade) || 0))), 0);
+        }
+        return ((Number(venda.valorUnitario) || 0) * (Number(venda.quantidade) || 0));
+    };
+
+    const normalizarContrato = (valor) => {
+        const bruto = (valor ?? '').toString().normalize('NFKC').replace(/[\u200B-\u200D\uFEFF\s]+/g, '');
+        const digitos = bruto.replace(/\D+/g, '');
+        return digitos ? String(parseInt(digitos, 10)) : bruto.toUpperCase();
+    };
+
+    const ordenarContrato = (a, b) => {
+        const na = parseInt(a);
+        const nb = parseInt(b);
+        if (!isNaN(na) && !isNaN(nb)) return na - nb;
+        return a.localeCompare(b);
+    };
+
+    const contratosMap = new Map();
+    vendas.forEach(v => {
+        if (filtroRep && filtroRep !== '' && v.representante !== filtroRep) return;
+        const contratoKey = normalizarContrato(v.contrato);
+        if (!contratoKey) return;
+        const mapKey = `${v.representante || ''}||${contratoKey}`;
+        const atual = contratosMap.get(mapKey) || {
+            representante: v.representante || '',
+            contrato: contratoKey,
+            loja: v.loja || '',
+            valorContrato: 0
+        };
+        atual.valorContrato += obterValorVenda(v);
+        if (!atual.loja && v.loja) atual.loja = v.loja;
+        contratosMap.set(mapKey, atual);
+    });
+
+    const contratos = Array.from(contratosMap.values()).sort((a, b) => {
+        const repCmp = (a.representante || '').localeCompare(b.representante || '');
+        if (repCmp !== 0) return repCmp;
+        return ordenarContrato(a.contrato, b.contrato);
+    });
 
     const sep = ';';
     let csv = `REPRESENTANTE${sep}CONTRATO${sep}CLIENTE/LOJA${sep}VALOR_CONTRATO${sep}COMISSAO_5%\n`;
 
-    vendas.forEach(v => {
-        if (filtroRep && filtroRep !== '' && v.representante !== filtroRep) return;
-        const valor = typeof v.valorTotal === 'number' ? v.valorTotal : 0;
+    contratos.forEach(c => {
+        const valor = c.valorContrato || 0;
         const comissao = Math.round((valor * 0.05) * 100) / 100;
-        csv += `${v.representante || ''}${sep}${v.contrato || ''}${sep}${(v.loja || '').replace(/\n/g,' ')}${sep}${valor.toFixed(2).replace('.',',')}${sep}${comissao.toFixed(2).replace('.',',')}\n`;
+        csv += `${c.representante || ''}${sep}${c.contrato || ''}${sep}${(c.loja || '').replace(/\n/g,' ')}${sep}${valor.toFixed(2).replace('.',',')}${sep}${comissao.toFixed(2).replace('.',',')}\n`;
     });
 
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
@@ -4259,10 +4338,33 @@ function exportarRelatorioPDF() {
     } else if (tipo === 'comissoes') {
         titulo = 'Relatório de Comissões (5%)';
         const vendas = (estoque.registroVendas || []).filter(v => (v.representante||'').toUpperCase() !== 'IMBEL');
+        const obterValorVenda = (venda) => {
+            if (typeof venda.valorTotal === 'number') return venda.valorTotal;
+            if (Array.isArray(venda.items) && venda.items.length > 0) {
+                return venda.items.reduce((s, it) => s + (Number(it.valorTotal) || ((Number(it.valorUnitario) || 0) * (Number(it.quantidade) || 0))), 0);
+            }
+            return ((Number(venda.valorUnitario) || 0) * (Number(venda.quantidade) || 0));
+        };
+        const normalizarContrato = (valor) => {
+            const bruto = (valor ?? '').toString().normalize('NFKC').replace(/[\u200B-\u200D\uFEFF\s]+/g, '');
+            const digitos = bruto.replace(/\D+/g, '');
+            return digitos ? String(parseInt(digitos, 10)) : bruto.toUpperCase();
+        };
+        const contratosMap = new Map();
+        vendas.forEach(v => {
+            const contratoKey = normalizarContrato(v.contrato);
+            if (!contratoKey) return;
+            const mapKey = `${v.representante || ''}||${contratoKey}`;
+            const atual = contratosMap.get(mapKey) || { representante: v.representante || '', contrato: contratoKey, loja: v.loja || '', valor: 0 };
+            atual.valor += obterValorVenda(v);
+            if (!atual.loja && v.loja) atual.loja = v.loja;
+            contratosMap.set(mapKey, atual);
+        });
+        const contratos = Array.from(contratosMap.values());
         const headers = [['Rep', 'Contrato', 'Cliente', 'Valor', 'Comissão 5%']];
-        const data = vendas.map(v => {
-            const valor = v.valorTotal || 0;
-            return [v.representante, v.contrato, v.loja, formatarMoedaValor(valor), formatarMoedaValor(Math.round(valor*0.05*100)/100)];
+        const data = contratos.map(c => {
+            const valor = c.valor || 0;
+            return [c.representante, c.contrato, c.loja, formatarMoedaValor(valor), formatarMoedaValor(Math.round(valor*0.05*100)/100)];
         });
         doc.setFontSize(14);
         doc.text(titulo, 14, 15);
