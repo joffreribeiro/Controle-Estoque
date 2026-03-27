@@ -1,0 +1,52 @@
+// firestore.rules
+// Example Firestore security rules for the Controle-Estoque app.
+// Two options included below — choose the one that fits your needs
+
+// =====================
+// OPTION A: Production-safe (recommended)
+// - Require authentication for reads
+// - Only users with custom claim `admin:true` can write (create/update/delete)
+// =====================
+// rules_version = '2';
+// service cloud.firestore {
+//   match /databases/{database}/documents {
+//     // Allow authenticated users to read any document
+//     match /{document=**} {
+//       allow read: if request.auth != null;
+//       allow write: if request.auth != null && request.auth.token.admin == true;
+//     }
+//   }
+// }
+
+// =====================
+// OPTION B: Public catalog (reads public, writes restricted)
+// - Useful if you want `produtos` to be readable by anyone, but writes limited to admins
+// - Also shows a per-collection example (keep sensitive collections private)
+// =====================
+// rules_version = '2';
+// service cloud.firestore {
+//   match /databases/{database}/documents {
+//     // Public read for produtos
+//     match /produtos/{prodId} {
+//       allow read: if true; // public
+//       allow create, update, delete: if request.auth != null && request.auth.token.admin == true;
+//     }
+//
+//     // app_data (backup) - allow read for authenticated users, writes only by admin
+//     match /app_data/{docId} {
+//       allow read: if request.auth != null;
+//       allow create, update, delete: if request.auth != null && request.auth.token.admin == true;
+//     }
+//
+//     // Other collections default to authenticated-only read, admin write
+//     match /{document=**} {
+//       allow read: if request.auth != null;
+//       allow write: if request.auth != null && request.auth.token.admin == true;
+//     }
+//   }
+// }
+
+// === How to use:
+// 1. Pick Option A or Option B and paste the corresponding rules into the Firestore Rules editor in Firebase Console -> Firestore -> Rules.
+// 2. Save and test using the Rules Simulator or by logging into the app and attempting the operations.
+// 3. If you prefer to deploy via CLI, install firebase-tools and run `firebase deploy --only firestore:rules` (requires firebase.json/project config).
