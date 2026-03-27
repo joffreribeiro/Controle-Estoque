@@ -502,6 +502,26 @@ function atualizarEstatisticas() {
     try { document.getElementById('totalComissoes').textContent = formatarMoedaValor(totalComissoes); } catch (e) {}
 }
 
+// Helper global: normaliza várias formas de data para YYYY-MM-DD
+function parseDateToYYYYMMDD(input) {
+    if (!input) return null;
+    if (input instanceof Date) {
+        if (isNaN(input.getTime())) return null;
+        return input.toISOString().slice(0,10);
+    }
+    let s = String(input).trim();
+    // ISO-like (starts with YYYY-MM-DD)
+    const iso = s.match(/^(\d{4}-\d{2}-\d{2})/);
+    if (iso) return iso[1];
+    // BR format DD/MM/YYYY
+    const br = s.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+    if (br) return `${br[3]}-${br[2]}-${br[1]}`;
+    // Fallback: try Date parse
+    const d = new Date(s);
+    if (!isNaN(d.getTime())) return d.toISOString().slice(0,10);
+    return null;
+}
+
 // ========================================
 // NAVEGAÇÃO POR ABAS
 // ========================================
@@ -856,14 +876,13 @@ function prepararRelatorioComissoes() {
     // Agrupar vendas por representante (ignorar vendas da IMBEL — sem comissão)
     const vendas = Array.isArray(estoque.registroVendas) ? [...estoque.registroVendas] : [];
     const vendasSemImbel = vendas.filter(v => ((v.representante || '').toString().trim().toUpperCase() !== 'IMBEL'));
-
+    
     // Filtrar por intervalo de datas se fornecido (comparação por DATA apenas, formato YYYY-MM-DD)
     const vendasFiltradas = vendasSemImbel.filter(v => {
         if ((!dataInicio || dataInicio === '') && (!dataFim || dataFim === '')) return true;
         if (!v.data) return false;
         // Normalizar data do registro para YYYY-MM-DD
-        let registroDateStr = null;
-        try { registroDateStr = new Date(v.data).toISOString().slice(0,10); } catch (e) { registroDateStr = null; }
+        const registroDateStr = parseDateToYYYYMMDD(v.data);
         if (!registroDateStr) return false;
         if (dataInicio && dataInicio !== '' && registroDateStr < dataInicio) return false;
         if (dataFim && dataFim !== '' && registroDateStr > dataFim) return false;
@@ -4020,8 +4039,7 @@ function prepararRelatorioDistribuicao() {
     if ((dataInicio && dataInicio !== '') || (dataFim && dataFim !== '')) {
         distribuicoes = distribuicoes.filter(d => {
             if (!d.data) return false;
-            let registroDateStr = null;
-            try { registroDateStr = new Date(d.data).toISOString().slice(0,10); } catch (e) { registroDateStr = null; }
+            const registroDateStr = parseDateToYYYYMMDD(d.data);
             if (!registroDateStr) return false;
             if (dataInicio && dataInicio !== '' && registroDateStr < dataInicio) return false;
             if (dataFim && dataFim !== '' && registroDateStr > dataFim) return false;
@@ -4029,7 +4047,13 @@ function prepararRelatorioDistribuicao() {
         });
     }
 
-    distribuicoes.sort((a, b) => new Date(b.data) - new Date(a.data));
+    distribuicoes.sort((a, b) => {
+        const da = parseDateToYYYYMMDD(a.data);
+        const db = parseDateToYYYYMMDD(b.data);
+        const ta = da ? new Date(da).getTime() : 0;
+        const tb = db ? new Date(db).getTime() : 0;
+        return tb - ta;
+    });
 
     // Agrupar por representante
     const porRep = {};
@@ -4065,7 +4089,8 @@ function prepararRelatorioDistribuicao() {
         items.forEach(d => {
             subtotal += d.quantidade;
             totalGeral += d.quantidade;
-            const dataFmt = d.data ? new Date(d.data + 'T00:00:00').toLocaleDateString('pt-BR') : '-';
+            const parsed = parseDateToYYYYMMDD(d.data);
+            const dataFmt = parsed ? new Date(parsed).toLocaleDateString('pt-BR') : '-';
             const tr = document.createElement('tr');
             tr.innerHTML = `
                 <td style="padding:6px;border:1px solid #ddd">${d.produtoNome}</td>
