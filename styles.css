@@ -1834,11 +1834,23 @@ th.header-rep { border-right: 2px solid rgba(255,255,255,0.06); }
     background: var(--bg-white);
 }
 
+/* Aumentar destaque do nome do produto na tabela de Inventário */
+#tabelaEstoque th.col-produto {
+    font-size: 1.05rem; /* maior que o padrão do thead */
+    font-weight: 700;
+    padding-top: 12px;
+    padding-bottom: 12px;
+}
+
 #tabelaEstoque td.produto-nome {
     max-width: 320px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    font-size: 1rem; /* texto das células de produto maior */
+    font-weight: 600;
+    padding-top: 10px;
+    padding-bottom: 10px;
 }
 
 /* Garantir contraste para a linha de totais e linhas especiais (mantém regras anteriores) */
@@ -1884,6 +1896,20 @@ th.header-rep { border-right: 2px solid rgba(255,255,255,0.06); }
 .report-printable #tabelaEstoqueRelatorio td.produto-nome {
     text-align: left;
     padding-left: 20px;
+}
+
+/* Aumentar fonte no relatório/preview também */
+.report-printable #tabelaEstoqueRelatorio th.col-produto {
+    font-size: 1.05rem;
+    font-weight: 700;
+    padding-top: 12px;
+    padding-bottom: 12px;
+}
+.report-printable #tabelaEstoqueRelatorio td.produto-nome {
+    font-size: 1rem;
+    font-weight: 600;
+    padding-top: 10px;
+    padding-bottom: 10px;
 }
 
 .report-printable thead th {
