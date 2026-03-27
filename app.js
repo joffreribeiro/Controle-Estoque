@@ -2213,8 +2213,21 @@ function renderizarRegistroVendas() {
             }
         });
 
-        // Renderizar linhas por item dentro do contrato
+        // calcular quantas linhas esse contrato vai ocupar (considerando filtro de produto)
+        let linhasDoContrato = 0;
+        grupo.forEach(venda => {
+            if (Array.isArray(venda.items) && venda.items.length > 0) {
+                const itemsCount = (filtroProdutoId) ? venda.items.filter(it => it.produtoId === filtroProdutoId).length : venda.items.length;
+                linhasDoContrato += itemsCount;
+            } else {
+                if (!filtroProdutoId || venda.produtoId === filtroProdutoId) linhasDoContrato += 1;
+            }
+        });
+        if (linhasDoContrato === 0) return; // nada a renderizar para este contrato com os filtros aplicados
+
+        // Renderizar linhas por item dentro do contrato usando rowspan para mesclar colunas do contrato
         let primeiroRegistroDoContrato = true;
+        let linhasRenderizadas = 0;
         grupo.forEach(venda => {
             const repClass = (venda.representante || '').toLowerCase();
             if (Array.isArray(venda.items) && venda.items.length > 0) {
@@ -2227,21 +2240,32 @@ function renderizarRegistroVendas() {
                     totalValor += valorTot || 0;
                     const dataDisplay = venda.data ? (parseDateToYYYYMMDD(venda.data) ? new Date(parseDateToYYYYMMDD(venda.data)).toLocaleDateString('pt-BR') : '-') : '-';
                     const tr = document.createElement('tr');
-                    tr.innerHTML = `
-                        <td class="col-contrato">${primeiroRegistroDoContrato ? venda.contrato : ''}</td>
-                        <td class="col-loja" title="${primeiroRegistroDoContrato ? venda.loja : ''}">${primeiroRegistroDoContrato ? venda.loja : ''}</td>
-                        <td class="col-representante">${primeiroRegistroDoContrato ? `<span class="badge-rep ${repClass}">${venda.representante}</span>` : ''}</td>
-                        <td class="col-produto-venda" title="${it.produtoNome}">${it.produtoNome}</td>
-                        <td class="col-qtd">${it.quantidade}</td>
-                        <td class="col-valor-un">${valorUn}</td>
-                        <td class="col-valor-total">${valorTot > 0 ? formatarMoedaValor(valorTot) : '-'}</td>
-                        <td class="col-data">${primeiroRegistroDoContrato ? dataDisplay : ''}</td>
-                        <td class="col-total-contrato">${primeiroRegistroDoContrato ? formatarMoedaValor(totalContrato) : ''}</td>
-                        <td class="col-obs" title="${primeiroRegistroDoContrato ? (venda.observacoes || '-') : ''}">${primeiroRegistroDoContrato ? (venda.observacoes || '-') : ''}</td>
-                        <td class="col-acoes">${primeiroRegistroDoContrato ? `<button class="btn-action btn-edit" onclick="abrirModalVendaDetalhada(${venda.id})" title="Editar venda">✎</button><button class="btn-action btn-delete" onclick="excluirVenda(${venda.id})" title="Excluir venda">🗑</button>` : ''}</td>
-                    `;
+                    // se for o primeiro registro do contrato, adicionar células com rowspan
+                    if (primeiroRegistroDoContrato) {
+                        tr.innerHTML = `
+                            <td class="col-contrato" rowspan="${linhasDoContrato}">${venda.contrato}</td>
+                            <td class="col-loja" title="${venda.loja}" rowspan="${linhasDoContrato}">${venda.loja}</td>
+                            <td class="col-representante" rowspan="${linhasDoContrato}"><span class="badge-rep ${repClass}">${venda.representante}</span></td>
+                            <td class="col-produto-venda" title="${it.produtoNome}">${it.produtoNome}</td>
+                            <td class="col-qtd">${it.quantidade}</td>
+                            <td class="col-valor-un">${valorUn}</td>
+                            <td class="col-valor-total">${valorTot > 0 ? formatarMoedaValor(valorTot) : '-'}</td>
+                            <td class="col-data" rowspan="${linhasDoContrato}">${dataDisplay}</td>
+                            <td class="col-total-contrato" rowspan="${linhasDoContrato}">${formatarMoedaValor(totalContrato)}</td>
+                            <td class="col-obs" title="${venda.observacoes || '-'}" rowspan="${linhasDoContrato}">${venda.observacoes || '-'}</td>
+                            <td class="col-acoes" rowspan="${linhasDoContrato}"><button class="btn-action btn-edit" onclick="abrirModalVendaDetalhada(${venda.id})" title="Editar venda">✎</button><button class="btn-action btn-delete" onclick="excluirVenda(${venda.id})" title="Excluir venda">🗑</button></td>
+                        `;
+                        primeiroRegistroDoContrato = false;
+                    } else {
+                        tr.innerHTML = `
+                            <td class="col-produto-venda" title="${it.produtoNome}">${it.produtoNome}</td>
+                            <td class="col-qtd">${it.quantidade}</td>
+                            <td class="col-valor-un">${valorUn}</td>
+                            <td class="col-valor-total">${valorTot > 0 ? formatarMoedaValor(valorTot) : '-'}</td>
+                        `;
+                    }
                     tbody.appendChild(tr);
-                    primeiroRegistroDoContrato = false;
+                    linhasRenderizadas++;
                 });
             } else {
                 // venda antiga com único produto
@@ -2254,21 +2278,30 @@ function renderizarRegistroVendas() {
                 totalValor += valorTot;
                 const dataDisplay = venda.data ? (parseDateToYYYYMMDD(venda.data) ? new Date(parseDateToYYYYMMDD(venda.data)).toLocaleDateString('pt-BR') : '-') : '-';
                 const tr = document.createElement('tr');
-                tr.innerHTML = `
-                    <td class="col-contrato">${primeiroRegistroDoContrato ? venda.contrato : ''}</td>
-                    <td class="col-loja" title="${primeiroRegistroDoContrato ? venda.loja : ''}">${primeiroRegistroDoContrato ? venda.loja : ''}</td>
-                    <td class="col-representante">${primeiroRegistroDoContrato ? `<span class="badge-rep ${repClass}">${venda.representante}</span>` : ''}</td>
-                    <td class="col-produto-venda" title="${produtoNome}">${produtoNome}</td>
-                    <td class="col-qtd">${qtd}</td>
-                    <td class="col-valor-un">${valorUn}</td>
-                    <td class="col-valor-total">${valorTot > 0 ? formatarMoedaValor(valorTot) : '-'}</td>
-                    <td class="col-data">${primeiroRegistroDoContrato ? dataDisplay : ''}</td>
-                    <td class="col-total-contrato">${primeiroRegistroDoContrato ? formatarMoedaValor(totalContrato) : ''}</td>
-                    <td class="col-obs" title="${primeiroRegistroDoContrato ? (venda.observacoes || '-') : ''}">${primeiroRegistroDoContrato ? (venda.observacoes || '-') : ''}</td>
-                    <td class="col-acoes">${primeiroRegistroDoContrato ? `<button class="btn-action btn-edit" onclick="abrirModalVendaDetalhada(${venda.id})" title="Editar venda">✎</button><button class="btn-action btn-delete" onclick="excluirVenda(${venda.id})" title="Excluir venda">🗑</button>` : ''}</td>
-                `;
+                if (primeiroRegistroDoContrato) {
+                    tr.innerHTML = `
+                        <td class="col-contrato" rowspan="${linhasDoContrato}">${venda.contrato}</td>
+                        <td class="col-loja" title="${venda.loja}" rowspan="${linhasDoContrato}">${venda.loja}</td>
+                        <td class="col-representante" rowspan="${linhasDoContrato}"><span class="badge-rep ${repClass}">${venda.representante}</span></td>
+                        <td class="col-produto-venda" title="${produtoNome}">${produtoNome}</td>
+                        <td class="col-qtd">${qtd}</td>
+                        <td class="col-valor-un">${valorUn}</td>
+                        <td class="col-valor-total">${valorTot > 0 ? formatarMoedaValor(valorTot) : '-'}</td>
+                        <td class="col-data" rowspan="${linhasDoContrato}">${dataDisplay}</td>
+                        <td class="col-total-contrato" rowspan="${linhasDoContrato}">${formatarMoedaValor(totalContrato)}</td>
+                        <td class="col-obs" title="${venda.observacoes || '-'}" rowspan="${linhasDoContrato}">${venda.observacoes || '-'}</td>
+                        <td class="col-acoes" rowspan="${linhasDoContrato}"><button class="btn-action btn-edit" onclick="abrirModalVendaDetalhada(${venda.id})" title="Editar venda">✎</button><button class="btn-action btn-delete" onclick="excluirVenda(${venda.id})" title="Excluir venda">🗑</button></td>
+                    `;
+                    primeiroRegistroDoContrato = false;
+                } else {
+                    tr.innerHTML = `
+                        <td class="col-produto-venda" title="${produtoNome}">${produtoNome}</td>
+                        <td class="col-qtd">${qtd}</td>
+                        <td class="col-valor-un">${valorUn}</td>
+                        <td class="col-valor-total">${valorTot > 0 ? formatarMoedaValor(valorTot) : '-'}</td>
+                    `;
+                }
                 tbody.appendChild(tr);
-                primeiroRegistroDoContrato = false;
             }
         });
     });

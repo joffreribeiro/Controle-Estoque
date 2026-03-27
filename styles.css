@@ -1779,6 +1779,7 @@ th.header-rep { border-right: 2px solid rgba(255,255,255,0.06); }
 }
 
 /* Centralizar os dados numéricos no preview do Inventário, mas manter a coluna de produtos à esquerda */
+.report-printable #tabelaEstoqueRelatorio th,
 .report-printable #tabelaEstoqueRelatorio td {
     text-align: center;
 }
