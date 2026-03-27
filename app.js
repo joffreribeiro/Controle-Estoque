@@ -1989,6 +1989,7 @@ function converterMoedaParaNumero(valor) {
 // ========================================
 
 function abrirModalProduto() {
+    if (!requireAdminOrNotify()) return;
     document.getElementById('modalProduto').style.display = 'flex';
     document.getElementById('formProduto').reset();
 }
@@ -2082,6 +2083,7 @@ function atualizarSelectDistribuicaoProduto() {
 // ========================================
 
 function abrirModalEntradaEstoque() {
+    if (!requireAdminOrNotify()) return;
     document.getElementById('modalEntradaEstoque').style.display = 'flex';
     document.getElementById('formEntradaEstoque').reset();
     document.getElementById('estoqueAtualIMBEL').value = '-';
@@ -2099,6 +2101,7 @@ function abrirModalEntradaEstoque() {
 }
 
 function abrirModalDevolucao() {
+    if (!requireAdminOrNotify()) return;
     const modal = document.getElementById('modalDevolucao');
     if (!modal) return;
     modal.style.display = 'flex';
@@ -2165,6 +2168,7 @@ function mostrarEstoqueAtual() {
 }
 
 function salvarEntradaEstoque(event) {
+    if (!requireAdminOrNotify()) return;
     event.preventDefault();
     
     const produtoId = parseInt(document.getElementById('produtoEntrada').value);
@@ -2196,6 +2200,7 @@ function salvarEntradaEstoque(event) {
 
 function abrirModalVendaDetalhada(vendaId = null) {
     // vendaId: se fornecido, abre o modal em modo de edição para essa venda
+    if (!requireAdminOrNotify()) return;
     const modalEl = document.getElementById('modalVendaDetalhada');
     modalEl.style.display = 'flex';
     document.getElementById('formVendaDetalhada').reset();
@@ -2395,6 +2400,7 @@ function atualizarPrecoVenda() {
 }
 
 function salvarVendaDetalhada(event) {
+    if (!requireAdminOrNotify()) return;
     event.preventDefault();
     const contrato = document.getElementById('contratoVenda').value.trim();
     const loja = document.getElementById('lojaVenda').value.trim().toUpperCase();
@@ -2858,6 +2864,7 @@ function limparFiltrosVendas() {
 }
 
 function excluirVenda(vendaId) {
+    if (!requireAdminOrNotify()) return;
     const venda = estoque.registroVendas.find(v => v.id === vendaId);
     let vendaSnapshot = null;
     try { vendaSnapshot = venda ? JSON.parse(JSON.stringify(venda)) : null; } catch (e) { vendaSnapshot = null; }
@@ -2995,6 +3002,7 @@ function exportarVendas() {
 // ========================================
 
 function abrirModalNovaDistribuicao() {
+    if (!requireAdminOrNotify()) return;
     document.getElementById('modalNovaDistribuicao').style.display = 'flex';
     document.getElementById('formNovaDistribuicao').reset();
     atualizarSelectsProdutos();
@@ -3005,6 +3013,7 @@ function abrirModalNovaDistribuicao() {
 }
 
 function salvarNovaDistribuicao(event) {
+    if (!requireAdminOrNotify()) return;
     event.preventDefault();
     
     const representante = document.getElementById('representanteDistDet').value;
@@ -3134,6 +3143,7 @@ function limparFiltrosDistribuicao() {
 }
 
 function excluirDistribuicao(distId) {
+    if (!requireAdminOrNotify()) return;
     const dist = estoque.registroDistribuicao.find(d => d.id === distId);
     
     if (!dist) {
@@ -3339,6 +3349,7 @@ function importarDistribuicao(event) {
 }
 
 function salvarProduto(event) {
+    if (!requireAdminOrNotify()) return;
     event.preventDefault();
     
     const nome = document.getElementById('nomeProduto').value.trim().toUpperCase();
@@ -3370,6 +3381,7 @@ function salvarProduto(event) {
 }
 
 function salvarDistribuicao(event) {
+    if (!requireAdminOrNotify()) return;
     event.preventDefault();
     
     const produtoId = parseInt(document.getElementById('produtoDistribuicao').value);
@@ -3402,6 +3414,7 @@ function salvarDistribuicao(event) {
 }
 
 function salvarVenda(event) {
+    if (!requireAdminOrNotify()) return;
     event.preventDefault();
     
     const produtoId = parseInt(document.getElementById('produtoVenda').value);
@@ -4580,6 +4593,7 @@ function hideProgressBar() {
 // Override cloud UI functions to use progress bar
 const _salvarNoCloudUI_original = salvarNoCloudUI;
 salvarNoCloudUI = async function() {
+    if (!requireAdminOrNotify()) return false;
     showProgressBar('Salvando no Cloud...');
     try {
         return await _salvarNoCloudUI_original();
@@ -4590,6 +4604,7 @@ salvarNoCloudUI = async function() {
 
 const _carregarDoCloudUI_original = carregarDoCloudUI;
 carregarDoCloudUI = async function() {
+    if (!requireAdminOrNotify()) return false;
     showProgressBar('Carregando do Cloud...');
     try {
         return await _carregarDoCloudUI_original();
@@ -5140,6 +5155,21 @@ firebase.auth().onAuthStateChanged(async function(user) {
             document.body.classList.remove('is-admin');
             if (loggedBadgeEl) loggedBadgeEl.style.display = 'none';
         }
+        // Toggle UI controls marked as admin-only
+        try {
+            const adminControls = document.querySelectorAll('[data-admin="true"]');
+            adminControls.forEach(el => {
+                if (isAdmin) {
+                    el.removeAttribute('disabled');
+                    el.style.pointerEvents = '';
+                    el.style.opacity = '';
+                } else {
+                    el.setAttribute('disabled','disabled');
+                    el.style.pointerEvents = 'none';
+                    el.style.opacity = '0.55';
+                }
+            });
+        } catch(e) {}
         if (loggedEmailEl) loggedEmailEl.textContent = user.email || '';
 
         // Persist a short record of current user in localStorage for quick reference
@@ -5166,6 +5196,17 @@ function isCurrentUserAdmin() {
         const parsed = JSON.parse(raw);
         return !!parsed && !!parsed.isAdmin;
     } catch(e) { return false; }
+}
+
+// Verifica se o usuário atual é admin; caso contrário exibe notificação e mostra o painel de login
+function requireAdminOrNotify() {
+    try {
+        if (isCurrentUserAdmin()) return true;
+        mostrarNotificacao('Ação restrita: somente administradores podem realizar esta operação.', 'warning');
+        const formEl = document.getElementById('authPanelForm');
+        if (formEl) formEl.style.display = 'flex';
+    } catch(e) { /* ignore */ }
+    return false;
 }
 
 // Forçar chamada inicial para ajustar UI caso o listener já tenha ocorrido

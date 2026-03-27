@@ -106,7 +106,7 @@
         <!-- Barra de Ações -->
         <div class="actions-bar" id="acoesEstoque">
             <div class="actions-group">
-                <button class="btn btn-primary" onclick="abrirModalProduto()">
+                <button class="btn btn-primary" data-admin="true" onclick="abrirModalProduto()">
                     <span class="btn-icon">+</span>
                     Novo Produto
                 </button>
@@ -120,7 +120,7 @@
             <div class="actions-divider"></div>
             
             <div class="actions-group">
-                <button class="btn btn-outline" onclick="abrirModalDevolucao()">
+                <button class="btn btn-outline" data-admin="true" onclick="abrirModalDevolucao()">
                     <span class="btn-icon">↩</span>
                     Devolução
                 </button>
@@ -137,11 +137,11 @@
             
             <div class="actions-divider"></div>
             <div class="actions-group">
-                <button class="btn btn-outline" onclick="salvarNoCloudUI()" title="Salvar dados no Firestore">
+                <button class="btn btn-outline" data-admin="true" onclick="salvarNoCloudUI()" title="Salvar dados no Firestore">
                     <span class="btn-icon">☁️</span>
                     Salvar no Cloud
                 </button>
-                <button class="btn btn-outline" onclick="carregarDoCloudUI()" title="Carregar dados do Firestore">
+                <button class="btn btn-outline" data-admin="true" onclick="carregarDoCloudUI()" title="Carregar dados do Firestore">
                     <span class="btn-icon">📥</span>
                     Carregar do Cloud
                 </button>
@@ -214,7 +214,7 @@
                 <div class="section-header">
                     <h2 class="section-title">Registro de Distribuição</h2>
                     <div class="header-actions">
-                        <button class="btn btn-success" onclick="abrirModalNovaDistribuicao()">
+                        <button class="btn btn-success" data-admin="true" onclick="abrirModalNovaDistribuicao()">
                             <span class="btn-icon">+</span>
                             Nova Distribuição
                         </button>
@@ -290,7 +290,7 @@
                 <div class="section-header">
                     <h2 class="section-title">Registro de Vendas</h2>
                     <div class="header-actions">
-                        <button class="btn btn-success" onclick="abrirModalVendaDetalhada()">
+                        <button class="btn btn-success" data-admin="true" onclick="abrirModalVendaDetalhada()">
                             <span class="btn-icon">+</span>
                             Nova Venda
                         </button>
@@ -740,10 +740,10 @@
                     <div class="config-card">
                         <h3>☁️ Cloud (Firestore)</h3>
                         <div class="config-actions">
-                            <button class="btn btn-outline" onclick="salvarNoCloudUI()" title="Salvar dados no Firestore">
+                            <button class="btn btn-outline" data-admin="true" onclick="salvarNoCloudUI()" title="Salvar dados no Firestore">
                                 <span class="btn-icon">☁️</span> Salvar no Cloud
                             </button>
-                            <button class="btn btn-outline" onclick="carregarDoCloudUI()" title="Carregar dados do Firestore">
+                            <button class="btn btn-outline" data-admin="true" onclick="carregarDoCloudUI()" title="Carregar dados do Firestore">
                                 <span class="btn-icon">📥</span> Carregar do Cloud
                             </button>
                         </div>
