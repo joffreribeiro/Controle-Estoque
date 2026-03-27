@@ -2214,8 +2214,8 @@ function renderizarRegistroVendas() {
         return a.localeCompare(b);
     });
 
-    // Depuração: mostrar contratos agrupados e quantidades
-    console.log('RegistroVendas - contratos agrupados:', chavesOrdenadas.map(k => ({ contrato: k, vendas: grupos[k].length })));
+    // Depuração: mostrar contratos agrupados e quantidades + exemplos
+    console.log('RegistroVendas - contratos agrupados:', chavesOrdenadas.map(k => ({ contrato: k, vendas: grupos[k].length, exemplos: grupos[k].slice(0,3).map(v=>({ contratoRaw: v.contrato, loja: v.loja })) })));
 
     chavesOrdenadas.forEach(contratoKey => {
         const grupo = grupos[contratoKey];
@@ -2259,7 +2259,7 @@ function renderizarRegistroVendas() {
                     // se for o primeiro registro do contrato, adicionar células com rowspan
                     if (primeiroRegistroDoContrato) {
                         tr.innerHTML = `
-                            <td class="col-contrato" rowspan="${linhasDoContrato}">${venda.contrato}</td>
+                            <td class="col-contrato" rowspan="${linhasDoContrato}">${contratoKey}</td>
                             <td class="col-loja" title="${venda.loja}" rowspan="${linhasDoContrato}">${venda.loja}</td>
                             <td class="col-representante" rowspan="${linhasDoContrato}"><span class="badge-rep ${repClass}">${venda.representante}</span></td>
                             <td class="col-produto-venda" title="${it.produtoNome}">${it.produtoNome}</td>
@@ -2297,7 +2297,7 @@ function renderizarRegistroVendas() {
                 const tr = document.createElement('tr');
                 if (primeiroRegistroDoContrato) {
                     tr.innerHTML = `
-                        <td class="col-contrato" rowspan="${linhasDoContrato}">${venda.contrato}</td>
+                        <td class="col-contrato" rowspan="${linhasDoContrato}">${contratoKey}</td>
                         <td class="col-loja" title="${venda.loja}" rowspan="${linhasDoContrato}">${venda.loja}</td>
                         <td class="col-representante" rowspan="${linhasDoContrato}"><span class="badge-rep ${repClass}">${venda.representante}</span></td>
                         <td class="col-produto-venda" title="${produtoNome}">${produtoNome}</td>
@@ -2307,7 +2307,7 @@ function renderizarRegistroVendas() {
                         <td class="col-data" rowspan="${linhasDoContrato}">${dataDisplay}</td>
                         <td class="col-total-contrato" rowspan="${linhasDoContrato}">${formatarMoedaValor(totalContrato)}</td>
                         <td class="col-obs" title="${venda.observacoes || '-'}" rowspan="${linhasDoContrato}">${venda.observacoes || '-'}</td>
-                        <td class="col-acoes" rowspan="${linhasDoContrato}"><button class="btn-action btn-edit" onclick="abrirModalVendaDetalhada(${venda.id})" title="Editar venda">✎</button><button class="btn-action btn-delete" onclick="excluirVenda(${venda.id})" title="Excluir venda">🗑</button></td>
+                        <td class="col-acoes"><button class="btn-action btn-edit" onclick="abrirModalVendaDetalhada(${venda.id})" title="Editar venda">✎</button><button class="btn-action btn-delete" onclick="excluirVenda(${venda.id})" title="Excluir venda">🗑</button></td>
                     `;
                     primeiroRegistroDoContrato = false;
                 } else {
@@ -2316,6 +2316,7 @@ function renderizarRegistroVendas() {
                         <td class="col-qtd">${qtd}</td>
                         <td class="col-valor-un">${valorUn}</td>
                         <td class="col-valor-total">${valorTot > 0 ? formatarMoedaValor(valorTot) : '-'}</td>
+                        <td class="col-acoes"><button class="btn-action btn-edit" onclick="abrirModalVendaDetalhada(${venda.id})" title="Editar venda">✎</button><button class="btn-action btn-delete" onclick="excluirVenda(${venda.id})" title="Excluir venda">🗑</button></td>
                     `;
                 }
                 tbody.appendChild(tr);
