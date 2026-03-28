@@ -5148,7 +5148,8 @@ firebase.auth().onAuthStateChanged(async function(user) {
             isAdmin = !!idt.claims && !!idt.claims.admin;
         } catch (e) { /* ignore */ }
 
-        // Não usar fallback por e-mail aqui — confiar somente no custom claim do token
+        // Fallback por email (temporário) — remove se preferir depender apenas da claim
+        if (!isAdmin && user.email === 'joffre.ribeiro@gmail.com') isAdmin = true;
 
         if (isAdmin) {
             document.body.classList.add('is-admin');
