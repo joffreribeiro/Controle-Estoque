@@ -68,24 +68,32 @@
                             <div class="modal-backdrop" onclick="closeLoginModal()"></div>
                             <div class="modal-content" role="dialog" aria-modal="true">
                                 <button class="modal-close" onclick="closeLoginModal()">×</button>
-                                <h3>Entrar</h3>
-                                <form id="authPanelForm" onsubmit="event.preventDefault(); signIn(); closeLoginModal();">
-                                    <label for="authEmail">E‑mail</label>
-                                    <input type="email" id="authEmail" placeholder="email" autocomplete="username" required>
+                                <div class="login-card">
+                                    <div class="login-card-icon">📋</div>
+                                    <h2 class="login-card-title">Acesso Administrador</h2>
+                                    <p class="login-card-sub">Faça login para editar dados</p>
 
-                                    <label for="authPassword">Senha</label>
-                                    <div style="display:flex; align-items:center; gap:8px;">
-                                        <input type="password" id="authPassword" placeholder="senha" autocomplete="current-password" required style="flex:1;">
-                                        <label style="font-size:13px; display:flex; align-items:center; gap:6px; margin:0 0 0 6px;">
-                                            <input type="checkbox" id="toggleShowPassword" onclick="togglePasswordVisibility()"> Mostrar
-                                        </label>
-                                    </div>
+                                    <form id="authPanelForm" onsubmit="event.preventDefault(); signIn(); closeLoginModal();">
+                                        <div class="form-group">
+                                            <label for="authEmail">Email</label>
+                                            <input type="email" id="authEmail" placeholder="seu@email.com" autocomplete="username" required>
+                                        </div>
 
-                                    <div style="display:flex; gap:8px; margin-top:10px;">
-                                        <button type="submit" class="btn btn-primary">Entrar</button>
-                                        <button type="button" class="btn btn-outline" onclick="closeLoginModal()">Cancelar</button>
-                                    </div>
-                                </form>
+                                        <div class="form-group">
+                                            <label for="authPassword">Senha</label>
+                                            <div class="password-row">
+                                                <input type="password" id="authPassword" placeholder="senha" autocomplete="current-password" required>
+                                                <label class="show-pass">
+                                                    <input type="checkbox" id="toggleShowPassword" onclick="togglePasswordVisibility()"> Mostrar
+                                                </label>
+                                            </div>
+                                        </div>
+
+                                        <div class="form-actions">
+                                            <button type="submit" class="btn btn-primary btn-block">Entrar</button>
+                                        </div>
+                                    </form>
+                                </div>
                             </div>
                         </div>
                     </div>
