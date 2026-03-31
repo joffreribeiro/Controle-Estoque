@@ -1910,7 +1910,7 @@ function imprimirDistribuicao() {
 }
 
 function imprimirVendas() {
-    // Gera relatório por contrato listando cada linha de venda separadamente
+    // Gera relatório em uma única tabela: cada produto/linha de venda em uma linha, com subtotal por contrato
     renderizarRegistroVendas();
 
     const vendas = Array.isArray(estoque.registroVendas) ? [...estoque.registroVendas] : [];
@@ -1919,7 +1919,7 @@ function imprimirVendas() {
         return;
     }
 
-    // Construir linhas expandidas (cada item de venda vira uma linha; vendas legacy também)
+    // Montar linhas expandidas
     const linhas = [];
     vendas.forEach(venda => {
         const contratoKey = normalizarContratoKey(venda.contrato || '');
@@ -1957,87 +1957,80 @@ function imprimirVendas() {
         }
     });
 
-    // Agrupar por contrato
+    // Agrupar por contrato e ordenar
     const grupos = {};
-    linhas.forEach(l => {
-        if (!grupos[l.contratoKey]) grupos[l.contratoKey] = [];
-        grupos[l.contratoKey].push(l);
-    });
-
+    linhas.forEach(l => { if (!grupos[l.contratoKey]) grupos[l.contratoKey] = []; grupos[l.contratoKey].push(l); });
     const chavesOrdenadas = Object.keys(grupos).sort((a,b) => {
-        const na = parseInt(a);
-        const nb = parseInt(b);
+        const na = parseInt(a); const nb = parseInt(b);
         if (!isNaN(na) && !isNaN(nb)) return na - nb;
         return a.localeCompare(b);
     });
 
-    // Montar HTML do relatório
-    let content = '';
+    // Construir tabela única
+    let tabelaHtml = `
+        <table class="tabela-relatorio vendas-table" style="width:100%;border-collapse:collapse">
+            <thead>
+                <tr>
+                    <th style="padding:6px;border:1px solid #ddd">CONTRATO</th>
+                    <th style="padding:6px;border:1px solid #ddd">LOJA / CLIENTE</th>
+                    <th style="padding:6px;border:1px solid #ddd">REPRESENTANTE</th>
+                    <th style="padding:6px;border:1px solid #ddd">PRODUTO</th>
+                    <th style="padding:6px;border:1px solid #ddd;text-align:center">QTD</th>
+                    <th style="padding:6px;border:1px solid #ddd;text-align:right">VALOR UN.</th>
+                    <th style="padding:6px;border:1px solid #ddd;text-align:right">VALOR TOTAL</th>
+                    <th style="padding:6px;border:1px solid #ddd">DATA</th>
+                    <th style="padding:6px;border:1px solid #ddd">OBS</th>
+                </tr>
+            </thead>
+            <tbody>`;
+
     let grandTotalQtd = 0;
     let grandTotalValor = 0;
 
     chavesOrdenadas.forEach(ck => {
         const grupo = grupos[ck] || [];
-        if (grupo.length === 0) return;
-        // Determinar dados do cabeçalho do contrato
-        const primeiro = grupo[0];
-        const loja = primeiro.loja || '-';
-        const reps = Array.from(new Set(grupo.map(g => g.representante).filter(Boolean))).join(', ') || '-';
-        const datas = grupo.map(g => g.dataNorm).filter(Boolean).sort();
-        const dataTexto = datas.length ? (datas[0] === datas.slice(-1)[0] ? new Date(datas[0] + 'T00:00:00').toLocaleDateString('pt-BR') : `${new Date(datas[0] + 'T00:00:00').toLocaleDateString('pt-BR')} até ${new Date(datas.slice(-1)[0] + 'T00:00:00').toLocaleDateString('pt-BR')}`) : '-';
+        if (!grupo.length) return;
+        // calcular subtotal do contrato
+        let subtotalQtd = 0; let subtotalValor = 0;
+        grupo.forEach(r => { subtotalQtd += r.quantidade || 0; subtotalValor += r.valorTotal || 0; });
 
-        content += `<div style="margin:14px 0;border-bottom:1px solid #ddd;padding-bottom:10px">
-            <h3 style="margin:0 0 6px 0">Contrato: ${grupo[0].contratoRaw || ck}</h3>
-            <div style="font-size:13px;margin-bottom:6px;color:#333"><strong>Loja/Cliente:</strong> ${loja} &nbsp;|&nbsp; <strong>Representante(s):</strong> ${reps} &nbsp;|&nbsp; <strong>Data:</strong> ${dataTexto}</div>
-            <table style="width:100%;border-collapse:collapse;margin-bottom:8px">
-                <thead>
-                    <tr>
-                        <th style="text-align:left;padding:6px;border:1px solid #ddd">ID Venda</th>
-                        <th style="text-align:left;padding:6px;border:1px solid #ddd">Data</th>
-                        <th style="text-align:left;padding:6px;border:1px solid #ddd">Representante</th>
-                        <th style="text-align:left;padding:6px;border:1px solid #ddd">Produto</th>
-                        <th style="text-align:center;padding:6px;border:1px solid #ddd">Qtd</th>
-                        <th style="text-align:right;padding:6px;border:1px solid #ddd">Valor Unit.</th>
-                        <th style="text-align:right;padding:6px;border:1px solid #ddd">Valor Total</th>
-                        <th style="text-align:left;padding:6px;border:1px solid #ddd">Observações</th>
-                    </tr>
-                </thead>
-                <tbody>`;
-
-        let subtotalQtd = 0;
-        let subtotalValor = 0;
-        grupo.forEach(row => {
-            subtotalQtd += row.quantidade || 0;
-            subtotalValor += row.valorTotal || 0;
-            grandTotalQtd += row.quantidade || 0;
-            grandTotalValor += row.valorTotal || 0;
-            const dataFmt = row.dataNorm ? new Date(row.dataNorm + 'T00:00:00').toLocaleDateString('pt-BR') : '-';
-            content += `<tr>
-                        <td style="padding:6px;border:1px solid #ddd">${row.vendaId || '-'}</td>
-                        <td style="padding:6px;border:1px solid #ddd">${dataFmt}</td>
-                        <td style="padding:6px;border:1px solid #ddd">${row.representante}</td>
-                        <td style="padding:6px;border:1px solid #ddd">${row.produtoNome}</td>
-                        <td style="text-align:center;padding:6px;border:1px solid #ddd">${row.quantidade}</td>
-                        <td style="text-align:right;padding:6px;border:1px solid #ddd">${row.valorUnitario ? formatarMoedaValor(row.valorUnitario) : '-'}</td>
-                        <td style="text-align:right;padding:6px;border:1px solid #ddd">${formatarMoedaValor(row.valorTotal || 0)}</td>
-                        <td style="padding:6px;border:1px solid #ddd">${row.observacoes || '-'}</td>
-                    </tr>`;
+        // adicionar linhas do contrato
+        let primeiraLinha = true;
+        grupo.forEach(r => {
+            const dataFmt = r.dataNorm ? new Date(r.dataNorm + 'T00:00:00').toLocaleDateString('pt-BR') : '-';
+            tabelaHtml += `
+                <tr>
+                    <td style="padding:6px;border:1px solid #ddd">${primeiraLinha ? (r.contratoRaw || ck) : ''}</td>
+                    <td style="padding:6px;border:1px solid #ddd">${r.loja}</td>
+                    <td style="padding:6px;border:1px solid #ddd">${r.representante}</td>
+                    <td style="padding:6px;border:1px solid #ddd">${r.produtoNome}</td>
+                    <td style="padding:6px;border:1px solid #ddd;text-align:center">${r.quantidade}</td>
+                    <td style="padding:6px;border:1px solid #ddd;text-align:right">${r.valorUnitario ? formatarMoedaValor(r.valorUnitario) : '-'}</td>
+                    <td style="padding:6px;border:1px solid #ddd;text-align:right">${formatarMoedaValor(r.valorTotal || 0)}</td>
+                    <td style="padding:6px;border:1px solid #ddd">${dataFmt}</td>
+                    <td style="padding:6px;border:1px solid #ddd">${r.observacoes || '-'}</td>
+                </tr>`;
+            primeiraLinha = false;
+            grandTotalQtd += r.quantidade || 0;
+            grandTotalValor += r.valorTotal || 0;
         });
 
-        content += `<tr>
-                    <td colspan="4" style="padding:6px;border:1px solid #ddd;text-align:right"><strong>Subtotal</strong></td>
-                    <td style="text-align:center;padding:6px;border:1px solid #ddd"><strong>${subtotalQtd}</strong></td>
-                    <td style="text-align:right;padding:6px;border:1px solid #ddd"></td>
-                    <td style="text-align:right;padding:6px;border:1px solid #ddd"><strong>${formatarMoedaValor(subtotalValor)}</strong></td>
-                    <td style="padding:6px;border:1px solid #ddd"></td>
-                </tr>`;
-
-        content += `</tbody></table></div>`;
+        // linha de subtotal do contrato
+        tabelaHtml += `
+            <tr>
+                <td colspan="4" style="padding:6px;border:1px solid #ddd;text-align:right"><strong>Subtotal Contrato ${ck}</strong></td>
+                <td style="padding:6px;border:1px solid #ddd;text-align:center"><strong>${subtotalQtd}</strong></td>
+                <td style="padding:6px;border:1px solid #ddd"></td>
+                <td style="padding:6px;border:1px solid #ddd;text-align:right"><strong>${formatarMoedaValor(subtotalValor)}</strong></td>
+                <td colspan="2" style="padding:6px;border:1px solid #ddd"></td>
+            </tr>`;
     });
 
-    content += `<div style="margin-top:12px;font-weight:700">Total Geral: ${grandTotalQtd} item(ns) — ${formatarMoedaValor(grandTotalValor)}</div>`;
+    tabelaHtml += `</tbody></table>`;
 
-    const win = window.open('', '_blank', 'width=1100,height=800');
+    tabelaHtml += `<div style="margin-top:12px;font-weight:700">Total Geral: ${grandTotalQtd} item(ns) — ${formatarMoedaValor(grandTotalValor)}</div>`;
+
+    const win = window.open('', '_blank', 'width=1200,height=900');
     if (!win) { alert('Não foi possível abrir a janela de impressão. Permita popups.'); return; }
 
     win.document.write(`
@@ -2045,7 +2038,7 @@ function imprimirVendas() {
         <html lang="pt-BR">
         <head>
             <meta charset="utf-8">
-            <title>Relatório - Vendas por Contrato</title>
+            <title>Relatório - Registro de Vendas</title>
             <link rel="stylesheet" href="styles.css">
             <style>
                 @page { size: A4 landscape; margin: 10mm; }
@@ -2055,8 +2048,8 @@ function imprimirVendas() {
             </style>
         </head>
         <body>
-            <h1>Vendas por Contrato (Linhas de Venda)</h1>
-            ${content}
+            <h1>Registro de Vendas</h1>
+            ${tabelaHtml}
             <script>window.onload=function(){ setTimeout(function(){ window.print(); },200); };</script>
         </body>
         </html>
