@@ -2071,8 +2071,10 @@ function imprimirVendas() {
             </style>
         </head>
         <body>
-            <h1>Registro de Vendas</h1>
-            ${tabelaHtml}
+            <div class="report-printable">
+                <h1 style="margin-bottom:8px">Registro de Vendas</h1>
+                ${tabelaHtml}
+            </div>
             <script>window.onload=function(){ setTimeout(function(){ window.print(); },200); };</script>
         </body>
         </html>
