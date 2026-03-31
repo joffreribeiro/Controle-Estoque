@@ -115,6 +115,51 @@ header {
     flex-wrap: wrap;
 }
 
+/* Ajustes para painel de autenticação e informações da conta
+   - posicionar à direita abaixo do indicador de sincronização
+   - melhorar contraste de fonte e disposição visual */
+.header-info { position: relative; }
+.auth-panel, .logged-account-info {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.06);
+    padding: 6px 10px;
+    border-radius: 8px;
+    color: #ffffff;
+    font-size: 0.9rem;
+    margin-top: 8px; /* empurra para baixo, alinhando abaixo do status de sync */
+}
+
+.auth-panel .btn, .auth-panel button, .auth-panel .btn-outline {
+    color: #ffffff !important;
+    border-color: rgba(255,255,255,0.12) !important;
+    background: transparent !important;
+}
+
+#authUserDisplay, #loggedAccountEmail, #fsText {
+    color: rgba(255,255,255,0.95) !important;
+    font-weight: 600;
+}
+
+#loggedAccountBadge {
+    margin-left: 8px;
+    display: inline-block;
+    padding: 4px 8px;
+    background: #1e90ff; /* destaque azul mais visível */
+    color: #ffffff;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 700;
+}
+
+/* Em telas muito grandes, garantir que o bloco fique fixo à direita */
+@media (min-width: 1200px) {
+    .auth-panel, .logged-account-info { position: relative; }
+}
+
 .header-stat {
     text-align: center;
     padding: 8px 16px;
