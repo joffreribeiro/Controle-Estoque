@@ -1970,10 +1970,10 @@ function imprimirVendas() {
     let tabelaHtml = `
         <table class="tabela-relatorio vendas-table" style="width:100%;border-collapse:collapse">
             <colgroup>
-                <col style="width:6%" />
+                <col style="width:8%" />
                 <col style="width:18%" />
                 <col style="width:10%" />
-                <col style="width:20%" />
+                <col style="width:18%" />
                 <col style="width:4%" />
                 <col style="width:10%" />
                 <col style="width:14%" />
@@ -2059,7 +2059,8 @@ function imprimirVendas() {
                 h1 { margin:0 0 6px 0; font-size:14px }
                 /* reduzir fonte da tabela para caber mais conteúdo */
                 .tabela-relatorio, .tabela-relatorio table { font-size:9px; border-collapse:collapse; width:100% !important; table-layout: fixed; }
-                .tabela-relatorio th, .tabela-relatorio td { border:1px solid #ddd; padding:4px 6px; vertical-align: middle; word-break: break-word; }
+                /* garantir box-sizing e reduzir padding para evitar corte do conteúdo */
+                .tabela-relatorio th, .tabela-relatorio td { box-sizing: border-box; border:1px solid #ddd; padding:3px !important; vertical-align: middle; word-break: break-word; }
                 /* evitar quebra nas colunas numéricas */
                 .tabela-relatorio th.numeric, .tabela-relatorio td.numeric { white-space: nowrap; }
                 .tabela-relatorio thead th { background: #1e3a5f; color: #fff; text-align: center; font-size:10px }
@@ -2069,10 +2070,11 @@ function imprimirVendas() {
                 /* garantir que o wrapper de impressão não seja posicionado fora da página */
                 .report-printable { position: static !important; left: auto !important; top: auto !important; width: 100% !important; }
                 table { page-break-inside: auto; }
-                tr    { page-break-inside: avoid; page-break-after: auto }
+                /* permitir que a tabela quebre entre páginas — evitando empurrar toda a tabela para a próxima página */
+                tr { page-break-inside: auto; page-break-after: auto }
                 thead { display: table-header-group }
                 tfoot { display: table-footer-group }
-                @media print { body { margin: 0; } .tabela-relatorio { break-inside: avoid; } }
+                @media print { body { margin: 0; } .tabela-relatorio { break-inside: auto; } }
             </style>
         </head>
         <body>
