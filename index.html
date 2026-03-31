@@ -189,6 +189,10 @@
                     <div class="header-actions">
                         <input type="text" id="filtroEstoqueBusca" placeholder="🔍 Filtrar produtos..." oninput="filtrarTabelaEstoque(this.value)" class="input-busca-tabela">
                         <span class="badge badge-info" id="ultimaAtualizacao">Atualizado agora</span>
+                        <button class="btn btn-outline btn-sm" onclick="imprimirRelatorioAba('estoque')" style="margin-left:8px">
+                            <span class="btn-icon">🖨️</span>
+                            Imprimir
+                        </button>
                     </div>
                 </div>
 
@@ -248,6 +252,10 @@
                         <button class="btn btn-success" data-admin="true" onclick="abrirModalNovaDistribuicao()">
                             <span class="btn-icon">+</span>
                             Nova Distribuição
+                        </button>
+                        <button class="btn btn-outline btn-sm" onclick="imprimirRelatorioAba('distribuicao')" style="margin-left:8px">
+                            <span class="btn-icon">🖨️</span>
+                            Imprimir
                         </button>
                     </div>
                 </div>
@@ -329,6 +337,10 @@
                             <span class="btn-icon">🕘</span>
                             Histórico do Contrato
                         </button>
+                        <button class="btn btn-outline btn-sm" onclick="imprimirRelatorioAba('vendas')" style="margin-left:8px">
+                            <span class="btn-icon">🖨️</span>
+                            Imprimir
+                        </button>
                     </div>
                 </div>
 
@@ -400,11 +412,22 @@
             </div>
         </div>
 
+        
+
         <!-- ========================================
              ABA: DASHBOARD DE VENDAS
              ======================================== -->
         <div class="tab-content" id="tab-dashboard">
             <div class="content-area">
+                <div class="section-header">
+                    <h2 class="section-title">Dashboard</h2>
+                    <div class="header-actions">
+                        <button class="btn btn-outline btn-sm" onclick="imprimirRelatorioAba('dashboard')">
+                            <span class="btn-icon">🖨️</span>
+                            Imprimir
+                        </button>
+                    </div>
+                </div>
                 <!-- Cards de Resumo -->
                 <div class="dashboard-cards">
                     <div class="dash-card card-blue">
@@ -605,6 +628,10 @@
                             <span class="btn-icon">🔍</span>
                             Atualizar Preview
                         </button>
+                        <button class="btn btn-primary" onclick="imprimirRelatorioAba('relatorios')" style="margin-left:8px">
+                            <span class="btn-icon">🖨️</span>
+                            Imprimir Aba
+                        </button>
                     </div>
                 </div>
 
@@ -708,6 +735,12 @@
             <div class="content-area">
                 <div class="section-header">
                     <h2 class="section-title">⚙️ Configurações</h2>
+                    <div class="header-actions">
+                        <button class="btn btn-outline btn-sm" onclick="imprimirRelatorioAba('configuracoes')">
+                            <span class="btn-icon">🖨️</span>
+                            Imprimir
+                        </button>
+                    </div>
                 </div>
 
                 <div class="config-sections">

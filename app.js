@@ -1791,6 +1791,107 @@ function imprimirDashboardVendasRepresentante() {
     imprimirTabelaSeparada('tabelaVendasRep', 'Dashboard - Quantidade de Vendas por Representante', '', 'landscape');
 }
 
+// Dispatcher: imprime o relatório associado à aba informada
+function imprimirRelatorioAba(tabId) {
+    try {
+        if (!tabId) tabId = document.querySelector('.tabs-navigation .tab-btn.active')?.dataset.tab || 'estoque';
+        switch ((tabId || '').toString()) {
+            case 'estoque':
+                // utiliza o mecanismo de relatório/inventário já existente
+                prepararRelatorioInventario();
+                imprimirInventario();
+                break;
+            case 'distribuicao':
+                imprimirDistribuicao();
+                break;
+            case 'vendas':
+                imprimirVendas();
+                break;
+            case 'controleenvio':
+                imprimirControleEnvio();
+                break;
+            case 'dashboard':
+                // imprime o principal quadro de vendas por representante (mais completo)
+                renderizarDashboard();
+                imprimirDashboardVendasRepresentante();
+                break;
+            case 'relatorios':
+                // decide com base no tipo selecionado
+                const tipo = document.getElementById('filtroRelatoriosTipo')?.value || 'inventario';
+                if (tipo === 'comissoes') imprimirComissoes();
+                else if (tipo === 'distribuicao') imprimirDistribuicao();
+                else imprimirInventario();
+                break;
+            case 'configuracoes':
+                imprimirConfiguracoes();
+                break;
+            default:
+                alert('Não há relatório configurado para esta aba.');
+        }
+    } catch (e) {
+        console.error('Erro imprimindo aba', tabId, e);
+        mostrarNotificacao('Falha ao iniciar impressão. Veja o console.', 'error');
+    }
+}
+
+function imprimirDistribuicao() {
+    prepararRelatorioDistribuicao();
+    const preview = document.getElementById('relatoriosPreview');
+    if (!preview) { mostrarNotificacao('Preview não disponível para distribuição.', 'error'); return; }
+    const content = preview.innerHTML;
+    const win = window.open('', '_blank', 'width=1000,height=700');
+    if (!win) { alert('Não foi possível abrir a janela de impressão. Permita popups.'); return; }
+    win.document.write(`
+        <!doctype html>
+        <html lang="pt-BR">
+        <head>
+            <meta charset="utf-8">
+            <title>Relatório - Distribuição</title>
+            <link rel="stylesheet" href="styles.css">
+            <style> @page { size: A4 portrait; margin: 10mm; } body{font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif; padding:12px; color:#222 } .report-printable table{width:100%;border-collapse:collapse} .report-printable th, .report-printable td{border:1px solid #ddd;padding:6px 8px} thead{background:#1e3a5f;color:#fff} </style>
+        </head>
+        <body>
+            <h1>Relatório de Distribuição</h1>
+            ${content}
+            <script>window.onload=function(){ setTimeout(function(){ window.print(); },200); };</script>
+        </body>
+        </html>
+    `);
+    win.document.close();
+}
+
+function imprimirVendas() {
+    // renderizar antes para garantir tabela atualizada
+    renderizarRegistroVendas();
+    imprimirTabelaSeparada('tabelaRegistroVendas', 'Registro de Vendas', '', 'landscape');
+}
+
+function imprimirConfiguracoes() {
+    const tab = document.getElementById('tab-configuracoes');
+    if (!tab) { mostrarNotificacao('Aba de configurações não encontrada.', 'error'); return; }
+    const contentArea = tab.querySelector('.content-area');
+    const cloneHtml = contentArea ? contentArea.innerHTML : tab.innerHTML;
+    const win = window.open('', '_blank', 'width=900,height=700');
+    if (!win) { alert('Não foi possível abrir a janela de impressão. Permita popups.'); return; }
+    win.document.write(`
+        <!doctype html>
+        <html lang="pt-BR">
+        <head>
+            <meta charset="utf-8">
+            <title>Configurações</title>
+            <link rel="stylesheet" href="styles.css">
+            <style> @page{size:A4 portrait;margin:10mm} body{font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;padding:12px;color:#222} </style>
+        </head>
+        <body>
+            <h1>Configurações do Sistema</h1>
+            <div>${cloneHtml}</div>
+            <script>window.onload=function(){ setTimeout(function(){ window.print(); },200); };</script>
+        </body>
+        </html>
+    `);
+    win.document.close();
+}
+
 
 function renderizarDashboard() {
     // Calcular dados
