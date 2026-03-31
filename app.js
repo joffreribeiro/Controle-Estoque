@@ -1966,7 +1966,7 @@ function imprimirVendas() {
         return a.localeCompare(b);
     });
 
-    // Construir tabela única
+    // Construir tabela única (removida coluna OBS; mesclar células de contrato/loja/total por contrato quando for >1 linha)
     let tabelaHtml = `
         <table class="tabela-relatorio vendas-table" style="width:100%;border-collapse:collapse">
             <thead>
@@ -1980,7 +1980,6 @@ function imprimirVendas() {
                     <th style="padding:6px;border:1px solid #ddd;text-align:right">VALOR TOTAL</th>
                     <th style="padding:6px;border:1px solid #ddd;text-align:right">TOTAL CONTRATO (R$)</th>
                     <th style="padding:6px;border:1px solid #ddd">DATA</th>
-                    <th style="padding:6px;border:1px solid #ddd">OBS</th>
                 </tr>
             </thead>
             <tbody>`;
@@ -1995,24 +1994,32 @@ function imprimirVendas() {
         let subtotalQtd = 0; let subtotalValor = 0;
         grupo.forEach(r => { subtotalQtd += r.quantidade || 0; subtotalValor += r.valorTotal || 0; });
 
-        // adicionar linhas do contrato
+        // adicionar linhas do contrato — se houver mais de uma linha, usar rowspan para CONTRATO, LOJA e TOTAL CONTRATO
+        const rowspanAttr = grupo.length > 1 ? ` rowspan="${grupo.length}"` : '';
         let primeiraLinha = true;
         grupo.forEach(r => {
             const dataFmt = r.dataNorm ? new Date(r.dataNorm + 'T00:00:00').toLocaleDateString('pt-BR') : '-';
-            const totalContratoHtml = primeiraLinha ? `<strong>${formatarMoedaValor(subtotalValor)}</strong>` : '';
+            tabelaHtml += `<tr>`;
+
+            if (primeiraLinha) {
+                tabelaHtml += `<td style="padding:6px;border:1px solid #ddd"${rowspanAttr}>${r.contratoRaw || ck}</td>`;
+                tabelaHtml += `<td style="padding:6px;border:1px solid #ddd"${rowspanAttr}>${r.loja}</td>`;
+            }
+
             tabelaHtml += `
-                <tr>
-                    <td style="padding:6px;border:1px solid #ddd">${primeiraLinha ? (r.contratoRaw || ck) : ''}</td>
-                    <td style="padding:6px;border:1px solid #ddd">${r.loja}</td>
-                    <td style="padding:6px;border:1px solid #ddd">${r.representante}</td>
-                    <td style="padding:6px;border:1px solid #ddd">${r.produtoNome}</td>
-                    <td style="padding:6px;border:1px solid #ddd;text-align:center">${r.quantidade}</td>
-                    <td style="padding:6px;border:1px solid #ddd;text-align:right">${r.valorUnitario ? formatarMoedaValor(r.valorUnitario) : '-'}</td>
-                    <td style="padding:6px;border:1px solid #ddd;text-align:right">${formatarMoedaValor(r.valorTotal || 0)}</td>
-                    <td style="padding:6px;border:1px solid #ddd;text-align:right">${totalContratoHtml}</td>
-                    <td style="padding:6px;border:1px solid #ddd">${dataFmt}</td>
-                    <td style="padding:6px;border:1px solid #ddd">${r.observacoes || '-'}</td>
-                </tr>`;
+                <td style="padding:6px;border:1px solid #ddd">${r.representante}</td>
+                <td style="padding:6px;border:1px solid #ddd">${r.produtoNome}</td>
+                <td style="padding:6px;border:1px solid #ddd;text-align:center">${r.quantidade}</td>
+                <td style="padding:6px;border:1px solid #ddd;text-align:right">${r.valorUnitario ? formatarMoedaValor(r.valorUnitario) : '-'}</td>
+                <td style="padding:6px;border:1px solid #ddd;text-align:right">${formatarMoedaValor(r.valorTotal || 0)}</td>`;
+
+            if (primeiraLinha) {
+                tabelaHtml += `<td style="padding:6px;border:1px solid #ddd;text-align:right"${rowspanAttr}><strong>${formatarMoedaValor(subtotalValor)}</strong></td>`;
+            }
+
+            tabelaHtml += `<td style="padding:6px;border:1px solid #ddd">${dataFmt}</td>`;
+            tabelaHtml += `</tr>`;
+
             primeiraLinha = false;
             grandTotalQtd += r.quantidade || 0;
             grandTotalValor += r.valorTotal || 0;
