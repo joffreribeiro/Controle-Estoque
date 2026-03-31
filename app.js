@@ -2044,14 +2044,14 @@ function imprimirVendas() {
             <link rel="stylesheet" href="styles.css">
             <style>
                 @page { size: A4 landscape; margin: 10mm; }
-                body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif; padding:12px; color:#000 !important; background:#fff !important; }
+                body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif; padding:12px; color:#000; background:#fff; }
                 h1 { margin-bottom:8px }
-                table { font-size:12px; border-collapse:collapse; width:100% !important; display:table !important; }
-                thead, tbody, tr, th, td { display: table-row-group !important; color:#000 !important; }
-                th, td { border:1px solid #ddd !important; padding:6px !important; }
-                .tabela-relatorio { width:100% !important; }
-                /* garantir visibilidade mesmo se stylesheet principal usar display:none */
-                .tabela-relatorio, .tabela-relatorio * { display: table !important; }
+                .tabela-relatorio, .tabela-relatorio table { font-size:12px; border-collapse:collapse; width:100% !important; table-layout: auto; }
+                .tabela-relatorio th, .tabela-relatorio td { border:1px solid #ddd; padding:6px; vertical-align: top; word-break: break-word; }
+                .tabela-relatorio thead th { background: #1e3a5f; color: #fff; text-align: left; }
+                .tabela-relatorio tbody tr:nth-child(even) { background: #f7f9fc; }
+                .tabela-relatorio td { background: #fff; }
+                .tabela-relatorio td[colspan] { white-space: normal; }
                 @media print { body { margin: 0; } }
             </style>
         </head>
