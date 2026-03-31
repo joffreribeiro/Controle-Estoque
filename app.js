@@ -1986,10 +1986,10 @@ function imprimirVendas() {
                     <th style="padding:6px;border:1px solid #ddd;vertical-align:middle;text-align:left">LOJA / CLIENTE</th>
                     <th style="padding:6px;border:1px solid #ddd;vertical-align:middle;text-align:left">REPRESENTANTE</th>
                     <th style="padding:6px;border:1px solid #ddd;vertical-align:middle;text-align:left">PRODUTO</th>
-                    <th style="padding:6px;border:1px solid #ddd;vertical-align:middle;text-align:center">QTD</th>
-                    <th style="padding:6px;border:1px solid #ddd;vertical-align:middle;text-align:right">VALOR UN.</th>
-                    <th style="padding:6px;border:1px solid #ddd;vertical-align:middle;text-align:right">VALOR TOTAL</th>
-                    <th style="padding:6px;border:1px solid #ddd;vertical-align:middle;text-align:right">TOTAL CONTRATO (R$)</th>
+                    <th class="numeric" style="padding:6px;border:1px solid #ddd;vertical-align:middle;text-align:center">QTD</th>
+                    <th class="numeric" style="padding:6px;border:1px solid #ddd;vertical-align:middle;text-align:right">VALOR UN.</th>
+                    <th class="numeric" style="padding:6px;border:1px solid #ddd;vertical-align:middle;text-align:right">VALOR TOTAL</th>
+                    <th class="numeric" style="padding:6px;border:1px solid #ddd;vertical-align:middle;text-align:right">TOTAL CONTRATO (R$)</th>
                     <th style="padding:6px;border:1px solid #ddd;vertical-align:middle;text-align:left">DATA</th>
                 </tr>
             </thead>
@@ -2020,12 +2020,12 @@ function imprimirVendas() {
             tabelaHtml += `
                 <td style="padding:6px;border:1px solid #ddd;vertical-align:middle">${r.representante}</td>
                 <td style="padding:6px;border:1px solid #ddd;vertical-align:middle">${r.produtoNome}</td>
-                <td style="padding:6px;border:1px solid #ddd;text-align:center;vertical-align:middle">${r.quantidade}</td>
-                <td style="padding:6px;border:1px solid #ddd;text-align:right;vertical-align:middle">${r.valorUnitario ? formatarMoedaValor(r.valorUnitario) : '-'}</td>
-                <td style="padding:6px;border:1px solid #ddd;text-align:right;vertical-align:middle">${formatarMoedaValor(r.valorTotal || 0)}</td>`;
+                <td class="numeric" style="padding:6px;border:1px solid #ddd;text-align:center;vertical-align:middle">${r.quantidade}</td>
+                <td class="numeric" style="padding:6px;border:1px solid #ddd;text-align:right;vertical-align:middle">${r.valorUnitario ? formatarMoedaValor(r.valorUnitario) : '-'}</td>
+                <td class="numeric" style="padding:6px;border:1px solid #ddd;text-align:right;vertical-align:middle">${formatarMoedaValor(r.valorTotal || 0)}</td>`;
 
             if (primeiraLinha) {
-                tabelaHtml += `<td style="padding:6px;border:1px solid #ddd;text-align:right;vertical-align:middle"${rowspanAttr}><strong>${formatarMoedaValor(subtotalValor)}</strong></td>`;
+                tabelaHtml += `<td class="numeric" style="padding:6px;border:1px solid #ddd;text-align:right;vertical-align:middle"${rowspanAttr}><strong>${formatarMoedaValor(subtotalValor)}</strong></td>`;
             }
 
             tabelaHtml += `<td style="padding:6px;border:1px solid #ddd;vertical-align:middle">${dataFmt}</td>`;
@@ -2057,9 +2057,12 @@ function imprimirVendas() {
                 @page { size: A4 landscape; margin: 8mm; }
                 body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif; padding:8px; color:#000; background:#fff; font-size:11px; -webkit-print-color-adjust: exact; }
                 h1 { margin-bottom:6px; font-size:14px }
-                .tabela-relatorio, .tabela-relatorio table { font-size:10px; border-collapse:collapse; width:100% !important; table-layout: fixed; }
+                /* reduzir fonte da tabela para caber mais conteúdo */
+                .tabela-relatorio, .tabela-relatorio table { font-size:9px; border-collapse:collapse; width:100% !important; table-layout: fixed; }
                 .tabela-relatorio th, .tabela-relatorio td { border:1px solid #ddd; padding:4px 6px; vertical-align: middle; word-break: break-word; }
-                .tabela-relatorio thead th { background: #1e3a5f; color: #fff; text-align: left; font-size:11px }
+                /* evitar quebra nas colunas numéricas */
+                .tabela-relatorio th.numeric, .tabela-relatorio td.numeric { white-space: nowrap; }
+                .tabela-relatorio thead th { background: #1e3a5f; color: #fff; text-align: left; font-size:10px }
                 .tabela-relatorio tbody tr:nth-child(even) { background: #f7f9fc; }
                 .tabela-relatorio td { background: #fff; }
                 .tabela-relatorio td[colspan] { white-space: normal; }
