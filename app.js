@@ -1181,6 +1181,103 @@ function imprimirComissoes() {
     win.document.close();
 }
 
+// Imprime o relatório atualmente selecionado no seletor de Relatórios
+function imprimirRelatorioSelecionado() {
+    const tipo = document.getElementById('filtroRelatoriosTipo') ? document.getElementById('filtroRelatoriosTipo').value : 'inventario';
+    // Chamadas específicas para tipos com função de impressão dedicada
+    if (tipo === 'inventario') {
+        imprimirInventario();
+        return;
+    }
+    if (tipo === 'comissoes') {
+        imprimirComissoes();
+        return;
+    }
+    if (tipo === 'vendasContrato') {
+        imprimirVendasPorContrato();
+        return;
+    }
+
+    // Para outros tipos (ex.: distribuição), gerar preview e imprimir o conteúdo do preview
+    visualizarRelatorioSelecionado();
+    const preview = document.getElementById('relatoriosPreview');
+    if (!preview) { alert('Preview do relatório não encontrado.'); return; }
+    const content = preview.innerHTML;
+    const orient = document.getElementById('filtroRelatoriosOrientacao') ? document.getElementById('filtroRelatoriosOrientacao').value : 'landscape';
+    const titulo = 'Relatório';
+
+    const win = window.open('', '_blank', 'width=1000,height=700');
+    if (!win) { alert('Não foi possível abrir a janela de impressão. Permita popups.'); return; }
+
+    win.document.write(`
+        <!doctype html>
+        <html lang="pt-BR">
+        <head>
+            <meta charset="utf-8">
+            <title>${titulo}</title>
+            <link rel="stylesheet" href="styles.css">
+            <style>
+                @page { size: A4 ${orient}; margin: 10mm; }
+                body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif; padding: 12px; color: #222; }
+                .report-printable table { width: 100%; border-collapse: collapse; font-size: 12px; }
+                .report-printable th, .report-printable td { border: 1px solid #ddd; padding: 6px 8px; }
+                thead { background: #1e3a5f; color: white; }
+                @media print { body { margin: 0; } }
+            </style>
+        </head>
+        <body>
+            <h1>${titulo}</h1>
+            ${content}
+            <script>window.onload = function(){ setTimeout(function(){ window.print(); }, 200); };</script>
+        </body>
+        </html>
+    `);
+    win.document.close();
+}
+
+// Imprime o relatório de Vendas por Contrato
+function imprimirVendasPorContrato() {
+    // Gera o preview atualizado
+    prepararRelatorioVendasPorContrato();
+    const preview = document.getElementById('relatoriosPreview');
+    if (!preview) return;
+    const content = preview.innerHTML;
+    const orient = document.getElementById('filtroRelatoriosOrientacao') ? document.getElementById('filtroRelatoriosOrientacao').value : 'landscape';
+    const filtroRep = document.getElementById('filtroRelatoriosRep') ? document.getElementById('filtroRelatoriosRep').value : 'Todos';
+    const dataInicio = document.getElementById('filtroRelatoriosDataInicio') ? document.getElementById('filtroRelatoriosDataInicio').value : '';
+    const dataFim = document.getElementById('filtroRelatoriosDataFim') ? document.getElementById('filtroRelatoriosDataFim').value : '';
+    const dataAgora = (dataInicio || dataFim) ? `${dataInicio || '-'} até ${dataFim || '-'}` : new Date().toLocaleString('pt-BR');
+
+    const win = window.open('', '_blank', 'width=1000,height=700');
+    if (!win) { alert('Não foi possível abrir janela de impressão. Permita popups.'); return; }
+
+    win.document.write(`
+        <!doctype html>
+        <html lang="pt-BR">
+        <head>
+            <meta charset="utf-8">
+            <title>Relatório - Vendas por Contrato</title>
+            <link rel="stylesheet" href="styles.css">
+            <style>
+                @page { size: A4 ${orient}; margin: 10mm; }
+                body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif; padding: 12px; color: #222; }
+                h1 { margin-bottom: 12px; font-size: 16px; }
+                table { width: 100%; border-collapse: collapse; font-size: 12px; }
+                th, td { border:1px solid #ddd; padding:6px 8px; }
+                thead { background:#1e3a5f; color:white; }
+            </style>
+        </head>
+        <body>
+            <h1>Relatório - Vendas por Contrato</h1>
+            <div style="margin-bottom:8px;font-size:13px;color:#222"><strong>Representante:</strong> ${filtroRep || 'Todos'} &nbsp;|&nbsp; <strong>Data:</strong> ${dataAgora}</div>
+            ${content}
+            <script>window.onload = function(){ setTimeout(function(){ window.print(); }, 200); };</script>
+        </body>
+        </html>
+    `);
+    win.document.close();
+}
+
 function exportarComissoesCSV() {
     const filtroRep = document.getElementById('filtroRelatoriosRep') ? document.getElementById('filtroRelatoriosRep').value : '';
     // Excluir vendas da IMBEL (sem comissão) e aplicar filtro de datas se fornecido
