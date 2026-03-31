@@ -2019,7 +2019,7 @@ function imprimirVendas() {
 
             tabelaHtml += `
                 <td style="padding:6px;border:1px solid #ddd;vertical-align:middle">${r.representante}</td>
-                <td style="padding:6px;border:1px solid #ddd;vertical-align:middle">${r.produtoNome}</td>
+                <td style="padding:6px;border:1px solid #ddd;vertical-align:middle;white-space:normal;word-break:break-word;overflow-wrap:anywhere;">${r.produtoNome}</td>
                 <td class="numeric" style="padding:6px;border:1px solid #ddd;text-align:center;vertical-align:middle">${r.quantidade}</td>
                 <td class="numeric" style="padding:6px;border:1px solid #ddd;text-align:right;vertical-align:middle">${r.valorUnitario ? formatarMoedaValor(r.valorUnitario) : '-'}</td>
                 <td class="numeric" style="padding:6px;border:1px solid #ddd;text-align:right;vertical-align:middle">${formatarMoedaValor(r.valorTotal || 0)}</td>`;
@@ -2052,11 +2052,11 @@ function imprimirVendas() {
         <head>
             <meta charset="utf-8">
             <title>Relatório - Registro de Vendas</title>
-            <link rel="stylesheet" href="styles.css">
             <style>
                 @page { size: A4 landscape; margin: 8mm; }
-                body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif; padding:8px; color:#000; background:#fff; font-size:11px; -webkit-print-color-adjust: exact; }
-                h1 { margin-bottom:6px; font-size:14px }
+                html, body { height: auto; margin: 0; padding:8px; }
+                body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif; color:#000; background:#fff; font-size:11px; -webkit-print-color-adjust: exact; }
+                h1 { margin:0 0 6px 0; font-size:14px }
                 /* reduzir fonte da tabela para caber mais conteúdo */
                 .tabela-relatorio, .tabela-relatorio table { font-size:9px; border-collapse:collapse; width:100% !important; table-layout: fixed; }
                 .tabela-relatorio th, .tabela-relatorio td { border:1px solid #ddd; padding:4px 6px; vertical-align: middle; word-break: break-word; }
@@ -2066,6 +2066,8 @@ function imprimirVendas() {
                 .tabela-relatorio tbody tr:nth-child(even) { background: #f7f9fc; }
                 .tabela-relatorio td { background: #fff; }
                 .tabela-relatorio td[colspan] { white-space: normal; }
+                /* garantir que o wrapper de impressão não seja posicionado fora da página */
+                .report-printable { position: static !important; left: auto !important; top: auto !important; width: 100% !important; }
                 table { page-break-inside: auto; }
                 tr    { page-break-inside: avoid; page-break-after: auto }
                 thead { display: table-header-group }
