@@ -1970,27 +1970,27 @@ function imprimirVendas() {
     let tabelaHtml = `
         <table class="tabela-relatorio vendas-table" style="width:100%;border-collapse:collapse">
             <colgroup>
-                <col style="width:10%" />
-                <col style="width:22%" />
-                <col style="width:10%" />
-                <col style="width:26%" />
-                <col style="width:4%" />
                 <col style="width:6%" />
-                <col style="width:7%" />
-                <col style="width:8%" />
-                <col style="width:7%" />
+                <col style="width:18%" />
+                <col style="width:10%" />
+                <col style="width:20%" />
+                <col style="width:4%" />
+                <col style="width:10%" />
+                <col style="width:14%" />
+                <col style="width:12%" />
+                <col style="width:6%" />
             </colgroup>
             <thead>
                 <tr>
-                    <th style="padding:6px;border:1px solid #ddd;vertical-align:middle;text-align:left">CONTRATO</th>
-                    <th style="padding:6px;border:1px solid #ddd;vertical-align:middle;text-align:left">LOJA / CLIENTE</th>
-                    <th style="padding:6px;border:1px solid #ddd;vertical-align:middle;text-align:left">REPRESENTANTE</th>
-                    <th style="padding:6px;border:1px solid #ddd;vertical-align:middle;text-align:left">PRODUTO</th>
+                    <th style="padding:6px;border:1px solid #ddd;vertical-align:middle;text-align:center">CONTRATO</th>
+                    <th style="padding:6px;border:1px solid #ddd;vertical-align:middle;text-align:center">LOJA / CLIENTE</th>
+                    <th style="padding:6px;border:1px solid #ddd;vertical-align:middle;text-align:center">REPRESENTANTE</th>
+                    <th style="padding:6px;border:1px solid #ddd;vertical-align:middle;text-align:center">PRODUTO</th>
                     <th class="numeric" style="padding:6px;border:1px solid #ddd;vertical-align:middle;text-align:center">QTD</th>
-                    <th class="numeric" style="padding:6px;border:1px solid #ddd;vertical-align:middle;text-align:right">VALOR UN.</th>
-                    <th class="numeric" style="padding:6px;border:1px solid #ddd;vertical-align:middle;text-align:right">VALOR TOTAL</th>
-                    <th class="numeric" style="padding:6px;border:1px solid #ddd;vertical-align:middle;text-align:right">TOTAL CONTRATO (R$)</th>
-                    <th style="padding:6px;border:1px solid #ddd;vertical-align:middle;text-align:left">DATA</th>
+                    <th class="numeric" style="padding:6px;border:1px solid #ddd;vertical-align:middle;text-align:center">VALOR UN.</th>
+                    <th class="numeric" style="padding:6px;border:1px solid #ddd;vertical-align:middle;text-align:center">VALOR TOTAL</th>
+                    <th class="numeric" style="padding:6px;border:1px solid #ddd;vertical-align:middle;text-align:center">TOTAL CONTRATO (R$)</th>
+                    <th style="padding:6px;border:1px solid #ddd;vertical-align:middle;text-align:center">DATA</th>
                 </tr>
             </thead>
             <tbody>`;
@@ -2013,22 +2013,22 @@ function imprimirVendas() {
             tabelaHtml += `<tr>`;
 
             if (primeiraLinha) {
-                tabelaHtml += `<td style="padding:6px;border:1px solid #ddd"${rowspanAttr}>${r.contratoRaw || ck}</td>`;
-                tabelaHtml += `<td style="padding:6px;border:1px solid #ddd"${rowspanAttr}>${r.loja}</td>`;
+                tabelaHtml += `<td style="padding:6px;border:1px solid #ddd;text-align:center"${rowspanAttr}>${r.contratoRaw || ck}</td>`;
+                tabelaHtml += `<td style="padding:6px;border:1px solid #ddd;text-align:center"${rowspanAttr}>${r.loja}</td>`;
             }
 
             tabelaHtml += `
-                <td style="padding:6px;border:1px solid #ddd;vertical-align:middle">${r.representante}</td>
-                <td style="padding:6px;border:1px solid #ddd;vertical-align:middle;white-space:normal;word-break:break-word;overflow-wrap:anywhere;">${r.produtoNome}</td>
+                <td style="padding:6px;border:1px solid #ddd;vertical-align:middle;text-align:center">${r.representante}</td>
+                <td style="padding:6px;border:1px solid #ddd;vertical-align:middle;white-space:normal;word-break:break-word;overflow-wrap:anywhere;text-align:center">${r.produtoNome}</td>
                 <td class="numeric" style="padding:6px;border:1px solid #ddd;text-align:center;vertical-align:middle">${r.quantidade}</td>
-                <td class="numeric" style="padding:6px;border:1px solid #ddd;text-align:right;vertical-align:middle">${r.valorUnitario ? formatarMoedaValor(r.valorUnitario) : '-'}</td>
-                <td class="numeric" style="padding:6px;border:1px solid #ddd;text-align:right;vertical-align:middle">${formatarMoedaValor(r.valorTotal || 0)}</td>`;
+                <td class="numeric" style="padding:6px;border:1px solid #ddd;text-align:center;vertical-align:middle">${r.valorUnitario ? formatarMoedaValor(r.valorUnitario) : '-'}</td>
+                <td class="numeric" style="padding:6px;border:1px solid #ddd;text-align:center;vertical-align:middle">${formatarMoedaValor(r.valorTotal || 0)}</td>`;
 
             if (primeiraLinha) {
-                tabelaHtml += `<td class="numeric" style="padding:6px;border:1px solid #ddd;text-align:right;vertical-align:middle"${rowspanAttr}><strong>${formatarMoedaValor(subtotalValor)}</strong></td>`;
+                tabelaHtml += `<td class="numeric" style="padding:6px;border:1px solid #ddd;text-align:center;vertical-align:middle"${rowspanAttr}><strong>${formatarMoedaValor(subtotalValor)}</strong></td>`;
             }
 
-            tabelaHtml += `<td style="padding:6px;border:1px solid #ddd;vertical-align:middle">${dataFmt}</td>`;
+            tabelaHtml += `<td style="padding:6px;border:1px solid #ddd;vertical-align:middle;text-align:center">${dataFmt}</td>`;
             tabelaHtml += `</tr>`;
 
             primeiraLinha = false;
@@ -2062,7 +2062,7 @@ function imprimirVendas() {
                 .tabela-relatorio th, .tabela-relatorio td { border:1px solid #ddd; padding:4px 6px; vertical-align: middle; word-break: break-word; }
                 /* evitar quebra nas colunas numéricas */
                 .tabela-relatorio th.numeric, .tabela-relatorio td.numeric { white-space: nowrap; }
-                .tabela-relatorio thead th { background: #1e3a5f; color: #fff; text-align: left; font-size:10px }
+                .tabela-relatorio thead th { background: #1e3a5f; color: #fff; text-align: center; font-size:10px }
                 .tabela-relatorio tbody tr:nth-child(even) { background: #f7f9fc; }
                 .tabela-relatorio td { background: #fff; }
                 .tabela-relatorio td[colspan] { white-space: normal; }
