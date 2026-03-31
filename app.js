@@ -970,6 +970,24 @@ function imprimirRelatorioPreview() {
     win.document.close();
 }
 
+// Imprimir diretamente o relatório selecionado no filtro (sem depender do preview)
+function imprimirRelatorioSelecionado() {
+    const tipo = document.getElementById('filtroRelatoriosTipo') ? document.getElementById('filtroRelatoriosTipo').value : 'inventario';
+    // Escolher a função adequada
+    if (tipo === 'comissoes') {
+        // Gera e imprime relatório de comissões
+        prepararRelatorioComissoes();
+        imprimirComissoes();
+    } else if (tipo === 'distribuicao') {
+        prepararRelatorioDistribuicao ? prepararRelatorioDistribuicao() : null;
+        imprimirDistribuicao();
+    } else {
+        // inventario ou padrão
+        prepararRelatorioInventario();
+        imprimirInventario();
+    }
+}
+
 // =============================
 // RELATÓRIO: COMISSÕES (5%)
 // =============================
