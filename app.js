@@ -1861,9 +1861,158 @@ function imprimirDistribuicao() {
 }
 
 function imprimirVendas() {
-    // renderizar antes para garantir tabela atualizada
+    // Gera relatório por contrato listando cada linha de venda separadamente
     renderizarRegistroVendas();
-    imprimirTabelaSeparada('tabelaRegistroVendas', 'Registro de Vendas', '', 'landscape');
+
+    const vendas = Array.isArray(estoque.registroVendas) ? [...estoque.registroVendas] : [];
+    if (vendas.length === 0) {
+        mostrarNotificacao('Não há vendas registradas para imprimir.', 'warning');
+        return;
+    }
+
+    // Construir linhas expandidas (cada item de venda vira uma linha; vendas legacy também)
+    const linhas = [];
+    vendas.forEach(venda => {
+        const contratoKey = normalizarContratoKey(venda.contrato || '');
+        const dataNorm = parseDateToYYYYMMDD(venda.data) || '';
+        if (Array.isArray(venda.items) && venda.items.length > 0) {
+            venda.items.forEach(it => {
+                linhas.push({
+                    contratoKey,
+                    contratoRaw: venda.contrato || contratoKey,
+                    vendaId: venda.id,
+                    dataNorm,
+                    loja: venda.loja || '-',
+                    representante: venda.representante || '-',
+                    produtoNome: it.produtoNome || '-',
+                    quantidade: Number(it.quantidade || 0),
+                    valorUnitario: Number(it.valorUnitario || 0),
+                    valorTotal: Number(it.valorTotal !== undefined ? it.valorTotal : ((Number(it.valorUnitario)||0) * (Number(it.quantidade)||0))),
+                    observacoes: venda.observacoes || '-'
+                });
+            });
+        } else {
+            linhas.push({
+                contratoKey,
+                contratoRaw: venda.contrato || contratoKey,
+                vendaId: venda.id,
+                dataNorm,
+                loja: venda.loja || '-',
+                representante: venda.representante || '-',
+                produtoNome: venda.produtoNome || '-',
+                quantidade: Number(venda.quantidade || 0),
+                valorUnitario: Number(venda.valorUnitario || 0),
+                valorTotal: Number(venda.valorTotal !== undefined ? venda.valorTotal : ((Number(venda.valorUnitario)||0) * (Number(venda.quantidade)||0))),
+                observacoes: venda.observacoes || '-'
+            });
+        }
+    });
+
+    // Agrupar por contrato
+    const grupos = {};
+    linhas.forEach(l => {
+        if (!grupos[l.contratoKey]) grupos[l.contratoKey] = [];
+        grupos[l.contratoKey].push(l);
+    });
+
+    const chavesOrdenadas = Object.keys(grupos).sort((a,b) => {
+        const na = parseInt(a);
+        const nb = parseInt(b);
+        if (!isNaN(na) && !isNaN(nb)) return na - nb;
+        return a.localeCompare(b);
+    });
+
+    // Montar HTML do relatório
+    let content = '';
+    let grandTotalQtd = 0;
+    let grandTotalValor = 0;
+
+    chavesOrdenadas.forEach(ck => {
+        const grupo = grupos[ck] || [];
+        if (grupo.length === 0) return;
+        // Determinar dados do cabeçalho do contrato
+        const primeiro = grupo[0];
+        const loja = primeiro.loja || '-';
+        const reps = Array.from(new Set(grupo.map(g => g.representante).filter(Boolean))).join(', ') || '-';
+        const datas = grupo.map(g => g.dataNorm).filter(Boolean).sort();
+        const dataTexto = datas.length ? (datas[0] === datas.slice(-1)[0] ? new Date(datas[0] + 'T00:00:00').toLocaleDateString('pt-BR') : `${new Date(datas[0] + 'T00:00:00').toLocaleDateString('pt-BR')} até ${new Date(datas.slice(-1)[0] + 'T00:00:00').toLocaleDateString('pt-BR')}`) : '-';
+
+        content += `<div style="margin:14px 0;border-bottom:1px solid #ddd;padding-bottom:10px">
+            <h3 style="margin:0 0 6px 0">Contrato: ${grupo[0].contratoRaw || ck}</h3>
+            <div style="font-size:13px;margin-bottom:6px;color:#333"><strong>Loja/Cliente:</strong> ${loja} &nbsp;|&nbsp; <strong>Representante(s):</strong> ${reps} &nbsp;|&nbsp; <strong>Data:</strong> ${dataTexto}</div>
+            <table style="width:100%;border-collapse:collapse;margin-bottom:8px">
+                <thead>
+                    <tr>
+                        <th style="text-align:left;padding:6px;border:1px solid #ddd">ID Venda</th>
+                        <th style="text-align:left;padding:6px;border:1px solid #ddd">Data</th>
+                        <th style="text-align:left;padding:6px;border:1px solid #ddd">Representante</th>
+                        <th style="text-align:left;padding:6px;border:1px solid #ddd">Produto</th>
+                        <th style="text-align:center;padding:6px;border:1px solid #ddd">Qtd</th>
+                        <th style="text-align:right;padding:6px;border:1px solid #ddd">Valor Unit.</th>
+                        <th style="text-align:right;padding:6px;border:1px solid #ddd">Valor Total</th>
+                        <th style="text-align:left;padding:6px;border:1px solid #ddd">Observações</th>
+                    </tr>
+                </thead>
+                <tbody>`;
+
+        let subtotalQtd = 0;
+        let subtotalValor = 0;
+        grupo.forEach(row => {
+            subtotalQtd += row.quantidade || 0;
+            subtotalValor += row.valorTotal || 0;
+            grandTotalQtd += row.quantidade || 0;
+            grandTotalValor += row.valorTotal || 0;
+            const dataFmt = row.dataNorm ? new Date(row.dataNorm + 'T00:00:00').toLocaleDateString('pt-BR') : '-';
+            content += `<tr>
+                        <td style="padding:6px;border:1px solid #ddd">${row.vendaId || '-'}</td>
+                        <td style="padding:6px;border:1px solid #ddd">${dataFmt}</td>
+                        <td style="padding:6px;border:1px solid #ddd">${row.representante}</td>
+                        <td style="padding:6px;border:1px solid #ddd">${row.produtoNome}</td>
+                        <td style="text-align:center;padding:6px;border:1px solid #ddd">${row.quantidade}</td>
+                        <td style="text-align:right;padding:6px;border:1px solid #ddd">${row.valorUnitario ? formatarMoedaValor(row.valorUnitario) : '-'}</td>
+                        <td style="text-align:right;padding:6px;border:1px solid #ddd">${formatarMoedaValor(row.valorTotal || 0)}</td>
+                        <td style="padding:6px;border:1px solid #ddd">${row.observacoes || '-'}</td>
+                    </tr>`;
+        });
+
+        content += `<tr>
+                    <td colspan="4" style="padding:6px;border:1px solid #ddd;text-align:right"><strong>Subtotal</strong></td>
+                    <td style="text-align:center;padding:6px;border:1px solid #ddd"><strong>${subtotalQtd}</strong></td>
+                    <td style="text-align:right;padding:6px;border:1px solid #ddd"></td>
+                    <td style="text-align:right;padding:6px;border:1px solid #ddd"><strong>${formatarMoedaValor(subtotalValor)}</strong></td>
+                    <td style="padding:6px;border:1px solid #ddd"></td>
+                </tr>`;
+
+        content += `</tbody></table></div>`;
+    });
+
+    content += `<div style="margin-top:12px;font-weight:700">Total Geral: ${grandTotalQtd} item(ns) — ${formatarMoedaValor(grandTotalValor)}</div>`;
+
+    const win = window.open('', '_blank', 'width=1100,height=800');
+    if (!win) { alert('Não foi possível abrir a janela de impressão. Permita popups.'); return; }
+
+    win.document.write(`
+        <!doctype html>
+        <html lang="pt-BR">
+        <head>
+            <meta charset="utf-8">
+            <title>Relatório - Vendas por Contrato</title>
+            <link rel="stylesheet" href="styles.css">
+            <style>
+                @page { size: A4 landscape; margin: 10mm; }
+                body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif; padding:12px; color:#222 }
+                h1 { margin-bottom:8px }
+                table { font-size:12px }
+            </style>
+        </head>
+        <body>
+            <h1>Vendas por Contrato (Linhas de Venda)</h1>
+            ${content}
+            <script>window.onload=function(){ setTimeout(function(){ window.print(); },200); };</script>
+        </body>
+        </html>
+    `);
+    win.document.close();
 }
 
 function imprimirConfiguracoes() {
