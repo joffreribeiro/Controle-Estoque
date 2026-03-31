@@ -67,7 +67,7 @@ header {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 14px 28px;
+    padding: 14px 30px; /* padronizado com content-area */
     max-width: 1800px;
     margin: 0 auto;
 }
@@ -79,22 +79,23 @@ header {
 }
 
 .logo-icon {
-    width: 46px;
-    height: 46px;
-    background: linear-gradient(135deg, var(--accent-color) 0%, #e6b82d 100%);
-    border-radius: var(--radius-md);
+    width: 56px;
+    height: 56px;
+    background: linear-gradient(135deg, #f6c84c 0%, #d69e2e 60%, #b07a1f 100%);
+    border-radius: 12px;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 1.1rem;
-    color: var(--primary-dark);
-    font-weight: 800;
-    box-shadow: 0 2px 8px rgba(201,162,39,0.3);
+    font-size: 1.15rem;
+    color: #0b1723;
+    font-weight: 900;
+    box-shadow: 0 6px 18px rgba(11,23,35,0.25);
+    border: 2px solid rgba(255,255,255,0.06);
     letter-spacing: 1px;
 }
 
 .logo-text h1 {
-    font-size: 1.25rem;
+    font-size: 1.3rem;
     color: var(--text-light);
     font-weight: 700;
     letter-spacing: 0.3px;
