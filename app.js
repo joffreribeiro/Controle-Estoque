@@ -1,144 +1,139 @@
-// ========================================
-// SISTEMA DE CONTROLE DE ESTOQUE
-// Material Bélico - v2.0
-// ========================================
+function prepararRelatorioVendasPorContrato() {
+    const preview = document.getElementById('relatoriosPreview');
+    if (!preview) return;
 
-// Estrutura de dados principal
-let estoque = {
-    produtos: [],
-    representantes: ['KOLTE', 'ISA', 'LC', 'ADES', 'FL', 'IMBEL'],
-    registroVendas: [],
-    registroDistribuicao: [],
-    controleEnvio: {},
-    auditoriaVendas: [],
-    fechamentosComissoes: []
-};
+    const filtroRep = document.getElementById('filtroRelatoriosRep') ? document.getElementById('filtroRelatoriosRep').value : '';
+    const filtroProduto = document.getElementById('filtroRelatoriosProduto') ? document.getElementById('filtroRelatoriosProduto').value : '';
+    const filtroProdutoId = filtroProduto ? parseInt(filtroProduto) : null;
+    const dataInicio = document.getElementById('filtroRelatoriosDataInicio') ? document.getElementById('filtroRelatoriosDataInicio').value : '';
+    const dataFim = document.getElementById('filtroRelatoriosDataFim') ? document.getElementById('filtroRelatoriosDataFim').value : '';
 
-// =============================
-// Firebase (inicialização e helpers)
-// =============================
-// Atualiza o indicador visual de status do Firestore (presente no header)
-function updateFirestoreStatus(connected, lastSyncDate, message) {
-    try {
-        const el = document.getElementById('firestoreStatus');
-        const dot = document.getElementById('fsDot');
-        const text = document.getElementById('fsText');
-        if (!el || !dot || !text) return;
-        if (connected) {
-            dot.classList.remove('fs-offline');
-            dot.classList.remove('fs-warning');
-            dot.classList.add('fs-online');
-            const label = message || 'Cloud: conectado';
-            if (lastSyncDate) {
-                const dt = (lastSyncDate instanceof Date) ? lastSyncDate : new Date(lastSyncDate);
-                text.textContent = `${label} — último sync: ${dt.toLocaleString('pt-BR')}`;
-            } else {
-                text.textContent = message || 'Cloud: conectado — sem sync';
-            }
+    const vendasRaw = Array.isArray(estoque.registroVendas) ? [...estoque.registroVendas] : [];
+
+    const linhas = [];
+    vendasRaw.forEach(venda => {
+        const dataNorm = parseDateToYYYYMMDD(venda.data) || '';
+        if (dataInicio && dataNorm && dataNorm < dataInicio) return;
+        if (dataFim && dataNorm && dataNorm > dataFim) return;
+        if ((dataInicio || dataFim) && !dataNorm) return;
+        if (filtroRep && (venda.representante || '') !== filtroRep) return;
+
+        const rawContrato = (venda.contrato ?? '').toString().normalize('NFKC');
+        const contratoClean = rawContrato.replace(/[\u200B-\u200D\uFEFF\s]+/g, '');
+        const somenteDigitos = contratoClean.replace(/\D+/g, '');
+        const contratoKey = somenteDigitos ? String(parseInt(somenteDigitos, 10)) : contratoClean.toUpperCase();
+
+        if (Array.isArray(venda.items) && venda.items.length > 0) {
+            venda.items.forEach(it => {
+                if (filtroProdutoId && it.produtoId !== filtroProdutoId) return;
+                linhas.push({
+                    contratoKey,
+                    contratoRaw: venda.contrato,
+                    loja: venda.loja || '-',
+                    representante: venda.representante || '-',
+                    dataNorm,
+                    produtoNome: it.produtoNome || '-',
+                    quantidade: Number(it.quantidade || 0),
+                    valorUnitario: Number(it.valorUnitario || 0),
+                    valorTotal: Number(it.valorTotal || (Number(it.valorUnitario||0) * Number(it.quantidade||0)) || 0),
+                    observacoes: venda.observacoes || '-'
+                });
+            });
         } else {
-            dot.classList.remove('fs-online');
-            dot.classList.remove('fs-warning');
-            dot.classList.add('fs-offline');
-            text.textContent = message || 'Cloud: desconectado';
+            if (filtroProdutoId && venda.produtoId !== filtroProdutoId) return;
+            linhas.push({
+                contratoKey,
+                contratoRaw: venda.contrato,
+                loja: venda.loja || '-',
+                representante: venda.representante || '-',
+                dataNorm,
+                produtoNome: venda.produtoNome || '-',
+                quantidade: Number(venda.quantidade || 0),
+                valorUnitario: Number(venda.valorUnitario || 0),
+                valorTotal: Number(venda.valorTotal || 0),
+                observacoes: venda.observacoes || '-'
+            });
         }
-    } catch (e) {
-        // ignore UI update errors
+    });
+
+    if (linhas.length === 0) {
+        preview.innerHTML = '<p>Nenhuma venda encontrada para os filtros selecionados.</p>';
+        return;
     }
+
+    const grupos = {};
+    linhas.forEach(l => {
+        if (!grupos[l.contratoKey]) grupos[l.contratoKey] = [];
+        grupos[l.contratoKey].push(l);
+    });
+
+    const chaves = Object.keys(grupos).sort((a,b) => {
+        const na = parseInt(a); const nb = parseInt(b);
+        if (!isNaN(na) && !isNaN(nb)) return na - nb;
+        return a.localeCompare(b);
+    });
+
+    const container = document.createElement('div');
+    container.className = 'report-vendas-contrato';
+
+    const table = document.createElement('table');
+    table.style.width = '100%';
+    table.style.borderCollapse = 'collapse';
+    table.innerHTML = `
+        <thead>
+            <tr>
+                <th style="text-align:left;padding:6px;border:1px solid #ddd">Contrato</th>
+                <th style="text-align:left;padding:6px;border:1px solid #ddd">Cliente / Loja</th>
+                <th style="text-align:left;padding:6px;border:1px solid #ddd">Representante</th>
+                <th style="text-align:left;padding:6px;border:1px solid #ddd">Data</th>
+                <th style="text-align:right;padding:6px;border:1px solid #ddd">Qtd</th>
+                <th style="text-align:right;padding:6px;border:1px solid #ddd">Valor (R$)</th>
+            </tr>
+        </thead>
+        <tbody></tbody>
+    `;
+
+    const tbody = table.querySelector('tbody');
+
+    chaves.forEach(k => {
+        const grupo = grupos[k];
+        const primeira = grupo[0];
+        const totalQtd = grupo.reduce((s, it) => s + (it.quantidade || 0), 0);
+        const totalValor = grupo.reduce((s, it) => s + (Number(it.valorTotal) || 0), 0);
+
+        const trResumo = document.createElement('tr');
+        trResumo.innerHTML = `
+            <td style="padding:6px;border:1px solid #ddd"><strong>${k || '-'}</strong></td>
+            <td style="padding:6px;border:1px solid #ddd">${primeira.loja || ''}</td>
+            <td style="padding:6px;border:1px solid #ddd">${primeira.representante || ''}</td>
+            <td style="padding:6px;border:1px solid #ddd">${primeira.dataNorm ? new Date(primeira.dataNorm+'T00:00:00').toLocaleDateString('pt-BR') : '-'}</td>
+            <td style="padding:6px;border:1px solid #ddd;text-align:right">${totalQtd}</td>
+            <td style="padding:6px;border:1px solid #ddd;text-align:right">${formatarMoedaValor(totalValor)}</td>
+        `;
+        tbody.appendChild(trResumo);
+
+        grupo.forEach(it => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td style="padding:6px;border:1px solid #ddd"></td>
+                <td style="padding:6px;border:1px solid #ddd">↳ ${it.produtoNome}</td>
+                <td style="padding:6px;border:1px solid #ddd">${it.representante || ''}</td>
+                <td style="padding:6px;border:1px solid #ddd">${it.dataNorm ? new Date(it.dataNorm+'T00:00:00').toLocaleDateString('pt-BR') : '-'}</td>
+                <td style="padding:6px;border:1px solid #ddd;text-align:right">${it.quantidade}</td>
+                <td style="padding:6px;border:1px solid #ddd;text-align:right">${formatarMoedaValor(it.valorTotal || 0)}</td>
+            `;
+            tbody.appendChild(tr);
+        });
+    });
+
+    container.appendChild(table);
+
+    preview.innerHTML = '';
+    const wrapper = document.createElement('div');
+    wrapper.className = 'report-printable';
+    wrapper.appendChild(container);
+    preview.appendChild(wrapper);
 }
-
-try {
-    if (typeof firebase !== 'undefined') {
-        const firebaseConfig = {
-            apiKey: "AIzaSyBizembCnAJpVe4TCcTTJvCickREOa_f1Y",
-            authDomain: "estoquefi.firebaseapp.com",
-            databaseURL: "https://estoquefi-default-rtdb.firebaseio.com",
-            projectId: "estoquefi",
-            storageBucket: "estoquefi.firebasestorage.app",
-            messagingSenderId: "339770116384",
-            appId: "1:339770116384:web:3b51acfbc9f18162c5af45",
-            measurementId: "G-RVK6BC5TDP"
-        };
-
-        // Inicializa apenas se ainda não inicializado
-        if (!firebase.apps || firebase.apps.length === 0) {
-            firebase.initializeApp(firebaseConfig);
-        }
-
-        // Instância do Firestore para uso nas funções abaixo
-        try {
-            window.firestoreDB = firebase.firestore();
-            // Não tentar ler do cloud antes da autenticação para evitar erros de permissão
-            updateFirestoreStatus(true, null, 'Cloud: aguardando login');
-        } catch (e) {
-            console.warn('Firestore não disponível:', e);
-            window.firestoreDB = null;
-            updateFirestoreStatus(false, null, 'Cloud: não disponível');
-        }
-    } else {
-        console.warn('Firebase SDK não carregado — funções cloud desativadas.');
-        // atualizar UI se possível
-        try { updateFirestoreStatus(false, null, 'SDK não carregado'); } catch (e) {}
-    }
-} catch (e) {
-    console.error('Erro inicializando Firebase:', e);
-}
-
-
-
-// ID da venda que está sendo editada (null quando criando nova)
-let vendaEditandoId = null;
-
-// Dados iniciais com PREÇOS baseados na planilha - SEM dados de distribuição/vendas (zerados)
-const dadosIniciais = [
-    {
-        nome: 'CARABINA IA2 5,56',
-        preco: 10420.75,
-        distribuicao: { KOLTE: 0, ISA: 0, LC: 0, ADES: 0, FL: 0, IMBEL: 0 },
-        vendas: { KOLTE: 0, ISA: 0, LC: 0, ADES: 0, FL: 0, IMBEL: 0 }
-    },
-    {
-        nome: 'CARABINA IA2 7,62',
-        preco: 12690.21,
-        distribuicao: { KOLTE: 0, ISA: 0, LC: 0, ADES: 0, FL: 0, IMBEL: 0 },
-        vendas: { KOLTE: 0, ISA: 0, LC: 0, ADES: 0, FL: 0, IMBEL: 0 }
-    },
-    {
-        nome: 'FACA CAMPANHA AMZ',
-        preco: 360.00,
-        distribuicao: { KOLTE: 0, ISA: 0, LC: 0, ADES: 0, FL: 0, IMBEL: 0 },
-        vendas: { KOLTE: 0, ISA: 0, LC: 0, ADES: 0, FL: 0, IMBEL: 0 }
-    },
-    {
-        nome: 'FACA POLICIAL AMZ',
-        preco: 352.45,
-        distribuicao: { KOLTE: 0, ISA: 0, LC: 0, ADES: 0, FL: 0, IMBEL: 0 },
-        vendas: { KOLTE: 0, ISA: 0, LC: 0, ADES: 0, FL: 0, IMBEL: 0 }
-    },
-    {
-        nome: 'FACA POLICIAL IA2',
-        preco: 380.00,
-        distribuicao: { KOLTE: 0, ISA: 0, LC: 0, ADES: 0, FL: 0, IMBEL: 0 },
-        vendas: { KOLTE: 0, ISA: 0, LC: 0, ADES: 0, FL: 0, IMBEL: 0 }
-    },
-    {
-        nome: 'FUZIL DE ALTA PRECISÃO IMBEL 308 AGLC (COMPLETO)',
-        preco: 13500.00,
-        distribuicao: { KOLTE: 0, ISA: 0, LC: 0, ADES: 0, FL: 0, IMBEL: 0 },
-        vendas: { KOLTE: 0, ISA: 0, LC: 0, ADES: 0, FL: 0, IMBEL: 0 }
-    },
-    {
-        nome: 'PISTOLA .40 GC MD7 C/ ADC',
-        preco: 5159.71,
-        distribuicao: { KOLTE: 0, ISA: 0, LC: 0, ADES: 0, FL: 0, IMBEL: 0 },
-        vendas: { KOLTE: 0, ISA: 0, LC: 0, ADES: 0, FL: 0, IMBEL: 0 }
-    },
-    {
-        nome: 'PISTOLA 380 GC MD1 C/ ADC',
-        preco: 5219.54,
-        distribuicao: { KOLTE: 0, ISA: 0, LC: 0, ADES: 0, FL: 0, IMBEL: 0 },
-        vendas: { KOLTE: 0, ISA: 0, LC: 0, ADES: 0, FL: 0, IMBEL: 0 }
-    },
-    {
         nome: 'PISTOLA 380 GC MD1 S/ ADC',
         preco: 5406.19,
         distribuicao: { KOLTE: 0, ISA: 0, LC: 0, ADES: 0, FL: 0, IMBEL: 0 },
