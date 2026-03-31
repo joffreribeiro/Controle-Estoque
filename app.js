@@ -1520,9 +1520,154 @@ function visualizarRelatorioSelecionado() {
     const tipo = document.getElementById('filtroRelatoriosTipo') ? document.getElementById('filtroRelatoriosTipo').value : 'inventario';
     if (tipo === 'comissoes') {
         prepararRelatorioComissoes();
+    } else if (tipo === 'vendasContrato') {
+        prepararRelatorioVendasPorContrato();
     } else {
         prepararRelatorioInventario();
     }
+}
+
+// Preparar relatório "Vendas por Contrato" — agrupa vendas por contrato e lista produtos vendidos
+function prepararRelatorioVendasPorContrato() {
+    const preview = document.getElementById('relatoriosPreview');
+    if (!preview) return;
+
+    const filtroRep = document.getElementById('filtroRelatoriosRep') ? document.getElementById('filtroRelatoriosRep').value : '';
+    const filtroProduto = document.getElementById('filtroRelatoriosProduto') ? document.getElementById('filtroRelatoriosProduto').value : '';
+    const filtroProdutoId = filtroProduto ? parseInt(filtroProduto) : null;
+    const dataInicio = document.getElementById('filtroRelatoriosDataInicio') ? document.getElementById('filtroRelatoriosDataInicio').value : '';
+    const dataFim = document.getElementById('filtroRelatoriosDataFim') ? document.getElementById('filtroRelatoriosDataFim').value : '';
+
+    const vendasRaw = Array.isArray(estoque.registroVendas) ? [...estoque.registroVendas] : [];
+
+    // Expandir vendas em linhas de itens (sem filtros aplicados ainda)
+    const linhas = [];
+    vendasRaw.forEach(venda => {
+        const dataNorm = parseDateToYYYYMMDD(venda.data) || '';
+        if (dataInicio && dataNorm && dataNorm < dataInicio) return;
+        if (dataFim && dataNorm && dataNorm > dataFim) return;
+        if ((dataInicio || dataFim) && !dataNorm) return;
+        if (filtroRep && (venda.representante || '') !== filtroRep) return;
+
+        const rawContrato = (venda.contrato ?? '').toString().normalize('NFKC');
+        const contratoClean = rawContrato.replace(/[ -\uFFFF\s]+/g, '');
+        const somenteDigitos = contratoClean.replace(/\D+/g, '');
+        const contratoKey = somenteDigitos ? String(parseInt(somenteDigitos, 10)) : contratoClean.toUpperCase();
+
+        if (Array.isArray(venda.items) && venda.items.length > 0) {
+            venda.items.forEach(it => {
+                if (filtroProdutoId && it.produtoId !== filtroProdutoId) return;
+                linhas.push({
+                    contratoKey,
+                    contratoRaw: venda.contrato,
+                    loja: venda.loja || '-',
+                    representante: venda.representante || '-',
+                    dataNorm,
+                    produtoNome: it.produtoNome || '-',
+                    quantidade: Number(it.quantidade || 0),
+                    valorUnitario: Number(it.valorUnitario || 0),
+                    valorTotal: Number(it.valorTotal || (Number(it.valorUnitario||0) * Number(it.quantidade||0)) || 0),
+                    observacoes: venda.observacoes || '-'
+                });
+            });
+        } else {
+            if (filtroProdutoId && venda.produtoId !== filtroProdutoId) return;
+            linhas.push({
+                contratoKey,
+                contratoRaw: venda.contrato,
+                loja: venda.loja || '-',
+                representante: venda.representante || '-',
+                dataNorm,
+                produtoNome: venda.produtoNome || '-',
+                quantidade: Number(venda.quantidade || 0),
+                valorUnitario: Number(venda.valorUnitario || 0),
+                valorTotal: Number(venda.valorTotal || 0),
+                observacoes: venda.observacoes || '-'
+            });
+        }
+    });
+
+    if (linhas.length === 0) {
+        preview.innerHTML = '<p>Nenhuma venda encontrada para os filtros selecionados.</p>';
+        return;
+    }
+
+    // Agrupar por contratoKey
+    const grupos = {};
+    linhas.forEach(l => {
+        if (!grupos[l.contratoKey]) grupos[l.contratoKey] = [];
+        grupos[l.contratoKey].push(l);
+    });
+
+    // Ordenar chaves numericamente quando possível
+    const chaves = Object.keys(grupos).sort((a,b) => {
+        const na = parseInt(a); const nb = parseInt(b);
+        if (!isNaN(na) && !isNaN(nb)) return na - nb;
+        return a.localeCompare(b);
+    });
+
+    const container = document.createElement('div');
+    container.className = 'report-vendas-contrato';
+
+    const table = document.createElement('table');
+    table.style.width = '100%';
+    table.style.borderCollapse = 'collapse';
+    table.innerHTML = `
+        <thead>
+            <tr>
+                <th style="text-align:left;padding:6px;border:1px solid #ddd">Contrato</th>
+                <th style="text-align:left;padding:6px;border:1px solid #ddd">Cliente / Loja</th>
+                <th style="text-align:left;padding:6px;border:1px solid #ddd">Representante</th>
+                <th style="text-align:left;padding:6px;border:1px solid #ddd">Data</th>
+                <th style="text-align:right;padding:6px;border:1px solid #ddd">Qtd</th>
+                <th style="text-align:right;padding:6px;border:1px solid #ddd">Valor (R$)</th>
+            </tr>
+        </thead>
+        <tbody></tbody>
+    `;
+
+    const tbody = table.querySelector('tbody');
+
+    chaves.forEach(k => {
+        const grupo = grupos[k];
+        const primeira = grupo[0];
+        const totalQtd = grupo.reduce((s, it) => s + (it.quantidade || 0), 0);
+        const totalValor = grupo.reduce((s, it) => s + (Number(it.valorTotal) || 0), 0);
+
+        // Linha de resumo do contrato
+        const trResumo = document.createElement('tr');
+        trResumo.innerHTML = `
+            <td style="padding:6px;border:1px solid #ddd"><strong>${k || '-'}</strong></td>
+            <td style="padding:6px;border:1px solid #ddd">${primeira.loja || ''}</td>
+            <td style="padding:6px;border:1px solid #ddd">${primeira.representante || ''}</td>
+            <td style="padding:6px;border:1px solid #ddd">${primeira.dataNorm ? new Date(primeira.dataNorm+'T00:00:00').toLocaleDateString('pt-BR') : '-'}</td>
+            <td style="padding:6px;border:1px solid #ddd;text-align:right">${totalQtd}</td>
+            <td style="padding:6px;border:1px solid #ddd;text-align:right">${formatarMoedaValor(totalValor)}</td>
+        `;
+        tbody.appendChild(trResumo);
+
+        // Linhas dos produtos vendidos dentro do contrato
+        grupo.forEach(it => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td style="padding:6px;border:1px solid #ddd"></td>
+                <td style="padding:6px;border:1px solid #ddd">↳ ${it.produtoNome}</td>
+                <td style="padding:6px;border:1px solid #ddd">${it.representante || ''}</td>
+                <td style="padding:6px;border:1px solid #ddd">${it.dataNorm ? new Date(it.dataNorm+'T00:00:00').toLocaleDateString('pt-BR') : '-'}</td>
+                <td style="padding:6px;border:1px solid #ddd;text-align:right">${it.quantidade}</td>
+                <td style="padding:6px;border:1px solid #ddd;text-align:right">${formatarMoedaValor(it.valorTotal || 0)}</td>
+            `;
+            tbody.appendChild(tr);
+        });
+    });
+
+    container.appendChild(table);
+
+    preview.innerHTML = '';
+    const wrapper = document.createElement('div');
+    wrapper.className = 'report-printable';
+    wrapper.appendChild(container);
+    preview.appendChild(wrapper);
 }
 
 function imprimirTabelaSeparada(tableId, titulo, subtitulo = '', orientacao = 'landscape') {
