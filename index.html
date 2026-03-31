@@ -559,15 +559,22 @@
                             <option value="inventario">Inventário</option>
                             <option value="comissoes">Comissões</option>
                             <option value="distribuicao">Distribuição</option>
-                            <option value="vendasContrato">Vendas por Contrato</option>
                         </select>
                         <button class="btn btn-outline" onclick="visualizarRelatorioSelecionado()">
                             <span class="btn-icon">🔍</span>
                             Visualizar Relatório
                         </button>
-                        <button class="btn btn-primary" onclick="imprimirRelatorioSelecionado()">
+                        <button class="btn btn-primary" onclick="prepararRelatorioInventario(); imprimirInventario()">
                             <span class="btn-icon">🖨️</span>
-                            Imprimir Relatório
+                            Imprimir Inventário
+                        </button>
+                        <button class="btn btn-primary" onclick="prepararRelatorioComissoes()" style="margin-left:8px">
+                            <span class="btn-icon">📑</span>
+                            Relatório Comissões
+                        </button>
+                        <button class="btn btn-outline" onclick="imprimirComissoes()" style="margin-left:6px">
+                            <span class="btn-icon">🖨️</span>
+                            Imprimir Comissões
                         </button>
                         <button class="btn btn-outline" onclick="exportarComissoesCSV()" style="margin-left:6px">
                             <span class="btn-icon">📤</span>
