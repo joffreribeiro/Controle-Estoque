@@ -2027,6 +2027,7 @@ function imprimirVendas() {
     const win = window.open('', '_blank', 'width=1200,height=900');
     if (!win) { alert('Não foi possível abrir a janela de impressão. Permita popups.'); return; }
 
+    // Forçar estilos inline para evitar CSS de impressão que esconda o conteúdo
     win.document.write(`
         <!doctype html>
         <html lang="pt-BR">
@@ -2036,9 +2037,15 @@ function imprimirVendas() {
             <link rel="stylesheet" href="styles.css">
             <style>
                 @page { size: A4 landscape; margin: 10mm; }
-                body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif; padding:12px; color:#222 }
+                body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif; padding:12px; color:#000 !important; background:#fff !important; }
                 h1 { margin-bottom:8px }
-                table { font-size:12px }
+                table { font-size:12px; border-collapse:collapse; width:100% !important; display:table !important; }
+                thead, tbody, tr, th, td { display: table-row-group !important; color:#000 !important; }
+                th, td { border:1px solid #ddd !important; padding:6px !important; }
+                .tabela-relatorio { width:100% !important; }
+                /* garantir visibilidade mesmo se stylesheet principal usar display:none */
+                .tabela-relatorio, .tabela-relatorio * { display: table !important; }
+                @media print { body { margin: 0; } }
             </style>
         </head>
         <body>
