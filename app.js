@@ -921,6 +921,55 @@ function imprimirInventario() {
     win.document.close();
 }
 
+// Imprimir exatamente o preview atual em `#relatoriosPreview`
+function imprimirRelatorioPreview() {
+    const preview = document.getElementById('relatoriosPreview');
+    if (!preview) { mostrarNotificacao('Preview de relatórios não encontrado.', 'error'); return; }
+    // Se não há conteúdo, tentar visualizar antes de imprimir
+    if (!preview.innerHTML || preview.innerHTML.trim() === '') {
+        // Tenta re-gerar o preview atual com a função existente
+        try { visualizarRelatorioSelecionado(); } catch (e) {}
+        if (!preview.innerHTML || preview.innerHTML.trim() === '') {
+            mostrarNotificacao('Nenhum relatório visualizado para imprimir.', 'warning');
+            return;
+        }
+    }
+
+    const content = preview.innerHTML;
+    const tipo = document.getElementById('filtroRelatoriosTipo')?.value || '';
+    const orient = document.getElementById('filtroRelatoriosOrientacao')?.value || 'landscape';
+    const titulo = tipo === 'comissoes' ? 'Relatório - Comissões' : tipo === 'distribuicao' ? 'Relatório - Distribuição' : 'Relatório - Inventário';
+    const dataAgora = new Date().toLocaleString('pt-BR');
+
+    const win = window.open('', '_blank', 'width=1000,height=700');
+    if (!win) { alert('Não foi possível abrir a janela de impressão. Permita popups.'); return; }
+
+    win.document.write(`
+        <!doctype html>
+        <html lang="pt-BR">
+        <head>
+            <meta charset="utf-8">
+            <title>${titulo}</title>
+            <link rel="stylesheet" href="styles.css">
+            <style>
+                @page { size: A4 ${orient}; margin: 10mm; }
+                body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif; padding:12px; color:#222 }
+                h1 { margin-bottom:8px }
+                .report-printable table { width:100%; border-collapse:collapse }
+                .report-printable th, .report-printable td { border:1px solid #ddd; padding:6px 8px }
+            </style>
+        </head>
+        <body>
+            <h1>${titulo}</h1>
+            <div style="margin-bottom:8px;font-size:13px;color:#222"><strong>Data:</strong> ${dataAgora}</div>
+            <div class="report-printable">${content}</div>
+            <script>window.onload = function(){ setTimeout(function(){ window.print(); }, 200); };</script>
+        </body>
+        </html>
+    `);
+    win.document.close();
+}
+
 // =============================
 // RELATÓRIO: COMISSÕES (5%)
 // =============================
