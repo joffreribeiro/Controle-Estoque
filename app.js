@@ -1978,6 +1978,7 @@ function imprimirVendas() {
                     <th style="padding:6px;border:1px solid #ddd;text-align:center">QTD</th>
                     <th style="padding:6px;border:1px solid #ddd;text-align:right">VALOR UN.</th>
                     <th style="padding:6px;border:1px solid #ddd;text-align:right">VALOR TOTAL</th>
+                    <th style="padding:6px;border:1px solid #ddd;text-align:right">TOTAL CONTRATO (R$)</th>
                     <th style="padding:6px;border:1px solid #ddd">DATA</th>
                     <th style="padding:6px;border:1px solid #ddd">OBS</th>
                 </tr>
@@ -1998,6 +1999,7 @@ function imprimirVendas() {
         let primeiraLinha = true;
         grupo.forEach(r => {
             const dataFmt = r.dataNorm ? new Date(r.dataNorm + 'T00:00:00').toLocaleDateString('pt-BR') : '-';
+            const totalContratoHtml = primeiraLinha ? `<strong>${formatarMoedaValor(subtotalValor)}</strong>` : '';
             tabelaHtml += `
                 <tr>
                     <td style="padding:6px;border:1px solid #ddd">${primeiraLinha ? (r.contratoRaw || ck) : ''}</td>
@@ -2007,6 +2009,7 @@ function imprimirVendas() {
                     <td style="padding:6px;border:1px solid #ddd;text-align:center">${r.quantidade}</td>
                     <td style="padding:6px;border:1px solid #ddd;text-align:right">${r.valorUnitario ? formatarMoedaValor(r.valorUnitario) : '-'}</td>
                     <td style="padding:6px;border:1px solid #ddd;text-align:right">${formatarMoedaValor(r.valorTotal || 0)}</td>
+                    <td style="padding:6px;border:1px solid #ddd;text-align:right">${totalContratoHtml}</td>
                     <td style="padding:6px;border:1px solid #ddd">${dataFmt}</td>
                     <td style="padding:6px;border:1px solid #ddd">${r.observacoes || '-'}</td>
                 </tr>`;
@@ -2014,16 +2017,7 @@ function imprimirVendas() {
             grandTotalQtd += r.quantidade || 0;
             grandTotalValor += r.valorTotal || 0;
         });
-
-        // linha de subtotal do contrato
-        tabelaHtml += `
-            <tr>
-                <td colspan="4" style="padding:6px;border:1px solid #ddd;text-align:right"><strong>Subtotal Contrato ${ck}</strong></td>
-                <td style="padding:6px;border:1px solid #ddd;text-align:center"><strong>${subtotalQtd}</strong></td>
-                <td style="padding:6px;border:1px solid #ddd"></td>
-                <td style="padding:6px;border:1px solid #ddd;text-align:right"><strong>${formatarMoedaValor(subtotalValor)}</strong></td>
-                <td colspan="2" style="padding:6px;border:1px solid #ddd"></td>
-            </tr>`;
+        // não adicionar linha de subtotal separada — valor mostrado na primeira linha do contrato
     });
 
     tabelaHtml += `</tbody></table>`;
