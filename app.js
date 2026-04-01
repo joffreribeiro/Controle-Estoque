@@ -2187,6 +2187,7 @@ function renderControleImbelEstoque() {
         <th style="${thStyle}">ID</th>
         <th style="${thStyle}">Descrição</th>
         <th style="${thStyle}">Observação</th>
+        <th style="${thStyle}">Quantidade Inicial</th>
         <th style="${thStyle}">Entrada</th>
         <th style="${thStyle}">Saída</th>
         <th style="${thStyle}">Estoque Atual</th>
@@ -2218,9 +2219,10 @@ function renderControleImbelEstoque() {
     produtos.forEach((p, idx) => {
         const entrada = totEntrada[p.id] || 0;
         const saida   = totSaida[p.id]   || 0;
-        const saldo   = entrada - saida;
-        const saldoColor = saldo < 0 ? '#721c24' : saldo === 0 ? '#856404' : '#155724';
-        const saldoBg    = saldo < 0 ? '#f8d7da' : saldo === 0 ? '#fff3cd' : '#d4edda';
+        const inicial = Number(p.quantidadeInicial) || 0;
+        const estoqueAtual = inicial + entrada - saida;
+        const saldoColor = estoqueAtual < 0 ? '#721c24' : estoqueAtual === 0 ? '#856404' : '#155724';
+        const saldoBg    = estoqueAtual < 0 ? '#f8d7da' : estoqueAtual === 0 ? '#fff3cd' : '#d4edda';
 
         const tr = document.createElement('tr');
         tr.style.background = idx % 2 === 0 ? '#fff' : '#f7f9fc';
@@ -2228,22 +2230,25 @@ function renderControleImbelEstoque() {
             <td style="${tdCenter}">${idx + 1}</td>
             <td style="${tdBase}">${p.nome}${p.codigo ? ' <span style="color:#888;font-size:.75rem">('+p.codigo+')</span>' : ''}</td>
             <td style="${tdBase}">${p.observacao || '-'}</td>
+            <td style="${tdCenter};font-weight:600">${inicial}</td>
             <td style="${tdCenter};color:#155724;font-weight:600">${entrada}</td>
             <td style="${tdCenter};color:#721c24;font-weight:600">${saida}</td>
-            <td style="${tdCenter};font-weight:700;background:${saldoBg};color:${saldoColor}">${saldo}</td>
+            <td style="${tdCenter};font-weight:700;background:${saldoBg};color:${saldoColor}">${estoqueAtual}</td>
         `;
         tbody.appendChild(tr);
     });
 
     // Linha de totais gerais
     if (produtos.length > 0) {
+        const totalInicial = (produtos||[]).reduce((s,p)=>s + (Number(p.quantidadeInicial)||0),0);
         const totalE = Object.values(totEntrada).reduce((a,b)=>a+b,0);
         const totalS = Object.values(totSaida).reduce((a,b)=>a+b,0);
-        const totalSaldo = totalE - totalS;
+        const totalSaldo = totalInicial + totalE - totalS;
         const tr = document.createElement('tr');
         tr.style.cssText = 'background:#1e3a5f;color:#fff;font-weight:700';
         tr.innerHTML = `
             <td colspan="3" style="${tdBase};background:#1e3a5f;color:#fff;text-align:right">TOTAL GERAL</td>
+            <td style="${tdCenter};background:#1e3a5f;color:#fff">${totalInicial}</td>
             <td style="${tdCenter};background:#1e3a5f;color:#fff">${totalE}</td>
             <td style="${tdCenter};background:#1e3a5f;color:#fff">${totalS}</td>
             <td style="${tdCenter};background:#1e3a5f;color:#fff">${totalSaldo}</td>
@@ -2274,11 +2279,14 @@ function renderControleImbelCadastro() {
     const formWrap = document.createElement('div');
     formWrap.style.cssText = 'background:#fff;border-radius:10px;padding:16px;margin-bottom:16px;box-shadow:0 1px 4px rgba(0,0,0,.08)';
     formWrap.innerHTML = `
-        <div style="display:grid;grid-template-columns:2fr 1fr 2fr auto;gap:10px;align-items:end">
+        <input type="hidden" id="imbel_prod_edit_id" />
+        <div style="display:grid;grid-template-columns:2fr 1fr 1fr 2fr auto;gap:10px;align-items:end">
             <div><label style="font-size:.82rem;font-weight:600;color:#555;display:block;margin-bottom:4px">Nome do Produto</label>
                 <input type="text" id="imbel_prod_nome" placeholder="Nome" style="width:100%;padding:7px 8px;border:1px solid #ddd;border-radius:6px;font-size:.85rem"/></div>
             <div><label style="font-size:.82rem;font-weight:600;color:#555;display:block;margin-bottom:4px">Código</label>
                 <input type="text" id="imbel_prod_codigo" placeholder="Cód." style="width:100%;padding:7px 8px;border:1px solid #ddd;border-radius:6px;font-size:.85rem"/></div>
+            <div><label style="font-size:.82rem;font-weight:600;color:#555;display:block;margin-bottom:4px">Quantidade Inicial</label>
+                <input type="number" id="imbel_prod_qtd_inicial" value="0" min="0" style="width:100%;padding:7px 8px;border:1px solid #ddd;border-radius:6px;font-size:.85rem"/></div>
             <div><label style="font-size:.82rem;font-weight:600;color:#555;display:block;margin-bottom:4px">Observação</label>
                 <input type="text" id="imbel_prod_obs" placeholder="Observação" style="width:100%;padding:7px 8px;border:1px solid #ddd;border-radius:6px;font-size:.85rem"/></div>
             <div><button type="button" id="imbel_prod_salvar" class="btn btn-primary">Salvar</button></div>
@@ -2293,6 +2301,7 @@ function renderControleImbelCadastro() {
     tabela.innerHTML = `<thead><tr>
         <th style="${thStyle}">Nome</th>
         <th style="${thStyle}">Código</th>
+        <th style="${thStyle}">Quantidade Inicial</th>
         <th style="${thStyle}">Observação</th>
         <th style="${thStyle}">Ações</th>
     </tr></thead><tbody></tbody>`;
@@ -2303,8 +2312,9 @@ function renderControleImbelCadastro() {
         tr.innerHTML = `
             <td style="${tdBase}">${p.nome}</td>
             <td style="${tdBase}">${p.codigo||'-'}</td>
+            <td style="${tdBase};text-align:center">${(p.quantidadeInicial||p.quantidadeInicial===0)?p.quantidadeInicial:'-'}</td>
             <td style="${tdBase}">${p.observacao||'-'}</td>
-            <td style="${tdBase}"><button class="btn btn-outline" data-id="${p.id}">Remover</button></td>`;
+            <td style="${tdBase}"><button class="btn btn-outline" data-editid="${p.id}" style="margin-right:6px">Editar</button><button class="btn btn-outline" data-id="${p.id}">Remover</button></td>`;
         tbody.appendChild(tr);
     });
     wrap.appendChild(tabela);
@@ -2312,12 +2322,28 @@ function renderControleImbelCadastro() {
 
     // handlers
     document.getElementById('imbel_prod_salvar').onclick = function() {
+        const editIdField = document.getElementById('imbel_prod_edit_id');
+        const editId = editIdField ? editIdField.value : '';
         const nome = document.getElementById('imbel_prod_nome').value.trim().toUpperCase();
         const codigo = document.getElementById('imbel_prod_codigo').value.trim().toUpperCase();
+        const quantidadeInicial = parseInt(document.getElementById('imbel_prod_qtd_inicial').value) || 0;
         const observacao = document.getElementById('imbel_prod_obs').value.trim().toUpperCase();
         if (!nome) { alert('Informe o nome do produto'); return; }
-        const novo = { id: 'p' + Date.now(), nome, codigo, observacao };
         data.produtos = data.produtos || [];
+        if (editId) {
+            const prod = data.produtos.find(p => p.id === editId);
+            if (prod) {
+                prod.nome = nome; prod.codigo = codigo; prod.observacao = observacao; prod.quantidadeInicial = quantidadeInicial;
+                saveImbel(data);
+                // reset edit state
+                editIdField.value = '';
+                document.getElementById('imbel_prod_salvar').textContent = 'Salvar';
+                renderControleImbelCadastro();
+                renderControleImbelEstoque();
+                return;
+            }
+        }
+        const novo = { id: 'p' + Date.now(), nome, codigo, observacao, quantidadeInicial };
         data.produtos.push(novo);
         saveImbel(data);
         renderControleImbelCadastro();
@@ -2331,6 +2357,21 @@ function renderControleImbelCadastro() {
         data.movimentacoes = (data.movimentacoes||[]).filter(m => m.produtoId !== id);
         saveImbel(data);
         renderControleImbelCadastro();
+    });
+
+    tbody.querySelectorAll('button[data-editid]').forEach(b => b.onclick = function(){
+        const id = this.getAttribute('data-editid');
+        const prod = (data.produtos||[]).find(p => p.id === id);
+        if (!prod) return;
+        // preencher formulário
+        document.getElementById('imbel_prod_nome').value = prod.nome || '';
+        document.getElementById('imbel_prod_codigo').value = prod.codigo || '';
+        document.getElementById('imbel_prod_qtd_inicial').value = prod.quantidadeInicial || 0;
+        document.getElementById('imbel_prod_obs').value = prod.observacao || '';
+        const editField = document.getElementById('imbel_prod_edit_id'); if (editField) editField.value = id;
+        document.getElementById('imbel_prod_salvar').textContent = 'Atualizar';
+        // focus form
+        document.getElementById('imbel_prod_nome').focus();
     });
 }
 
@@ -2609,12 +2650,13 @@ function exportarImbel() {
         else if (t === 'saída' || t === 'saida') totS[m.produtoId] = (totS[m.produtoId]||0) + q;
     });
 
-    let csv = `ID${sep}DESCRICAO${sep}OBSERVACAO${sep}ENTRADA${sep}SAIDA${sep}ESTOQUE_ATUAL\n`;
+    let csv = `ID${sep}DESCRICAO${sep}OBSERVACAO${sep}QUANTIDADE_INICIAL${sep}ENTRADA${sep}SAIDA${sep}ESTOQUE_ATUAL\n`;
     produtos.forEach(p => {
         const entrada = totE[p.id] || 0;
         const saida = totS[p.id] || 0;
-        const saldo = entrada - saida;
-        const linha = `${p.id || ''}${sep}${(p.nome||'').toString().replace(/\n/g,' ')}${sep}${(p.observacao||p.codigo||'').toString().replace(/\n/g,' ')}${sep}${entrada}${sep}${saida}${sep}${saldo}`;
+        const inicial = Number(p.quantidadeInicial) || 0;
+        const saldo = inicial + entrada - saida;
+        const linha = `${p.id || ''}${sep}${(p.nome||'').toString().replace(/\n/g,' ')}${sep}${(p.observacao||p.codigo||'').toString().replace(/\n/g,' ')}${sep}${inicial}${sep}${entrada}${sep}${saida}${sep}${saldo}`;
         csv += linha + '\n';
     });
 
@@ -2659,17 +2701,19 @@ function importarImbel(event) {
                 if (!descricao) { erros.push(`Linha ${i+1}: descrição vazia`); continue; }
 
                 const observacao = (col[2]||'').trim().toUpperCase();
-                const entrada = parseInt((col[3]||'').replace(/[^0-9-]/g,'')) || 0;
-                const saida = parseInt((col[4]||'').replace(/[^0-9-]/g,'')) || 0;
+                const quantidadeInicial = parseInt((col[3]||'').replace(/[^0-9-]/g,'')) || 0;
+                const entrada = parseInt((col[4]||'').replace(/[^0-9-]/g,'')) || 0;
+                const saida = parseInt((col[5]||'').replace(/[^0-9-]/g,'')) || 0;
 
                 // Verificar se produto já existe (por nome)
                 let produto = data.produtos.find(p => (p.nome||'').toString().toUpperCase() === descricao);
                 if (!produto) {
-                    produto = { id: 'p' + Date.now() + i, nome: descricao, codigo: '', observacao };
+                    produto = { id: 'p' + Date.now() + i, nome: descricao, codigo: '', observacao, quantidadeInicial };
                     data.produtos.push(produto);
                 } else {
                     // atualizar observacao se houver
                     produto.observacao = produto.observacao || observacao;
+                    produto.quantidadeInicial = produto.quantidadeInicial || quantidadeInicial;
                 }
 
                 // Criar movimentações de entrada/saida somando valores (se informados)
@@ -2719,9 +2763,9 @@ function exportarImbelCadastro() {
     const sep = ';';
     const data = loadImbel();
     const produtos = data.produtos || [];
-    let csv = `ID${sep}NOME${sep}CODIGO${sep}OBSERVACAO\n`;
+    let csv = `ID${sep}NOME${sep}CODIGO${sep}OBSERVACAO${sep}QUANTIDADE_INICIAL\n`;
     produtos.forEach(p => {
-        const linha = `${p.id||''}${sep}${(p.nome||'').toString().replace(/\n/g,' ')}${sep}${(p.codigo||'').toString().replace(/\n/g,' ')}${sep}${(p.observacao||'').toString().replace(/\n/g,' ')}`;
+        const linha = `${p.id||''}${sep}${(p.nome||'').toString().replace(/\n/g,' ')}${sep}${(p.codigo||'').toString().replace(/\n/g,' ')}${sep}${(p.observacao||'').toString().replace(/\n/g,' ')}${sep}${(Number(p.quantidadeInicial)||0)}`;
         csv += linha + '\n';
     });
     const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
@@ -2752,13 +2796,15 @@ function importarImbelCadastro(event) {
                 if (!nome) { erros.push(`Linha ${i+1}: nome vazio`); continue; }
                 const codigo = (col[2]||'').trim().toUpperCase();
                 const observacao = (col[3]||'').trim().toUpperCase();
+                const quantidadeInicial = parseInt((col[4]||'').replace(/[^0-9-]/g,'')) || 0;
                 let produto = data.produtos.find(p => (p.nome||'').toString().toUpperCase() === nome);
                 if (!produto) {
-                    produto = { id: 'p' + Date.now() + i, nome, codigo, observacao };
+                    produto = { id: 'p' + Date.now() + i, nome, codigo, observacao, quantidadeInicial };
                     data.produtos.push(produto);
                 } else {
                     produto.codigo = produto.codigo || codigo;
                     produto.observacao = produto.observacao || observacao;
+                    produto.quantidadeInicial = produto.quantidadeInicial || quantidadeInicial;
                 }
                 importados++;
             }
