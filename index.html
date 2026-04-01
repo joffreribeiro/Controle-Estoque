@@ -674,6 +674,13 @@
                             <button class="btn btn-outline" onclick="renderControleImbelEstoque()">
                                 <span class="btn-icon">🔄</span> Atualizar
                             </button>
+                            <button class="btn btn-info" onclick="document.getElementById('inputImportarImbel').click()" style="margin-left:6px">
+                                <span class="btn-icon">📥</span> Importar Excel
+                            </button>
+                            <input type="file" id="inputImportarImbel" accept=".csv,.xlsx,.xls" style="display:none" onchange="importarImbel(event)">
+                            <button class="btn btn-outline" onclick="exportarImbel()" style="margin-left:6px">
+                                <span class="btn-icon">📤</span> Exportar Excel
+                            </button>
                         </div>
                     </div>
                     <div id="controleImbelEstoqueContainer"></div>
