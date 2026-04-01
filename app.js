@@ -2202,8 +2202,9 @@ function renderControleImbelEstoque() {
     (data.movimentacoes||[]).forEach(m => {
         if (!m.produtoId) return;
         const q = Number(m.quantidade) || 0;
-        if (m.tipo === 'Entrada') totEntrada[m.produtoId] = (totEntrada[m.produtoId]||0) + q;
-        else if (m.tipo === 'Saída') totSaida[m.produtoId] = (totSaida[m.produtoId]||0) + q;
+        const tipo = (m.tipo || '').toString().toLowerCase();
+        if (tipo === 'entrada') totEntrada[m.produtoId] = (totEntrada[m.produtoId]||0) + q;
+        else if (tipo === 'saída' || tipo === 'saida') totSaida[m.produtoId] = (totSaida[m.produtoId]||0) + q;
     });
 
     const produtos = data.produtos || [];
@@ -2311,9 +2312,9 @@ function renderControleImbelCadastro() {
 
     // handlers
     document.getElementById('imbel_prod_salvar').onclick = function() {
-        const nome = document.getElementById('imbel_prod_nome').value.trim();
-        const codigo = document.getElementById('imbel_prod_codigo').value.trim();
-        const observacao = document.getElementById('imbel_prod_obs').value.trim();
+        const nome = document.getElementById('imbel_prod_nome').value.trim().toUpperCase();
+        const codigo = document.getElementById('imbel_prod_codigo').value.trim().toUpperCase();
+        const observacao = document.getElementById('imbel_prod_obs').value.trim().toUpperCase();
         if (!nome) { alert('Informe o nome do produto'); return; }
         const novo = { id: 'p' + Date.now(), nome, codigo, observacao };
         data.produtos = data.produtos || [];
@@ -2522,12 +2523,14 @@ function renderControleImbelMovimentacao() {
         if (!produtoId) { mostrarNotificacao('Selecione um produto.', 'warning'); return; }
         if (quantidade <= 0) { mostrarNotificacao('Informe uma quantidade válida.', 'warning'); return; }
 
-        // Bloquear saída se saldo insuficiente
-        if (tipo === 'Saída') {
+        // Bloquear saída se saldo insuficiente (aceita variações maiúsculas/minúsculas/sem acento)
+        const tipoNorm = (tipo||'').toString().toLowerCase();
+        if (tipoNorm === 'saída' || tipoNorm === 'saida') {
             const saldos = {};
             (data.movimentacoes||[]).forEach(m2 => {
                 const q = Number(m2.quantidade)||0;
-                const s = (m2.tipo === 'Entrada') ? 1 : (m2.tipo === 'Saída' ? -1 : 0);
+                const t = (m2.tipo||'').toString().toLowerCase();
+                const s = (t === 'entrada') ? 1 : (t === 'saída' || t === 'saida' ? -1 : 0);
                 saldos[m2.produtoId] = (saldos[m2.produtoId]||0) + s * q;
             });
             const saldoAtual = saldos[produtoId] || 0;
@@ -2539,8 +2542,11 @@ function renderControleImbelMovimentacao() {
 
         data.movimentacoes = data.movimentacoes || [];
         data.movimentacoes.push({
-            id: 'm' + Date.now(), produtoId, tipo, quantidade, data: dataStr,
-            destinatario, cpfCnpj, valor, pagamento, endereco, telefone, email, entregue, fi, observacoes: obs
+            id: 'm' + Date.now(), produtoId, tipo: (tipo||'').toString().toUpperCase(), quantidade, data: dataStr,
+            destinatario: (destinatario||'').toUpperCase(), cpfCnpj: (cpfCnpj||'').toUpperCase(), valor,
+            pagamento: (pagamento||'').toString().toUpperCase(), endereco: (endereco||'').toUpperCase(),
+            telefone: (telefone||'').toUpperCase(), email: (email||'').toUpperCase(), entregue: (entregue||'').toString().toUpperCase(),
+            fi: (fi||'').toUpperCase(), observacoes: (obs||'').toUpperCase()
         });
         saveImbel(data);
         mostrarNotificacao('Movimentação registrada!', 'success');
