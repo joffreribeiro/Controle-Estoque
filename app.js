@@ -2506,6 +2506,37 @@ function renderControleImbelMovimentacao() {
     const elEnt = document.getElementById('imbel_mov_entregue'); if (elEnt) elEnt.checked = false;
     const elFi = document.getElementById('imbel_mov_fi'); if (elFi) elFi.checked = false;
 
+    // ---- Filtros ----
+    const filtrosWrap = document.createElement('div');
+    filtrosWrap.style.cssText = 'display:flex;flex-wrap:wrap;gap:8px;margin:8px 0 12px;align-items:center';
+    filtrosWrap.innerHTML = `
+        <select id="imbel_filter_prod" style="padding:6px 8px;border:1px solid #ddd;border-radius:6px;font-size:.85rem">
+            <option value="">Todos os produtos</option>
+        </select>
+        <select id="imbel_filter_tipo" style="padding:6px 8px;border:1px solid #ddd;border-radius:6px;font-size:.85rem">
+            <option value="">Todos os tipos</option>
+            <option value="ENTRADA">Entrada</option>
+            <option value="SAIDA">Saída</option>
+        </select>
+        <label style="font-size:.8rem;color:#444">De</label>
+        <input type="date" id="imbel_filter_date_start" style="padding:6px;border:1px solid #ddd;border-radius:6px" />
+        <label style="font-size:.8rem;color:#444">Até</label>
+        <input type="date" id="imbel_filter_date_end" style="padding:6px;border:1px solid #ddd;border-radius:6px" />
+        <input type="text" id="imbel_filter_dest" placeholder="Destinatário" style="padding:6px;border:1px solid #ddd;border-radius:6px;min-width:160px" />
+        <input type="text" id="imbel_filter_cpf" placeholder="CPF/CNPJ" style="padding:6px;border:1px solid #ddd;border-radius:6px;min-width:140px" />
+        <label style="display:flex;align-items:center;gap:6px;margin-left:auto"><input type="checkbox" id="imbel_filter_pago"/> Somente pagos</label>
+        <label style="display:flex;align-items:center;gap:6px"><input type="checkbox" id="imbel_filter_entregue_only"/> Somente entregues</label>
+        <label style="display:flex;align-items:center;gap:6px"><input type="checkbox" id="imbel_filter_fi_only"/> Somente FI</label>
+        <button id="imbel_filter_reset" class="btn btn-outline" style="padding:6px 10px">Limpar filtros</button>
+    `;
+    container.appendChild(filtrosWrap);
+
+    // popular opções de produto no filtro
+    const selFilterProd = filtrosWrap.querySelector('#imbel_filter_prod');
+    (data.produtos||[]).forEach(p=>{
+        const o = document.createElement('option'); o.value = p.id; o.textContent = p.nome; selFilterProd.appendChild(o);
+    });
+
     // ---- Tabela histórico ----
     const tabelaWrap = document.createElement('div');
     tabelaWrap.style.cssText = 'overflow-x:auto;background:#fff;border-radius:10px;padding:16px;box-shadow:0 1px 4px rgba(0,0,0,.08)';
@@ -2536,34 +2567,129 @@ function renderControleImbelMovimentacao() {
     const tdStyle = 'padding:6px 8px;border:1px solid #ddd;vertical-align:middle;white-space:nowrap';
     const tdCenter = tdStyle + ';text-align:center';
 
-    (data.movimentacoes||[]).slice().reverse().forEach((m, idx) => {
-        const produto = (data.produtos||[]).find(p => p.id === m.produtoId) || {nome: m.descricao || '-'};
-        const dataFmt = formatDateToDDMMYYYY(m.data);
-        const valorFmt = m.valor ? 'R$ ' + Number(m.valor).toLocaleString('pt-BR', {minimumFractionDigits:2}) : '-';
-        const seqNum = (data.movimentacoes.length - idx);
+    // função para popular tbody com filtros
+    function populateTbody() {
+        tbody.innerHTML = '';
+        const all = (data.movimentacoes||[]).slice().reverse();
+        const fProd = (document.getElementById('imbel_filter_prod')||{value:''}).value;
+        const fTipo = (document.getElementById('imbel_filter_tipo')||{value:''}).value;
+        const fStart = (document.getElementById('imbel_filter_date_start')||{value:''}).value;
+        const fEnd = (document.getElementById('imbel_filter_date_end')||{value:''}).value;
+        const fDest = (document.getElementById('imbel_filter_dest')||{value:''}).value.trim().toUpperCase();
+        const fCpf = (document.getElementById('imbel_filter_cpf')||{value:''}).value.trim().toUpperCase();
+        const fPago = !!(document.getElementById('imbel_filter_pago') && document.getElementById('imbel_filter_pago').checked);
+        const fEnt = !!(document.getElementById('imbel_filter_entregue_only') && document.getElementById('imbel_filter_entregue_only').checked);
+        const fFi = !!(document.getElementById('imbel_filter_fi_only') && document.getElementById('imbel_filter_fi_only').checked);
 
-        const tr = document.createElement('tr');
-        tr.style.background = idx % 2 === 0 ? '#fff' : '#f7f9fc';
-        tr.innerHTML = `
-            <td style="${tdCenter}">${seqNum}</td>
-            <td style="${tdStyle}">${produto.nome}</td>
-            <td style="${tdCenter}"><span style="padding:2px 8px;border-radius:12px;font-size:.75rem;font-weight:600;background:${m.tipo==='Entrada'?'#d4edda':'#f8d7da'};color:${m.tipo==='Entrada'?'#155724':'#721c24'}">${m.tipo||'-'}</span></td>
-            <td style="${tdCenter}">${dataFmt}</td>
-            <td style="${tdCenter}">${m.quantidade||'-'}</td>
-            <td style="${tdStyle}">${m.destinatario||'-'}</td>
-            <td style="${tdStyle}">${m.cpfCnpj||'-'}</td>
-            <td style="${tdStyle}">${m.observacoes||'-'}</td>
-            <td style="${tdCenter}">${valorFmt}</td>
-            <td style="${tdStyle}">${m.endereco||'-'}</td>
-            <td style="${tdStyle}">${m.telefone||'-'}</td>
-            <td style="${tdStyle}">${m.email||'-'}</td>
-            <td style="${tdCenter}"><span style="padding:2px 8px;border-radius:12px;font-size:.75rem;font-weight:600;background:${(m.pagamento||'').toString().toUpperCase()==='SIM'?'#d4edda':'#fff3cd'};color:${(m.pagamento||'').toString().toUpperCase()==='SIM'?'#155724':'#856404'}">${(m.pagamento||'').toString().toUpperCase()==='SIM' ? 'Sim' : '-'}</span></td>
-            <td style="${tdCenter}"><span style="padding:2px 8px;border-radius:12px;font-size:.75rem;font-weight:600;background:${(m.entregue||'').toString().toUpperCase()==='SIM'?'#d4edda':'#fff3cd'};color:${(m.entregue||'').toString().toUpperCase()==='SIM'?'#155724':'#856404'}">${(m.entregue||'').toString().toUpperCase()==='SIM' ? 'Sim' : 'Não'}</span></td>
-            <td style="${tdCenter}"><span style="padding:2px 8px;border-radius:12px;font-size:.75rem;font-weight:600;background:${(m.fi||'').toString().toUpperCase()==='SIM'?'#d4edda':'#fff3cd'};color:${(m.fi||'').toString().toUpperCase()==='SIM'?'#155724':'#856404'}">${(m.fi||'').toString().toUpperCase()==='SIM' ? 'Sim' : '-'}</span></td>
-            <td style="${tdCenter}"><button class="btn btn-outline" style="padding:3px 8px;font-size:.75rem;margin-right:6px" data-editmov="${m.id}">Editar</button><button class="btn btn-outline" style="padding:3px 8px;font-size:.75rem" data-delid="${m.id}">🗑️</button></td>
-        `;
-        tbody.appendChild(tr);
+        let rowIndex = 0;
+        all.forEach((m, idx) => {
+            if (fProd && String(m.produtoId) !== String(fProd)) return;
+            const tipoNorm = (m.tipo||'').toString().toUpperCase();
+            if (fTipo) {
+                if (fTipo === 'ENTRADA' && tipoNorm !== 'ENTRADA') return;
+                if (fTipo === 'SAIDA' && tipoNorm !== 'SAIDA' && tipoNorm !== 'SAÍDA') return;
+            }
+            const mDateNorm = parseDateToYYYYMMDD(m.data) || '';
+            if (fStart && mDateNorm && mDateNorm < fStart) return;
+            if (fEnd && mDateNorm && mDateNorm > fEnd) return;
+            if (fDest && !(m.destinatario||'').toString().toUpperCase().includes(fDest)) return;
+            if (fCpf && !(m.cpfCnpj||'').toString().toUpperCase().includes(fCpf)) return;
+            if (fPago && (m.pagamento||'').toString().toUpperCase() !== 'SIM') return;
+            if (fEnt && (m.entregue||'').toString().toUpperCase() !== 'SIM') return;
+            if (fFi && (m.fi||'').toString().toUpperCase() !== 'SIM') return;
+
+            const produto = (data.produtos||[]).find(p => p.id === m.produtoId) || {nome: m.descricao || '-'};
+            const dataFmt = formatDateToDDMMYYYY(m.data);
+            const valorFmt = m.valor ? 'R$ ' + Number(m.valor).toLocaleString('pt-BR', {minimumFractionDigits:2}) : '-';
+            const seqNum = (data.movimentacoes.length - idx);
+
+            const tr = document.createElement('tr');
+            tr.style.background = rowIndex % 2 === 0 ? '#fff' : '#f7f9fc';
+            tr.innerHTML = `
+                <td style="${tdCenter}">${seqNum}</td>
+                <td style="${tdStyle}">${produto.nome}</td>
+                <td style="${tdCenter}"><span style="padding:2px 8px;border-radius:12px;font-size:.75rem;font-weight:600;color:${(m.tipo||'').toString().toUpperCase()==='ENTRADA' ? '#155724' : ((m.tipo||'').toString().toUpperCase()==='SAIDA' || (m.tipo||'').toString().toUpperCase()==='SAÍDA' ? '#721c24' : '#333')};">${((m.tipo||'').toString().toUpperCase()==='ENTRADA' ? 'Entrada' : (((m.tipo||'').toString().toUpperCase()==='SAIDA' || (m.tipo||'').toString().toUpperCase()==='SAÍDA') ? 'Saída' : (m.tipo||'-')))}</span></td>
+                <td style="${tdCenter}">${dataFmt}</td>
+                <td style="${tdCenter}">${m.quantidade||'-'}</td>
+                <td style="${tdStyle}">${m.destinatario||'-'}</td>
+                <td style="${tdStyle}">${m.cpfCnpj||'-'}</td>
+                <td style="${tdStyle}">${m.observacoes||'-'}</td>
+                <td style="${tdCenter}">${valorFmt}</td>
+                <td style="${tdStyle}">${m.endereco||'-'}</td>
+                <td style="${tdStyle}">${m.telefone||'-'}</td>
+                <td style="${tdStyle}">${m.email||'-'}</td>
+                <td style="${tdCenter}"><span style="padding:2px 8px;border-radius:12px;font-size:.75rem;font-weight:600;background:${(m.pagamento||'').toString().toUpperCase()==='SIM'?'#d4edda':'#fff3cd'};color:${(m.pagamento||'').toString().toUpperCase()==='SIM'?'#155724':'#856404'}">${(m.pagamento||'').toString().toUpperCase()==='SIM' ? 'Sim' : '-'}</span></td>
+                <td style="${tdCenter}"><span style="padding:2px 8px;border-radius:12px;font-size:.75rem;font-weight:600;background:${(m.entregue||'').toString().toUpperCase()==='SIM'?'#d4edda':'#fff3cd'};color:${(m.entregue||'').toString().toUpperCase()==='SIM'?'#155724':'#856404'}">${(m.entregue||'').toString().toUpperCase()==='SIM' ? 'Sim' : 'Não'}</span></td>
+                <td style="${tdCenter}"><span style="padding:2px 8px;border-radius:12px;font-size:.75rem;font-weight:600;background:${(m.fi||'').toString().toUpperCase()==='SIM'?'#d4edda':'#fff3cd'};color:${(m.fi||'').toString().toUpperCase()==='SIM'?'#155724':'#856404'}">${(m.fi||'').toString().toUpperCase()==='SIM' ? 'Sim' : '-'}</span></td>
+                <td style="${tdCenter}"><button class="btn btn-outline" style="padding:3px 8px;font-size:.75rem;margin-right:6px" data-editmov="${m.id}">Editar</button><button class="btn btn-outline" style="padding:3px 8px;font-size:.75rem" data-delid="${m.id}">🗑️</button></td>
+            `;
+            tbody.appendChild(tr);
+            rowIndex++;
+        });
+
+        // rebind handlers
+        tbody.querySelectorAll('button[data-delid]').forEach(btn => {
+            btn.onclick = function(){
+                const id = this.getAttribute('data-delid');
+                if (!confirm('Excluir esta movimentação?')) return;
+                data.movimentacoes = (data.movimentacoes||[]).filter(m => m.id !== id);
+                saveImbel(data);
+                mostrarNotificacao('Movimentação excluída.', 'success');
+                populateTbody();
+                renderControleImbelEstoque();
+            };
+        });
+
+        tbody.querySelectorAll('button[data-editmov]').forEach(btn => {
+            btn.onclick = function(){
+                const id = this.getAttribute('data-editmov');
+                const mov = (data.movimentacoes||[]).find(m => m.id === id);
+                if (!mov) return;
+                document.getElementById('imbel_mov_prod').value = mov.produtoId || '';
+                const tipoLower = (mov.tipo||'').toString().toLowerCase();
+                if (tipoLower === 'entrada') document.getElementById('imbel_mov_tipo').value = 'Entrada';
+                else if (tipoLower === 'saída' || tipoLower === 'saida') document.getElementById('imbel_mov_tipo').value = 'Saída';
+                else document.getElementById('imbel_mov_tipo').value = mov.tipo || 'Entrada';
+                document.getElementById('imbel_mov_data').value = mov.data || hoje;
+                document.getElementById('imbel_mov_qtd').value = mov.quantidade || 1;
+                document.getElementById('imbel_mov_dest').value = mov.destinatario || '';
+                document.getElementById('imbel_mov_cpf').value = mov.cpfCnpj || '';
+                document.getElementById('imbel_mov_valor').value = mov.valor || '';
+                const _pagEdit = document.getElementById('imbel_mov_pagamento'); if (_pagEdit) _pagEdit.checked = !!(mov.pagamento && mov.pagamento.toString().toUpperCase() === 'SIM');
+                document.getElementById('imbel_mov_endereco').value = mov.endereco || '';
+                document.getElementById('imbel_mov_tel').value = mov.telefone || '';
+                document.getElementById('imbel_mov_email').value = mov.email || '';
+                const _entEdit = document.getElementById('imbel_mov_entregue'); if (_entEdit) _entEdit.checked = !!(mov.entregue && mov.entregue.toString().toUpperCase() === 'SIM');
+                const _fiEdit = document.getElementById('imbel_mov_fi'); if (_fiEdit) _fiEdit.checked = !!(mov.fi && mov.fi.toString().toUpperCase() === 'SIM');
+                document.getElementById('imbel_mov_obs').value = mov.observacoes || '';
+                const editField = document.getElementById('imbel_mov_edit_id'); if (editField) editField.value = id;
+                document.getElementById('imbel_mov_salvar').textContent = 'Atualizar Movimentação';
+                document.getElementById('imbel_mov_prod').focus();
+            };
+        });
+    }
+
+    // conectar eventos dos filtros
+    ['imbel_filter_prod','imbel_filter_tipo','imbel_filter_date_start','imbel_filter_date_end','imbel_filter_dest','imbel_filter_cpf','imbel_filter_pago','imbel_filter_entregue_only','imbel_filter_fi_only'].forEach(id=>{
+        const el = document.getElementById(id);
+        if (el) el.addEventListener('change', populateTbody);
+        if (el && el.addEventListener && el.tagName === 'INPUT') el.addEventListener('input', populateTbody);
     });
+    const btnResetFiltros = document.getElementById('imbel_filter_reset'); if (btnResetFiltros) btnResetFiltros.onclick = function(){
+        document.getElementById('imbel_filter_prod').value = '';
+        document.getElementById('imbel_filter_tipo').value = '';
+        document.getElementById('imbel_filter_date_start').value = '';
+        document.getElementById('imbel_filter_date_end').value = '';
+        document.getElementById('imbel_filter_dest').value = '';
+        document.getElementById('imbel_filter_cpf').value = '';
+        document.getElementById('imbel_filter_pago').checked = false;
+        document.getElementById('imbel_filter_entregue_only').checked = false;
+        document.getElementById('imbel_filter_fi_only').checked = false;
+        populateTbody();
+    };
+
+    // preencher tabela inicialmente
+    populateTbody();
 
     tabelaWrap.appendChild(tabela);
     container.appendChild(tabelaWrap);
