@@ -2257,50 +2257,245 @@ function renderControleImbelMovimentacao() {
     const container = document.getElementById('controleImbelMovContainer');
     container.innerHTML = '';
 
-    const form = document.createElement('form');
-    form.innerHTML = `
-        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:end">
-            <div style="flex:1"><label>Produto</label><select id="imbel_mov_prod" style="width:100%"></select></div>
-            <div style="width:120px"><label>Tipo</label><select id="imbel_mov_tipo"><option value="entrada">Entrada</option><option value="saida">Saída</option></select></div>
-            <div style="width:120px"><label>Quantidade</label><input type="number" id="imbel_mov_qtd" value="1" min="1" style="width:100%"/></div>
-            <div style="width:160px"><label>Data</label><input type="date" id="imbel_mov_data" style="width:100%"/></div>
-            <div style="flex:1"><label>Obs</label><input type="text" id="imbel_mov_obs" style="width:100%"/></div>
-            <div style="width:140px;align-self:flex-end"><button type="button" id="imbel_mov_salvar" class="btn btn-primary">Registrar Movimentação</button></div>
+    // ---- Formulário ----
+    const formWrap = document.createElement('div');
+    formWrap.style.cssText = 'background:#fff;border-radius:10px;padding:20px;margin-bottom:20px;box-shadow:0 1px 4px rgba(0,0,0,.08)';
+    formWrap.innerHTML = `
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;align-items:end">
+            <div>
+                <label style="font-size:.82rem;font-weight:600;color:#555;display:block;margin-bottom:4px">Descrição (Produto)</label>
+                <select id="imbel_mov_prod" style="width:100%;padding:7px 8px;border:1px solid #ddd;border-radius:6px;font-size:.85rem"></select>
+            </div>
+            <div>
+                <label style="font-size:.82rem;font-weight:600;color:#555;display:block;margin-bottom:4px">Tipo</label>
+                <select id="imbel_mov_tipo" style="width:100%;padding:7px 8px;border:1px solid #ddd;border-radius:6px;font-size:.85rem">
+                    <option value="Entrada">Entrada</option>
+                    <option value="Saída">Saída</option>
+                </select>
+            </div>
+            <div>
+                <label style="font-size:.82rem;font-weight:600;color:#555;display:block;margin-bottom:4px">Data</label>
+                <input type="date" id="imbel_mov_data" style="width:100%;padding:7px 8px;border:1px solid #ddd;border-radius:6px;font-size:.85rem"/>
+            </div>
+            <div>
+                <label style="font-size:.82rem;font-weight:600;color:#555;display:block;margin-bottom:4px">Quantidade</label>
+                <input type="number" id="imbel_mov_qtd" value="1" min="1" style="width:100%;padding:7px 8px;border:1px solid #ddd;border-radius:6px;font-size:.85rem"/>
+            </div>
+            <div>
+                <label style="font-size:.82rem;font-weight:600;color:#555;display:block;margin-bottom:4px">Destinatário</label>
+                <input type="text" id="imbel_mov_dest" placeholder="Nome" style="width:100%;padding:7px 8px;border:1px solid #ddd;border-radius:6px;font-size:.85rem"/>
+            </div>
+            <div>
+                <label style="font-size:.82rem;font-weight:600;color:#555;display:block;margin-bottom:4px">CPF / CNPJ</label>
+                <input type="text" id="imbel_mov_cpf" placeholder="000.000.000-00" style="width:100%;padding:7px 8px;border:1px solid #ddd;border-radius:6px;font-size:.85rem"/>
+            </div>
+            <div>
+                <label style="font-size:.82rem;font-weight:600;color:#555;display:block;margin-bottom:4px">Valor (R$)</label>
+                <input type="number" id="imbel_mov_valor" min="0" step="0.01" placeholder="0,00" style="width:100%;padding:7px 8px;border:1px solid #ddd;border-radius:6px;font-size:.85rem"/>
+            </div>
+            <div>
+                <label style="font-size:.82rem;font-weight:600;color:#555;display:block;margin-bottom:4px">Pagamento</label>
+                <select id="imbel_mov_pagamento" style="width:100%;padding:7px 8px;border:1px solid #ddd;border-radius:6px;font-size:.85rem">
+                    <option value="">— selecione —</option>
+                    <option value="Dinheiro">Dinheiro</option>
+                    <option value="PIX">PIX</option>
+                    <option value="Cartão Crédito">Cartão Crédito</option>
+                    <option value="Cartão Débito">Cartão Débito</option>
+                    <option value="Boleto">Boleto</option>
+                    <option value="Transferência">Transferência</option>
+                    <option value="Isento">Isento</option>
+                </select>
+            </div>
+            <div style="grid-column:span 2">
+                <label style="font-size:.82rem;font-weight:600;color:#555;display:block;margin-bottom:4px">Endereço</label>
+                <input type="text" id="imbel_mov_endereco" placeholder="Rua, número, cidade" style="width:100%;padding:7px 8px;border:1px solid #ddd;border-radius:6px;font-size:.85rem"/>
+            </div>
+            <div>
+                <label style="font-size:.82rem;font-weight:600;color:#555;display:block;margin-bottom:4px">Telefone</label>
+                <input type="text" id="imbel_mov_tel" placeholder="(00) 00000-0000" style="width:100%;padding:7px 8px;border:1px solid #ddd;border-radius:6px;font-size:.85rem"/>
+            </div>
+            <div>
+                <label style="font-size:.82rem;font-weight:600;color:#555;display:block;margin-bottom:4px">E-mail</label>
+                <input type="email" id="imbel_mov_email" placeholder="email@exemplo.com" style="width:100%;padding:7px 8px;border:1px solid #ddd;border-radius:6px;font-size:.85rem"/>
+            </div>
+            <div>
+                <label style="font-size:.82rem;font-weight:600;color:#555;display:block;margin-bottom:4px">Entregue?</label>
+                <select id="imbel_mov_entregue" style="width:100%;padding:7px 8px;border:1px solid #ddd;border-radius:6px;font-size:.85rem">
+                    <option value="Não">Não</option>
+                    <option value="Sim">Sim</option>
+                </select>
+            </div>
+            <div>
+                <label style="font-size:.82rem;font-weight:600;color:#555;display:block;margin-bottom:4px">FI (Nº)</label>
+                <input type="text" id="imbel_mov_fi" placeholder="Nº da FI" style="width:100%;padding:7px 8px;border:1px solid #ddd;border-radius:6px;font-size:.85rem"/>
+            </div>
+            <div style="grid-column:1/-1">
+                <label style="font-size:.82rem;font-weight:600;color:#555;display:block;margin-bottom:4px">Observações</label>
+                <input type="text" id="imbel_mov_obs" placeholder="Observações adicionais" style="width:100%;padding:7px 8px;border:1px solid #ddd;border-radius:6px;font-size:.85rem"/>
+            </div>
+            <div style="grid-column:1/-1;display:flex;gap:8px;justify-content:flex-end;margin-top:4px">
+                <button type="button" id="imbel_mov_limpar" class="btn btn-outline">
+                    <span class="btn-icon">🗑️</span> Limpar
+                </button>
+                <button type="button" id="imbel_mov_salvar" class="btn btn-primary">
+                    <span class="btn-icon">💾</span> Registrar Movimentação
+                </button>
+            </div>
         </div>
     `;
-    container.appendChild(form);
+    container.appendChild(formWrap);
 
+    // Popular select de produtos
     const selec = document.getElementById('imbel_mov_prod');
-    selec.innerHTML = '';
+    selec.innerHTML = '<option value="">— selecione o produto —</option>';
     (data.produtos||[]).forEach(p => {
-        const opt = document.createElement('option'); opt.value = p.id; opt.textContent = p.nome + (p.codigo ? ' ('+p.codigo+')' : ''); selec.appendChild(opt);
+        const opt = document.createElement('option');
+        opt.value = p.id;
+        opt.textContent = p.nome + (p.codigo ? ' ('+p.codigo+')' : '');
+        selec.appendChild(opt);
     });
 
-    const tabela = document.createElement('table'); tabela.style.width='100%'; tabela.style.borderCollapse='collapse';
-    tabela.innerHTML = `<thead><tr><th style="padding:6px;border:1px solid #ddd">Data</th><th style="padding:6px;border:1px solid #ddd">Produto</th><th style="padding:6px;border:1px solid #ddd">Tipo</th><th style="padding:6px;border:1px solid #ddd">Qtd</th><th style="padding:6px;border:1px solid #ddd">Obs</th></tr></thead><tbody></tbody>`;
+    // Data padrão = hoje
+    const hoje = new Date().toISOString().slice(0,10);
+    document.getElementById('imbel_mov_data').value = hoje;
+
+    // ---- Tabela histórico ----
+    const tabelaWrap = document.createElement('div');
+    tabelaWrap.style.cssText = 'overflow-x:auto;background:#fff;border-radius:10px;padding:16px;box-shadow:0 1px 4px rgba(0,0,0,.08)';
+
+    const thStyle = 'padding:8px 10px;border:1px solid #ddd;background:#1e3a5f;color:#fff;font-size:.8rem;white-space:nowrap;text-align:center';
+    const tabela = document.createElement('table');
+    tabela.style.cssText = 'width:100%;border-collapse:collapse;font-size:.82rem';
+    tabela.innerHTML = `<thead><tr>
+        <th style="${thStyle}">ID</th>
+        <th style="${thStyle}">Descrição</th>
+        <th style="${thStyle}">Tipo</th>
+        <th style="${thStyle}">Data</th>
+        <th style="${thStyle}">Quant.</th>
+        <th style="${thStyle}">Destinatário</th>
+        <th style="${thStyle}">CPF/CNPJ</th>
+        <th style="${thStyle}">Observações</th>
+        <th style="${thStyle}">Valor</th>
+        <th style="${thStyle}">Endereço</th>
+        <th style="${thStyle}">Telefone</th>
+        <th style="${thStyle}">E-mail</th>
+        <th style="${thStyle}">Pagamento</th>
+        <th style="${thStyle}">Entregue</th>
+        <th style="${thStyle}">FI</th>
+        <th style="${thStyle}">Ações</th>
+    </tr></thead><tbody></tbody>`;
+
     const tbody = tabela.querySelector('tbody');
-    (data.movimentacoes||[]).slice().reverse().forEach(m => {
-        const produto = (data.produtos||[]).find(p => p.id === m.produtoId) || {nome:'-'};
+    const tdStyle = 'padding:6px 8px;border:1px solid #ddd;vertical-align:middle;white-space:nowrap';
+    const tdCenter = tdStyle + ';text-align:center';
+
+    (data.movimentacoes||[]).slice().reverse().forEach((m, idx) => {
+        const produto = (data.produtos||[]).find(p => p.id === m.produtoId) || {nome: m.descricao || '-'};
+        const dataFmt = m.data ? new Date(m.data+'T00:00:00').toLocaleDateString('pt-BR') : '-';
+        const valorFmt = m.valor ? 'R$ ' + Number(m.valor).toLocaleString('pt-BR', {minimumFractionDigits:2}) : '-';
+        const seqNum = (data.movimentacoes.length - idx);
+
         const tr = document.createElement('tr');
-        tr.innerHTML = `<td style="padding:6px;border:1px solid #ddd">${m.data||'-'}</td><td style="padding:6px;border:1px solid #ddd">${produto.nome}</td><td style="padding:6px;border:1px solid #ddd">${m.tipo}</td><td style="padding:6px;border:1px solid #ddd;text-align:center">${m.quantidade}</td><td style="padding:6px;border:1px solid #ddd">${m.observacoes||''}</td>`;
+        tr.style.background = idx % 2 === 0 ? '#fff' : '#f7f9fc';
+        tr.innerHTML = `
+            <td style="${tdCenter}">${seqNum}</td>
+            <td style="${tdStyle}">${produto.nome}</td>
+            <td style="${tdCenter}"><span style="padding:2px 8px;border-radius:12px;font-size:.75rem;font-weight:600;background:${m.tipo==='Entrada'?'#d4edda':'#f8d7da'};color:${m.tipo==='Entrada'?'#155724':'#721c24'}">${m.tipo||'-'}</span></td>
+            <td style="${tdCenter}">${dataFmt}</td>
+            <td style="${tdCenter}">${m.quantidade||'-'}</td>
+            <td style="${tdStyle}">${m.destinatario||'-'}</td>
+            <td style="${tdStyle}">${m.cpfCnpj||'-'}</td>
+            <td style="${tdStyle}">${m.observacoes||'-'}</td>
+            <td style="${tdCenter}">${valorFmt}</td>
+            <td style="${tdStyle}">${m.endereco||'-'}</td>
+            <td style="${tdStyle}">${m.telefone||'-'}</td>
+            <td style="${tdStyle}">${m.email||'-'}</td>
+            <td style="${tdCenter}">${m.pagamento||'-'}</td>
+            <td style="${tdCenter}"><span style="padding:2px 8px;border-radius:12px;font-size:.75rem;font-weight:600;background:${m.entregue==='Sim'?'#d4edda':'#fff3cd'};color:${m.entregue==='Sim'?'#155724':'#856404'}">${m.entregue||'Não'}</span></td>
+            <td style="${tdCenter}">${m.fi||'-'}</td>
+            <td style="${tdCenter}"><button class="btn btn-outline" style="padding:3px 8px;font-size:.75rem" data-delid="${m.id}">🗑️</button></td>
+        `;
         tbody.appendChild(tr);
     });
-    container.appendChild(tabela);
 
+    tabelaWrap.appendChild(tabela);
+    container.appendChild(tabelaWrap);
+
+    // ---- Handler: Salvar ----
     document.getElementById('imbel_mov_salvar').onclick = function(){
         const produtoId = document.getElementById('imbel_mov_prod').value;
         const tipo = document.getElementById('imbel_mov_tipo').value;
         const quantidade = Number(document.getElementById('imbel_mov_qtd').value) || 0;
-        const dataStr = document.getElementById('imbel_mov_data').value || new Date().toISOString().slice(0,10);
-        const obs = document.getElementById('imbel_mov_obs').value || '';
-        if (!produtoId) { alert('Selecione um produto'); return; }
-        if (quantidade <= 0) { alert('Quantidade inválida'); return; }
+        const dataStr = document.getElementById('imbel_mov_data').value || hoje;
+        const destinatario = document.getElementById('imbel_mov_dest').value.trim();
+        const cpfCnpj = document.getElementById('imbel_mov_cpf').value.trim();
+        const valor = parseFloat(document.getElementById('imbel_mov_valor').value) || 0;
+        const pagamento = document.getElementById('imbel_mov_pagamento').value;
+        const endereco = document.getElementById('imbel_mov_endereco').value.trim();
+        const telefone = document.getElementById('imbel_mov_tel').value.trim();
+        const email = document.getElementById('imbel_mov_email').value.trim();
+        const entregue = document.getElementById('imbel_mov_entregue').value;
+        const fi = document.getElementById('imbel_mov_fi').value.trim();
+        const obs = document.getElementById('imbel_mov_obs').value.trim();
+
+        if (!produtoId) { mostrarNotificacao('Selecione um produto.', 'warning'); return; }
+        if (quantidade <= 0) { mostrarNotificacao('Informe uma quantidade válida.', 'warning'); return; }
+
+        // Bloquear saída se saldo insuficiente
+        if (tipo === 'Saída') {
+            const saldos = {};
+            (data.movimentacoes||[]).forEach(m2 => {
+                const q = Number(m2.quantidade)||0;
+                const s = (m2.tipo === 'Entrada') ? 1 : (m2.tipo === 'Saída' ? -1 : 0);
+                saldos[m2.produtoId] = (saldos[m2.produtoId]||0) + s * q;
+            });
+            const saldoAtual = saldos[produtoId] || 0;
+            if (quantidade > saldoAtual) {
+                mostrarNotificacao(`Saldo insuficiente. Saldo atual: ${saldoAtual} un.`, 'error');
+                return;
+            }
+        }
+
         data.movimentacoes = data.movimentacoes || [];
-        data.movimentacoes.push({ id: 'm'+Date.now(), produtoId, tipo, quantidade, data: dataStr, observacoes: obs });
+        data.movimentacoes.push({
+            id: 'm' + Date.now(), produtoId, tipo, quantidade, data: dataStr,
+            destinatario, cpfCnpj, valor, pagamento, endereco, telefone, email, entregue, fi, observacoes: obs
+        });
         saveImbel(data);
+        mostrarNotificacao('Movimentação registrada!', 'success');
         renderControleImbelMovimentacao();
         renderControleImbelEstoque();
     };
+
+    // ---- Handler: Limpar ----
+    document.getElementById('imbel_mov_limpar').onclick = function(){
+        document.getElementById('imbel_mov_prod').value = '';
+        document.getElementById('imbel_mov_qtd').value = 1;
+        document.getElementById('imbel_mov_data').value = hoje;
+        document.getElementById('imbel_mov_dest').value = '';
+        document.getElementById('imbel_mov_cpf').value = '';
+        document.getElementById('imbel_mov_valor').value = '';
+        document.getElementById('imbel_mov_pagamento').value = '';
+        document.getElementById('imbel_mov_endereco').value = '';
+        document.getElementById('imbel_mov_tel').value = '';
+        document.getElementById('imbel_mov_email').value = '';
+        document.getElementById('imbel_mov_entregue').value = 'Não';
+        document.getElementById('imbel_mov_fi').value = '';
+        document.getElementById('imbel_mov_obs').value = '';
+    };
+
+    // ---- Handler: Deletar ----
+    tbody.querySelectorAll('button[data-delid]').forEach(btn => {
+        btn.onclick = function(){
+            const id = this.getAttribute('data-delid');
+            if (!confirm('Excluir esta movimentação?')) return;
+            data.movimentacoes = (data.movimentacoes||[]).filter(m => m.id !== id);
+            saveImbel(data);
+            mostrarNotificacao('Movimentação excluída.', 'success');
+            renderControleImbelMovimentacao();
+            renderControleImbelEstoque();
+        };
+    });
 }
 
 // Inicializar controle IMBEL (não altera outros dados)
