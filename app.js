@@ -2658,10 +2658,6 @@ function renderControleImbelMovimentacao() {
                 <label style="font-size:.82rem;font-weight:600;color:#555;display:block;margin-bottom:4px">Valor (R$)</label>
                 <input type="number" id="imbel_mov_valor" min="0" step="0.01" placeholder="0,00" style="width:100%;padding:7px 8px;border:1px solid #ddd;border-radius:6px;font-size:.85rem"/>
             </div>
-            <div style="display:flex;align-items:center;gap:8px">
-                <label for="imbel_mov_pagamento" style="font-size:.82rem;font-weight:600;color:#555;display:block;margin-bottom:4px">Pagamento efetuado?</label>
-                <input type="checkbox" id="imbel_mov_pagamento" style="width:20px;height:20px;margin-top:4px" />
-            </div>
             <div style="grid-column:span 2">
                 <label style="font-size:.82rem;font-weight:600;color:#555;display:block;margin-bottom:4px">Endereço</label>
                 <input type="text" id="imbel_mov_endereco" placeholder="Rua, número, cidade" style="width:100%;padding:7px 8px;border:1px solid #ddd;border-radius:6px;font-size:.85rem"/>
@@ -2674,14 +2670,7 @@ function renderControleImbelMovimentacao() {
                 <label style="font-size:.82rem;font-weight:600;color:#555;display:block;margin-bottom:4px">E-mail</label>
                 <input type="email" id="imbel_mov_email" placeholder="email@exemplo.com" style="width:100%;padding:7px 8px;border:1px solid #ddd;border-radius:6px;font-size:.85rem"/>
             </div>
-            <div style="display:flex;align-items:center;gap:8px">
-                <label for="imbel_mov_entregue" style="font-size:.82rem;font-weight:600;color:#555;display:block;margin-bottom:4px">Entregue?</label>
-                <input type="checkbox" id="imbel_mov_entregue" style="width:20px;height:20px;margin-top:4px" />
-            </div>
-            <div style="display:flex;align-items:center;gap:8px">
-                <label for="imbel_mov_fi" style="font-size:.82rem;font-weight:600;color:#555;display:block;margin-bottom:4px">FI</label>
-                <input type="checkbox" id="imbel_mov_fi" style="width:20px;height:20px;margin-top:4px" />
-            </div>
+            <!-- Pagamento / Entregue / FI serão controlados via checkboxes na TABELA, não no cadastro -->
             <div style="grid-column:1/-1">
                 <label style="font-size:.82rem;font-weight:600;color:#555;display:block;margin-bottom:4px">Observações</label>
                 <input type="text" id="imbel_mov_obs" placeholder="Observações adicionais" style="width:100%;padding:7px 8px;border:1px solid #ddd;border-radius:6px;font-size:.85rem"/>
@@ -2714,10 +2703,6 @@ function renderControleImbelMovimentacao() {
     // Data padrão = hoje
     const hoje = new Date().toISOString().slice(0,10);
     document.getElementById('imbel_mov_data').value = hoje;
-    // garantir checkboxes padrão
-    const elPag = document.getElementById('imbel_mov_pagamento'); if (elPag) elPag.checked = false;
-    const elEnt = document.getElementById('imbel_mov_entregue'); if (elEnt) elEnt.checked = false;
-    const elFi = document.getElementById('imbel_mov_fi'); if (elFi) elFi.checked = false;
 
     // ---- Filtros ----
     const filtrosWrap = document.createElement('div');
@@ -2756,7 +2741,7 @@ function renderControleImbelMovimentacao() {
 
     const thStyle = 'padding:8px 10px;border:1px solid #ddd;background:#1e3a5f;color:#fff;font-size:.8rem;white-space:nowrap;text-align:center';
     const tabela = document.createElement('table');
-    tabela.style.cssText = 'width:100%;border-collapse:collapse;font-size:.82rem';
+    tabela.style.cssText = 'width:100%;border-collapse:collapse;font-size:.78rem';
     tabela.innerHTML = `<thead><tr>
         <th style="${thStyle}">ID</th>
         <th style="${thStyle}">Descrição</th>
@@ -2777,7 +2762,7 @@ function renderControleImbelMovimentacao() {
     </tr></thead><tbody></tbody>`;
 
     const tbody = tabela.querySelector('tbody');
-    const tdStyle = 'padding:6px 8px;border:1px solid #ddd;vertical-align:middle;white-space:nowrap';
+    const tdStyle = 'padding:6px 8px;border:1px solid #ddd;vertical-align:middle;white-space:normal;word-break:break-word;max-width:260px';
     const tdCenter = tdStyle + ';text-align:center';
 
     // função para popular tbody com filtros
@@ -2831,9 +2816,9 @@ function renderControleImbelMovimentacao() {
                 <td style="${tdStyle}">${m.endereco||'-'}</td>
                 <td style="${tdStyle}">${m.telefone||'-'}</td>
                 <td style="${tdStyle}">${m.email||'-'}</td>
-                <td style="${tdCenter}"><span style="padding:2px 8px;border-radius:12px;font-size:.75rem;font-weight:600;background:${(m.pagamento||'').toString().toUpperCase()==='SIM'?'#d4edda':'#fff3cd'};color:${(m.pagamento||'').toString().toUpperCase()==='SIM'?'#155724':'#856404'}">${(m.pagamento||'').toString().toUpperCase()==='SIM' ? 'Sim' : '-'}</span></td>
-                <td style="${tdCenter}"><span style="padding:2px 8px;border-radius:12px;font-size:.75rem;font-weight:600;background:${(m.entregue||'').toString().toUpperCase()==='SIM'?'#d4edda':'#fff3cd'};color:${(m.entregue||'').toString().toUpperCase()==='SIM'?'#155724':'#856404'}">${(m.entregue||'').toString().toUpperCase()==='SIM' ? 'Sim' : 'Não'}</span></td>
-                <td style="${tdCenter}"><span style="padding:2px 8px;border-radius:12px;font-size:.75rem;font-weight:600;background:${(m.fi||'').toString().toUpperCase()==='SIM'?'#d4edda':'#fff3cd'};color:${(m.fi||'').toString().toUpperCase()==='SIM'?'#155724':'#856404'}">${(m.fi||'').toString().toUpperCase()==='SIM' ? 'Sim' : '-'}</span></td>
+                <td style="${tdCenter}"><input type=\"checkbox\" class=\"imbel_table_chk_pag\" data-id=\"${m.id}\" ${((m.pagamento||'').toString().toUpperCase()==='SIM')? 'checked' : ''}></td>
+                <td style="${tdCenter}"><input type=\"checkbox\" class=\"imbel_table_chk_ent\" data-id=\"${m.id}\" ${((m.entregue||'').toString().toUpperCase()==='SIM')? 'checked' : ''}></td>
+                <td style="${tdCenter}"><input type=\"checkbox\" class=\"imbel_table_chk_fi\" data-id=\"${m.id}\" ${((m.fi||'').toString().toUpperCase()==='SIM')? 'checked' : ''}></td>
                 <td style="${tdCenter}"><button class="btn btn-outline" style="padding:3px 8px;font-size:.75rem;margin-right:6px" data-editmov="${m.id}">Editar</button><button class="btn btn-outline" style="padding:3px 8px;font-size:.75rem" data-delid="${m.id}">🗑️</button></td>
             `;
             tbody.appendChild(tr);
@@ -2868,17 +2853,32 @@ function renderControleImbelMovimentacao() {
                 document.getElementById('imbel_mov_dest').value = mov.destinatario || '';
                 document.getElementById('imbel_mov_cpf').value = mov.cpfCnpj || '';
                 document.getElementById('imbel_mov_valor').value = mov.valor || '';
-                const _pagEdit = document.getElementById('imbel_mov_pagamento'); if (_pagEdit) _pagEdit.checked = !!(mov.pagamento && mov.pagamento.toString().toUpperCase() === 'SIM');
                 document.getElementById('imbel_mov_endereco').value = mov.endereco || '';
                 document.getElementById('imbel_mov_tel').value = mov.telefone || '';
                 document.getElementById('imbel_mov_email').value = mov.email || '';
-                const _entEdit = document.getElementById('imbel_mov_entregue'); if (_entEdit) _entEdit.checked = !!(mov.entregue && mov.entregue.toString().toUpperCase() === 'SIM');
-                const _fiEdit = document.getElementById('imbel_mov_fi'); if (_fiEdit) _fiEdit.checked = !!(mov.fi && mov.fi.toString().toUpperCase() === 'SIM');
+                // pagamento/entregue/fi são gerenciados na tabela como checkboxes
                 document.getElementById('imbel_mov_obs').value = mov.observacoes || '';
                 const editField = document.getElementById('imbel_mov_edit_id'); if (editField) editField.value = id;
                 document.getElementById('imbel_mov_salvar').textContent = 'Atualizar Movimentação';
                 document.getElementById('imbel_mov_prod').focus();
             };
+        });
+
+        // bind checkboxes in table (pagamento / entregue / fi)
+        tbody.querySelectorAll('input.imbel_table_chk_pag').forEach(cb => cb.onchange = function(){
+            const id = this.getAttribute('data-id');
+            const mov = (data.movimentacoes||[]).find(m=>m.id===id);
+            if (!mov) return; mov.pagamento = this.checked ? 'SIM' : 'NÃO'; saveImbel(data); mostrarNotificacao('Pagamento atualizado.', 'success'); renderControleImbelEstoque();
+        });
+        tbody.querySelectorAll('input.imbel_table_chk_ent').forEach(cb => cb.onchange = function(){
+            const id = this.getAttribute('data-id');
+            const mov = (data.movimentacoes||[]).find(m=>m.id===id);
+            if (!mov) return; mov.entregue = this.checked ? 'SIM' : 'NÃO'; saveImbel(data); mostrarNotificacao('Status de entrega atualizado.', 'success'); renderControleImbelEstoque();
+        });
+        tbody.querySelectorAll('input.imbel_table_chk_fi').forEach(cb => cb.onchange = function(){
+            const id = this.getAttribute('data-id');
+            const mov = (data.movimentacoes||[]).find(m=>m.id===id);
+            if (!mov) return; mov.fi = this.checked ? 'SIM' : 'NÃO'; saveImbel(data); mostrarNotificacao('FI atualizado.', 'success'); renderControleImbelEstoque();
         });
     }
 
@@ -2916,12 +2916,13 @@ function renderControleImbelMovimentacao() {
         const destinatario = document.getElementById('imbel_mov_dest').value.trim();
         const cpfCnpj = document.getElementById('imbel_mov_cpf').value.trim();
         const valor = parseFloat(document.getElementById('imbel_mov_valor').value) || 0;
-        const pagamento = !!(document.getElementById('imbel_mov_pagamento') && document.getElementById('imbel_mov_pagamento').checked);
+        // pagamento/entregue/fi are managed in the table; default to not paid/not delivered/not FI on new records
+        const pagamento = false;
         const endereco = document.getElementById('imbel_mov_endereco').value.trim();
         const telefone = document.getElementById('imbel_mov_tel').value.trim();
         const email = document.getElementById('imbel_mov_email').value.trim();
-        const entregue = !!(document.getElementById('imbel_mov_entregue') && document.getElementById('imbel_mov_entregue').checked);
-        const fi = !!(document.getElementById('imbel_mov_fi') && document.getElementById('imbel_mov_fi').checked);
+        const entregue = false;
+        const fi = false;
         const obs = document.getElementById('imbel_mov_obs').value.trim();
         const editId = (document.getElementById('imbel_mov_edit_id') || {value:''}).value || '';
 
@@ -2956,12 +2957,10 @@ function renderControleImbelMovimentacao() {
                 mov.destinatario = (destinatario||'').toUpperCase();
                 mov.cpfCnpj = (cpfCnpj||'').toUpperCase();
                 mov.valor = valor;
-                mov.pagamento = pagamento ? 'SIM' : 'NÃO';
                 mov.endereco = (endereco||'').toUpperCase();
                 mov.telefone = (telefone||'').toUpperCase();
                 mov.email = (email||'').toUpperCase();
-                mov.entregue = entregue ? 'SIM' : 'NÃO';
-                mov.fi = fi ? 'SIM' : 'NÃO';
+            // preserve existing pagamento/entregue/fi values (these are edited via table checkboxes)
                 mov.observacoes = (obs||'').toUpperCase();
                 saveImbel(data);
                 mostrarNotificacao('Movimentação atualizada!', 'success');
@@ -2977,9 +2976,9 @@ function renderControleImbelMovimentacao() {
         data.movimentacoes.push({
             id: 'm' + Date.now(), produtoId, tipo: (tipo||'').toString().toUpperCase(), quantidade, data: dataStr,
             destinatario: (destinatario||'').toUpperCase(), cpfCnpj: (cpfCnpj||'').toUpperCase(), valor,
-            pagamento: pagamento ? 'SIM' : 'NÃO', endereco: (endereco||'').toUpperCase(),
-            telefone: (telefone||'').toUpperCase(), email: (email||'').toUpperCase(), entregue: entregue ? 'SIM' : 'NÃO',
-            fi: fi ? 'SIM' : 'NÃO', observacoes: (obs||'').toUpperCase()
+            pagamento: 'NÃO', endereco: (endereco||'').toUpperCase(),
+            telefone: (telefone||'').toUpperCase(), email: (email||'').toUpperCase(), entregue: 'NÃO',
+            fi: 'NÃO', observacoes: (obs||'').toUpperCase()
         });
         saveImbel(data);
         mostrarNotificacao('Movimentação registrada!', 'success');
@@ -2995,12 +2994,9 @@ function renderControleImbelMovimentacao() {
         document.getElementById('imbel_mov_dest').value = '';
         document.getElementById('imbel_mov_cpf').value = '';
         document.getElementById('imbel_mov_valor').value = '';
-        const _pag = document.getElementById('imbel_mov_pagamento'); if (_pag) _pag.checked = false;
         document.getElementById('imbel_mov_endereco').value = '';
         document.getElementById('imbel_mov_tel').value = '';
         document.getElementById('imbel_mov_email').value = '';
-        const _ent = document.getElementById('imbel_mov_entregue'); if (_ent) _ent.checked = false;
-        const _fi = document.getElementById('imbel_mov_fi'); if (_fi) _fi.checked = false;
         document.getElementById('imbel_mov_obs').value = '';
         // reset edit state
         const editField = document.getElementById('imbel_mov_edit_id'); if (editField) editField.value = '';
@@ -3050,12 +3046,10 @@ function renderControleImbelMovimentacao() {
             document.getElementById('imbel_mov_dest').value = mov.destinatario || '';
             document.getElementById('imbel_mov_cpf').value = mov.cpfCnpj || '';
             document.getElementById('imbel_mov_valor').value = mov.valor || '';
-            const _pagEdit = document.getElementById('imbel_mov_pagamento'); if (_pagEdit) _pagEdit.checked = !!(mov.pagamento && mov.pagamento.toString().toUpperCase() === 'SIM');
             document.getElementById('imbel_mov_endereco').value = mov.endereco || '';
             document.getElementById('imbel_mov_tel').value = mov.telefone || '';
             document.getElementById('imbel_mov_email').value = mov.email || '';
-            const _entEdit = document.getElementById('imbel_mov_entregue'); if (_entEdit) _entEdit.checked = !!(mov.entregue && mov.entregue.toString().toUpperCase() === 'SIM');
-            const _fiEdit = document.getElementById('imbel_mov_fi'); if (_fiEdit) _fiEdit.checked = !!(mov.fi && mov.fi.toString().toUpperCase() === 'SIM');
+            // pagamento/entregue/fi são gerenciados na tabela como checkboxes
             document.getElementById('imbel_mov_obs').value = mov.observacoes || '';
             const editField = document.getElementById('imbel_mov_edit_id'); if (editField) editField.value = id;
             document.getElementById('imbel_mov_salvar').textContent = 'Atualizar Movimentação';
