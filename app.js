@@ -2177,31 +2177,89 @@ function renderControleImbelEstoque() {
     const container = document.getElementById('controleImbelEstoqueContainer');
     container.innerHTML = '';
 
-    const tabela = document.createElement('table');
-    tabela.style.width = '100%'; tabela.style.borderCollapse = 'collapse';
-    tabela.innerHTML = `<thead><tr><th style="padding:6px;border:1px solid #ddd">Produto</th><th style="padding:6px;border:1px solid #ddd">Código</th><th style="padding:6px;border:1px solid #ddd">Saldo</th></tr></thead><tbody></tbody>`;
-    const tbody = tabela.querySelector('tbody');
+    const wrap = document.createElement('div');
+    wrap.style.cssText = 'overflow-x:auto;background:#fff;border-radius:10px;padding:16px;box-shadow:0 1px 4px rgba(0,0,0,.08)';
 
-    // calcular saldos por produto
-    const saldos = {};
+    const thStyle = 'padding:8px 12px;border:1px solid #ddd;background:#1e3a5f;color:#fff;font-size:.82rem;white-space:nowrap;text-align:center';
+    const tabela = document.createElement('table');
+    tabela.style.cssText = 'width:100%;border-collapse:collapse;font-size:.85rem';
+    tabela.innerHTML = `<thead><tr>
+        <th style="${thStyle}">ID</th>
+        <th style="${thStyle}">Descrição</th>
+        <th style="${thStyle}">Observação</th>
+        <th style="${thStyle}">Entrada</th>
+        <th style="${thStyle}">Saída</th>
+        <th style="${thStyle}">Estoque Atual</th>
+    </tr></thead><tbody></tbody>`;
+
+    const tbody = tabela.querySelector('tbody');
+    const tdBase  = 'padding:8px 12px;border:1px solid #ddd;vertical-align:middle';
+    const tdCenter = tdBase + ';text-align:center';
+
+    // Calcular totais de Entrada e Saída por produto
+    const totEntrada = {};
+    const totSaida   = {};
     (data.movimentacoes||[]).forEach(m => {
         if (!m.produtoId) return;
-        const q = Number(m.quantidade)||0;
-        const sinal = (m.tipo === 'entrada') ? 1 : (m.tipo === 'saida' ? -1 : 0);
-        saldos[m.produtoId] = (saldos[m.produtoId]||0) + sinal * q;
+        const q = Number(m.quantidade) || 0;
+        if (m.tipo === 'Entrada') totEntrada[m.produtoId] = (totEntrada[m.produtoId]||0) + q;
+        else if (m.tipo === 'Saída') totSaida[m.produtoId] = (totSaida[m.produtoId]||0) + q;
     });
 
-    (data.produtos||[]).forEach(p => {
+    const produtos = data.produtos || [];
+
+    if (produtos.length === 0) {
         const tr = document.createElement('tr');
-        tr.innerHTML = `<td style="padding:6px;border:1px solid #ddd">${p.nome}</td><td style="padding:6px;border:1px solid #ddd">${p.codigo||''}</td><td style="padding:6px;border:1px solid #ddd;text-align:center">${(saldos[p.id]||0)}</td>`;
+        tr.innerHTML = `<td colspan="6" style="${tdBase};text-align:center;color:#999;font-style:italic">Nenhum produto cadastrado. Cadastre na sub-aba "Cadastro de Produtos".</td>`;
+        tbody.appendChild(tr);
+    }
+
+    produtos.forEach((p, idx) => {
+        const entrada = totEntrada[p.id] || 0;
+        const saida   = totSaida[p.id]   || 0;
+        const saldo   = entrada - saida;
+        const saldoColor = saldo < 0 ? '#721c24' : saldo === 0 ? '#856404' : '#155724';
+        const saldoBg    = saldo < 0 ? '#f8d7da' : saldo === 0 ? '#fff3cd' : '#d4edda';
+
+        const tr = document.createElement('tr');
+        tr.style.background = idx % 2 === 0 ? '#fff' : '#f7f9fc';
+        tr.innerHTML = `
+            <td style="${tdCenter}">${idx + 1}</td>
+            <td style="${tdBase}">${p.nome}${p.codigo ? ' <span style="color:#888;font-size:.75rem">('+p.codigo+')</span>' : ''}</td>
+            <td style="${tdBase}">${p.observacao || '-'}</td>
+            <td style="${tdCenter};color:#155724;font-weight:600">${entrada}</td>
+            <td style="${tdCenter};color:#721c24;font-weight:600">${saida}</td>
+            <td style="${tdCenter};font-weight:700;background:${saldoBg};color:${saldoColor}">${saldo}</td>
+        `;
         tbody.appendChild(tr);
     });
 
-    container.appendChild(tabela);
-    // botão rápido para abrir cadastro
-    const btn = document.createElement('button'); btn.className = 'btn btn-outline'; btn.style.marginTop = '8px'; btn.textContent = 'Novo Produto';
-    btn.onclick = () => trocarSubAbaControleImbel('cadastro');
-    container.appendChild(btn);
+    // Linha de totais gerais
+    if (produtos.length > 0) {
+        const totalE = Object.values(totEntrada).reduce((a,b)=>a+b,0);
+        const totalS = Object.values(totSaida).reduce((a,b)=>a+b,0);
+        const totalSaldo = totalE - totalS;
+        const tr = document.createElement('tr');
+        tr.style.cssText = 'background:#1e3a5f;color:#fff;font-weight:700';
+        tr.innerHTML = `
+            <td colspan="3" style="${tdBase};background:#1e3a5f;color:#fff;text-align:right">TOTAL GERAL</td>
+            <td style="${tdCenter};background:#1e3a5f;color:#fff">${totalE}</td>
+            <td style="${tdCenter};background:#1e3a5f;color:#fff">${totalS}</td>
+            <td style="${tdCenter};background:#1e3a5f;color:#fff">${totalSaldo}</td>
+        `;
+        tbody.appendChild(tr);
+    }
+
+    wrap.appendChild(tabela);
+    container.appendChild(wrap);
+
+    // Atalho para cadastrar produto
+    const btnCad = document.createElement('button');
+    btnCad.className = 'btn btn-outline';
+    btnCad.style.marginTop = '10px';
+    btnCad.innerHTML = '<span class="btn-icon">➕</span> Cadastrar Produto';
+    btnCad.onclick = () => trocarSubAbaControleImbel('cadastro');
+    container.appendChild(btnCad);
 }
 
 function renderControleImbelCadastro() {
@@ -2209,32 +2267,55 @@ function renderControleImbelCadastro() {
     const container = document.getElementById('controleImbelCadastroContainer');
     container.innerHTML = '';
 
-    const form = document.createElement('form');
-    form.innerHTML = `
-        <div style="display:flex;gap:8px;align-items:center">
-            <div style="flex:1"><label>Nome do Produto</label><input type="text" id="imbel_prod_nome" style="width:100%"/></div>
-            <div style="width:160px"><label>Código</label><input type="text" id="imbel_prod_codigo" style="width:100%"/></div>
-            <div style="width:120px;align-self:flex-end"><button type="button" id="imbel_prod_salvar" class="btn btn-primary">Salvar</button></div>
+    const thStyle = 'padding:8px 12px;border:1px solid #ddd;background:#1e3a5f;color:#fff;font-size:.82rem;white-space:nowrap';
+    const tdBase  = 'padding:8px 12px;border:1px solid #ddd;vertical-align:middle;font-size:.85rem';
+
+    const formWrap = document.createElement('div');
+    formWrap.style.cssText = 'background:#fff;border-radius:10px;padding:16px;margin-bottom:16px;box-shadow:0 1px 4px rgba(0,0,0,.08)';
+    formWrap.innerHTML = `
+        <div style="display:grid;grid-template-columns:2fr 1fr 2fr auto;gap:10px;align-items:end">
+            <div><label style="font-size:.82rem;font-weight:600;color:#555;display:block;margin-bottom:4px">Nome do Produto</label>
+                <input type="text" id="imbel_prod_nome" placeholder="Nome" style="width:100%;padding:7px 8px;border:1px solid #ddd;border-radius:6px;font-size:.85rem"/></div>
+            <div><label style="font-size:.82rem;font-weight:600;color:#555;display:block;margin-bottom:4px">Código</label>
+                <input type="text" id="imbel_prod_codigo" placeholder="Cód." style="width:100%;padding:7px 8px;border:1px solid #ddd;border-radius:6px;font-size:.85rem"/></div>
+            <div><label style="font-size:.82rem;font-weight:600;color:#555;display:block;margin-bottom:4px">Observação</label>
+                <input type="text" id="imbel_prod_obs" placeholder="Observação" style="width:100%;padding:7px 8px;border:1px solid #ddd;border-radius:6px;font-size:.85rem"/></div>
+            <div><button type="button" id="imbel_prod_salvar" class="btn btn-primary">Salvar</button></div>
         </div>
     `;
-    container.appendChild(form);
+    container.appendChild(formWrap);
 
-    const tabela = document.createElement('table'); tabela.style.width='100%'; tabela.style.borderCollapse='collapse';
-    tabela.innerHTML = `<thead><tr><th style="padding:6px;border:1px solid #ddd">Nome</th><th style="padding:6px;border:1px solid #ddd">Código</th><th style="padding:6px;border:1px solid #ddd">Ações</th></tr></thead><tbody></tbody>`;
+    const wrap = document.createElement('div');
+    wrap.style.cssText = 'overflow-x:auto;background:#fff;border-radius:10px;padding:16px;box-shadow:0 1px 4px rgba(0,0,0,.08)';
+    const tabela = document.createElement('table');
+    tabela.style.cssText = 'width:100%;border-collapse:collapse;font-size:.85rem';
+    tabela.innerHTML = `<thead><tr>
+        <th style="${thStyle}">Nome</th>
+        <th style="${thStyle}">Código</th>
+        <th style="${thStyle}">Observação</th>
+        <th style="${thStyle}">Ações</th>
+    </tr></thead><tbody></tbody>`;
     const tbody = tabela.querySelector('tbody');
-    (data.produtos||[]).forEach(p => {
+    (data.produtos||[]).forEach((p, idx) => {
         const tr = document.createElement('tr');
-        tr.innerHTML = `<td style="padding:6px;border:1px solid #ddd">${p.nome}</td><td style="padding:6px;border:1px solid #ddd">${p.codigo||''}</td><td style="padding:6px;border:1px solid #ddd"><button class="btn btn-outline" data-id="${p.id}">Remover</button></td>`;
+        tr.style.background = idx % 2 === 0 ? '#fff' : '#f7f9fc';
+        tr.innerHTML = `
+            <td style="${tdBase}">${p.nome}</td>
+            <td style="${tdBase}">${p.codigo||'-'}</td>
+            <td style="${tdBase}">${p.observacao||'-'}</td>
+            <td style="${tdBase}"><button class="btn btn-outline" data-id="${p.id}">Remover</button></td>`;
         tbody.appendChild(tr);
     });
-    container.appendChild(tabela);
+    wrap.appendChild(tabela);
+    container.appendChild(wrap);
 
     // handlers
     document.getElementById('imbel_prod_salvar').onclick = function() {
         const nome = document.getElementById('imbel_prod_nome').value.trim();
         const codigo = document.getElementById('imbel_prod_codigo').value.trim();
+        const observacao = document.getElementById('imbel_prod_obs').value.trim();
         if (!nome) { alert('Informe o nome do produto'); return; }
-        const novo = { id: 'p' + Date.now(), nome, codigo };
+        const novo = { id: 'p' + Date.now(), nome, codigo, observacao };
         data.produtos = data.produtos || [];
         data.produtos.push(novo);
         saveImbel(data);
