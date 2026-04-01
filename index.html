@@ -690,6 +690,15 @@
                 <div id="controleImbel-cadastro" class="controleimbel-subtab" style="display:none">
                     <div class="section-header">
                         <h2 class="section-title">Cadastro de Produtos</h2>
+                        <div class="header-actions">
+                            <button class="btn btn-info" onclick="document.getElementById('inputImportarImbelCadastro').click()">
+                                <span class="btn-icon">📥</span> Importar Excel
+                            </button>
+                            <input type="file" id="inputImportarImbelCadastro" accept=".csv,.xlsx,.xls" style="display:none" onchange="importarImbelCadastro(event)">
+                            <button class="btn btn-outline" onclick="exportarImbelCadastro()" style="margin-left:6px">
+                                <span class="btn-icon">📤</span> Exportar Excel
+                            </button>
+                        </div>
                     </div>
                     <div id="controleImbelCadastroContainer"></div>
                 </div>
@@ -698,6 +707,15 @@
                 <div id="controleImbel-movimentacao" class="controleimbel-subtab" style="display:none">
                     <div class="section-header">
                         <h2 class="section-title">Registrar Movimentação</h2>
+                        <div class="header-actions">
+                            <button class="btn btn-info" onclick="document.getElementById('inputImportarImbelMov').click()">
+                                <span class="btn-icon">📥</span> Importar Excel
+                            </button>
+                            <input type="file" id="inputImportarImbelMov" accept=".csv,.xlsx,.xls" style="display:none" onchange="importarImbelMovimentacao(event)">
+                            <button class="btn btn-outline" onclick="exportarImbelMovimentacao()" style="margin-left:6px">
+                                <span class="btn-icon">📤</span> Exportar Excel
+                            </button>
+                        </div>
                     </div>
                     <div id="controleImbelMovContainer"></div>
                 </div>

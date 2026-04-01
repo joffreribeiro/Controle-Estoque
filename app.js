@@ -2711,6 +2711,146 @@ function importarImbel(event) {
     reader.readAsText(file, 'UTF-8');
 }
 
+// ========================================
+// EXPORT/IMPORT - IMBEL Cadastro (Produtos)
+// ========================================
+
+function exportarImbelCadastro() {
+    const sep = ';';
+    const data = loadImbel();
+    const produtos = data.produtos || [];
+    let csv = `ID${sep}NOME${sep}CODIGO${sep}OBSERVACAO\n`;
+    produtos.forEach(p => {
+        const linha = `${p.id||''}${sep}${(p.nome||'').toString().replace(/\n/g,' ')}${sep}${(p.codigo||'').toString().replace(/\n/g,' ')}${sep}${(p.observacao||'').toString().replace(/\n/g,' ')}`;
+        csv += linha + '\n';
+    });
+    const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    const dataAtual = new Date().toISOString().split('T')[0];
+    link.setAttribute('href', url);
+    link.setAttribute('download', `imbel_produtos_${dataAtual}.csv`);
+    link.style.visibility = 'hidden'; document.body.appendChild(link); link.click(); document.body.removeChild(link);
+    mostrarNotificacao('Produtos IMBEL exportados!', 'success');
+}
+
+function importarImbelCadastro(event) {
+    const file = event.target.files[0]; if (!file) return;
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        try {
+            const conteudo = e.target.result;
+            const linhas = conteudo.split(/\r?\n/).filter(l => l.trim());
+            if (linhas.length < 2) { mostrarNotificacao('Arquivo vazio ou sem dados!', 'error'); return; }
+            const data = loadImbel(); data.produtos = data.produtos || [];
+            let importados = 0; let erros = [];
+            for (let i=1;i<linhas.length;i++) {
+                const linha = linhas[i].trim(); if (!linha) continue;
+                const col = parseCsvLinha(linha);
+                if (col.length < 2) { erros.push(`Linha ${i+1}: formato inválido`); continue; }
+                const nome = (col[1]||'').trim().toUpperCase();
+                if (!nome) { erros.push(`Linha ${i+1}: nome vazio`); continue; }
+                const codigo = (col[2]||'').trim().toUpperCase();
+                const observacao = (col[3]||'').trim().toUpperCase();
+                let produto = data.produtos.find(p => (p.nome||'').toString().toUpperCase() === nome);
+                if (!produto) {
+                    produto = { id: 'p' + Date.now() + i, nome, codigo, observacao };
+                    data.produtos.push(produto);
+                } else {
+                    produto.codigo = produto.codigo || codigo;
+                    produto.observacao = produto.observacao || observacao;
+                }
+                importados++;
+            }
+            if (importados>0) { saveImbel(data); renderControleImbelCadastro(); renderControleImbelEstoque(); }
+            event.target.value = '';
+            if (erros.length>0 && importados===0) { mostrarNotificacao('Nenhum produto importado. Verifique o formato.', 'error'); console.log('Erros IMBEL cadastro:',erros); }
+            else if (erros.length>0) { mostrarNotificacao(`${importados} produtos importados. ${erros.length} linhas com erro.`, 'warning'); console.log('Erros IMBEL cadastro:',erros); }
+            else { mostrarNotificacao(`${importados} produtos importados com sucesso!`, 'success'); }
+        } catch(err) { console.error('Erro importar cadastro IMBEL',err); mostrarNotificacao('Erro ao processar o arquivo.', 'error'); }
+    };
+    reader.readAsText(file,'UTF-8');
+}
+
+// ========================================
+// EXPORT/IMPORT - IMBEL Movimentação
+// ========================================
+
+function exportarImbelMovimentacao() {
+    const sep = ';';
+    const data = loadImbel();
+    const movs = data.movimentacoes || [];
+    const produtos = (data.produtos||[]).reduce((acc,p)=>{acc[p.id]=p;return acc;},{})
+    let csv = `ID${sep}PRODUTO_ID${sep}PRODUTO_NOME${sep}TIPO${sep}DATA${sep}QUANTIDADE${sep}DESTINATARIO${sep}CPF_CNPJ${sep}OBSERVACOES${sep}VALOR${sep}PAGAMENTO${sep}ENDERECO${sep}TELEFONE${sep}EMAIL${sep}ENTREGUE${sep}FI\n`;
+    movs.forEach(m => {
+        const prod = produtos[m.produtoId] || {};
+        const linha = `${m.id||''}${sep}${m.produtoId||''}${sep}${(prod.nome||'').toString().replace(/\n/g,' ')}${sep}${(m.tipo||'').toString()}${sep}${m.data||''}${sep}${m.quantidade||''}${sep}${(m.destinatario||'').toString().replace(/\n/g,' ')}${sep}${(m.cpfCnpj||'').toString()}${sep}${(m.observacoes||'').toString().replace(/\n/g,' ')}${sep}${(m.valor||'')}${sep}${(m.pagamento||'').toString()}${sep}${(m.endereco||'').toString().replace(/\n/g,' ')}${sep}${(m.telefone||'').toString()}${sep}${(m.email||'').toString()}${sep}${(m.entregue||'').toString()}${sep}${(m.fi||'').toString()}`;
+        csv += linha + '\n';
+    });
+    const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a'); const url = URL.createObjectURL(blob);
+    const dataAtual = new Date().toISOString().split('T')[0];
+    link.setAttribute('href', url); link.setAttribute('download', `imbel_movimentacoes_${dataAtual}.csv`);
+    link.style.visibility='hidden'; document.body.appendChild(link); link.click(); document.body.removeChild(link);
+    mostrarNotificacao('Movimentações exportadas!', 'success');
+}
+
+function importarImbelMovimentacao(event) {
+    const file = event.target.files[0]; if (!file) return;
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        try {
+            const conteudo = e.target.result;
+            const linhas = conteudo.split(/\r?\n/).filter(l=>l.trim());
+            if (linhas.length < 2) { mostrarNotificacao('Arquivo vazio ou sem dados!', 'error'); return; }
+            const data = loadImbel(); data.produtos = data.produtos || []; data.movimentacoes = data.movimentacoes || [];
+            let importados = 0; let erros = [];
+            for (let i=1;i<linhas.length;i++) {
+                const linha = linhas[i].trim(); if (!linha) continue;
+                const col = parseCsvLinha(linha);
+                // Espera ao menos: PRODUTO_NOME ou PRODUTO_ID e TIPO e QUANTIDADE
+                if (col.length < 6) { erros.push(`Linha ${i+1}: formato inválido`); continue; }
+                const produtoIdCol = (col[1]||'').trim();
+                const produtoNomeCol = (col[2]||'').trim().toUpperCase();
+                const tipo = (col[3]||'').trim().toUpperCase() || 'ENTRADA';
+                const dataStr = (col[4]||'').trim() || new Date().toISOString().split('T')[0];
+                const quantidade = parseInt((col[5]||'').replace(/[^0-9-]/g,'')) || 0;
+                if (quantidade === 0) { erros.push(`Linha ${i+1}: quantidade inválida`); continue; }
+
+                // Encontrar produto: por ID ou por nome
+                let produto = null;
+                if (produtoIdCol) produto = data.produtos.find(p => p.id === produtoIdCol);
+                if (!produto && produtoNomeCol) produto = data.produtos.find(p => (p.nome||'').toString().toUpperCase() === produtoNomeCol);
+                if (!produto && produtoNomeCol) {
+                    produto = { id: 'p' + Date.now() + i, nome: produtoNomeCol, codigo: '', observacao: '' };
+                    data.produtos.push(produto);
+                }
+
+                const destinatario = (col[6]||'').trim().toUpperCase();
+                const cpfCnpj = (col[7]||'').trim().toUpperCase();
+                const observacoes = (col[8]||'').trim().toUpperCase();
+                const valor = parseFloat((col[9]||'').replace(',','.')) || 0;
+                const pagamento = (col[10]||'').trim().toUpperCase();
+                const endereco = (col[11]||'').trim().toUpperCase();
+                const telefone = (col[12]||'').trim().toUpperCase();
+                const email = (col[13]||'').trim().toUpperCase();
+                const entregue = (col[14]||'').trim().toUpperCase() || 'NÃO';
+                const fi = (col[15]||'').trim().toUpperCase();
+
+                const mov = { id: 'm' + Date.now() + i, produtoId: produto.id, tipo, quantidade, data: dataStr, destinatario, cpfCnpj, valor, pagamento, endereco, telefone, email, entregue, fi, observacoes };
+                data.movimentacoes.push(mov);
+                importados++;
+            }
+            if (importados>0) { saveImbel(data); renderControleImbelMovimentacao(); renderControleImbelEstoque(); renderControleImbelCadastro(); }
+            event.target.value = '';
+            if (erros.length>0 && importados===0) { mostrarNotificacao('Nenhuma movimentação importada. Verifique o formato.', 'error'); console.log('Erros IMBEL mov:',erros); }
+            else if (erros.length>0) { mostrarNotificacao(`${importados} movimentações importadas. ${erros.length} linhas com erro.`, 'warning'); console.log('Erros IMBEL mov:',erros); }
+            else { mostrarNotificacao(`${importados} movimentações importadas com sucesso!`, 'success'); }
+        } catch(err) { console.error('Erro importar movimentações IMBEL',err); mostrarNotificacao('Erro ao processar o arquivo.', 'error'); }
+    };
+    reader.readAsText(file,'UTF-8');
+}
+
 
 function renderizarDashboard() {
     // Calcular dados
