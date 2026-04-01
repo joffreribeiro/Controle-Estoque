@@ -129,6 +129,9 @@
             <button class="tab-btn" data-tab="relatorios" onclick="trocarAba('relatorios')">
                 <span>📑</span> Relatórios
             </button>
+            <button class="tab-btn" data-tab="controleimbel" onclick="trocarAba('controleimbel')">
+                <span>🔪</span> IMBEL (Facas)
+            </button>
             <button class="tab-btn" data-tab="configuracoes" onclick="trocarAba('configuracoes')">
                 <span>⚙️</span> Configurações
             </button>
@@ -641,6 +644,39 @@
 
                 <div class="report-preview">
                     <div id="relatoriosPreview"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ========================================
+             ABA: CONTROLE IMBEL (FACAS) - SEPARADO
+             ======================================== -->
+        <div class="tab-content" id="tab-controleimbel" style="display:none">
+            <div class="content-area">
+                <div class="section-header">
+                    <h2 class="section-title">Controle - IMBEL (Facas)</h2>
+                    <div class="header-actions">
+                        <button class="btn btn-outline" onclick="trocarSubAbaControleImbel('estoque')">Estoque</button>
+                        <button class="btn btn-outline" onclick="trocarSubAbaControleImbel('cadastro')" style="margin-left:6px">Cadastro</button>
+                        <button class="btn btn-outline" onclick="trocarSubAbaControleImbel('movimentacao')" style="margin-left:6px">Movimentação</button>
+                    </div>
+                </div>
+
+                <div id="controleImbelSubContent">
+                    <!-- Sub-aba: Estoque -->
+                    <div id="controleImbel-estoque" class="controleimbel-subtab" style="display:none">
+                        <div id="controleImbelEstoqueContainer"></div>
+                    </div>
+
+                    <!-- Sub-aba: Cadastro -->
+                    <div id="controleImbel-cadastro" class="controleimbel-subtab" style="display:none">
+                        <div id="controleImbelCadastroContainer"></div>
+                    </div>
+
+                    <!-- Sub-aba: Movimentação -->
+                    <div id="controleImbel-movimentacao" class="controleimbel-subtab" style="display:none">
+                        <div id="controleImbelMovContainer"></div>
+                    </div>
                 </div>
             </div>
         </div>

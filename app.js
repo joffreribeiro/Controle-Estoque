@@ -2132,6 +2132,170 @@ function imprimirConfiguracoes() {
     win.document.close();
 }
 
+// ================================
+// CONTROLE IMBEL (separado) - storage chave: 'estoqueImbelV1'
+// ================================
+const IMBEL_KEY = 'estoqueImbelV1';
+
+function loadImbel() {
+    try {
+        return JSON.parse(localStorage.getItem(IMBEL_KEY) || '{"produtos":[],"movimentacoes":[]}');
+    } catch (e) { return {produtos:[], movimentacoes:[]}; }
+}
+
+function saveImbel(data) {
+    try { localStorage.setItem(IMBEL_KEY, JSON.stringify(data)); } catch (e) { console.error('Erro salvando IMBEL', e); }
+}
+
+function initControleImbel() {
+    // mostrar estoques por padrão quando a aba for aberta
+    // hook: chamar trocarSubAbaControleImbel('estoque') para inicializar
+    try { trocarSubAbaControleImbel('estoque'); } catch(e) {}
+}
+
+function trocarSubAbaControleImbel(sub) {
+    document.querySelectorAll('.controleimbel-subtab').forEach(el => el.style.display = 'none');
+    const sel = document.getElementById(`controleImbel-${sub}`);
+    if (sel) sel.style.display = 'block';
+    if (sub === 'estoque') renderControleImbelEstoque();
+    else if (sub === 'cadastro') renderControleImbelCadastro();
+    else if (sub === 'movimentacao') renderControleImbelMovimentacao();
+}
+
+function renderControleImbelEstoque() {
+    const data = loadImbel();
+    const container = document.getElementById('controleImbelEstoqueContainer');
+    container.innerHTML = '';
+
+    const tabela = document.createElement('table');
+    tabela.style.width = '100%'; tabela.style.borderCollapse = 'collapse';
+    tabela.innerHTML = `<thead><tr><th style="padding:6px;border:1px solid #ddd">Produto</th><th style="padding:6px;border:1px solid #ddd">Código</th><th style="padding:6px;border:1px solid #ddd">Saldo</th></tr></thead><tbody></tbody>`;
+    const tbody = tabela.querySelector('tbody');
+
+    // calcular saldos por produto
+    const saldos = {};
+    (data.movimentacoes||[]).forEach(m => {
+        if (!m.produtoId) return;
+        const q = Number(m.quantidade)||0;
+        const sinal = (m.tipo === 'entrada') ? 1 : (m.tipo === 'saida' ? -1 : 0);
+        saldos[m.produtoId] = (saldos[m.produtoId]||0) + sinal * q;
+    });
+
+    (data.produtos||[]).forEach(p => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td style="padding:6px;border:1px solid #ddd">${p.nome}</td><td style="padding:6px;border:1px solid #ddd">${p.codigo||''}</td><td style="padding:6px;border:1px solid #ddd;text-align:center">${(saldos[p.id]||0)}</td>`;
+        tbody.appendChild(tr);
+    });
+
+    container.appendChild(tabela);
+    // botão rápido para abrir cadastro
+    const btn = document.createElement('button'); btn.className = 'btn btn-outline'; btn.style.marginTop = '8px'; btn.textContent = 'Novo Produto';
+    btn.onclick = () => trocarSubAbaControleImbel('cadastro');
+    container.appendChild(btn);
+}
+
+function renderControleImbelCadastro() {
+    const data = loadImbel();
+    const container = document.getElementById('controleImbelCadastroContainer');
+    container.innerHTML = '';
+
+    const form = document.createElement('form');
+    form.innerHTML = `
+        <div style="display:flex;gap:8px;align-items:center">
+            <div style="flex:1"><label>Nome do Produto</label><input type="text" id="imbel_prod_nome" style="width:100%"/></div>
+            <div style="width:160px"><label>Código</label><input type="text" id="imbel_prod_codigo" style="width:100%"/></div>
+            <div style="width:120px;align-self:flex-end"><button type="button" id="imbel_prod_salvar" class="btn btn-primary">Salvar</button></div>
+        </div>
+    `;
+    container.appendChild(form);
+
+    const tabela = document.createElement('table'); tabela.style.width='100%'; tabela.style.borderCollapse='collapse';
+    tabela.innerHTML = `<thead><tr><th style="padding:6px;border:1px solid #ddd">Nome</th><th style="padding:6px;border:1px solid #ddd">Código</th><th style="padding:6px;border:1px solid #ddd">Ações</th></tr></thead><tbody></tbody>`;
+    const tbody = tabela.querySelector('tbody');
+    (data.produtos||[]).forEach(p => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td style="padding:6px;border:1px solid #ddd">${p.nome}</td><td style="padding:6px;border:1px solid #ddd">${p.codigo||''}</td><td style="padding:6px;border:1px solid #ddd"><button class="btn btn-outline" data-id="${p.id}">Remover</button></td>`;
+        tbody.appendChild(tr);
+    });
+    container.appendChild(tabela);
+
+    // handlers
+    document.getElementById('imbel_prod_salvar').onclick = function() {
+        const nome = document.getElementById('imbel_prod_nome').value.trim();
+        const codigo = document.getElementById('imbel_prod_codigo').value.trim();
+        if (!nome) { alert('Informe o nome do produto'); return; }
+        const novo = { id: 'p' + Date.now(), nome, codigo };
+        data.produtos = data.produtos || [];
+        data.produtos.push(novo);
+        saveImbel(data);
+        renderControleImbelCadastro();
+    };
+
+    tbody.querySelectorAll('button[data-id]').forEach(b => b.onclick = function(){
+        const id = this.getAttribute('data-id');
+        if (!confirm('Remover produto?')) return;
+        data.produtos = (data.produtos||[]).filter(p => p.id !== id);
+        // também remover movimentações relacionadas
+        data.movimentacoes = (data.movimentacoes||[]).filter(m => m.produtoId !== id);
+        saveImbel(data);
+        renderControleImbelCadastro();
+    });
+}
+
+function renderControleImbelMovimentacao() {
+    const data = loadImbel();
+    const container = document.getElementById('controleImbelMovContainer');
+    container.innerHTML = '';
+
+    const form = document.createElement('form');
+    form.innerHTML = `
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:end">
+            <div style="flex:1"><label>Produto</label><select id="imbel_mov_prod" style="width:100%"></select></div>
+            <div style="width:120px"><label>Tipo</label><select id="imbel_mov_tipo"><option value="entrada">Entrada</option><option value="saida">Saída</option></select></div>
+            <div style="width:120px"><label>Quantidade</label><input type="number" id="imbel_mov_qtd" value="1" min="1" style="width:100%"/></div>
+            <div style="width:160px"><label>Data</label><input type="date" id="imbel_mov_data" style="width:100%"/></div>
+            <div style="flex:1"><label>Obs</label><input type="text" id="imbel_mov_obs" style="width:100%"/></div>
+            <div style="width:140px;align-self:flex-end"><button type="button" id="imbel_mov_salvar" class="btn btn-primary">Registrar Movimentação</button></div>
+        </div>
+    `;
+    container.appendChild(form);
+
+    const selec = document.getElementById('imbel_mov_prod');
+    selec.innerHTML = '';
+    (data.produtos||[]).forEach(p => {
+        const opt = document.createElement('option'); opt.value = p.id; opt.textContent = p.nome + (p.codigo ? ' ('+p.codigo+')' : ''); selec.appendChild(opt);
+    });
+
+    const tabela = document.createElement('table'); tabela.style.width='100%'; tabela.style.borderCollapse='collapse';
+    tabela.innerHTML = `<thead><tr><th style="padding:6px;border:1px solid #ddd">Data</th><th style="padding:6px;border:1px solid #ddd">Produto</th><th style="padding:6px;border:1px solid #ddd">Tipo</th><th style="padding:6px;border:1px solid #ddd">Qtd</th><th style="padding:6px;border:1px solid #ddd">Obs</th></tr></thead><tbody></tbody>`;
+    const tbody = tabela.querySelector('tbody');
+    (data.movimentacoes||[]).slice().reverse().forEach(m => {
+        const produto = (data.produtos||[]).find(p => p.id === m.produtoId) || {nome:'-'};
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td style="padding:6px;border:1px solid #ddd">${m.data||'-'}</td><td style="padding:6px;border:1px solid #ddd">${produto.nome}</td><td style="padding:6px;border:1px solid #ddd">${m.tipo}</td><td style="padding:6px;border:1px solid #ddd;text-align:center">${m.quantidade}</td><td style="padding:6px;border:1px solid #ddd">${m.observacoes||''}</td>`;
+        tbody.appendChild(tr);
+    });
+    container.appendChild(tabela);
+
+    document.getElementById('imbel_mov_salvar').onclick = function(){
+        const produtoId = document.getElementById('imbel_mov_prod').value;
+        const tipo = document.getElementById('imbel_mov_tipo').value;
+        const quantidade = Number(document.getElementById('imbel_mov_qtd').value) || 0;
+        const dataStr = document.getElementById('imbel_mov_data').value || new Date().toISOString().slice(0,10);
+        const obs = document.getElementById('imbel_mov_obs').value || '';
+        if (!produtoId) { alert('Selecione um produto'); return; }
+        if (quantidade <= 0) { alert('Quantidade inválida'); return; }
+        data.movimentacoes = data.movimentacoes || [];
+        data.movimentacoes.push({ id: 'm'+Date.now(), produtoId, tipo, quantidade, data: dataStr, observacoes: obs });
+        saveImbel(data);
+        renderControleImbelMovimentacao();
+        renderControleImbelEstoque();
+    };
+}
+
+// Inicializar controle IMBEL (não altera outros dados)
+try { initControleImbel(); } catch(e) {}
+
 
 function renderizarDashboard() {
     // Calcular dados
