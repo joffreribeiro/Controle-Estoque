@@ -2250,7 +2250,17 @@ function renderControleImbelDashboard() {
     // Chart area (paid x unconfirmed)
     const chartCard = document.createElement('div');
     chartCard.style.cssText = 'background:#fff;padding:12px;border-radius:10px;box-shadow:0 1px 6px rgba(0,0,0,.06);min-width:260px;flex:1';
-    chartCard.innerHTML = `<div style="font-size:.78rem;color:#666">Comparação: Pagos vs Não confirmados</div><canvas id="imbelPaidChart" style="height:80px;margin-top:8px"></canvas>`;
+    const chartTitle = document.createElement('div');
+    chartTitle.style.cssText = 'font-size:.78rem;color:#666';
+    chartTitle.textContent = 'Comparação: Pagos vs Não confirmados';
+    const canvasPaid = document.createElement('canvas');
+    canvasPaid.id = 'imbelPaidChart';
+    canvasPaid.style.cssText = 'margin-top:8px;display:block;width:100%;height:80px';
+    // ensure canvas has explicit pixel dimensions as fallback
+    canvasPaid.width = 320;
+    canvasPaid.height = 80;
+    chartCard.appendChild(chartTitle);
+    chartCard.appendChild(canvasPaid);
     financeiroWrap.appendChild(chartCard);
 
     container.appendChild(financeiroWrap);
@@ -2259,6 +2269,10 @@ function renderControleImbelDashboard() {
     setTimeout(() => {
         try {
             const ctx = document.getElementById('imbelPaidChart');
+            if (!ctx) {
+                console.warn('Canvas imbelPaidChart não encontrado');
+                return;
+            }
             if (ctx && window.Chart) {
                 // destroy previous chart instance if any
                 if (ctx._chartInstance) try { ctx._chartInstance.destroy(); } catch(e){}
@@ -2275,6 +2289,12 @@ function renderControleImbelDashboard() {
                     options: {plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{precision:0}}}}
                 });
                 ctx._chartInstance = ch;
+            } else {
+                // Chart.js not available — show simple textual fallback
+                const parent = ctx.parentElement;
+                if (parent) {
+                    parent.innerHTML = '<div style="color:#666;font-size:.9rem">Gráfico indisponível. Verifique se o Chart.js está carregado.</div>';
+                }
             }
         } catch (e) { console.warn('Chart render falhou', e); }
     }, 40);
@@ -2491,7 +2511,9 @@ function renderControleImbelDashboard() {
             chartWrap.style.cssText = 'display:flex;gap:8px;align-items:center;margin-top:8px';
             const canvas = document.createElement('canvas');
             canvas.id = 'imbelRevenueChart';
-            canvas.style.cssText = 'width:160px;height:140px;flex:0 0 160px';
+            canvas.style.cssText = 'width:160px;height:140px;flex:0 0 160px;display:block';
+            canvas.width = 160;
+            canvas.height = 140;
             const legendDiv = document.createElement('div');
             legendDiv.style.cssText = 'flex:1;padding-left:8px;font-size:.9rem';
 
@@ -2506,6 +2528,7 @@ function renderControleImbelDashboard() {
                     const values = produtosList.map(p => receitaPorProduto[p.id] || 0);
                     const colors = ['#2ecc71','#3498db','#e74c3c','#f1c40f','#9b59b6','#1abc9c','#e67e22','#95a5a6','#34495e','#d35400'];
                     const ctx = document.getElementById('imbelRevenueChart');
+                    if (!ctx) { console.warn('Canvas imbelRevenueChart não encontrado'); }
                     if (ctx && window.Chart) {
                         if (ctx._chartInstance) try { ctx._chartInstance.destroy(); } catch(e){}
                         const ch = new Chart(ctx.getContext('2d'), {
@@ -2516,9 +2539,13 @@ function renderControleImbelDashboard() {
                         ctx._chartInstance = ch;
                     }
 
-                    // build legend
-                    const legendHtml = produtosList.map((p,i) => `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><div style=\"display:flex;align-items:center;gap:8px\"><span style=\"width:12px;height:12px;background:${colors[i%colors.length]};display:inline-block;border-radius:3px\"></span><span>${p.nome}</span></div><div style=\"font-weight:700\">R$ ${((receitaPorProduto[p.id]||0).toLocaleString('pt-BR',{minimumFractionDigits:2}))}</div></div>`).join('');
-                    legendDiv.innerHTML = legendHtml;
+                    // build legend (or show fallback if Chart not available)
+                    if (window.Chart && ctx && ctx._chartInstance) {
+                        const legendHtml = produtosList.map((p,i) => `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><div style=\"display:flex;align-items:center;gap:8px\"><span style=\"width:12px;height:12px;background:${colors[i%colors.length]};display:inline-block;border-radius:3px\"></span><span>${p.nome}</span></div><div style=\"font-weight:700\">R$ ${((receitaPorProduto[p.id]||0).toLocaleString('pt-BR',{minimumFractionDigits:2}))}</div></div>`).join('');
+                        legendDiv.innerHTML = legendHtml;
+                    } else {
+                        legendDiv.innerHTML = '<div style="color:#666">Gráfico indisponível. Verifique se o Chart.js foi carregado corretamente.</div>';
+                    }
                 } catch(e) { console.warn('Erro ao renderizar chart de receita', e); }
             }, 60);
         } catch(e) { console.warn('Erro ao preparar gráfico', e); }
