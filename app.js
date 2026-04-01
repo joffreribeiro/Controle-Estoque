@@ -2199,7 +2199,6 @@ function renderControleImbelDashboard() {
     const container = document.getElementById('controleImbelDashboardContainer');
     if (!container) return;
     container.innerHTML = '';
-    const hoje = new Date().toISOString().slice(0,10);
 
     // Top indicators
     const movimentacoes = (data.movimentacoes || []).slice();
@@ -2251,17 +2250,7 @@ function renderControleImbelDashboard() {
     // Chart area (paid x unconfirmed)
     const chartCard = document.createElement('div');
     chartCard.style.cssText = 'background:#fff;padding:12px;border-radius:10px;box-shadow:0 1px 6px rgba(0,0,0,.06);min-width:260px;flex:1';
-    const chartTitle = document.createElement('div');
-    chartTitle.style.cssText = 'font-size:.78rem;color:#666';
-    chartTitle.textContent = 'Comparação: Pagos vs Não confirmados';
-    const canvasPaid = document.createElement('canvas');
-    canvasPaid.id = 'imbelPaidChart';
-    canvasPaid.style.cssText = 'margin-top:8px;display:block;width:100%;height:80px';
-    // ensure canvas has explicit pixel dimensions as fallback
-    canvasPaid.width = 320;
-    canvasPaid.height = 80;
-    chartCard.appendChild(chartTitle);
-    chartCard.appendChild(canvasPaid);
+    chartCard.innerHTML = `<div style="font-size:.78rem;color:#666">Comparação: Pagos vs Não confirmados</div><canvas id="imbelPaidChart" style="height:80px;margin-top:8px"></canvas>`;
     financeiroWrap.appendChild(chartCard);
 
     container.appendChild(financeiroWrap);
@@ -2270,10 +2259,6 @@ function renderControleImbelDashboard() {
     setTimeout(() => {
         try {
             const ctx = document.getElementById('imbelPaidChart');
-            if (!ctx) {
-                console.warn('Canvas imbelPaidChart não encontrado');
-                return;
-            }
             if (ctx && window.Chart) {
                 // destroy previous chart instance if any
                 if (ctx._chartInstance) try { ctx._chartInstance.destroy(); } catch(e){}
@@ -2290,23 +2275,13 @@ function renderControleImbelDashboard() {
                     options: {plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{precision:0}}}}
                 });
                 ctx._chartInstance = ch;
-            } else {
-                // Chart.js not available — show simple textual fallback
-                const parent = ctx.parentElement;
-                if (parent) {
-                    parent.innerHTML = '<div style="color:#666;font-size:.9rem">Gráfico indisponível. Verifique se o Chart.js está carregado.</div>';
-                }
             }
         } catch (e) { console.warn('Chart render falhou', e); }
     }, 40);
 
     // Gestão de estoque em tempo real com semáforo
-    // container para dispor Estoque + Receita lado-a-lado
-    const statusRow = document.createElement('div');
-    statusRow.style.cssText = 'display:flex;gap:12px;flex-wrap:wrap;align-items:flex-start';
-
     const estoqueWrap = document.createElement('div');
-    estoqueWrap.style.cssText = 'background:#fff;border-radius:10px;padding:12px;box-shadow:0 1px 6px rgba(0,0,0,.06);margin-top:12px;flex:1;min-width:300px';
+    estoqueWrap.style.cssText = 'background:#fff;border-radius:10px;padding:12px;box-shadow:0 1px 6px rgba(0,0,0,.06);margin-top:12px';
     estoqueWrap.innerHTML = `<h3 style="margin:0 0 8px 0;font-size:1rem">Gestão de Estoque</h3>`;
     const tabela = document.createElement('table');
     tabela.style.cssText = 'width:100%;border-collapse:collapse;font-size:.9rem';
@@ -2401,22 +2376,7 @@ function renderControleImbelDashboard() {
 
     estoqueWrap.insertBefore(resumo, tabela);
     estoqueWrap.appendChild(tabela);
-    // alertas rápidos: produtos zerados e pedidos pendentes
-    if (zerados.length) {
-        const alerta = document.createElement('div');
-        alerta.style.cssText = 'background:#fff3f3;border-left:4px solid #dc3545;padding:8px;border-radius:6px;margin-top:8px;color:#7a1b1b';
-        alerta.innerHTML = `⚠️ <strong>${zerados.length} produto(s) zerado(s)</strong> — reposição urgente: ${zerados.map(z=>z.nome).join(', ')}`;
-        estoqueWrap.appendChild(alerta);
-    }
-    if (pendentes && pendentes.length) {
-        const alerta2 = document.createElement('div');
-        alerta2.style.cssText = 'background:#fff8e6;border-left:4px solid #ffc107;padding:8px;border-radius:6px;margin-top:8px;color:#856404';
-        alerta2.innerHTML = `ℹ️ <strong>${pendentes.length} pedido(s) pendente(s)</strong> — aguardando comprovante ou confirmação`;
-        estoqueWrap.appendChild(alerta2);
-    }
-
-    statusRow.appendChild(estoqueWrap);
-    container.appendChild(statusRow);
+    container.appendChild(estoqueWrap);
 
     // Acompanhamento de pedidos (pipeline)
     const pipelineWrap = document.createElement('div');
@@ -2476,7 +2436,7 @@ function renderControleImbelDashboard() {
     // Receita por produto
     try {
         const receitaWrap = document.createElement('div');
-        receitaWrap.style.cssText = 'background:#fff;border-radius:10px;padding:12px;box-shadow:0 1px 6px rgba(0,0,0,.06);margin-top:12px;flex:1;min-width:320px';
+        receitaWrap.style.cssText = 'background:#fff;border-radius:10px;padding:12px;box-shadow:0 1px 6px rgba(0,0,0,.06);margin-top:12px';
         receitaWrap.innerHTML = `<h3 style="margin:0 0 8px 0;font-size:1rem">Receita por Produto</h3>`;
         const tableR = document.createElement('table');
         tableR.style.cssText = 'width:100%;border-collapse:collapse;font-size:.9rem;margin-top:8px';
@@ -2505,54 +2465,7 @@ function renderControleImbelDashboard() {
             tbr.appendChild(tr);
         });
         receitaWrap.appendChild(tableR);
-
-        // gráfico doughnut ao lado da tabela (receita por produto)
-        try {
-            const chartWrap = document.createElement('div');
-            chartWrap.style.cssText = 'display:flex;gap:8px;align-items:center;margin-top:8px';
-            const canvas = document.createElement('canvas');
-            canvas.id = 'imbelRevenueChart';
-            canvas.style.cssText = 'width:160px;height:140px;flex:0 0 160px;display:block';
-            canvas.width = 160;
-            canvas.height = 140;
-            const legendDiv = document.createElement('div');
-            legendDiv.style.cssText = 'flex:1;padding-left:8px;font-size:.9rem';
-
-            chartWrap.appendChild(canvas);
-            chartWrap.appendChild(legendDiv);
-            receitaWrap.appendChild(chartWrap);
-
-            // render chart asynchronously to ensure canvas is in DOM
-            setTimeout(() => {
-                try {
-                    const labels = produtosList.map(p => p.nome);
-                    const values = produtosList.map(p => receitaPorProduto[p.id] || 0);
-                    const colors = ['#2ecc71','#3498db','#e74c3c','#f1c40f','#9b59b6','#1abc9c','#e67e22','#95a5a6','#34495e','#d35400'];
-                    const ctx = document.getElementById('imbelRevenueChart');
-                    if (!ctx) { console.warn('Canvas imbelRevenueChart não encontrado'); }
-                    if (ctx && window.Chart) {
-                        if (ctx._chartInstance) try { ctx._chartInstance.destroy(); } catch(e){}
-                        const ch = new Chart(ctx.getContext('2d'), {
-                            type: 'doughnut',
-                            data: { labels, datasets: [{ data: values, backgroundColor: labels.map((_,i)=>colors[i%colors.length]) }] },
-                            options: {plugins:{legend:{display:false}},maintainAspectRatio:false}
-                        });
-                        ctx._chartInstance = ch;
-                    }
-
-                    // build legend (or show fallback if Chart not available)
-                    if (window.Chart && ctx && ctx._chartInstance) {
-                        const legendHtml = produtosList.map((p,i) => `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><div style=\"display:flex;align-items:center;gap:8px\"><span style=\"width:12px;height:12px;background:${colors[i%colors.length]};display:inline-block;border-radius:3px\"></span><span>${p.nome}</span></div><div style=\"font-weight:700\">R$ ${((receitaPorProduto[p.id]||0).toLocaleString('pt-BR',{minimumFractionDigits:2}))}</div></div>`).join('');
-                        legendDiv.innerHTML = legendHtml;
-                    } else {
-                        legendDiv.innerHTML = '<div style="color:#666">Gráfico indisponível. Verifique se o Chart.js foi carregado corretamente.</div>';
-                    }
-                } catch(e) { console.warn('Erro ao renderizar chart de receita', e); }
-            }, 60);
-        } catch(e) { console.warn('Erro ao preparar gráfico', e); }
-
-        // aninha o bloco de receita ao lado do estoque quando possível
-        if (typeof statusRow !== 'undefined' && statusRow) statusRow.appendChild(receitaWrap); else container.appendChild(receitaWrap);
+        container.appendChild(receitaWrap);
     } catch(e){ console.warn('Erro ao gerar receita por produto', e); }
 
     // Análise de clientes: top 10 e clientes com múltiplos produtos
@@ -2719,62 +2632,27 @@ function renderControleImbelCadastro() {
     const data = loadImbel();
     const container = document.getElementById('controleImbelCadastroContainer');
     container.innerHTML = '';
+
     const thStyle = 'padding:8px 12px;border:1px solid #ddd;background:#1e3a5f;color:#fff;font-size:.82rem;white-space:nowrap';
     const tdBase  = 'padding:8px 12px;border:1px solid #ddd;vertical-align:middle;font-size:.85rem';
 
-    // botão para abrir modal de cadastro
-    const controls = document.createElement('div');
-    controls.style.cssText = 'display:flex;justify-content:flex-end;margin-bottom:12px';
-    const btnNewProd = document.createElement('button');
-    btnNewProd.className = 'btn btn-primary';
-    btnNewProd.id = 'imbel_prod_open_modal';
-    btnNewProd.innerHTML = '<span class="btn-icon">➕</span> Cadastrar Produto';
-    controls.appendChild(btnNewProd);
-    container.appendChild(controls);
-
-    // criar modal de cadastro (se necessário)
-    if (!document.getElementById('imbel_prod_modal')) {
-        const modal = document.createElement('div');
-        modal.id = 'imbel_prod_modal';
-        modal.style.cssText = 'position:fixed;left:0;top:0;width:100%;height:100%;display:none;align-items:center;justify-content:center;z-index:9999';
-        modal.innerHTML = `
-            <div style="position:fixed;left:0;top:0;width:100%;height:100%;background:rgba(0,0,0,0.4)" id="imbel_prod_modal_backdrop"></div>
-            <div style="background:#fff;border-radius:10px;padding:18px;max-width:720px;width:95%;box-shadow:0 6px 30px rgba(0,0,0,.2);z-index:10000;max-height:90%;overflow:auto">
-                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-                    <h3 style="margin:0;font-size:1rem">Cadastrar / Editar Produto</h3>
-                    <button id="imbel_prod_modal_close" class="btn btn-outline">Fechar</button>
-                </div>
-                <input type="hidden" id="imbel_prod_edit_id" />
-                <div style="display:grid;grid-template-columns:2fr 1fr 1fr 2fr auto;gap:10px;align-items:end">
-                    <div><label style="font-size:.82rem;font-weight:600;color:#555;display:block;margin-bottom:4px">Nome do Produto</label>
-                        <input type="text" id="imbel_prod_nome" placeholder="Nome" style="width:100%;padding:7px 8px;border:1px solid #ddd;border-radius:6px;font-size:.85rem"/></div>
-                    <div><label style="font-size:.82rem;font-weight:600;color:#555;display:block;margin-bottom:4px">Código</label>
-                        <input type="text" id="imbel_prod_codigo" placeholder="Cód." style="width:100%;padding:7px 8px;border:1px solid #ddd;border-radius:6px;font-size:.85rem"/></div>
-                    <div><label style="font-size:.82rem;font-weight:600;color:#555;display:block;margin-bottom:4px">Quantidade Inicial</label>
-                        <input type="number" id="imbel_prod_qtd_inicial" value="0" min="0" style="width:100%;padding:7px 8px;border:1px solid #ddd;border-radius:6px;font-size:.85rem"/></div>
-                    <div><label style="font-size:.82rem;font-weight:600;color:#555;display:block;margin-bottom:4px">Observação</label>
-                        <input type="text" id="imbel_prod_obs" placeholder="Observação" style="width:100%;padding:7px 8px;border:1px solid #ddd;border-radius:6px;font-size:.85rem"/></div>
-                    <div style="display:flex;align-items:flex-end"><button type="button" id="imbel_prod_salvar" class="btn btn-primary">Salvar</button></div>
-                </div>
-            </div>
-        `;
-        document.body.appendChild(modal);
-        document.getElementById('imbel_prod_modal_close').onclick = function(){ document.getElementById('imbel_prod_modal').style.display = 'none'; };
-        document.getElementById('imbel_prod_modal_backdrop').onclick = function(){ document.getElementById('imbel_prod_modal').style.display = 'none'; };
-    }
-
-    // abrir modal ao clicar no botão
-    document.getElementById('imbel_prod_open_modal').onclick = function(){
-        // resetar campos
-        const editField = document.getElementById('imbel_prod_edit_id'); if (editField) editField.value = '';
-        document.getElementById('imbel_prod_nome').value = '';
-        document.getElementById('imbel_prod_codigo').value = '';
-        document.getElementById('imbel_prod_qtd_inicial').value = 0;
-        document.getElementById('imbel_prod_obs').value = '';
-        document.getElementById('imbel_prod_salvar').textContent = 'Salvar';
-        document.getElementById('imbel_prod_modal').style.display = 'flex';
-        document.getElementById('imbel_prod_nome').focus();
-    };
+    const formWrap = document.createElement('div');
+    formWrap.style.cssText = 'background:#fff;border-radius:10px;padding:16px;margin-bottom:16px;box-shadow:0 1px 4px rgba(0,0,0,.08)';
+    formWrap.innerHTML = `
+        <input type="hidden" id="imbel_prod_edit_id" />
+        <div style="display:grid;grid-template-columns:2fr 1fr 1fr 2fr auto;gap:10px;align-items:end">
+            <div><label style="font-size:.82rem;font-weight:600;color:#555;display:block;margin-bottom:4px">Nome do Produto</label>
+                <input type="text" id="imbel_prod_nome" placeholder="Nome" style="width:100%;padding:7px 8px;border:1px solid #ddd;border-radius:6px;font-size:.85rem"/></div>
+            <div><label style="font-size:.82rem;font-weight:600;color:#555;display:block;margin-bottom:4px">Código</label>
+                <input type="text" id="imbel_prod_codigo" placeholder="Cód." style="width:100%;padding:7px 8px;border:1px solid #ddd;border-radius:6px;font-size:.85rem"/></div>
+            <div><label style="font-size:.82rem;font-weight:600;color:#555;display:block;margin-bottom:4px">Quantidade Inicial</label>
+                <input type="number" id="imbel_prod_qtd_inicial" value="0" min="0" style="width:100%;padding:7px 8px;border:1px solid #ddd;border-radius:6px;font-size:.85rem"/></div>
+            <div><label style="font-size:.82rem;font-weight:600;color:#555;display:block;margin-bottom:4px">Observação</label>
+                <input type="text" id="imbel_prod_obs" placeholder="Observação" style="width:100%;padding:7px 8px;border:1px solid #ddd;border-radius:6px;font-size:.85rem"/></div>
+            <div><button type="button" id="imbel_prod_salvar" class="btn btn-primary">Salvar</button></div>
+        </div>
+    `;
+    container.appendChild(formWrap);
 
     const wrap = document.createElement('div');
     wrap.style.cssText = 'overflow-x:auto;background:#fff;border-radius:10px;padding:16px;box-shadow:0 1px 4px rgba(0,0,0,.08)';
@@ -2820,16 +2698,14 @@ function renderControleImbelCadastro() {
                 // reset edit state
                 editIdField.value = '';
                 document.getElementById('imbel_prod_salvar').textContent = 'Salvar';
-                    const modal = document.getElementById('imbel_prod_modal'); if (modal) modal.style.display = 'none';
-                    renderControleImbelCadastro();
-                    renderControleImbelEstoque();
+                renderControleImbelCadastro();
+                renderControleImbelEstoque();
                 return;
             }
         }
         const novo = { id: 'p' + Date.now(), nome, codigo, observacao, quantidadeInicial };
         data.produtos.push(novo);
         saveImbel(data);
-        const modal2 = document.getElementById('imbel_prod_modal'); if (modal2) modal2.style.display = 'none';
         renderControleImbelCadastro();
     };
 
@@ -2864,121 +2740,74 @@ function renderControleImbelMovimentacao() {
     const container = document.getElementById('controleImbelMovContainer');
     container.innerHTML = '';
 
-    // ---- Controls: botão para abrir modal de movimentação e limpar tabela ----
-    const controlsWrap = document.createElement('div');
-    controlsWrap.style.cssText = 'display:flex;gap:8px;margin-bottom:12px;align-items:center';
-    const btnOpenMov = document.createElement('button');
-    btnOpenMov.className = 'btn btn-primary';
-    btnOpenMov.id = 'imbel_mov_open_modal';
-    btnOpenMov.innerHTML = '<span class="btn-icon">💾</span> Registrar Movimentação';
-    const btnClearTable = document.createElement('button');
-    btnClearTable.className = 'btn btn-outline';
-    btnClearTable.id = 'imbel_mov_clear_table';
-    btnClearTable.innerHTML = '<span class="btn-icon">🧹</span> Limpar Tabela';
-    controlsWrap.appendChild(btnOpenMov);
-    controlsWrap.appendChild(btnClearTable);
-    container.appendChild(controlsWrap);
-
-    // criar modal de movimentação (uma única vez)
-    if (!document.getElementById('imbel_mov_modal')) {
-        const modal = document.createElement('div');
-        modal.id = 'imbel_mov_modal';
-        modal.style.cssText = 'position:fixed;left:0;top:0;width:100%;height:100%;display:none;align-items:center;justify-content:center;z-index:9999';
-        modal.innerHTML = `
-            <div style="position:fixed;left:0;top:0;width:100%;height:100%;background:rgba(0,0,0,0.4)" id="imbel_mov_modal_backdrop"></div>
-            <div style="background:#fff;border-radius:10px;padding:18px;max-width:1100px;width:95%;box-shadow:0 6px 30px rgba(0,0,0,.2);z-index:10000;max-height:90%;overflow:auto">
-                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-                    <h3 style="margin:0;font-size:1rem">Registrar Movimentação</h3>
-                    <button id="imbel_mov_modal_close" class="btn btn-outline">Fechar</button>
-                </div>
-                <input type="hidden" id="imbel_mov_edit_id" />
-                <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;align-items:end">
-                    <div>
-                        <label style="font-size:.82rem;font-weight:600;color:#555;display:block;margin-bottom:4px">Descrição (Produto)</label>
-                        <select id="imbel_mov_prod" style="width:100%;padding:7px 8px;border:1px solid #ddd;border-radius:6px;font-size:.85rem"></select>
-                    </div>
-                    <div>
-                        <label style="font-size:.82rem;font-weight:600;color:#555;display:block;margin-bottom:4px">Tipo</label>
-                        <select id="imbel_mov_tipo" style="width:100%;padding:7px 8px;border:1px solid #ddd;border-radius:6px;font-size:.85rem">
-                            <option value="Entrada">Entrada</option>
-                            <option value="Saída">Saída</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label style="font-size:.82rem;font-weight:600;color:#555;display:block;margin-bottom:4px">Data</label>
-                        <input type="date" id="imbel_mov_data" style="width:100%;padding:7px 8px;border:1px solid #ddd;border-radius:6px;font-size:.85rem"/>
-                    </div>
-                    <div>
-                        <label style="font-size:.82rem;font-weight:600;color:#555;display:block;margin-bottom:4px">Quantidade</label>
-                        <input type="number" id="imbel_mov_qtd" value="1" min="1" style="width:100%;padding:7px 8px;border:1px solid #ddd;border-radius:6px;font-size:.85rem"/>
-                    </div>
-                    <div>
-                        <label style="font-size:.82rem;font-weight:600;color:#555;display:block;margin-bottom:4px">Destinatário</label>
-                        <input type="text" id="imbel_mov_dest" placeholder="Nome" style="width:100%;padding:7px 8px;border:1px solid #ddd;border-radius:6px;font-size:.85rem"/>
-                    </div>
-                    <div>
-                        <label style="font-size:.82rem;font-weight:600;color:#555;display:block;margin-bottom:4px">CPF / CNPJ</label>
-                        <input type="text" id="imbel_mov_cpf" placeholder="000.000.000-00" style="width:100%;padding:7px 8px;border:1px solid #ddd;border-radius:6px;font-size:.85rem"/>
-                    </div>
-                    <div>
-                        <label style="font-size:.82rem;font-weight:600;color:#555;display:block;margin-bottom:4px">Valor (R$)</label>
-                        <input type="number" id="imbel_mov_valor" min="0" step="0.01" placeholder="0,00" style="width:100%;padding:7px 8px;border:1px solid #ddd;border-radius:6px;font-size:.85rem"/>
-                    </div>
-                    <div style="grid-column:span 2">
-                        <label style="font-size:.82rem;font-weight:600;color:#555;display:block;margin-bottom:4px">Endereço</label>
-                        <input type="text" id="imbel_mov_endereco" placeholder="Rua, número, cidade" style="width:100%;padding:7px 8px;border:1px solid #ddd;border-radius:6px;font-size:.85rem"/>
-                    </div>
-                    <div>
-                        <label style="font-size:.82rem;font-weight:600;color:#555;display:block;margin-bottom:4px">Telefone</label>
-                        <input type="text" id="imbel_mov_tel" placeholder="(00) 00000-0000" style="width:100%;padding:7px 8px;border:1px solid #ddd;border-radius:6px;font-size:.85rem"/>
-                    </div>
-                    <div>
-                        <label style="font-size:.82rem;font-weight:600;color:#555;display:block;margin-bottom:4px">E-mail</label>
-                        <input type="email" id="imbel_mov_email" placeholder="email@exemplo.com" style="width:100%;padding:7px 8px;border:1px solid #ddd;border-radius:6px;font-size:.85rem"/>
-                    </div>
-                    <div style="grid-column:1/-1">
-                        <label style="font-size:.82rem;font-weight:600;color:#555;display:block;margin-bottom:4px">Observações</label>
-                        <input type="text" id="imbel_mov_obs" placeholder="Observações adicionais" style="width:100%;padding:7px 8px;border:1px solid #ddd;border-radius:6px;font-size:.85rem"/>
-                    </div>
-                    <div style="grid-column:1/-1;display:flex;gap:8px;justify-content:flex-end;margin-top:8px">
-                        <button type="button" id="imbel_mov_modal_cancel" class="btn btn-outline">Cancelar</button>
-                        <button type="button" id="imbel_mov_salvar" class="btn btn-primary">Registrar Movimentação</button>
-                    </div>
-                </div>
+    // ---- Formulário ----
+    const formWrap = document.createElement('div');
+    formWrap.style.cssText = 'background:#fff;border-radius:10px;padding:20px;margin-bottom:20px;box-shadow:0 1px 4px rgba(0,0,0,.08)';
+    formWrap.innerHTML = `
+        <input type="hidden" id="imbel_mov_edit_id" />
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;align-items:end">
+            <div>
+                <label style="font-size:.82rem;font-weight:600;color:#555;display:block;margin-bottom:4px">Descrição (Produto)</label>
+                <select id="imbel_mov_prod" style="width:100%;padding:7px 8px;border:1px solid #ddd;border-radius:6px;font-size:.85rem"></select>
             </div>
-        `;
-        document.body.appendChild(modal);
-        // close handlers
-        document.getElementById('imbel_mov_modal_close').onclick = function(){ document.getElementById('imbel_mov_modal').style.display = 'none'; };
-        document.getElementById('imbel_mov_modal_backdrop').onclick = function(){ document.getElementById('imbel_mov_modal').style.display = 'none'; };
-        document.getElementById('imbel_mov_modal_cancel').onclick = function(){ document.getElementById('imbel_mov_modal').style.display = 'none'; };
-    }
-
-    // abrir modal ao clicar
-    document.getElementById('imbel_mov_open_modal').onclick = function(){
-        // popular select de produto dentro do modal
-        const selecModal = document.getElementById('imbel_mov_prod');
-        if (selecModal) {
-            selecModal.innerHTML = '<option value="">— selecione o produto —</option>';
-            (data.produtos||[]).forEach(p => {
-                const opt = document.createElement('option'); opt.value = p.id; opt.textContent = p.nome + (p.codigo ? ' ('+p.codigo+')' : ''); selecModal.appendChild(opt);
-            });
-        }
-        // set default date
-        const hoje = new Date().toISOString().slice(0,10);
-        const dataInput = document.getElementById('imbel_mov_data'); if (dataInput) dataInput.value = hoje;
-        document.getElementById('imbel_mov_modal').style.display = 'flex';
-    };
-
-    // limpar tabela
-    document.getElementById('imbel_mov_clear_table').onclick = function(){
-        if (!confirm('Limpar todas as movimentações? Esta ação é irreversível.')) return;
-        data.movimentacoes = [];
-        saveImbel(data);
-        renderControleImbelMovimentacao();
-        renderControleImbelEstoque();
-        mostrarNotificacao('Tabela de movimentações limpa.', 'success');
-    };
+            <div>
+                <label style="font-size:.82rem;font-weight:600;color:#555;display:block;margin-bottom:4px">Tipo</label>
+                <select id="imbel_mov_tipo" style="width:100%;padding:7px 8px;border:1px solid #ddd;border-radius:6px;font-size:.85rem">
+                    <option value="Entrada">Entrada</option>
+                    <option value="Saída">Saída</option>
+                </select>
+            </div>
+            <div>
+                <label style="font-size:.82rem;font-weight:600;color:#555;display:block;margin-bottom:4px">Data</label>
+                <input type="date" id="imbel_mov_data" style="width:100%;padding:7px 8px;border:1px solid #ddd;border-radius:6px;font-size:.85rem"/>
+            </div>
+            <div>
+                <label style="font-size:.82rem;font-weight:600;color:#555;display:block;margin-bottom:4px">Quantidade</label>
+                <input type="number" id="imbel_mov_qtd" value="1" min="1" style="width:100%;padding:7px 8px;border:1px solid #ddd;border-radius:6px;font-size:.85rem"/>
+            </div>
+            <div>
+                <label style="font-size:.82rem;font-weight:600;color:#555;display:block;margin-bottom:4px">Destinatário</label>
+                <input type="text" id="imbel_mov_dest" placeholder="Nome" style="width:100%;padding:7px 8px;border:1px solid #ddd;border-radius:6px;font-size:.85rem"/>
+            </div>
+            <div>
+                <label style="font-size:.82rem;font-weight:600;color:#555;display:block;margin-bottom:4px">CPF / CNPJ</label>
+                <input type="text" id="imbel_mov_cpf" placeholder="000.000.000-00" style="width:100%;padding:7px 8px;border:1px solid #ddd;border-radius:6px;font-size:.85rem"/>
+            </div>
+            <div>
+                <label style="font-size:.82rem;font-weight:600;color:#555;display:block;margin-bottom:4px">Valor (R$)</label>
+                <input type="number" id="imbel_mov_valor" min="0" step="0.01" placeholder="0,00" style="width:100%;padding:7px 8px;border:1px solid #ddd;border-radius:6px;font-size:.85rem"/>
+            </div>
+            <div style="grid-column:span 2">
+                <label style="font-size:.82rem;font-weight:600;color:#555;display:block;margin-bottom:4px">Endereço</label>
+                <input type="text" id="imbel_mov_endereco" placeholder="Rua, número, cidade" style="width:100%;padding:7px 8px;border:1px solid #ddd;border-radius:6px;font-size:.85rem"/>
+            </div>
+            <div>
+                <label style="font-size:.82rem;font-weight:600;color:#555;display:block;margin-bottom:4px">Telefone</label>
+                <input type="text" id="imbel_mov_tel" placeholder="(00) 00000-0000" style="width:100%;padding:7px 8px;border:1px solid #ddd;border-radius:6px;font-size:.85rem"/>
+            </div>
+            <div>
+                <label style="font-size:.82rem;font-weight:600;color:#555;display:block;margin-bottom:4px">E-mail</label>
+                <input type="email" id="imbel_mov_email" placeholder="email@exemplo.com" style="width:100%;padding:7px 8px;border:1px solid #ddd;border-radius:6px;font-size:.85rem"/>
+            </div>
+            <!-- Pagamento / Entregue / FI serão controlados via checkboxes na TABELA, não no cadastro -->
+            <div style="grid-column:1/-1">
+                <label style="font-size:.82rem;font-weight:600;color:#555;display:block;margin-bottom:4px">Observações</label>
+                <input type="text" id="imbel_mov_obs" placeholder="Observações adicionais" style="width:100%;padding:7px 8px;border:1px solid #ddd;border-radius:6px;font-size:.85rem"/>
+            </div>
+            <div style="grid-column:1/-1;display:flex;gap:8px;justify-content:flex-end;margin-top:4px">
+                <button type="button" id="imbel_mov_limpar" class="btn btn-outline">
+                    <span class="btn-icon">🗑️</span> Limpar
+                </button>
+                <button type="button" id="imbel_mov_clear_table" class="btn btn-outline">
+                    <span class="btn-icon">🧹</span> Limpar Tabela
+                </button>
+                <button type="button" id="imbel_mov_salvar" class="btn btn-primary">
+                    <span class="btn-icon">💾</span> Registrar Movimentação
+                </button>
+            </div>
+        </div>
+    `;
+    container.appendChild(formWrap);
 
     // Popular select de produtos
     const selec = document.getElementById('imbel_mov_prod');
@@ -3170,9 +2999,6 @@ function renderControleImbelMovimentacao() {
                 document.getElementById('imbel_mov_obs').value = mov.observacoes || '';
                 const editField = document.getElementById('imbel_mov_edit_id'); if (editField) editField.value = id;
                 document.getElementById('imbel_mov_salvar').textContent = 'Atualizar Movimentação';
-                // abrir modal para edição
-                const modal = document.getElementById('imbel_mov_modal');
-                if (modal) modal.style.display = 'flex';
                 document.getElementById('imbel_mov_prod').focus();
             };
         });
@@ -3295,8 +3121,6 @@ function renderControleImbelMovimentacao() {
         });
         saveImbel(data);
         mostrarNotificacao('Movimentação registrada!', 'success');
-        // fechar modal e atualizar views
-        const modal = document.getElementById('imbel_mov_modal'); if (modal) modal.style.display = 'none';
         renderControleImbelMovimentacao();
         renderControleImbelEstoque();
     };
@@ -3382,10 +3206,9 @@ function editarProdutoPorId(id) {
         const data = loadImbel();
         const prod = (data.produtos||[]).find(p => p.id === id);
         if (!prod) { mostrarNotificacao('Produto não encontrado para edição.', 'error'); return; }
-        // abrir modal de edição do produto (se existente) e preencher campos
-        try {
-            const modal = document.getElementById('imbel_prod_modal');
-            if (modal) modal.style.display = 'flex';
+        trocarSubAbaControleImbel('cadastro');
+        // aguardar renderização do formulário e então preencher
+        setTimeout(() => {
             const nomeEl = document.getElementById('imbel_prod_nome');
             if (!nomeEl) return;
             document.getElementById('imbel_prod_nome').value = prod.nome || '';
@@ -3395,7 +3218,7 @@ function editarProdutoPorId(id) {
             const editField = document.getElementById('imbel_prod_edit_id'); if (editField) editField.value = id;
             document.getElementById('imbel_prod_salvar').textContent = 'Atualizar';
             document.getElementById('imbel_prod_nome').focus();
-        } catch(e) { console.error(e); }
+        }, 60);
     } catch (e) {
         console.error('editarProdutoPorId erro:', e);
     }
