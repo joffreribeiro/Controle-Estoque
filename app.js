@@ -2802,7 +2802,27 @@ function renderControleImbelMovimentacao() {
             const seqNum = (data.movimentacoes.length - idx);
 
             const tr = document.createElement('tr');
-            tr.style.background = rowIndex % 2 === 0 ? '#fff' : '#f7f9fc';
+            // cor padrão alternada
+            let bg = rowIndex % 2 === 0 ? '#fff' : '#f7f9fc';
+            // destacar linhas cujo destinatário contenha DVMK (case-insensitive)
+            try {
+                if ((m.destinatario||'').toString().toUpperCase().includes('DVMK')) {
+                    bg = '#e8f7ff'; // tom claro azul
+                }
+            } catch(e) {}
+            tr.style.background = bg;
+
+            // decidir se mostramos checkboxes (não mostrar para Entradas)
+            const tipoUpper = ((m.tipo||'').toString().toUpperCase());
+            let pagCell = `<td style="${tdCenter}"><input type=\"checkbox\" class=\"imbel_table_chk_pag\" data-id=\"${m.id}\" ${((m.pagamento||'').toString().toUpperCase()==='SIM')? 'checked' : ''}></td>`;
+            let entCell = `<td style="${tdCenter}"><input type=\"checkbox\" class=\"imbel_table_chk_ent\" data-id=\"${m.id}\" ${((m.entregue||'').toString().toUpperCase()==='SIM')? 'checked' : ''}></td>`;
+            let fiCell = `<td style="${tdCenter}"><input type=\"checkbox\" class=\"imbel_table_chk_fi\" data-id=\"${m.id}\" ${((m.fi||'').toString().toUpperCase()==='SIM')? 'checked' : ''}></td>`;
+            if (tipoUpper === 'ENTRADA' || ((m.destinatario||'').toString().toUpperCase().includes('DVMK'))) {
+                pagCell = `<td style="${tdCenter}">-</td>`;
+                entCell = `<td style="${tdCenter}">-</td>`;
+                fiCell = `<td style="${tdCenter}">-</td>`;
+            }
+
             tr.innerHTML = `
                 <td style="${tdCenter};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:70px">${seqNum}</td>
                 <td style="${tdStyle}">${produto.nome}</td>
@@ -2816,9 +2836,9 @@ function renderControleImbelMovimentacao() {
                 <td style="${tdStyle}">${m.endereco||'-'}</td>
                 <td style="${tdStyle}">${m.telefone||'-'}</td>
                 <td style="${tdStyle}">${m.email||'-'}</td>
-                <td style="${tdCenter}"><input type=\"checkbox\" class=\"imbel_table_chk_pag\" data-id=\"${m.id}\" ${((m.pagamento||'').toString().toUpperCase()==='SIM')? 'checked' : ''}></td>
-                <td style="${tdCenter}"><input type=\"checkbox\" class=\"imbel_table_chk_ent\" data-id=\"${m.id}\" ${((m.entregue||'').toString().toUpperCase()==='SIM')? 'checked' : ''}></td>
-                <td style="${tdCenter}"><input type=\"checkbox\" class=\"imbel_table_chk_fi\" data-id=\"${m.id}\" ${((m.fi||'').toString().toUpperCase()==='SIM')? 'checked' : ''}></td>
+                ${pagCell}
+                ${entCell}
+                ${fiCell}
                 <td style="${tdCenter}"><button class="btn btn-outline" style="padding:3px 8px;font-size:.75rem;margin-right:6px" data-editmov="${m.id}">Editar</button><button class="btn btn-outline" style="padding:3px 8px;font-size:.75rem" data-delid="${m.id}">🗑️</button></td>
             `;
             tbody.appendChild(tr);
