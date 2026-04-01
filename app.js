@@ -536,6 +536,27 @@ function parseDateToYYYYMMDD(input) {
     return null;
 }
 
+// Formata uma data (aceita 'YYYY-MM-DD', Date ou strings) para 'DD/MM/YYYY'
+function formatDateToDDMMYYYY(input) {
+    if (!input && input !== 0) return '-';
+    try {
+        // Already in YYYY-MM-DD
+        if (typeof input === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(input)) {
+            const parts = input.split('-');
+            return `${parts[2].padStart(2,'0')}/${parts[1].padStart(2,'0')}/${parts[0]}`;
+        }
+        // Date-like
+        const d = (input instanceof Date) ? input : new Date(input);
+        if (!isNaN(d.getTime())) {
+            const dd = String(d.getDate()).padStart(2,'0');
+            const mm = String(d.getMonth() + 1).padStart(2,'0');
+            const yyyy = d.getFullYear();
+            return `${dd}/${mm}/${yyyy}`;
+        }
+    } catch (e) {}
+    return '-';
+}
+
 function normalizarContratoKey(valor) {
     const bruto = (valor ?? '').toString().normalize('NFKC');
     const clean = bruto.replace(/[\u200B-\u200D\uFEFF\s]+/g, '');
@@ -2028,7 +2049,7 @@ function imprimirVendas() {
         const rowspanAttr = grupo.length > 1 ? ` rowspan="${grupo.length}"` : '';
         let primeiraLinha = true;
         grupo.forEach(r => {
-            const dataFmt = r.dataNorm ? new Date(r.dataNorm + 'T00:00:00').toLocaleDateString('pt-BR') : '-';
+            const dataFmt = formatDateToDDMMYYYY(r.dataNorm);
             tabelaHtml += `<tr>`;
 
             if (primeiraLinha) {
@@ -2212,7 +2233,7 @@ function renderControleImbelEstoque() {
 
     if (produtos.length === 0) {
         const tr = document.createElement('tr');
-        tr.innerHTML = `<td colspan="6" style="${tdBase};text-align:center;color:#999;font-style:italic">Nenhum produto cadastrado. Cadastre na sub-aba "Cadastro de Produtos".</td>`;
+        tr.innerHTML = `<td colspan="7" style="${tdBase};text-align:center;color:#999;font-style:italic">Nenhum produto cadastrado. Cadastre na sub-aba "Cadastro de Produtos".</td>`;
         tbody.appendChild(tr);
     }
 
@@ -2228,7 +2249,7 @@ function renderControleImbelEstoque() {
         tr.style.background = idx % 2 === 0 ? '#fff' : '#f7f9fc';
         tr.innerHTML = `
             <td style="${tdCenter}">${idx + 1}</td>
-            <td style="${tdBase}">${p.nome}${p.codigo ? ' <span style="color:#888;font-size:.75rem">('+p.codigo+')</span>' : ''}</td>
+            <td style="${tdBase}">${p.nome}${p.codigo ? ' <span style="color:#888;font-size:.75rem">('+p.codigo+')</span>' : ''} <button class="btn btn-outline" data-editprod="${p.id}" style="margin-left:8px;padding:4px 8px;font-size:.8rem">Editar</button></td>
             <td style="${tdBase}">${p.observacao || '-'}</td>
             <td style="${tdCenter};font-weight:600">${inicial}</td>
             <td style="${tdCenter};color:#155724;font-weight:600">${entrada}</td>
@@ -2258,6 +2279,13 @@ function renderControleImbelEstoque() {
 
     wrap.appendChild(tabela);
     container.appendChild(wrap);
+
+    // Handler: editar produto a partir do Estoque
+    tbody.querySelectorAll('button[data-editprod]').forEach(btn => btn.onclick = function(){
+        const id = this.getAttribute('data-editprod');
+        if (!id) return;
+        editarProdutoPorId(id);
+    });
 
     // Atalho para cadastrar produto
     const btnCad = document.createElement('button');
@@ -2384,6 +2412,7 @@ function renderControleImbelMovimentacao() {
     const formWrap = document.createElement('div');
     formWrap.style.cssText = 'background:#fff;border-radius:10px;padding:20px;margin-bottom:20px;box-shadow:0 1px 4px rgba(0,0,0,.08)';
     formWrap.innerHTML = `
+        <input type="hidden" id="imbel_mov_edit_id" />
         <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;align-items:end">
             <div>
                 <label style="font-size:.82rem;font-weight:600;color:#555;display:block;margin-bottom:4px">Descrição (Produto)</label>
@@ -2460,6 +2489,9 @@ function renderControleImbelMovimentacao() {
                 <button type="button" id="imbel_mov_limpar" class="btn btn-outline">
                     <span class="btn-icon">🗑️</span> Limpar
                 </button>
+                <button type="button" id="imbel_mov_clear_table" class="btn btn-outline">
+                    <span class="btn-icon">🧹</span> Limpar Tabela
+                </button>
                 <button type="button" id="imbel_mov_salvar" class="btn btn-primary">
                     <span class="btn-icon">💾</span> Registrar Movimentação
                 </button>
@@ -2514,7 +2546,7 @@ function renderControleImbelMovimentacao() {
 
     (data.movimentacoes||[]).slice().reverse().forEach((m, idx) => {
         const produto = (data.produtos||[]).find(p => p.id === m.produtoId) || {nome: m.descricao || '-'};
-        const dataFmt = m.data ? new Date(m.data+'T00:00:00').toLocaleDateString('pt-BR') : '-';
+        const dataFmt = formatDateToDDMMYYYY(m.data);
         const valorFmt = m.valor ? 'R$ ' + Number(m.valor).toLocaleString('pt-BR', {minimumFractionDigits:2}) : '-';
         const seqNum = (data.movimentacoes.length - idx);
 
@@ -2536,7 +2568,7 @@ function renderControleImbelMovimentacao() {
             <td style="${tdCenter}">${m.pagamento||'-'}</td>
             <td style="${tdCenter}"><span style="padding:2px 8px;border-radius:12px;font-size:.75rem;font-weight:600;background:${m.entregue==='Sim'?'#d4edda':'#fff3cd'};color:${m.entregue==='Sim'?'#155724':'#856404'}">${m.entregue||'Não'}</span></td>
             <td style="${tdCenter}">${m.fi||'-'}</td>
-            <td style="${tdCenter}"><button class="btn btn-outline" style="padding:3px 8px;font-size:.75rem" data-delid="${m.id}">🗑️</button></td>
+            <td style="${tdCenter}"><button class="btn btn-outline" style="padding:3px 8px;font-size:.75rem;margin-right:6px" data-editmov="${m.id}">Editar</button><button class="btn btn-outline" style="padding:3px 8px;font-size:.75rem" data-delid="${m.id}">🗑️</button></td>
         `;
         tbody.appendChild(tr);
     });
@@ -2560,6 +2592,7 @@ function renderControleImbelMovimentacao() {
         const entregue = document.getElementById('imbel_mov_entregue').value;
         const fi = document.getElementById('imbel_mov_fi').value.trim();
         const obs = document.getElementById('imbel_mov_obs').value.trim();
+        const editId = (document.getElementById('imbel_mov_edit_id') || {value:''}).value || '';
 
         if (!produtoId) { mostrarNotificacao('Selecione um produto.', 'warning'); return; }
         if (quantidade <= 0) { mostrarNotificacao('Informe uma quantidade válida.', 'warning'); return; }
@@ -2582,6 +2615,34 @@ function renderControleImbelMovimentacao() {
         }
 
         data.movimentacoes = data.movimentacoes || [];
+        if (editId) {
+            const mov = data.movimentacoes.find(m => m.id === editId);
+            if (mov) {
+                mov.produtoId = produtoId;
+                mov.tipo = (tipo||'').toString().toUpperCase();
+                mov.quantidade = quantidade;
+                mov.data = dataStr;
+                mov.destinatario = (destinatario||'').toUpperCase();
+                mov.cpfCnpj = (cpfCnpj||'').toUpperCase();
+                mov.valor = valor;
+                mov.pagamento = (pagamento||'').toString().toUpperCase();
+                mov.endereco = (endereco||'').toUpperCase();
+                mov.telefone = (telefone||'').toUpperCase();
+                mov.email = (email||'').toUpperCase();
+                mov.entregue = (entregue||'').toString().toUpperCase();
+                mov.fi = (fi||'').toUpperCase();
+                mov.observacoes = (obs||'').toUpperCase();
+                saveImbel(data);
+                mostrarNotificacao('Movimentação atualizada!', 'success');
+                // reset edit state
+                const editField = document.getElementById('imbel_mov_edit_id'); if (editField) editField.value = '';
+                document.getElementById('imbel_mov_salvar').textContent = 'Registrar Movimentação';
+                renderControleImbelMovimentacao();
+                renderControleImbelEstoque();
+                return;
+            }
+        }
+
         data.movimentacoes.push({
             id: 'm' + Date.now(), produtoId, tipo: (tipo||'').toString().toUpperCase(), quantidade, data: dataStr,
             destinatario: (destinatario||'').toUpperCase(), cpfCnpj: (cpfCnpj||'').toUpperCase(), valor,
@@ -2610,7 +2671,24 @@ function renderControleImbelMovimentacao() {
         document.getElementById('imbel_mov_entregue').value = 'Não';
         document.getElementById('imbel_mov_fi').value = '';
         document.getElementById('imbel_mov_obs').value = '';
+        // reset edit state
+        const editField = document.getElementById('imbel_mov_edit_id'); if (editField) editField.value = '';
+        document.getElementById('imbel_mov_salvar').textContent = 'Registrar Movimentação';
     };
+
+    // ---- Handler: Limpar Tabela ----
+    const btnClearTable = document.getElementById('imbel_mov_clear_table');
+    if (btnClearTable) {
+        btnClearTable.onclick = function(){
+            if (!confirm('Deseja apagar TODAS as movimentações? Esta ação é irreversible.')) return;
+            data.movimentacoes = [];
+            saveImbel(data);
+            mostrarNotificacao('Todas as movimentações foram removidas.', 'success');
+            renderControleImbelMovimentacao();
+            renderControleImbelEstoque();
+            renderControleImbelCadastro();
+        };
+    }
 
     // ---- Handler: Deletar ----
     tbody.querySelectorAll('button[data-delid]').forEach(btn => {
@@ -2624,10 +2702,63 @@ function renderControleImbelMovimentacao() {
             renderControleImbelEstoque();
         };
     });
+
+    // ---- Handler: Editar Movimentação ----
+    tbody.querySelectorAll('button[data-editmov]').forEach(btn => {
+        btn.onclick = function(){
+            const id = this.getAttribute('data-editmov');
+            const mov = (data.movimentacoes||[]).find(m => m.id === id);
+            if (!mov) return;
+            document.getElementById('imbel_mov_prod').value = mov.produtoId || '';
+            const tipoLower = (mov.tipo||'').toString().toLowerCase();
+            if (tipoLower === 'entrada') document.getElementById('imbel_mov_tipo').value = 'Entrada';
+            else if (tipoLower === 'saída' || tipoLower === 'saida') document.getElementById('imbel_mov_tipo').value = 'Saída';
+            else document.getElementById('imbel_mov_tipo').value = mov.tipo || 'Entrada';
+            document.getElementById('imbel_mov_data').value = mov.data || hoje;
+            document.getElementById('imbel_mov_qtd').value = mov.quantidade || 1;
+            document.getElementById('imbel_mov_dest').value = mov.destinatario || '';
+            document.getElementById('imbel_mov_cpf').value = mov.cpfCnpj || '';
+            document.getElementById('imbel_mov_valor').value = mov.valor || '';
+            document.getElementById('imbel_mov_pagamento').value = mov.pagamento || '';
+            document.getElementById('imbel_mov_endereco').value = mov.endereco || '';
+            document.getElementById('imbel_mov_tel').value = mov.telefone || '';
+            document.getElementById('imbel_mov_email').value = mov.email || '';
+            document.getElementById('imbel_mov_entregue').value = mov.entregue || 'Não';
+            document.getElementById('imbel_mov_fi').value = mov.fi || '';
+            document.getElementById('imbel_mov_obs').value = mov.observacoes || '';
+            const editField = document.getElementById('imbel_mov_edit_id'); if (editField) editField.value = id;
+            document.getElementById('imbel_mov_salvar').textContent = 'Atualizar Movimentação';
+            document.getElementById('imbel_mov_prod').focus();
+        };
+    });
 }
 
 // Inicializar controle IMBEL (não altera outros dados)
 try { initControleImbel(); } catch(e) {}
+
+// Abre a sub-aba de Cadastro e preenche o formulário para editar o produto indicado
+function editarProdutoPorId(id) {
+    try {
+        const data = loadImbel();
+        const prod = (data.produtos||[]).find(p => p.id === id);
+        if (!prod) { mostrarNotificacao('Produto não encontrado para edição.', 'error'); return; }
+        trocarSubAbaControleImbel('cadastro');
+        // aguardar renderização do formulário e então preencher
+        setTimeout(() => {
+            const nomeEl = document.getElementById('imbel_prod_nome');
+            if (!nomeEl) return;
+            document.getElementById('imbel_prod_nome').value = prod.nome || '';
+            document.getElementById('imbel_prod_codigo').value = prod.codigo || '';
+            document.getElementById('imbel_prod_qtd_inicial').value = prod.quantidadeInicial || 0;
+            document.getElementById('imbel_prod_obs').value = prod.observacao || '';
+            const editField = document.getElementById('imbel_prod_edit_id'); if (editField) editField.value = id;
+            document.getElementById('imbel_prod_salvar').textContent = 'Atualizar';
+            document.getElementById('imbel_prod_nome').focus();
+        }, 60);
+    } catch (e) {
+        console.error('editarProdutoPorId erro:', e);
+    }
+}
 
 // ========================================
 // EXPORTAR / IMPORTAR IMBEL (Produtos + Saldos)
@@ -2830,7 +2961,8 @@ function exportarImbelMovimentacao() {
     let csv = `ID${sep}PRODUTO_ID${sep}PRODUTO_NOME${sep}TIPO${sep}DATA${sep}QUANTIDADE${sep}DESTINATARIO${sep}CPF_CNPJ${sep}OBSERVACOES${sep}VALOR${sep}PAGAMENTO${sep}ENDERECO${sep}TELEFONE${sep}EMAIL${sep}ENTREGUE${sep}FI\n`;
     movs.forEach(m => {
         const prod = produtos[m.produtoId] || {};
-        const linha = `${m.id||''}${sep}${m.produtoId||''}${sep}${(prod.nome||'').toString().replace(/\n/g,' ')}${sep}${(m.tipo||'').toString()}${sep}${m.data||''}${sep}${m.quantidade||''}${sep}${(m.destinatario||'').toString().replace(/\n/g,' ')}${sep}${(m.cpfCnpj||'').toString()}${sep}${(m.observacoes||'').toString().replace(/\n/g,' ')}${sep}${(m.valor||'')}${sep}${(m.pagamento||'').toString()}${sep}${(m.endereco||'').toString().replace(/\n/g,' ')}${sep}${(m.telefone||'').toString()}${sep}${(m.email||'').toString()}${sep}${(m.entregue||'').toString()}${sep}${(m.fi||'').toString()}`;
+        const dataCsv = formatDateToDDMMYYYY(m.data);
+        const linha = `${m.id||''}${sep}${m.produtoId||''}${sep}${(prod.nome||'').toString().replace(/\n/g,' ')}${sep}${(m.tipo||'').toString()}${sep}${dataCsv}${sep}${m.quantidade||''}${sep}${(m.destinatario||'').toString().replace(/\n/g,' ')}${sep}${(m.cpfCnpj||'').toString()}${sep}${(m.observacoes||'').toString().replace(/\n/g,' ')}${sep}${(m.valor||'')}${sep}${(m.pagamento||'').toString()}${sep}${(m.endereco||'').toString().replace(/\n/g,' ')}${sep}${(m.telefone||'').toString()}${sep}${(m.email||'').toString()}${sep}${(m.entregue||'').toString()}${sep}${(m.fi||'').toString()}`;
         csv += linha + '\n';
     });
     const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
@@ -2859,7 +2991,29 @@ function importarImbelMovimentacao(event) {
                 const produtoIdCol = (col[1]||'').trim();
                 const produtoNomeCol = (col[2]||'').trim().toUpperCase();
                 const tipo = (col[3]||'').trim().toUpperCase() || 'ENTRADA';
-                const dataStr = (col[4]||'').trim() || new Date().toISOString().split('T')[0];
+                // Normalizar campo DATA: aceitar YYYY-MM-DD ou DD/MM/YYYY e converter para YYYY-MM-DD
+                let dataRaw = (col[4]||'').trim();
+                let dataStr = '';
+                if (!dataRaw) {
+                    dataStr = new Date().toISOString().split('T')[0];
+                } else {
+                    // YYYY-MM-DD
+                    if (/^\d{4}-\d{2}-\d{2}$/.test(dataRaw)) {
+                        dataStr = dataRaw;
+                    } else if (/^\d{2}\/\d{2}\/\d{4}$/.test(dataRaw)) {
+                        const parts = dataRaw.split('/');
+                        dataStr = `${parts[2]}-${parts[1].padStart(2,'0')}-${parts[0].padStart(2,'0')}`;
+                    } else {
+                        // tentar parse geral e formatar para YYYY-MM-DD quando possível
+                        const d = new Date(dataRaw);
+                        if (!isNaN(d.getTime())) {
+                            dataStr = d.toISOString().slice(0,10);
+                        } else {
+                            // fallback para data atual
+                            dataStr = new Date().toISOString().split('T')[0];
+                        }
+                    }
+                }
                 const quantidade = parseInt((col[5]||'').replace(/[^0-9-]/g,'')) || 0;
                 if (quantidade === 0) { erros.push(`Linha ${i+1}: quantidade inválida`); continue; }
 
@@ -2875,7 +3029,23 @@ function importarImbelMovimentacao(event) {
                 const destinatario = (col[6]||'').trim().toUpperCase();
                 const cpfCnpj = (col[7]||'').trim().toUpperCase();
                 const observacoes = (col[8]||'').trim().toUpperCase();
-                const valor = parseFloat((col[9]||'').replace(',','.')) || 0;
+                // Normalizar campo VALOR: remover símbolos, tratar milhares (.) e decimais (',')
+                let valor = 0;
+                try {
+                    let vs = (col[9]||'').toString().trim();
+                    // remover símbolos de moeda e espaços
+                    vs = vs.replace(/[^0-9,\.\-]/g, '');
+                    if (vs === '') vs = '0';
+                    // se contém ',' como separador decimal (BR), remover pontos de milhares e trocar ',' por '.'
+                    if (vs.indexOf(',') !== -1) {
+                        vs = vs.replace(/\./g, '');
+                        vs = vs.replace(/,/g, '.');
+                    } else {
+                        // sem vírgula, apenas remover separadores de milhar (caso existam) e keep dot
+                        vs = vs.replace(/\.(?=\d{3}(?:\.|$))/g, '');
+                    }
+                    valor = parseFloat(vs) || 0;
+                } catch (errVal) { valor = 0; }
                 const pagamento = (col[10]||'').trim().toUpperCase();
                 const endereco = (col[11]||'').trim().toUpperCase();
                 const telefone = (col[12]||'').trim().toUpperCase();
@@ -3845,8 +4015,8 @@ function renderizarRegistroVendas() {
         const maxData = grupo.map(g => g.dataNorm).filter(Boolean).sort().slice(-1)[0] || null;
         const dataDisplay = minData
             ? (maxData && maxData !== minData
-                ? `${new Date(minData + 'T00:00:00').toLocaleDateString('pt-BR')} até ${new Date(maxData + 'T00:00:00').toLocaleDateString('pt-BR')}`
-                : new Date(minData + 'T00:00:00').toLocaleDateString('pt-BR'))
+                ? `${formatDateToDDMMYYYY(minData)} até ${formatDateToDDMMYYYY(maxData)}`
+                : formatDateToDDMMYYYY(minData))
             : '-';
 
         const expandido = !!_contratosExpandidos[contratoKey];
@@ -3887,7 +4057,7 @@ function renderizarRegistroVendas() {
                 <td class="col-qtd">${linha.quantidade}</td>
                 <td class="col-valor-un">${valorUn}</td>
                 <td class="col-valor-total">${valorTot > 0 ? formatarMoedaValor(valorTot) : '-'}</td>
-                <td class="col-data">${linha.dataNorm ? new Date(linha.dataNorm + 'T00:00:00').toLocaleDateString('pt-BR') : '-'}</td>
+                <td class="col-data">${linha.dataNorm ? formatDateToDDMMYYYY(linha.dataNorm) : '-'}</td>
                 <td class="col-total-contrato">-</td>
                 <td class="col-obs" title="${linha.observacoes || '-'}">${linha.observacoes || '-'}</td>
                 <td class="col-acoes">
