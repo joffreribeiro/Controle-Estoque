@@ -652,31 +652,47 @@
              ABA: CONTROLE IMBEL (FACAS) - SEPARADO
              ======================================== -->
         <div class="tab-content" id="tab-controleimbel">
+            <!-- Sub-navegação (mesmo padrão do sistema principal) -->
+            <div class="tabs-navigation" id="imbelSubNav" style="border-top: 1px solid var(--border-color);">
+                <button class="tab-btn active" data-imbeltab="estoque" onclick="trocarSubAbaControleImbel('estoque')">
+                    <span>📦</span> Estoque
+                </button>
+                <button class="tab-btn" data-imbeltab="cadastro" onclick="trocarSubAbaControleImbel('cadastro')">
+                    <span>📋</span> Cadastro de Produtos
+                </button>
+                <button class="tab-btn" data-imbeltab="movimentacao" onclick="trocarSubAbaControleImbel('movimentacao')">
+                    <span>🔄</span> Movimentação
+                </button>
+            </div>
+
             <div class="content-area">
-                <div class="section-header">
-                    <h2 class="section-title">Controle - IMBEL (Facas)</h2>
-                    <div class="header-actions">
-                        <button class="btn btn-outline" onclick="trocarSubAbaControleImbel('estoque')">Estoque</button>
-                        <button class="btn btn-outline" onclick="trocarSubAbaControleImbel('cadastro')" style="margin-left:6px">Cadastro</button>
-                        <button class="btn btn-outline" onclick="trocarSubAbaControleImbel('movimentacao')" style="margin-left:6px">Movimentação</button>
+                <!-- Sub-aba: Estoque -->
+                <div id="controleImbel-estoque" class="controleimbel-subtab">
+                    <div class="section-header">
+                        <h2 class="section-title">Estoque atual — Facas IMBEL (Sede)</h2>
+                        <div class="header-actions">
+                            <button class="btn btn-outline" onclick="renderControleImbelEstoque()">
+                                <span class="btn-icon">🔄</span> Atualizar
+                            </button>
+                        </div>
                     </div>
+                    <div id="controleImbelEstoqueContainer"></div>
                 </div>
 
-                <div id="controleImbelSubContent">
-                    <!-- Sub-aba: Estoque -->
-                    <div id="controleImbel-estoque" class="controleimbel-subtab" style="display:none">
-                        <div id="controleImbelEstoqueContainer"></div>
+                <!-- Sub-aba: Cadastro -->
+                <div id="controleImbel-cadastro" class="controleimbel-subtab" style="display:none">
+                    <div class="section-header">
+                        <h2 class="section-title">Cadastro de Produtos</h2>
                     </div>
+                    <div id="controleImbelCadastroContainer"></div>
+                </div>
 
-                    <!-- Sub-aba: Cadastro -->
-                    <div id="controleImbel-cadastro" class="controleimbel-subtab" style="display:none">
-                        <div id="controleImbelCadastroContainer"></div>
+                <!-- Sub-aba: Movimentação -->
+                <div id="controleImbel-movimentacao" class="controleimbel-subtab" style="display:none">
+                    <div class="section-header">
+                        <h2 class="section-title">Registrar Movimentação</h2>
                     </div>
-
-                    <!-- Sub-aba: Movimentação -->
-                    <div id="controleImbel-movimentacao" class="controleimbel-subtab" style="display:none">
-                        <div id="controleImbelMovContainer"></div>
-                    </div>
+                    <div id="controleImbelMovContainer"></div>
                 </div>
             </div>
         </div>

@@ -618,6 +618,8 @@ function trocarAba(aba) {
         prepararRelatorioInventario();
     } else if (aba === 'controleenvio') {
         renderizarControleEnvio();
+    } else if (aba === 'controleimbel') {
+        trocarSubAbaControleImbel('estoque');
     }
 }
 
@@ -2154,9 +2156,17 @@ function initControleImbel() {
 }
 
 function trocarSubAbaControleImbel(sub) {
+    // Atualizar botões ativos (sub-navegação IMBEL)
+    document.querySelectorAll('#imbelSubNav .tab-btn').forEach(btn => btn.classList.remove('active'));
+    const activeBtn = document.querySelector(`#imbelSubNav .tab-btn[data-imbeltab="${sub}"]`);
+    if (activeBtn) activeBtn.classList.add('active');
+
+    // Mostrar / ocultar painéis
     document.querySelectorAll('.controleimbel-subtab').forEach(el => el.style.display = 'none');
     const sel = document.getElementById(`controleImbel-${sub}`);
     if (sel) sel.style.display = 'block';
+
+    // Renderizar conteúdo
     if (sub === 'estoque') renderControleImbelEstoque();
     else if (sub === 'cadastro') renderControleImbelCadastro();
     else if (sub === 'movimentacao') renderControleImbelMovimentacao();
