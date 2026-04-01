@@ -2280,8 +2280,12 @@ function renderControleImbelDashboard() {
     }, 40);
 
     // Gestão de estoque em tempo real com semáforo
+    // container para dispor Estoque + Receita lado-a-lado
+    const statusRow = document.createElement('div');
+    statusRow.style.cssText = 'display:flex;gap:12px;flex-wrap:wrap;align-items:flex-start';
+
     const estoqueWrap = document.createElement('div');
-    estoqueWrap.style.cssText = 'background:#fff;border-radius:10px;padding:12px;box-shadow:0 1px 6px rgba(0,0,0,.06);margin-top:12px';
+    estoqueWrap.style.cssText = 'background:#fff;border-radius:10px;padding:12px;box-shadow:0 1px 6px rgba(0,0,0,.06);margin-top:12px;flex:1;min-width:300px';
     estoqueWrap.innerHTML = `<h3 style="margin:0 0 8px 0;font-size:1rem">Gestão de Estoque</h3>`;
     const tabela = document.createElement('table');
     tabela.style.cssText = 'width:100%;border-collapse:collapse;font-size:.9rem';
@@ -2376,7 +2380,22 @@ function renderControleImbelDashboard() {
 
     estoqueWrap.insertBefore(resumo, tabela);
     estoqueWrap.appendChild(tabela);
-    container.appendChild(estoqueWrap);
+    // alertas rápidos: produtos zerados e pedidos pendentes
+    if (zerados.length) {
+        const alerta = document.createElement('div');
+        alerta.style.cssText = 'background:#fff3f3;border-left:4px solid #dc3545;padding:8px;border-radius:6px;margin-top:8px;color:#7a1b1b';
+        alerta.innerHTML = `⚠️ <strong>${zerados.length} produto(s) zerado(s)</strong> — reposição urgente: ${zerados.map(z=>z.nome).join(', ')}`;
+        estoqueWrap.appendChild(alerta);
+    }
+    if (pendentes && pendentes.length) {
+        const alerta2 = document.createElement('div');
+        alerta2.style.cssText = 'background:#fff8e6;border-left:4px solid #ffc107;padding:8px;border-radius:6px;margin-top:8px;color:#856404';
+        alerta2.innerHTML = `ℹ️ <strong>${pendentes.length} pedido(s) pendente(s)</strong> — aguardando comprovante ou confirmação`;
+        estoqueWrap.appendChild(alerta2);
+    }
+
+    statusRow.appendChild(estoqueWrap);
+    container.appendChild(statusRow);
 
     // Acompanhamento de pedidos (pipeline)
     const pipelineWrap = document.createElement('div');
@@ -2436,7 +2455,7 @@ function renderControleImbelDashboard() {
     // Receita por produto
     try {
         const receitaWrap = document.createElement('div');
-        receitaWrap.style.cssText = 'background:#fff;border-radius:10px;padding:12px;box-shadow:0 1px 6px rgba(0,0,0,.06);margin-top:12px';
+        receitaWrap.style.cssText = 'background:#fff;border-radius:10px;padding:12px;box-shadow:0 1px 6px rgba(0,0,0,.06);margin-top:12px;flex:1;min-width:320px';
         receitaWrap.innerHTML = `<h3 style="margin:0 0 8px 0;font-size:1rem">Receita por Produto</h3>`;
         const tableR = document.createElement('table');
         tableR.style.cssText = 'width:100%;border-collapse:collapse;font-size:.9rem;margin-top:8px';
@@ -2465,7 +2484,47 @@ function renderControleImbelDashboard() {
             tbr.appendChild(tr);
         });
         receitaWrap.appendChild(tableR);
-        container.appendChild(receitaWrap);
+
+        // gráfico doughnut ao lado da tabela (receita por produto)
+        try {
+            const chartWrap = document.createElement('div');
+            chartWrap.style.cssText = 'display:flex;gap:8px;align-items:center;margin-top:8px';
+            const canvas = document.createElement('canvas');
+            canvas.id = 'imbelRevenueChart';
+            canvas.style.cssText = 'width:160px;height:140px;flex:0 0 160px';
+            const legendDiv = document.createElement('div');
+            legendDiv.style.cssText = 'flex:1;padding-left:8px;font-size:.9rem';
+
+            chartWrap.appendChild(canvas);
+            chartWrap.appendChild(legendDiv);
+            receitaWrap.appendChild(chartWrap);
+
+            // render chart asynchronously to ensure canvas is in DOM
+            setTimeout(() => {
+                try {
+                    const labels = produtosList.map(p => p.nome);
+                    const values = produtosList.map(p => receitaPorProduto[p.id] || 0);
+                    const colors = ['#2ecc71','#3498db','#e74c3c','#f1c40f','#9b59b6','#1abc9c','#e67e22','#95a5a6','#34495e','#d35400'];
+                    const ctx = document.getElementById('imbelRevenueChart');
+                    if (ctx && window.Chart) {
+                        if (ctx._chartInstance) try { ctx._chartInstance.destroy(); } catch(e){}
+                        const ch = new Chart(ctx.getContext('2d'), {
+                            type: 'doughnut',
+                            data: { labels, datasets: [{ data: values, backgroundColor: labels.map((_,i)=>colors[i%colors.length]) }] },
+                            options: {plugins:{legend:{display:false}},maintainAspectRatio:false}
+                        });
+                        ctx._chartInstance = ch;
+                    }
+
+                    // build legend
+                    const legendHtml = produtosList.map((p,i) => `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><div style=\"display:flex;align-items:center;gap:8px\"><span style=\"width:12px;height:12px;background:${colors[i%colors.length]};display:inline-block;border-radius:3px\"></span><span>${p.nome}</span></div><div style=\"font-weight:700\">R$ ${((receitaPorProduto[p.id]||0).toLocaleString('pt-BR',{minimumFractionDigits:2}))}</div></div>`).join('');
+                    legendDiv.innerHTML = legendHtml;
+                } catch(e) { console.warn('Erro ao renderizar chart de receita', e); }
+            }, 60);
+        } catch(e) { console.warn('Erro ao preparar gráfico', e); }
+
+        // aninha o bloco de receita ao lado do estoque quando possível
+        if (typeof statusRow !== 'undefined' && statusRow) statusRow.appendChild(receitaWrap); else container.appendChild(receitaWrap);
     } catch(e){ console.warn('Erro ao gerar receita por produto', e); }
 
     // Análise de clientes: top 10 e clientes com múltiplos produtos
