@@ -2199,6 +2199,7 @@ function renderControleImbelDashboard() {
     const container = document.getElementById('controleImbelDashboardContainer');
     if (!container) return;
     container.innerHTML = '';
+    const hoje = new Date().toISOString().slice(0,10);
 
     // Top indicators
     const movimentacoes = (data.movimentacoes || []).slice();
@@ -2718,27 +2719,62 @@ function renderControleImbelCadastro() {
     const data = loadImbel();
     const container = document.getElementById('controleImbelCadastroContainer');
     container.innerHTML = '';
-
     const thStyle = 'padding:8px 12px;border:1px solid #ddd;background:#1e3a5f;color:#fff;font-size:.82rem;white-space:nowrap';
     const tdBase  = 'padding:8px 12px;border:1px solid #ddd;vertical-align:middle;font-size:.85rem';
 
-    const formWrap = document.createElement('div');
-    formWrap.style.cssText = 'background:#fff;border-radius:10px;padding:16px;margin-bottom:16px;box-shadow:0 1px 4px rgba(0,0,0,.08)';
-    formWrap.innerHTML = `
-        <input type="hidden" id="imbel_prod_edit_id" />
-        <div style="display:grid;grid-template-columns:2fr 1fr 1fr 2fr auto;gap:10px;align-items:end">
-            <div><label style="font-size:.82rem;font-weight:600;color:#555;display:block;margin-bottom:4px">Nome do Produto</label>
-                <input type="text" id="imbel_prod_nome" placeholder="Nome" style="width:100%;padding:7px 8px;border:1px solid #ddd;border-radius:6px;font-size:.85rem"/></div>
-            <div><label style="font-size:.82rem;font-weight:600;color:#555;display:block;margin-bottom:4px">Código</label>
-                <input type="text" id="imbel_prod_codigo" placeholder="Cód." style="width:100%;padding:7px 8px;border:1px solid #ddd;border-radius:6px;font-size:.85rem"/></div>
-            <div><label style="font-size:.82rem;font-weight:600;color:#555;display:block;margin-bottom:4px">Quantidade Inicial</label>
-                <input type="number" id="imbel_prod_qtd_inicial" value="0" min="0" style="width:100%;padding:7px 8px;border:1px solid #ddd;border-radius:6px;font-size:.85rem"/></div>
-            <div><label style="font-size:.82rem;font-weight:600;color:#555;display:block;margin-bottom:4px">Observação</label>
-                <input type="text" id="imbel_prod_obs" placeholder="Observação" style="width:100%;padding:7px 8px;border:1px solid #ddd;border-radius:6px;font-size:.85rem"/></div>
-            <div><button type="button" id="imbel_prod_salvar" class="btn btn-primary">Salvar</button></div>
-        </div>
-    `;
-    container.appendChild(formWrap);
+    // botão para abrir modal de cadastro
+    const controls = document.createElement('div');
+    controls.style.cssText = 'display:flex;justify-content:flex-end;margin-bottom:12px';
+    const btnNewProd = document.createElement('button');
+    btnNewProd.className = 'btn btn-primary';
+    btnNewProd.id = 'imbel_prod_open_modal';
+    btnNewProd.innerHTML = '<span class="btn-icon">➕</span> Cadastrar Produto';
+    controls.appendChild(btnNewProd);
+    container.appendChild(controls);
+
+    // criar modal de cadastro (se necessário)
+    if (!document.getElementById('imbel_prod_modal')) {
+        const modal = document.createElement('div');
+        modal.id = 'imbel_prod_modal';
+        modal.style.cssText = 'position:fixed;left:0;top:0;width:100%;height:100%;display:none;align-items:center;justify-content:center;z-index:9999';
+        modal.innerHTML = `
+            <div style="position:fixed;left:0;top:0;width:100%;height:100%;background:rgba(0,0,0,0.4)" id="imbel_prod_modal_backdrop"></div>
+            <div style="background:#fff;border-radius:10px;padding:18px;max-width:720px;width:95%;box-shadow:0 6px 30px rgba(0,0,0,.2);z-index:10000;max-height:90%;overflow:auto">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+                    <h3 style="margin:0;font-size:1rem">Cadastrar / Editar Produto</h3>
+                    <button id="imbel_prod_modal_close" class="btn btn-outline">Fechar</button>
+                </div>
+                <input type="hidden" id="imbel_prod_edit_id" />
+                <div style="display:grid;grid-template-columns:2fr 1fr 1fr 2fr auto;gap:10px;align-items:end">
+                    <div><label style="font-size:.82rem;font-weight:600;color:#555;display:block;margin-bottom:4px">Nome do Produto</label>
+                        <input type="text" id="imbel_prod_nome" placeholder="Nome" style="width:100%;padding:7px 8px;border:1px solid #ddd;border-radius:6px;font-size:.85rem"/></div>
+                    <div><label style="font-size:.82rem;font-weight:600;color:#555;display:block;margin-bottom:4px">Código</label>
+                        <input type="text" id="imbel_prod_codigo" placeholder="Cód." style="width:100%;padding:7px 8px;border:1px solid #ddd;border-radius:6px;font-size:.85rem"/></div>
+                    <div><label style="font-size:.82rem;font-weight:600;color:#555;display:block;margin-bottom:4px">Quantidade Inicial</label>
+                        <input type="number" id="imbel_prod_qtd_inicial" value="0" min="0" style="width:100%;padding:7px 8px;border:1px solid #ddd;border-radius:6px;font-size:.85rem"/></div>
+                    <div><label style="font-size:.82rem;font-weight:600;color:#555;display:block;margin-bottom:4px">Observação</label>
+                        <input type="text" id="imbel_prod_obs" placeholder="Observação" style="width:100%;padding:7px 8px;border:1px solid #ddd;border-radius:6px;font-size:.85rem"/></div>
+                    <div style="display:flex;align-items:flex-end"><button type="button" id="imbel_prod_salvar" class="btn btn-primary">Salvar</button></div>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+        document.getElementById('imbel_prod_modal_close').onclick = function(){ document.getElementById('imbel_prod_modal').style.display = 'none'; };
+        document.getElementById('imbel_prod_modal_backdrop').onclick = function(){ document.getElementById('imbel_prod_modal').style.display = 'none'; };
+    }
+
+    // abrir modal ao clicar no botão
+    document.getElementById('imbel_prod_open_modal').onclick = function(){
+        // resetar campos
+        const editField = document.getElementById('imbel_prod_edit_id'); if (editField) editField.value = '';
+        document.getElementById('imbel_prod_nome').value = '';
+        document.getElementById('imbel_prod_codigo').value = '';
+        document.getElementById('imbel_prod_qtd_inicial').value = 0;
+        document.getElementById('imbel_prod_obs').value = '';
+        document.getElementById('imbel_prod_salvar').textContent = 'Salvar';
+        document.getElementById('imbel_prod_modal').style.display = 'flex';
+        document.getElementById('imbel_prod_nome').focus();
+    };
 
     const wrap = document.createElement('div');
     wrap.style.cssText = 'overflow-x:auto;background:#fff;border-radius:10px;padding:16px;box-shadow:0 1px 4px rgba(0,0,0,.08)';
@@ -2784,14 +2820,16 @@ function renderControleImbelCadastro() {
                 // reset edit state
                 editIdField.value = '';
                 document.getElementById('imbel_prod_salvar').textContent = 'Salvar';
-                renderControleImbelCadastro();
-                renderControleImbelEstoque();
+                    const modal = document.getElementById('imbel_prod_modal'); if (modal) modal.style.display = 'none';
+                    renderControleImbelCadastro();
+                    renderControleImbelEstoque();
                 return;
             }
         }
         const novo = { id: 'p' + Date.now(), nome, codigo, observacao, quantidadeInicial };
         data.produtos.push(novo);
         saveImbel(data);
+        const modal2 = document.getElementById('imbel_prod_modal'); if (modal2) modal2.style.display = 'none';
         renderControleImbelCadastro();
     };
 
@@ -2826,74 +2864,121 @@ function renderControleImbelMovimentacao() {
     const container = document.getElementById('controleImbelMovContainer');
     container.innerHTML = '';
 
-    // ---- Formulário ----
-    const formWrap = document.createElement('div');
-    formWrap.style.cssText = 'background:#fff;border-radius:10px;padding:20px;margin-bottom:20px;box-shadow:0 1px 4px rgba(0,0,0,.08)';
-    formWrap.innerHTML = `
-        <input type="hidden" id="imbel_mov_edit_id" />
-        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;align-items:end">
-            <div>
-                <label style="font-size:.82rem;font-weight:600;color:#555;display:block;margin-bottom:4px">Descrição (Produto)</label>
-                <select id="imbel_mov_prod" style="width:100%;padding:7px 8px;border:1px solid #ddd;border-radius:6px;font-size:.85rem"></select>
+    // ---- Controls: botão para abrir modal de movimentação e limpar tabela ----
+    const controlsWrap = document.createElement('div');
+    controlsWrap.style.cssText = 'display:flex;gap:8px;margin-bottom:12px;align-items:center';
+    const btnOpenMov = document.createElement('button');
+    btnOpenMov.className = 'btn btn-primary';
+    btnOpenMov.id = 'imbel_mov_open_modal';
+    btnOpenMov.innerHTML = '<span class="btn-icon">💾</span> Registrar Movimentação';
+    const btnClearTable = document.createElement('button');
+    btnClearTable.className = 'btn btn-outline';
+    btnClearTable.id = 'imbel_mov_clear_table';
+    btnClearTable.innerHTML = '<span class="btn-icon">🧹</span> Limpar Tabela';
+    controlsWrap.appendChild(btnOpenMov);
+    controlsWrap.appendChild(btnClearTable);
+    container.appendChild(controlsWrap);
+
+    // criar modal de movimentação (uma única vez)
+    if (!document.getElementById('imbel_mov_modal')) {
+        const modal = document.createElement('div');
+        modal.id = 'imbel_mov_modal';
+        modal.style.cssText = 'position:fixed;left:0;top:0;width:100%;height:100%;display:none;align-items:center;justify-content:center;z-index:9999';
+        modal.innerHTML = `
+            <div style="position:fixed;left:0;top:0;width:100%;height:100%;background:rgba(0,0,0,0.4)" id="imbel_mov_modal_backdrop"></div>
+            <div style="background:#fff;border-radius:10px;padding:18px;max-width:1100px;width:95%;box-shadow:0 6px 30px rgba(0,0,0,.2);z-index:10000;max-height:90%;overflow:auto">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+                    <h3 style="margin:0;font-size:1rem">Registrar Movimentação</h3>
+                    <button id="imbel_mov_modal_close" class="btn btn-outline">Fechar</button>
+                </div>
+                <input type="hidden" id="imbel_mov_edit_id" />
+                <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;align-items:end">
+                    <div>
+                        <label style="font-size:.82rem;font-weight:600;color:#555;display:block;margin-bottom:4px">Descrição (Produto)</label>
+                        <select id="imbel_mov_prod" style="width:100%;padding:7px 8px;border:1px solid #ddd;border-radius:6px;font-size:.85rem"></select>
+                    </div>
+                    <div>
+                        <label style="font-size:.82rem;font-weight:600;color:#555;display:block;margin-bottom:4px">Tipo</label>
+                        <select id="imbel_mov_tipo" style="width:100%;padding:7px 8px;border:1px solid #ddd;border-radius:6px;font-size:.85rem">
+                            <option value="Entrada">Entrada</option>
+                            <option value="Saída">Saída</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label style="font-size:.82rem;font-weight:600;color:#555;display:block;margin-bottom:4px">Data</label>
+                        <input type="date" id="imbel_mov_data" style="width:100%;padding:7px 8px;border:1px solid #ddd;border-radius:6px;font-size:.85rem"/>
+                    </div>
+                    <div>
+                        <label style="font-size:.82rem;font-weight:600;color:#555;display:block;margin-bottom:4px">Quantidade</label>
+                        <input type="number" id="imbel_mov_qtd" value="1" min="1" style="width:100%;padding:7px 8px;border:1px solid #ddd;border-radius:6px;font-size:.85rem"/>
+                    </div>
+                    <div>
+                        <label style="font-size:.82rem;font-weight:600;color:#555;display:block;margin-bottom:4px">Destinatário</label>
+                        <input type="text" id="imbel_mov_dest" placeholder="Nome" style="width:100%;padding:7px 8px;border:1px solid #ddd;border-radius:6px;font-size:.85rem"/>
+                    </div>
+                    <div>
+                        <label style="font-size:.82rem;font-weight:600;color:#555;display:block;margin-bottom:4px">CPF / CNPJ</label>
+                        <input type="text" id="imbel_mov_cpf" placeholder="000.000.000-00" style="width:100%;padding:7px 8px;border:1px solid #ddd;border-radius:6px;font-size:.85rem"/>
+                    </div>
+                    <div>
+                        <label style="font-size:.82rem;font-weight:600;color:#555;display:block;margin-bottom:4px">Valor (R$)</label>
+                        <input type="number" id="imbel_mov_valor" min="0" step="0.01" placeholder="0,00" style="width:100%;padding:7px 8px;border:1px solid #ddd;border-radius:6px;font-size:.85rem"/>
+                    </div>
+                    <div style="grid-column:span 2">
+                        <label style="font-size:.82rem;font-weight:600;color:#555;display:block;margin-bottom:4px">Endereço</label>
+                        <input type="text" id="imbel_mov_endereco" placeholder="Rua, número, cidade" style="width:100%;padding:7px 8px;border:1px solid #ddd;border-radius:6px;font-size:.85rem"/>
+                    </div>
+                    <div>
+                        <label style="font-size:.82rem;font-weight:600;color:#555;display:block;margin-bottom:4px">Telefone</label>
+                        <input type="text" id="imbel_mov_tel" placeholder="(00) 00000-0000" style="width:100%;padding:7px 8px;border:1px solid #ddd;border-radius:6px;font-size:.85rem"/>
+                    </div>
+                    <div>
+                        <label style="font-size:.82rem;font-weight:600;color:#555;display:block;margin-bottom:4px">E-mail</label>
+                        <input type="email" id="imbel_mov_email" placeholder="email@exemplo.com" style="width:100%;padding:7px 8px;border:1px solid #ddd;border-radius:6px;font-size:.85rem"/>
+                    </div>
+                    <div style="grid-column:1/-1">
+                        <label style="font-size:.82rem;font-weight:600;color:#555;display:block;margin-bottom:4px">Observações</label>
+                        <input type="text" id="imbel_mov_obs" placeholder="Observações adicionais" style="width:100%;padding:7px 8px;border:1px solid #ddd;border-radius:6px;font-size:.85rem"/>
+                    </div>
+                    <div style="grid-column:1/-1;display:flex;gap:8px;justify-content:flex-end;margin-top:8px">
+                        <button type="button" id="imbel_mov_modal_cancel" class="btn btn-outline">Cancelar</button>
+                        <button type="button" id="imbel_mov_salvar" class="btn btn-primary">Registrar Movimentação</button>
+                    </div>
+                </div>
             </div>
-            <div>
-                <label style="font-size:.82rem;font-weight:600;color:#555;display:block;margin-bottom:4px">Tipo</label>
-                <select id="imbel_mov_tipo" style="width:100%;padding:7px 8px;border:1px solid #ddd;border-radius:6px;font-size:.85rem">
-                    <option value="Entrada">Entrada</option>
-                    <option value="Saída">Saída</option>
-                </select>
-            </div>
-            <div>
-                <label style="font-size:.82rem;font-weight:600;color:#555;display:block;margin-bottom:4px">Data</label>
-                <input type="date" id="imbel_mov_data" style="width:100%;padding:7px 8px;border:1px solid #ddd;border-radius:6px;font-size:.85rem"/>
-            </div>
-            <div>
-                <label style="font-size:.82rem;font-weight:600;color:#555;display:block;margin-bottom:4px">Quantidade</label>
-                <input type="number" id="imbel_mov_qtd" value="1" min="1" style="width:100%;padding:7px 8px;border:1px solid #ddd;border-radius:6px;font-size:.85rem"/>
-            </div>
-            <div>
-                <label style="font-size:.82rem;font-weight:600;color:#555;display:block;margin-bottom:4px">Destinatário</label>
-                <input type="text" id="imbel_mov_dest" placeholder="Nome" style="width:100%;padding:7px 8px;border:1px solid #ddd;border-radius:6px;font-size:.85rem"/>
-            </div>
-            <div>
-                <label style="font-size:.82rem;font-weight:600;color:#555;display:block;margin-bottom:4px">CPF / CNPJ</label>
-                <input type="text" id="imbel_mov_cpf" placeholder="000.000.000-00" style="width:100%;padding:7px 8px;border:1px solid #ddd;border-radius:6px;font-size:.85rem"/>
-            </div>
-            <div>
-                <label style="font-size:.82rem;font-weight:600;color:#555;display:block;margin-bottom:4px">Valor (R$)</label>
-                <input type="number" id="imbel_mov_valor" min="0" step="0.01" placeholder="0,00" style="width:100%;padding:7px 8px;border:1px solid #ddd;border-radius:6px;font-size:.85rem"/>
-            </div>
-            <div style="grid-column:span 2">
-                <label style="font-size:.82rem;font-weight:600;color:#555;display:block;margin-bottom:4px">Endereço</label>
-                <input type="text" id="imbel_mov_endereco" placeholder="Rua, número, cidade" style="width:100%;padding:7px 8px;border:1px solid #ddd;border-radius:6px;font-size:.85rem"/>
-            </div>
-            <div>
-                <label style="font-size:.82rem;font-weight:600;color:#555;display:block;margin-bottom:4px">Telefone</label>
-                <input type="text" id="imbel_mov_tel" placeholder="(00) 00000-0000" style="width:100%;padding:7px 8px;border:1px solid #ddd;border-radius:6px;font-size:.85rem"/>
-            </div>
-            <div>
-                <label style="font-size:.82rem;font-weight:600;color:#555;display:block;margin-bottom:4px">E-mail</label>
-                <input type="email" id="imbel_mov_email" placeholder="email@exemplo.com" style="width:100%;padding:7px 8px;border:1px solid #ddd;border-radius:6px;font-size:.85rem"/>
-            </div>
-            <!-- Pagamento / Entregue / FI serão controlados via checkboxes na TABELA, não no cadastro -->
-            <div style="grid-column:1/-1">
-                <label style="font-size:.82rem;font-weight:600;color:#555;display:block;margin-bottom:4px">Observações</label>
-                <input type="text" id="imbel_mov_obs" placeholder="Observações adicionais" style="width:100%;padding:7px 8px;border:1px solid #ddd;border-radius:6px;font-size:.85rem"/>
-            </div>
-            <div style="grid-column:1/-1;display:flex;gap:8px;justify-content:flex-end;margin-top:4px">
-                <button type="button" id="imbel_mov_limpar" class="btn btn-outline">
-                    <span class="btn-icon">🗑️</span> Limpar
-                </button>
-                <button type="button" id="imbel_mov_clear_table" class="btn btn-outline">
-                    <span class="btn-icon">🧹</span> Limpar Tabela
-                </button>
-                <button type="button" id="imbel_mov_salvar" class="btn btn-primary">
-                    <span class="btn-icon">💾</span> Registrar Movimentação
-                </button>
-            </div>
-        </div>
-    `;
-    container.appendChild(formWrap);
+        `;
+        document.body.appendChild(modal);
+        // close handlers
+        document.getElementById('imbel_mov_modal_close').onclick = function(){ document.getElementById('imbel_mov_modal').style.display = 'none'; };
+        document.getElementById('imbel_mov_modal_backdrop').onclick = function(){ document.getElementById('imbel_mov_modal').style.display = 'none'; };
+        document.getElementById('imbel_mov_modal_cancel').onclick = function(){ document.getElementById('imbel_mov_modal').style.display = 'none'; };
+    }
+
+    // abrir modal ao clicar
+    document.getElementById('imbel_mov_open_modal').onclick = function(){
+        // popular select de produto dentro do modal
+        const selecModal = document.getElementById('imbel_mov_prod');
+        if (selecModal) {
+            selecModal.innerHTML = '<option value="">— selecione o produto —</option>';
+            (data.produtos||[]).forEach(p => {
+                const opt = document.createElement('option'); opt.value = p.id; opt.textContent = p.nome + (p.codigo ? ' ('+p.codigo+')' : ''); selecModal.appendChild(opt);
+            });
+        }
+        // set default date
+        const hoje = new Date().toISOString().slice(0,10);
+        const dataInput = document.getElementById('imbel_mov_data'); if (dataInput) dataInput.value = hoje;
+        document.getElementById('imbel_mov_modal').style.display = 'flex';
+    };
+
+    // limpar tabela
+    document.getElementById('imbel_mov_clear_table').onclick = function(){
+        if (!confirm('Limpar todas as movimentações? Esta ação é irreversível.')) return;
+        data.movimentacoes = [];
+        saveImbel(data);
+        renderControleImbelMovimentacao();
+        renderControleImbelEstoque();
+        mostrarNotificacao('Tabela de movimentações limpa.', 'success');
+    };
 
     // Popular select de produtos
     const selec = document.getElementById('imbel_mov_prod');
@@ -3085,6 +3170,9 @@ function renderControleImbelMovimentacao() {
                 document.getElementById('imbel_mov_obs').value = mov.observacoes || '';
                 const editField = document.getElementById('imbel_mov_edit_id'); if (editField) editField.value = id;
                 document.getElementById('imbel_mov_salvar').textContent = 'Atualizar Movimentação';
+                // abrir modal para edição
+                const modal = document.getElementById('imbel_mov_modal');
+                if (modal) modal.style.display = 'flex';
                 document.getElementById('imbel_mov_prod').focus();
             };
         });
@@ -3207,6 +3295,8 @@ function renderControleImbelMovimentacao() {
         });
         saveImbel(data);
         mostrarNotificacao('Movimentação registrada!', 'success');
+        // fechar modal e atualizar views
+        const modal = document.getElementById('imbel_mov_modal'); if (modal) modal.style.display = 'none';
         renderControleImbelMovimentacao();
         renderControleImbelEstoque();
     };
@@ -3292,9 +3382,10 @@ function editarProdutoPorId(id) {
         const data = loadImbel();
         const prod = (data.produtos||[]).find(p => p.id === id);
         if (!prod) { mostrarNotificacao('Produto não encontrado para edição.', 'error'); return; }
-        trocarSubAbaControleImbel('cadastro');
-        // aguardar renderização do formulário e então preencher
-        setTimeout(() => {
+        // abrir modal de edição do produto (se existente) e preencher campos
+        try {
+            const modal = document.getElementById('imbel_prod_modal');
+            if (modal) modal.style.display = 'flex';
             const nomeEl = document.getElementById('imbel_prod_nome');
             if (!nomeEl) return;
             document.getElementById('imbel_prod_nome').value = prod.nome || '';
@@ -3304,7 +3395,7 @@ function editarProdutoPorId(id) {
             const editField = document.getElementById('imbel_prod_edit_id'); if (editField) editField.value = id;
             document.getElementById('imbel_prod_salvar').textContent = 'Atualizar';
             document.getElementById('imbel_prod_nome').focus();
-        }, 60);
+        } catch(e) { console.error(e); }
     } catch (e) {
         console.error('editarProdutoPorId erro:', e);
     }
