@@ -663,6 +663,9 @@
                 <button class="tab-btn" data-imbeltab="movimentacao" onclick="trocarSubAbaControleImbel('movimentacao')">
                     <span>🔄</span> Movimentação
                 </button>
+                <button class="tab-btn" data-imbeltab="dashboard" onclick="trocarSubAbaControleImbel('dashboard')">
+                    <span>📊</span> Dashboard
+                </button>
             </div>
 
             <div class="content-area">
@@ -718,6 +721,19 @@
                         </div>
                     </div>
                     <div id="controleImbelMovContainer"></div>
+                </div>
+
+                <!-- Sub-aba: Dashboard IMBEL -->
+                <div id="controleImbel-dashboard" class="controleimbel-subtab" style="display:none">
+                    <div class="section-header">
+                        <h2 class="section-title">Dashboard — IMBEL (Facas)</h2>
+                        <div class="header-actions">
+                            <button class="btn btn-outline" onclick="renderControleImbelDashboard()">
+                                <span class="btn-icon">🔄</span> Atualizar
+                            </button>
+                        </div>
+                    </div>
+                    <div id="controleImbelDashboardContainer"></div>
                 </div>
             </div>
         </div>

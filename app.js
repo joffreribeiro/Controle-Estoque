@@ -2191,6 +2191,219 @@ function trocarSubAbaControleImbel(sub) {
     if (sub === 'estoque') renderControleImbelEstoque();
     else if (sub === 'cadastro') renderControleImbelCadastro();
     else if (sub === 'movimentacao') renderControleImbelMovimentacao();
+    else if (sub === 'dashboard') renderControleImbelDashboard();
+}
+
+function renderControleImbelDashboard() {
+    const data = loadImbel();
+    const container = document.getElementById('controleImbelDashboardContainer');
+    if (!container) return;
+    container.innerHTML = '';
+
+    // Top indicators
+    const movimentacoes = (data.movimentacoes || []).slice();
+    // Considerar apenas SAÍDA como venda para faturamento
+    const vendas = movimentacoes.filter(m => ((m.tipo||'').toString().toUpperCase() === 'SAÍDA' || (m.tipo||'').toString().toUpperCase() === 'SAÍDA'));
+    const receitaTotal = vendas.reduce((s,m) => s + (Number(m.valor)||0), 0);
+    const unidadesVendidas = vendas.reduce((s,m) => s + (Number(m.quantidade)||0), 0);
+    const clientes = new Set(vendas.filter(v=> (v.destinatario||'').trim() ).map(v => (v.destinatario||'').toString().toUpperCase()));
+    const clientesAtivos = clientes.size;
+    const pedidosCount = vendas.length;
+    const ticketMedio = pedidosCount > 0 ? receitaTotal / pedidosCount : 0;
+
+    const indicadores = document.createElement('div');
+    indicadores.style.cssText = 'display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:12px';
+    const card = (titulo, valor, destaque) => {
+        const c = document.createElement('div');
+        c.style.cssText = 'background:#fff;padding:14px;border-radius:10px;box-shadow:0 1px 6px rgba(0,0,0,.06)';
+        const innerVal = destaque ? `<span style="color:#1e3a5f">${valor}</span>` : `${valor}`;
+        c.innerHTML = `<div style="font-size:.78rem;color:#666">${titulo}</div><div style="font-size:1.3rem;font-weight:700;margin-top:6px">${innerVal}</div>`;
+        return c;
+    };
+
+    indicadores.appendChild(card('Receita total', 'R$ ' + receitaTotal.toLocaleString('pt-BR',{minimumFractionDigits:2}), true));
+    indicadores.appendChild(card('Unidades vendidas', unidadesVendidas.toString(), false));
+    indicadores.appendChild(card('Clientes ativos', clientesAtivos.toString(), false));
+    indicadores.appendChild(card('Ticket médio', 'R$ ' + ticketMedio.toLocaleString('pt-BR',{minimumFractionDigits:2}), false));
+
+    container.appendChild(indicadores);
+
+    // Controle financeiro: pendentes e comparação
+    const pendentes = vendas.filter(v => (v.pagamento||'').toString().toUpperCase() !== 'SIM');
+    const valorPendentes = pendentes.reduce((s,m) => s + (Number(m.valor)||0), 0);
+    const pagosCount = vendas.filter(v => (v.pagamento||'').toString().toUpperCase() === 'SIM').length;
+    const naoConfirmadosCount = vendas.length - pagosCount;
+
+    const financeiroWrap = document.createElement('div');
+    financeiroWrap.style.cssText = 'display:flex;gap:12px;flex-wrap:wrap;margin-bottom:12px;align-items:stretch';
+    const finCard = (title, value, sub) => {
+        const el = document.createElement('div');
+        el.style.cssText = 'background:#fff;padding:12px;border-radius:10px;box-shadow:0 1px 6px rgba(0,0,0,.06);min-width:200px;flex:1';
+        el.innerHTML = `<div style="font-size:.78rem;color:#666">${title}</div><div style="font-size:1.1rem;font-weight:700;margin-top:6px">${value}</div>${sub?`<div style="font-size:.75rem;color:#888;margin-top:6px">${sub}</div>`:''}`;
+        return el;
+    };
+
+    financeiroWrap.appendChild(finCard('Valor pendente de recebimento', 'R$ ' + valorPendentes.toLocaleString('pt-BR',{minimumFractionDigits:2}), `${pendentes.length} pedidos pendentes`));
+    financeiroWrap.appendChild(finCard('Pedidos pagos', pagosCount.toString(), 'Confirmados'));
+    financeiroWrap.appendChild(finCard('Pedidos não confirmados', naoConfirmadosCount.toString(), 'Aguardando comprovante/GRU'));
+
+    // Chart area (paid x unconfirmed)
+    const chartCard = document.createElement('div');
+    chartCard.style.cssText = 'background:#fff;padding:12px;border-radius:10px;box-shadow:0 1px 6px rgba(0,0,0,.06);min-width:260px;flex:1';
+    chartCard.innerHTML = `<div style="font-size:.78rem;color:#666">Comparação: Pagos vs Não confirmados</div><canvas id="imbelPaidChart" style="height:80px;margin-top:8px"></canvas>`;
+    financeiroWrap.appendChild(chartCard);
+
+    container.appendChild(financeiroWrap);
+
+    // render chart if Chart available
+    setTimeout(() => {
+        try {
+            const ctx = document.getElementById('imbelPaidChart');
+            if (ctx && window.Chart) {
+                // destroy previous chart instance if any
+                if (ctx._chartInstance) try { ctx._chartInstance.destroy(); } catch(e){}
+                const ch = new Chart(ctx.getContext('2d'), {
+                    type: 'bar',
+                    data: {
+                        labels: ['Pagos','Não confirmados'],
+                        datasets: [{
+                            label: 'Pedidos',
+                            data: [pagosCount, naoConfirmadosCount],
+                            backgroundColor: ['#28a745','#ffc107']
+                        }]
+                    },
+                    options: {plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{precision:0}}}}
+                });
+                ctx._chartInstance = ch;
+            }
+        } catch (e) { console.warn('Chart render falhou', e); }
+    }, 40);
+
+    // Gestão de estoque em tempo real com semáforo
+    const estoqueWrap = document.createElement('div');
+    estoqueWrap.style.cssText = 'background:#fff;border-radius:10px;padding:12px;box-shadow:0 1px 6px rgba(0,0,0,.06);margin-top:12px';
+    estoqueWrap.innerHTML = `<h3 style="margin:0 0 8px 0;font-size:1rem">Gestão de Estoque</h3>`;
+    const tabela = document.createElement('table');
+    tabela.style.cssText = 'width:100%;border-collapse:collapse;font-size:.9rem';
+    tabela.innerHTML = `<thead><tr style="background:#1e3a5f;color:#fff"><th style="padding:8px">Produto</th><th style="padding:8px">Estoque Atual</th><th style="padding:8px">Ponto Reposição</th><th style="padding:8px">Semáforo</th><th style="padding:8px">Tempo p/ zerar lote anterior</th></tr></thead><tbody></tbody>`;
+    const tb = tabela.querySelector('tbody');
+
+    const produtos = data.produtos || [];
+    // função auxiliar para calcular saldo atual
+    const calcSaldo = (prodId) => {
+        const totE = (data.movimentacoes||[]).filter(m=>m.produtoId===prodId && (m.tipo||'').toString().toUpperCase()==='ENTRADA').reduce((s,m)=>s + (Number(m.quantidade)||0),0);
+        const totS = (data.movimentacoes||[]).filter(m=>m.produtoId===prodId && ((m.tipo||'').toString().toUpperCase()==='SAÍDA' || (m.tipo||'').toString().toUpperCase()==='SAÍDA')).reduce((s,m)=>s + (Number(m.quantidade)||0),0);
+        const inicial = Number((data.produtos||[]).find(p=>p.id===prodId)?.quantidadeInicial) || 0;
+        return inicial + totE - totS;
+    };
+
+    // calcula tempo para zerar lote anterior (último ciclo completo)
+    function tempoParaZerar(prodId) {
+        const movs = (data.movimentacoes||[]).filter(m=>m.produtoId===prodId).slice().sort((a,b)=> (a.data||'').localeCompare(b.data||''));
+        if (!movs.length) return null;
+        let balance = 0;
+        let lastEntradaDate = null;
+        let lastZeroCycleDays = null;
+        movs.forEach(m => {
+            const tipo = (m.tipo||'').toString().toUpperCase();
+            const q = Number(m.quantidade)||0;
+            if (tipo === 'ENTRADA') {
+                balance += q;
+                lastEntradaDate = m.data || null;
+            } else if (tipo === 'SAÍDA' || tipo === 'SAÍDA') {
+                balance -= q;
+            }
+            if (lastEntradaDate && balance <= 0) {
+                // ciclo zerou
+                try {
+                    const d1 = new Date(lastEntradaDate);
+                    const d2 = new Date(m.data || lastEntradaDate);
+                    const diff = Math.ceil((d2 - d1)/(1000*60*60*24));
+                    lastZeroCycleDays = diff >= 0 ? diff : null;
+                } catch(e) { lastZeroCycleDays = null; }
+                // reset to look for more recent cycles
+                lastEntradaDate = null;
+                balance = 0;
+            }
+        });
+        return lastZeroCycleDays;
+    }
+
+    produtos.forEach(p => {
+        const estoqueAtual = calcSaldo(p.id);
+        const ponto = (p.pontoReposicao !== undefined) ? Number(p.pontoReposicao) : Math.max(1, Math.floor((Number(p.quantidadeInicial)||0) * 0.2));
+        let status = 'OK';
+        let color = '#28a745';
+        if (estoqueAtual <= 0) { status = 'CRÍTICO'; color = '#dc3545'; }
+        else if (estoqueAtual <= ponto) { status = 'ATENÇÃO'; color = '#ffc107'; }
+
+        const tempo = tempoParaZerar(p.id);
+        const tr = document.createElement('tr');
+        tr.style.background = '#fff';
+        tr.innerHTML = `<td style="padding:8px;border:1px solid #eee">${p.nome}</td>
+                        <td style="padding:8px;border:1px solid #eee;text-align:center">${estoqueAtual}</td>
+                        <td style="padding:8px;border:1px solid #eee;text-align:center">${p.pontoReposicao !== undefined ? p.pontoReposicao : ponto}</td>
+                        <td style="padding:8px;border:1px solid #eee;text-align:center"><span style="display:inline-block;padding:6px 10px;border-radius:12px;background:${color};color:#fff;font-weight:700">${status}</span></td>
+                        <td style="padding:8px;border:1px solid #eee;text-align:center">${tempo===null?'-':(tempo + ' dias')}</td>`;
+        tb.appendChild(tr);
+    });
+
+    estoqueWrap.appendChild(tabela);
+    container.appendChild(estoqueWrap);
+
+    // Acompanhamento de pedidos (pipeline)
+    const pipelineWrap = document.createElement('div');
+    pipelineWrap.style.cssText = 'background:#fff;border-radius:10px;padding:12px;box-shadow:0 1px 6px rgba(0,0,0,.06);margin-top:12px';
+    pipelineWrap.innerHTML = `<h3 style="margin:0 0 8px 0;font-size:1rem">Acompanhamento de Pedidos</h3>`;
+    const tableP = document.createElement('table');
+    tableP.style.cssText = 'width:100%;border-collapse:collapse;font-size:.9rem';
+    tableP.innerHTML = `<thead><tr style="background:#1e3a5f;color:#fff"><th style="padding:8px">Nº</th><th style="padding:8px">Produto</th><th style="padding:8px">Data</th><th style="padding:8px">Cliente</th><th style="padding:8px">Pipeline</th><th style="padding:8px">Ações</th></tr></thead><tbody></tbody>`;
+    const tpb = tableP.querySelector('tbody');
+
+    const vendasLista = movimentacoes.filter(m => ((m.tipo||'').toString().toUpperCase()==='SAÍDA' || (m.tipo||'').toString().toUpperCase()==='SAÍDA')).slice().reverse();
+    vendasLista.forEach((v, idx) => {
+        const prod = (data.produtos||[]).find(p=>p.id===v.produtoId) || {nome: v.descricao || '-'};
+        const dateFmt = formatDateToDDMMYYYY(v.data || '');
+        const passos = [
+            {label:'Pedido', ok:true},
+            {label:'Comprovante', ok: (v.pagamento||'').toString().toUpperCase()==='SIM'},
+            {label:'GRU paga', ok: (v.gruPago||'') === true ? true : false},
+            {label:'Entregue', ok: (v.entregue||'').toString().toUpperCase()==='SIM'},
+            {label:'FI', ok: (v.fi||'').toString().toUpperCase()==='SIM'}
+        ];
+
+        const passoHtml = passos.map(pas => `<span style="display:inline-block;margin-right:6px;padding:6px 8px;border-radius:12px;background:${pas.ok? '#d4edda':'#f8d7da'};color:${pas.ok? '#155724':'#721c24'};font-weight:600;font-size:.8rem">${pas.label}</span>`).join('');
+
+        const tr = document.createElement('tr');
+        tr.style.background = idx % 2 === 0 ? '#fff' : '#f7f9fc';
+        tr.innerHTML = `<td style="padding:8px;border:1px solid #eee;text-align:center">${idx+1}</td>
+                        <td style="padding:8px;border:1px solid #eee">${prod.nome}</td>
+                        <td style="padding:8px;border:1px solid #eee;text-align:center">${dateFmt}</td>
+                        <td style="padding:8px;border:1px solid #eee">${v.destinatario||'-'}</td>
+                        <td style="padding:8px;border:1px solid #eee">${passoHtml}</td>
+                        <td style="padding:8px;border:1px solid #eee;text-align:center"><button class="btn btn-outline" data-toggle-pag="${v.id}">Toggle Pag.</button> <button class="btn btn-outline" data-toggle-ent="${v.id}">Toggle Entregue</button> <button class="btn btn-outline" data-toggle-fi="${v.id}">Toggle FI</button></td>`;
+        tpb.appendChild(tr);
+    });
+
+    pipelineWrap.appendChild(tableP);
+    container.appendChild(pipelineWrap);
+
+    // bind action buttons (toggle status)
+    tpb.querySelectorAll('button[data-toggle-pag]').forEach(btn => btn.onclick = function(){
+        const id = this.getAttribute('data-toggle-pag');
+        const mov = (data.movimentacoes||[]).find(m=>m.id===id);
+        if (!mov) return; mov.pagamento = (mov.pagamento||'').toString().toUpperCase()==='SIM' ? 'NÃO' : 'SIM'; saveImbel(data); renderControleImbelDashboard(); renderControleImbelMovimentacao(); renderControleImbelEstoque();
+    });
+    tpb.querySelectorAll('button[data-toggle-ent]').forEach(btn => btn.onclick = function(){
+        const id = this.getAttribute('data-toggle-ent');
+        const mov = (data.movimentacoes||[]).find(m=>m.id===id);
+        if (!mov) return; mov.entregue = (mov.entregue||'').toString().toUpperCase()==='SIM' ? 'NÃO' : 'SIM'; saveImbel(data); renderControleImbelDashboard(); renderControleImbelMovimentacao(); renderControleImbelEstoque();
+    });
+    tpb.querySelectorAll('button[data-toggle-fi]').forEach(btn => btn.onclick = function(){
+        const id = this.getAttribute('data-toggle-fi');
+        const mov = (data.movimentacoes||[]).find(m=>m.id===id);
+        if (!mov) return; mov.fi = (mov.fi||'').toString().toUpperCase()==='SIM' ? 'NÃO' : 'SIM'; saveImbel(data); renderControleImbelDashboard(); renderControleImbelMovimentacao(); renderControleImbelEstoque();
+    });
 }
 
 function renderControleImbelEstoque() {
