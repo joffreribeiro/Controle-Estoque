@@ -2807,7 +2807,7 @@ function renderControleImbelMovimentacao() {
             // destacar linhas cujo destinatário contenha DVMK (case-insensitive)
             try {
                 if ((m.destinatario||'').toString().toUpperCase().includes('DVMK')) {
-                    bg = '#e8f7ff'; // tom claro azul
+                    bg = '#fff3cd'; // tom claro amarelo
                 }
             } catch(e) {}
             tr.style.background = bg;
@@ -2818,9 +2818,9 @@ function renderControleImbelMovimentacao() {
             let entCell = `<td style="${tdCenter}"><input type=\"checkbox\" class=\"imbel_table_chk_ent\" data-id=\"${m.id}\" ${((m.entregue||'').toString().toUpperCase()==='SIM')? 'checked' : ''}></td>`;
             let fiCell = `<td style="${tdCenter}"><input type=\"checkbox\" class=\"imbel_table_chk_fi\" data-id=\"${m.id}\" ${((m.fi||'').toString().toUpperCase()==='SIM')? 'checked' : ''}></td>`;
             if (tipoUpper === 'ENTRADA' || ((m.destinatario||'').toString().toUpperCase().includes('DVMK'))) {
-                pagCell = `<td style="${tdCenter}">-</td>`;
-                entCell = `<td style="${tdCenter}">-</td>`;
-                fiCell = `<td style="${tdCenter}">-</td>`;
+                pagCell = `<td style="${tdCenter}"></td>`;
+                entCell = `<td style="${tdCenter}"></td>`;
+                fiCell = `<td style="${tdCenter}"></td>`;
             }
 
             tr.innerHTML = `
