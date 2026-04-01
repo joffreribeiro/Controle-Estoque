@@ -2804,15 +2804,15 @@ function renderControleImbelMovimentacao() {
             const tr = document.createElement('tr');
             tr.style.background = rowIndex % 2 === 0 ? '#fff' : '#f7f9fc';
             tr.innerHTML = `
-                <td style="${tdCenter}">${seqNum}</td>
+                <td style="${tdCenter};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:70px">${seqNum}</td>
                 <td style="${tdStyle}">${produto.nome}</td>
-                <td style="${tdCenter}"><span style="padding:2px 8px;border-radius:12px;font-size:.75rem;font-weight:600;color:${(m.tipo||'').toString().toUpperCase()==='ENTRADA' ? '#155724' : ((m.tipo||'').toString().toUpperCase()==='SAIDA' || (m.tipo||'').toString().toUpperCase()==='SAÍDA' ? '#721c24' : '#333')};">${((m.tipo||'').toString().toUpperCase()==='ENTRADA' ? 'Entrada' : (((m.tipo||'').toString().toUpperCase()==='SAIDA' || (m.tipo||'').toString().toUpperCase()==='SAÍDA') ? 'Saída' : (m.tipo||'-')))}</span></td>
-                <td style="${tdCenter}">${dataFmt}</td>
+                <td style="${tdCenter};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:110px"><span style="padding:2px 8px;border-radius:12px;font-size:.75rem;font-weight:600;color:${(m.tipo||'').toString().toUpperCase()==='ENTRADA' ? '#155724' : ((m.tipo||'').toString().toUpperCase()==='SAIDA' || (m.tipo||'').toString().toUpperCase()==='SAÍDA' ? '#721c24' : '#333')};">${((m.tipo||'').toString().toUpperCase()==='ENTRADA' ? 'Entrada' : (((m.tipo||'').toString().toUpperCase()==='SAIDA' || (m.tipo||'').toString().toUpperCase()==='SAÍDA') ? 'Saída' : (m.tipo||'-')))}</span></td>
+                <td style="${tdCenter};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:110px">${dataFmt}</td>
                 <td style="${tdCenter}">${m.quantidade||'-'}</td>
                 <td style="${tdStyle}">${m.destinatario||'-'}</td>
-                <td style="${tdStyle}">${m.cpfCnpj||'-'}</td>
+                <td style="${tdStyle};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:140px">${m.cpfCnpj||'-'}</td>
                 <td style="${tdStyle}">${m.observacoes||'-'}</td>
-                <td style="${tdCenter}">${valorFmt}</td>
+                <td style="${tdCenter};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:120px">${valorFmt}</td>
                 <td style="${tdStyle}">${m.endereco||'-'}</td>
                 <td style="${tdStyle}">${m.telefone||'-'}</td>
                 <td style="${tdStyle}">${m.email||'-'}</td>
