@@ -2329,13 +2329,20 @@ function renderControleImbelDashboard() {
         return lastZeroCycleDays;
     }
 
+    // vamos acumular estatísticas de estoque enquanto construímos a tabela
+    const esgotado = [];
+    const baixo = [];
+    const ok = [];
+    const zerados = [];
+
     produtos.forEach(p => {
         const estoqueAtual = calcSaldo(p.id);
         const ponto = (p.pontoReposicao !== undefined) ? Number(p.pontoReposicao) : Math.max(1, Math.floor((Number(p.quantidadeInicial)||0) * 0.2));
         let status = 'OK';
         let color = '#28a745';
-        if (estoqueAtual <= 0) { status = 'CRÍTICO'; color = '#dc3545'; }
-        else if (estoqueAtual <= ponto) { status = 'ATENÇÃO'; color = '#ffc107'; }
+        if (estoqueAtual <= 0) { status = 'ESGOTADO'; color = '#dc3545'; esgotado.push(p); if (estoqueAtual === 0) zerados.push(p); }
+        else if (estoqueAtual <= ponto) { status = 'BAIXO'; color = '#ffc107'; baixo.push(p); }
+        else { ok.push(p); }
 
         const tempo = tempoParaZerar(p.id);
         const tr = document.createElement('tr');
@@ -2348,6 +2355,26 @@ function renderControleImbelDashboard() {
         tb.appendChild(tr);
     });
 
+    // resumo rápido acima da tabela com alertas
+    const resumo = document.createElement('div');
+    resumo.style.cssText = 'display:flex;gap:12px;flex-wrap:wrap;margin-bottom:8px;align-items:center';
+    const resumoItem = (label, value, color) => {
+        const el = document.createElement('div');
+        el.style.cssText = 'background:#fff;padding:8px;border-radius:8px;box-shadow:0 1px 4px rgba(0,0,0,.04);min-width:160px';
+        el.innerHTML = `<div style="font-size:.78rem;color:#666">${label}</div><div style="font-weight:700;margin-top:6px;color:${color}">${value}</div>`;
+        return el;
+    };
+    resumo.appendChild(resumoItem('Produtos esgotados', esgotado.length.toString(), '#dc3545'));
+    resumo.appendChild(resumoItem('Produtos abaixo do ponto', baixo.length.toString(), '#856404'));
+    resumo.appendChild(resumoItem('Produtos OK', ok.length.toString(), '#155724'));
+    if (zerados.length) {
+        const listaZ = document.createElement('div');
+        listaZ.style.cssText = 'background:#fff;padding:8px;border-radius:8px;box-shadow:0 1px 4px rgba(0,0,0,.04);min-width:220px';
+        listaZ.innerHTML = `<div style="font-size:.78rem;color:#666">Zerados</div><div style="font-size:.85rem;margin-top:6px;color:#333">${zerados.map(z=>z.nome).join(', ')}</div>`;
+        resumo.appendChild(listaZ);
+    }
+
+    estoqueWrap.insertBefore(resumo, tabela);
     estoqueWrap.appendChild(tabela);
     container.appendChild(estoqueWrap);
 
@@ -2404,6 +2431,98 @@ function renderControleImbelDashboard() {
         const mov = (data.movimentacoes||[]).find(m=>m.id===id);
         if (!mov) return; mov.fi = (mov.fi||'').toString().toUpperCase()==='SIM' ? 'NÃO' : 'SIM'; saveImbel(data); renderControleImbelDashboard(); renderControleImbelMovimentacao(); renderControleImbelEstoque();
     });
+
+    // --- Seções adicionais: Receita por produto e Análise de clientes ---
+    // Receita por produto
+    try {
+        const receitaWrap = document.createElement('div');
+        receitaWrap.style.cssText = 'background:#fff;border-radius:10px;padding:12px;box-shadow:0 1px 6px rgba(0,0,0,.06);margin-top:12px';
+        receitaWrap.innerHTML = `<h3 style="margin:0 0 8px 0;font-size:1rem">Receita por Produto</h3>`;
+        const tableR = document.createElement('table');
+        tableR.style.cssText = 'width:100%;border-collapse:collapse;font-size:.9rem;margin-top:8px';
+        tableR.innerHTML = `<thead><tr style="background:#1e3a5f;color:#fff"><th style="padding:8px">Produto</th><th style="padding:8px;text-align:center">Unid. Vendidas</th><th style="padding:8px;text-align:right">Receita</th></tr></thead><tbody></tbody>`;
+        const tbr = tableR.querySelector('tbody');
+
+        const receitaPorProduto = {};
+        const unidadesPorProduto = {};
+        (data.movimentacoes||[]).forEach(m => {
+            if (!m.produtoId) return;
+            const tipo = (m.tipo||'').toString().toUpperCase();
+            if (tipo !== 'SAÍDA') return;
+            const id = m.produtoId;
+            receitaPorProduto[id] = (receitaPorProduto[id]||0) + (Number(m.valor)||0);
+            unidadesPorProduto[id] = (unidadesPorProduto[id]||0) + (Number(m.quantidade)||0);
+        });
+
+        const produtosList = (data.produtos||[]).slice();
+        produtosList.sort((a,b) => (receitaPorProduto[b.id]||0) - (receitaPorProduto[a.id]||0));
+        produtosList.forEach(p => {
+            const rec = receitaPorProduto[p.id] || 0;
+            const unid = unidadesPorProduto[p.id] || 0;
+            const tr = document.createElement('tr');
+            tr.style.background = '#fff';
+            tr.innerHTML = `<td style="padding:8px;border:1px solid #eee">${p.nome}</td><td style="padding:8px;border:1px solid #eee;text-align:center">${unid}</td><td style="padding:8px;border:1px solid #eee;text-align:right">R$ ${rec.toLocaleString('pt-BR',{minimumFractionDigits:2})}</td>`;
+            tbr.appendChild(tr);
+        });
+        receitaWrap.appendChild(tableR);
+        container.appendChild(receitaWrap);
+    } catch(e){ console.warn('Erro ao gerar receita por produto', e); }
+
+    // Análise de clientes: top 10 e clientes com múltiplos produtos
+    try {
+        const clientes = {};
+        (data.movimentacoes||[]).forEach(m => {
+            const tipo = (m.tipo||'').toString().toUpperCase();
+            if (tipo !== 'SAÍDA') return;
+            const nome = (m.destinatario||'').toString().trim();
+            if (!nome) return;
+            const key = nome.toUpperCase();
+            clientes[key] = clientes[key] || {nome: nome, total:0, pedidos:0, produtos:new Set()};
+            clientes[key].total += (Number(m.valor)||0);
+            clientes[key].pedidos += 1;
+            if (m.produtoId) clientes[key].produtos.add(m.produtoId);
+        });
+
+        const clientesArr = Object.values(clientes).map(c => ({nome:c.nome,total:c.total,pedidos:c.pedidos,produtosCount:c.produtos.size}));
+        clientesArr.sort((a,b) => b.total - a.total);
+
+        // Top 10
+        const topWrap = document.createElement('div');
+        topWrap.style.cssText = 'background:#fff;border-radius:10px;padding:12px;box-shadow:0 1px 6px rgba(0,0,0,.06);margin-top:12px';
+        topWrap.innerHTML = `<h3 style="margin:0 0 8px 0;font-size:1rem">Top 10 Clientes (por Receita)</h3>`;
+        const tableC = document.createElement('table');
+        tableC.style.cssText = 'width:100%;border-collapse:collapse;font-size:.9rem;margin-top:8px';
+        tableC.innerHTML = `<thead><tr style="background:#1e3a5f;color:#fff"><th style="padding:8px">#</th><th style="padding:8px">Cliente</th><th style="padding:8px;text-align:right">Total</th><th style="padding:8px;text-align:center">Pedidos</th><th style="padding:8px;text-align:center">Produtos distintos</th></tr></thead><tbody></tbody>`;
+        const tbc = tableC.querySelector('tbody');
+        clientesArr.slice(0,10).forEach((c, idx) => {
+            const tr = document.createElement('tr');
+            tr.style.background = '#fff';
+            tr.innerHTML = `<td style="padding:8px;border:1px solid #eee;text-align:center">${idx+1}</td><td style="padding:8px;border:1px solid #eee">${c.nome}</td><td style="padding:8px;border:1px solid #eee;text-align:right">R$ ${c.total.toLocaleString('pt-BR',{minimumFractionDigits:2})}</td><td style="padding:8px;border:1px solid #eee;text-align:center">${c.pedidos}</td><td style="padding:8px;border:1px solid #eee;text-align:center">${c.produtosCount}</td>`;
+            tbc.appendChild(tr);
+        });
+        topWrap.appendChild(tableC);
+        container.appendChild(topWrap);
+
+        // Clientes que compraram múltiplos produtos
+        const multi = clientesArr.filter(c => c.produtosCount > 1);
+        if (multi.length) {
+            const multiWrap = document.createElement('div');
+            multiWrap.style.cssText = 'background:#fff;border-radius:10px;padding:12px;box-shadow:0 1px 6px rgba(0,0,0,.06);margin-top:12px';
+            multiWrap.innerHTML = `<h3 style="margin:0 0 8px 0;font-size:1rem">Clientes com múltiplos produtos</h3>`;
+            const tbl = document.createElement('table');
+            tbl.style.cssText = 'width:100%;border-collapse:collapse;font-size:.9rem;margin-top:8px';
+            tbl.innerHTML = `<thead><tr style="background:#1e3a5f;color:#fff"><th style="padding:8px">Cliente</th><th style="padding:8px;text-align:right">Total</th><th style="padding:8px;text-align:center">Produtos distintos</th></tr></thead><tbody></tbody>`;
+            const tbm = tbl.querySelector('tbody');
+            multi.forEach(c => {
+                const tr = document.createElement('tr');
+                tr.style.background = '#fff';
+                tr.innerHTML = `<td style="padding:8px;border:1px solid #eee">${c.nome}</td><td style="padding:8px;border:1px solid #eee;text-align:right">R$ ${c.total.toLocaleString('pt-BR',{minimumFractionDigits:2})}</td><td style="padding:8px;border:1px solid #eee;text-align:center">${c.produtosCount}</td>`;
+                tbm.appendChild(tr);
+            });
+            multiWrap.appendChild(tbl);
+            container.appendChild(multiWrap);
+        }
+    } catch(e) { console.warn('Erro ao gerar análise de clientes', e); }
 }
 
 function renderControleImbelEstoque() {
