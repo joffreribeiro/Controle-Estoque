@@ -2194,6 +2194,76 @@ function trocarSubAbaControleImbel(sub) {
     else if (sub === 'dashboard') renderControleImbelDashboard();
 }
 
+// ========== MODAL FUNCTIONS ==========
+function openImbelProdModal() {
+    const modal = document.getElementById('imbel_prod_modal');
+    if (modal) modal.classList.add('open');
+}
+
+function closeImbelProdModal() {
+    const modal = document.getElementById('imbel_prod_modal');
+    if (modal) modal.classList.remove('open');
+    // limpar formulário
+    document.getElementById('imbel_prod_nome').value = '';
+    document.getElementById('imbel_prod_codigo').value = '';
+    document.getElementById('imbel_prod_qtd_inicial').value = '0';
+    document.getElementById('imbel_prod_obs').value = '';
+    const editField = document.getElementById('imbel_prod_edit_id'); if (editField) editField.value = '';
+    document.getElementById('imbel_prod_salvar').textContent = 'Salvar';
+}
+
+function openImbelMovModal() {
+    const modal = document.getElementById('imbel_mov_modal');
+    if (modal) modal.classList.add('open');
+}
+
+function closeImbelMovModal() {
+    const modal = document.getElementById('imbel_mov_modal');
+    if (modal) modal.classList.remove('open');
+    // limpar formulário
+    document.getElementById('imbel_mov_prod').value = '';
+    document.getElementById('imbel_mov_tipo').value = 'Entrada';
+    const hoje = new Date().toISOString().slice(0,10);
+    document.getElementById('imbel_mov_data').value = hoje;
+    document.getElementById('imbel_mov_qtd').value = '1';
+    document.getElementById('imbel_mov_dest').value = '';
+    document.getElementById('imbel_mov_cpf').value = '';
+    document.getElementById('imbel_mov_valor').value = '';
+    document.getElementById('imbel_mov_endereco').value = '';
+    document.getElementById('imbel_mov_tel').value = '';
+    document.getElementById('imbel_mov_email').value = '';
+    document.getElementById('imbel_mov_obs').value = '';
+    const editField = document.getElementById('imbel_mov_edit_id'); if (editField) editField.value = '';
+    document.getElementById('imbel_mov_salvar').textContent = 'Registrar Movimentação';
+}
+
+// Bind modal close buttons to modals
+document.addEventListener('DOMContentLoaded', function(){
+    // Fechar modal ao clicar no backdrop
+    document.getElementById('imbel_prod_modal').querySelector('.imbel-modal-backdrop').onclick = closeImbelProdModal;
+    document.getElementById('imbel_mov_modal').querySelector('.imbel-modal-backdrop').onclick = closeImbelMovModal;
+    
+    // Fechar modal ao clicar no X
+    document.getElementById('imbel_prod_modal').querySelector('.imbel-modal-close').onclick = closeImbelProdModal;
+    document.getElementById('imbel_mov_modal').querySelector('.imbel-modal-close').onclick = closeImbelMovModal;
+    
+    // Fechar modal ao clicar em Cancelar
+    document.querySelectorAll('#imbel_prod_modal .imbel-modal-cancel').forEach(btn => {
+        btn.onclick = closeImbelProdModal;
+    });
+    document.querySelectorAll('#imbel_mov_modal .imbel-modal-cancel').forEach(btn => {
+        btn.onclick = closeImbelMovModal;
+    });
+    
+    // Fechar modal com ESC
+    document.addEventListener('keydown', function(e){
+        if (e.key === 'Escape') {
+            closeImbelProdModal();
+            closeImbelMovModal();
+        }
+    });
+}, { once: true });
+
 function renderControleImbelDashboard() {
     const data = loadImbel();
     const container = document.getElementById('controleImbelDashboardContainer');
@@ -2636,24 +2706,27 @@ function renderControleImbelCadastro() {
     const thStyle = 'padding:8px 12px;border:1px solid #ddd;background:#1e3a5f;color:#fff;font-size:.82rem;white-space:nowrap';
     const tdBase  = 'padding:8px 12px;border:1px solid #ddd;vertical-align:middle;font-size:.85rem';
 
-    const formWrap = document.createElement('div');
-    formWrap.style.cssText = 'background:#fff;border-radius:10px;padding:16px;margin-bottom:16px;box-shadow:0 1px 4px rgba(0,0,0,.08)';
-    formWrap.innerHTML = `
-        <input type="hidden" id="imbel_prod_edit_id" />
-        <div style="display:grid;grid-template-columns:2fr 1fr 1fr 2fr auto;gap:10px;align-items:end">
-            <div><label style="font-size:.82rem;font-weight:600;color:#555;display:block;margin-bottom:4px">Nome do Produto</label>
-                <input type="text" id="imbel_prod_nome" placeholder="Nome" style="width:100%;padding:7px 8px;border:1px solid #ddd;border-radius:6px;font-size:.85rem"/></div>
-            <div><label style="font-size:.82rem;font-weight:600;color:#555;display:block;margin-bottom:4px">Código</label>
-                <input type="text" id="imbel_prod_codigo" placeholder="Cód." style="width:100%;padding:7px 8px;border:1px solid #ddd;border-radius:6px;font-size:.85rem"/></div>
-            <div><label style="font-size:.82rem;font-weight:600;color:#555;display:block;margin-bottom:4px">Quantidade Inicial</label>
-                <input type="number" id="imbel_prod_qtd_inicial" value="0" min="0" style="width:100%;padding:7px 8px;border:1px solid #ddd;border-radius:6px;font-size:.85rem"/></div>
-            <div><label style="font-size:.82rem;font-weight:600;color:#555;display:block;margin-bottom:4px">Observação</label>
-                <input type="text" id="imbel_prod_obs" placeholder="Observação" style="width:100%;padding:7px 8px;border:1px solid #ddd;border-radius:6px;font-size:.85rem"/></div>
-            <div><button type="button" id="imbel_prod_salvar" class="btn btn-primary">Salvar</button></div>
-        </div>
-    `;
-    container.appendChild(formWrap);
+    // Botões de ação no topo
+    const topActions = document.createElement('div');
+    topActions.style.cssText = 'display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap';
+    const btnAdd = document.createElement('button');
+    btnAdd.className = 'btn btn-primary';
+    btnAdd.innerHTML = '<span class="btn-icon">➕</span> Adicionar Produto';
+    btnAdd.onclick = () => {
+        // Limpar campos do modal
+        document.getElementById('imbel_prod_nome').value = '';
+        document.getElementById('imbel_prod_codigo').value = '';
+        document.getElementById('imbel_prod_qtd_inicial').value = '0';
+        document.getElementById('imbel_prod_obs').value = '';
+        const editField = document.getElementById('imbel_prod_edit_id'); if (editField) editField.value = '';
+        document.getElementById('imbel_prod_salvar').textContent = 'Salvar';
+        document.getElementById('imbel_prod_nome').focus();
+        openImbelProdModal();
+    };
+    topActions.appendChild(btnAdd);
+    container.appendChild(topActions);
 
+    // Tabela de produtos
     const wrap = document.createElement('div');
     wrap.style.cssText = 'overflow-x:auto;background:#fff;border-radius:10px;padding:16px;box-shadow:0 1px 4px rgba(0,0,0,.08)';
     const tabela = document.createElement('table');
@@ -2698,6 +2771,7 @@ function renderControleImbelCadastro() {
                 // reset edit state
                 editIdField.value = '';
                 document.getElementById('imbel_prod_salvar').textContent = 'Salvar';
+                closeImbelProdModal();
                 renderControleImbelCadastro();
                 renderControleImbelEstoque();
                 return;
@@ -2706,6 +2780,7 @@ function renderControleImbelCadastro() {
         const novo = { id: 'p' + Date.now(), nome, codigo, observacao, quantidadeInicial };
         data.produtos.push(novo);
         saveImbel(data);
+        closeImbelProdModal();
         renderControleImbelCadastro();
     };
 
@@ -2723,14 +2798,14 @@ function renderControleImbelCadastro() {
         const id = this.getAttribute('data-editid');
         const prod = (data.produtos||[]).find(p => p.id === id);
         if (!prod) return;
-        // preencher formulário
+        // preencher formulário modal
         document.getElementById('imbel_prod_nome').value = prod.nome || '';
         document.getElementById('imbel_prod_codigo').value = prod.codigo || '';
         document.getElementById('imbel_prod_qtd_inicial').value = prod.quantidadeInicial || 0;
         document.getElementById('imbel_prod_obs').value = prod.observacao || '';
         const editField = document.getElementById('imbel_prod_edit_id'); if (editField) editField.value = id;
         document.getElementById('imbel_prod_salvar').textContent = 'Atualizar';
-        // focus form
+        openImbelProdModal();
         document.getElementById('imbel_prod_nome').focus();
     });
 }

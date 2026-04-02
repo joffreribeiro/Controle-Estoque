@@ -1376,6 +1376,109 @@
             if (e.key === 'Escape') closeLoginModal();
         });
     </script>
+
+    <!-- IMBEL Modals -->
+    <div id="imbel_prod_modal" class="imbel-modal-overlay">
+        <div class="imbel-modal-backdrop"></div>
+        <div class="imbel-modal-panel">
+            <div class="imbel-modal-header">
+                <h3>Cadastro de Produto</h3>
+                <button class="imbel-modal-close">&times;</button>
+            </div>
+            <div class="imbel-modal-body">
+                <input type="hidden" id="imbel_prod_edit_id" />
+                <div style="display:grid;grid-template-columns:2fr 1fr 1fr 2fr auto;gap:10px;align-items:end">
+                    <div>
+                        <label style="font-size:.82rem;font-weight:600;color:#555;display:block;margin-bottom:4px">Nome do Produto</label>
+                        <input type="text" id="imbel_prod_nome" placeholder="Nome" style="width:100%;padding:7px 8px;border:1px solid #ddd;border-radius:6px;font-size:.85rem"/>
+                    </div>
+                    <div>
+                        <label style="font-size:.82rem;font-weight:600;color:#555;display:block;margin-bottom:4px">Código</label>
+                        <input type="text" id="imbel_prod_codigo" placeholder="Cód." style="width:100%;padding:7px 8px;border:1px solid #ddd;border-radius:6px;font-size:.85rem"/>
+                    </div>
+                    <div>
+                        <label style="font-size:.82rem;font-weight:600;color:#555;display:block;margin-bottom:4px">Quantidade Inicial</label>
+                        <input type="number" id="imbel_prod_qtd_inicial" value="0" min="0" style="width:100%;padding:7px 8px;border:1px solid #ddd;border-radius:6px;font-size:.85rem"/>
+                    </div>
+                    <div>
+                        <label style="font-size:.82rem;font-weight:600;color:#555;display:block;margin-bottom:4px">Observação</label>
+                        <input type="text" id="imbel_prod_obs" placeholder="Observação" style="width:100%;padding:7px 8px;border:1px solid #ddd;border-radius:6px;font-size:.85rem"/>
+                    </div>
+                    <div style="grid-column:1/-1;display:flex;gap:8px;justify-content:flex-end">
+                        <button type="button" class="btn btn-outline imbel-modal-cancel" style="margin-top:16px">Cancelar</button>
+                        <button type="button" id="imbel_prod_salvar" class="btn btn-primary" style="margin-top:16px">Salvar</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="imbel_mov_modal" class="imbel-modal-overlay">
+        <div class="imbel-modal-backdrop"></div>
+        <div class="imbel-modal-panel">
+            <div class="imbel-modal-header">
+                <h3>Registrar Movimentação</h3>
+                <button class="imbel-modal-close">&times;</button>
+            </div>
+            <div class="imbel-modal-body" style="max-height:70vh;overflow-y:auto">
+                <input type="hidden" id="imbel_mov_edit_id" />
+                <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;align-items:end">
+                    <div>
+                        <label style="font-size:.82rem;font-weight:600;color:#555;display:block;margin-bottom:4px">Descrição (Produto)</label>
+                        <select id="imbel_mov_prod" style="width:100%;padding:7px 8px;border:1px solid #ddd;border-radius:6px;font-size:.85rem"></select>
+                    </div>
+                    <div>
+                        <label style="font-size:.82rem;font-weight:600;color:#555;display:block;margin-bottom:4px">Tipo</label>
+                        <select id="imbel_mov_tipo" style="width:100%;padding:7px 8px;border:1px solid #ddd;border-radius:6px;font-size:.85rem">
+                            <option value="Entrada">Entrada</option>
+                            <option value="Saída">Saída</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label style="font-size:.82rem;font-weight:600;color:#555;display:block;margin-bottom:4px">Data</label>
+                        <input type="date" id="imbel_mov_data" style="width:100%;padding:7px 8px;border:1px solid #ddd;border-radius:6px;font-size:.85rem"/>
+                    </div>
+                    <div>
+                        <label style="font-size:.82rem;font-weight:600;color:#555;display:block;margin-bottom:4px">Quantidade</label>
+                        <input type="number" id="imbel_mov_qtd" value="1" min="1" style="width:100%;padding:7px 8px;border:1px solid #ddd;border-radius:6px;font-size:.85rem"/>
+                    </div>
+                    <div>
+                        <label style="font-size:.82rem;font-weight:600;color:#555;display:block;margin-bottom:4px">Destinatário</label>
+                        <input type="text" id="imbel_mov_dest" placeholder="Nome" style="width:100%;padding:7px 8px;border:1px solid #ddd;border-radius:6px;font-size:.85rem"/>
+                    </div>
+                    <div>
+                        <label style="font-size:.82rem;font-weight:600;color:#555;display:block;margin-bottom:4px">CPF / CNPJ</label>
+                        <input type="text" id="imbel_mov_cpf" placeholder="000.000.000-00" style="width:100%;padding:7px 8px;border:1px solid #ddd;border-radius:6px;font-size:.85rem"/>
+                    </div>
+                    <div>
+                        <label style="font-size:.82rem;font-weight:600;color:#555;display:block;margin-bottom:4px">Valor (R$)</label>
+                        <input type="number" id="imbel_mov_valor" min="0" step="0.01" placeholder="0,00" style="width:100%;padding:7px 8px;border:1px solid #ddd;border-radius:6px;font-size:.85rem"/>
+                    </div>
+                    <div style="grid-column:span 2">
+                        <label style="font-size:.82rem;font-weight:600;color:#555;display:block;margin-bottom:4px">Endereço</label>
+                        <input type="text" id="imbel_mov_endereco" placeholder="Rua, número, cidade" style="width:100%;padding:7px 8px;border:1px solid #ddd;border-radius:6px;font-size:.85rem"/>
+                    </div>
+                    <div>
+                        <label style="font-size:.82rem;font-weight:600;color:#555;display:block;margin-bottom:4px">Telefone</label>
+                        <input type="text" id="imbel_mov_tel" placeholder="(00) 00000-0000" style="width:100%;padding:7px 8px;border:1px solid #ddd;border-radius:6px;font-size:.85rem"/>
+                    </div>
+                    <div>
+                        <label style="font-size:.82rem;font-weight:600;color:#555;display:block;margin-bottom:4px">E-mail</label>
+                        <input type="email" id="imbel_mov_email" placeholder="email@exemplo.com" style="width:100%;padding:7px 8px;border:1px solid #ddd;border-radius:6px;font-size:.85rem"/>
+                    </div>
+                    <div style="grid-column:1/-1">
+                        <label style="font-size:.82rem;font-weight:600;color:#555;display:block;margin-bottom:4px">Observações</label>
+                        <input type="text" id="imbel_mov_obs" placeholder="Observações adicionais" style="width:100%;padding:7px 8px;border:1px solid #ddd;border-radius:6px;font-size:.85rem"/>
+                    </div>
+                </div>
+            </div>
+            <div class="imbel-modal-footer">
+                <button type="button" class="btn btn-outline imbel-modal-cancel">Cancelar</button>
+                <button type="button" id="imbel_mov_salvar" class="btn btn-primary">Registrar Movimentação</button>
+            </div>
+        </div>
+    </div>
+
     <script src="app.js"></script>
 </body>
 </html>

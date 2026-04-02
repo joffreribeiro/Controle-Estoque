@@ -2715,3 +2715,138 @@ th.sortable.sort-desc .sort-icon::after { content: ' ▼'; opacity: 1; }
     background: var(--info-color);
     color: white;
 }
+
+/* ========================================
+   IMBEL MODAL STYLES
+   ======================================== */
+
+.imbel-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    pointer-events: none;
+    z-index: 999;
+    transition: opacity 0.3s ease;
+}
+
+.imbel-modal-overlay.open {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.imbel-modal-backdrop {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    cursor: pointer;
+}
+
+.imbel-modal-panel {
+    position: relative;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+    max-width: 600px;
+    width: 90%;
+    max-height: 90vh;
+    display: flex;
+    flex-direction: column;
+    animation: slideInUp 0.3s ease;
+    z-index: 1000;
+}
+
+.imbel-modal-overlay.open .imbel-modal-panel {
+    animation: slideInUp 0.3s ease;
+}
+
+.imbel-modal-overlay:not(.open) .imbel-modal-panel {
+    animation: slideOutDown 0.3s ease;
+}
+
+@keyframes slideInUp {
+    from {
+        transform: translateY(20px);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+@keyframes slideOutDown {
+    from {
+        transform: translateY(0);
+        opacity: 1;
+    }
+    to {
+        transform: translateY(20px);
+        opacity: 0;
+    }
+}
+
+.imbel-modal-header {
+    padding: 20px;
+    border-bottom: 1px solid #e2e8f0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: linear-gradient(135deg, #1e3a5f 0%, #2d5a8b 100%);
+    color: white;
+    border-radius: 12px 12px 0 0;
+}
+
+.imbel-modal-header h3 {
+    margin: 0;
+    font-size: 1.25rem;
+    font-weight: 600;
+}
+
+.imbel-modal-close {
+    background: none;
+    border: none;
+    font-size: 28px;
+    color: white;
+    cursor: pointer;
+    padding: 0;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: opacity 0.2s;
+}
+
+.imbel-modal-close:hover {
+    opacity: 0.7;
+}
+
+.imbel-modal-body {
+    padding: 20px;
+    overflow-y: auto;
+    flex: 1;
+}
+
+.imbel-modal-footer {
+    padding: 16px 20px;
+    border-top: 1px solid #e2e8f0;
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+    background: #f8fafc;
+    border-radius: 0 0 12px 12px;
+}
+
+.imbel-modal-cancel {
+    margin: 0 !important;
+}
+
