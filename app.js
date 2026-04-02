@@ -557,6 +557,79 @@ function formatDateToDDMMYYYY(input) {
     return '-';
 }
 
+function formatCpfCnpjMask(value) {
+    const digits = String(value || '').replace(/\D/g, '').slice(0, 14);
+    if (!digits) return '';
+
+    if (digits.length <= 11) {
+        if (digits.length <= 3) return digits;
+        if (digits.length <= 6) return `${digits.slice(0,3)}.${digits.slice(3)}`;
+        if (digits.length <= 9) return `${digits.slice(0,3)}.${digits.slice(3,6)}.${digits.slice(6)}`;
+        return `${digits.slice(0,3)}.${digits.slice(3,6)}.${digits.slice(6,9)}-${digits.slice(9)}`;
+    }
+
+    if (digits.length <= 2) return digits;
+    if (digits.length <= 5) return `${digits.slice(0,2)}.${digits.slice(2)}`;
+    if (digits.length <= 8) return `${digits.slice(0,2)}.${digits.slice(2,5)}.${digits.slice(5)}`;
+    if (digits.length <= 12) return `${digits.slice(0,2)}.${digits.slice(2,5)}.${digits.slice(5,8)}/${digits.slice(8)}`;
+    return `${digits.slice(0,2)}.${digits.slice(2,5)}.${digits.slice(5,8)}/${digits.slice(8,12)}-${digits.slice(12)}`;
+}
+
+function formatPhoneMask(value) {
+    const digits = String(value || '').replace(/\D/g, '').slice(0, 11);
+    if (!digits) return '';
+    if (digits.length <= 2) return `(${digits}`;
+    if (digits.length <= 6) return `(${digits.slice(0,2)}) ${digits.slice(2)}`;
+    if (digits.length <= 10) return `(${digits.slice(0,2)}) ${digits.slice(2,6)}-${digits.slice(6)}`;
+    return `(${digits.slice(0,2)}) ${digits.slice(2,7)}-${digits.slice(7)}`;
+}
+
+function formatCurrencyBRLInput(value) {
+    const digits = String(value || '').replace(/\D/g, '');
+    if (!digits) return '';
+    const cents = Number(digits);
+    return (cents / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function parseCurrencyBRLToNumber(value) {
+    const text = String(value || '').trim();
+    if (!text) return 0;
+    const normalized = text
+        .replace(/\s/g, '')
+        .replace(/[R$r$]/g, '')
+        .replace(/\./g, '')
+        .replace(',', '.');
+    const parsed = Number(normalized.replace(/[^0-9.-]/g, ''));
+    return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function bindImbelMovInputMasks() {
+    const cpfInput = document.getElementById('imbel_mov_cpf');
+    const telInput = document.getElementById('imbel_mov_tel');
+    const valorInput = document.getElementById('imbel_mov_valor');
+
+    if (cpfInput && !cpfInput.dataset.maskBound) {
+        cpfInput.addEventListener('input', function() {
+            this.value = formatCpfCnpjMask(this.value);
+        });
+        cpfInput.dataset.maskBound = '1';
+    }
+
+    if (telInput && !telInput.dataset.maskBound) {
+        telInput.addEventListener('input', function() {
+            this.value = formatPhoneMask(this.value);
+        });
+        telInput.dataset.maskBound = '1';
+    }
+
+    if (valorInput && !valorInput.dataset.maskBound) {
+        valorInput.addEventListener('input', function() {
+            this.value = formatCurrencyBRLInput(this.value);
+        });
+        valorInput.dataset.maskBound = '1';
+    }
+}
+
 function normalizarContratoKey(valor) {
     const bruto = (valor ?? '').toString().normalize('NFKC');
     const clean = bruto.replace(/[\u200B-\u200D\uFEFF\s]+/g, '');
@@ -3026,10 +3099,12 @@ function renderControleImbelMovimentacao() {
                 document.getElementById('imbel_mov_data').value = mov.data || hoje;
                 document.getElementById('imbel_mov_qtd').value = mov.quantidade || 1;
                 document.getElementById('imbel_mov_dest').value = mov.destinatario || '';
-                document.getElementById('imbel_mov_cpf').value = mov.cpfCnpj || '';
-                document.getElementById('imbel_mov_valor').value = mov.valor || '';
+                document.getElementById('imbel_mov_cpf').value = formatCpfCnpjMask(mov.cpfCnpj || '');
+                document.getElementById('imbel_mov_valor').value = (Number(mov.valor) > 0)
+                    ? Number(mov.valor).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                    : '';
                 document.getElementById('imbel_mov_endereco').value = mov.endereco || '';
-                document.getElementById('imbel_mov_tel').value = mov.telefone || '';
+                document.getElementById('imbel_mov_tel').value = formatPhoneMask(mov.telefone || '');
                 document.getElementById('imbel_mov_email').value = mov.email || '';
                 document.getElementById('imbel_mov_obs').value = mov.observacoes || '';
                 const editField = document.getElementById('imbel_mov_edit_id'); if (editField) editField.value = id;
@@ -3091,6 +3166,8 @@ function renderControleImbelMovimentacao() {
         });
     }
 
+    bindImbelMovInputMasks();
+
     tabelaWrap.appendChild(tabela);
     container.appendChild(tabelaWrap);
 
@@ -3103,7 +3180,7 @@ function renderControleImbelMovimentacao() {
         const dataStr = document.getElementById('imbel_mov_data').value || hoje;
         const destinatario = document.getElementById('imbel_mov_dest').value.trim();
         const cpfCnpj = document.getElementById('imbel_mov_cpf').value.trim();
-        const valor = parseFloat(document.getElementById('imbel_mov_valor').value) || 0;
+        const valor = parseCurrencyBRLToNumber(document.getElementById('imbel_mov_valor').value);
         // pagamento/entregue/fi are managed in the table; default to not paid/not delivered/not FI on new records
         const pagamento = false;
         const endereco = document.getElementById('imbel_mov_endereco').value.trim();
