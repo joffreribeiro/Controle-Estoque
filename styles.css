@@ -37,6 +37,91 @@
     --radius-xl: 20px;
 }
 
+/* ========================================
+    Accessibility & Global helpers
+    ======================================== */
+
+/* Visible focus for keyboard users */
+*:focus {
+     outline: 3px solid rgba(30,58,95,0.12);
+     outline-offset: 2px;
+     box-shadow: 0 0 0 3px rgba(201,162,39,0.08);
+}
+
+/* Respect reduced motion preferences */
+@media (prefers-reduced-motion: reduce) {
+     * { transition: none !important; animation: none !important; }
+}
+
+/* Numeric / monetary inputs and displays should align right and use tabular numbers */
+.input-valor,
+input[id$="_valor"],
+input[id*="valor"],
+.readonly-field,
+.cell-valor,
+.item-venda-row .item-valor,
+.col-valor-un, .col-valor-total {
+     text-align: right;
+     font-variant-numeric: tabular-nums;
+}
+
+/* Small header spacing refinement to improve density */
+header .header-content { padding: 10px 20px; }
+.logo-text h1 { font-size: 1.1rem; }
+
+/* Badge / indicator refinement */
+#loggedAccountBadge { background: var(--accent-color); color: #fff; box-shadow: var(--shadow-xs); }
+.badge-rep.imbel { background: rgba(30,58,95,0.12); color: var(--primary-color); }
+
+/* ========================================
+    Tables: zebra, hover, sticky header
+    ======================================== */
+
+table tbody tr:nth-child(odd) { background: rgba(13,25,40,0.02); }
+table tbody tr:hover { background: rgba(30,58,95,0.04); }
+
+/* Make header cells sticky when possible to improve readability on long tables */
+table thead th { position: sticky; top: 0; background: linear-gradient(180deg,#fff,#f7fbff); z-index: 2; }
+
+/* ========================================
+    Buttons: disabled state and small polish
+    ======================================== */
+
+.btn[disabled], .btn:disabled {
+     opacity: 0.6;
+     pointer-events: none;
+     box-shadow: none;
+     transform: none;
+     filter: grayscale(.08);
+}
+
+/* Slightly reduce hover intensity for better subtlety */
+.btn:hover { box-shadow: 0 8px 20px rgba(14,30,60,0.08); }
+
+/* ========================================
+    Modal improvements
+    ======================================== */
+.modal-content { max-height: 84vh; overflow: auto; }
+@media (max-width: 900px) { .modal-content { width: 92%; padding: 18px; } }
+
+/* Use CSS grid for large modal forms where applicable (fallback to existing layout) */
+.modal .form-grid { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); }
+
+/* ========================================
+    Print tweaks
+    ======================================== */
+@media print {
+     header, .actions-bar, .tabs-navigation, .hamburger-btn, .auth-panel { display: none !important; }
+     body { background: #fff; color: #000; }
+    table thead th { background: #eee !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}
+
+/* ========================================
+    Small utilities
+    ======================================== */
+.sr-only { position: absolute !important; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); border: 0; }
+
+
 body {
     font-family: 'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, 'Helvetica Neue', Arial, sans-serif;
     background: var(--bg-light);
