@@ -1,52 +1,48 @@
-/* sticky-fix.css - Overrides to ensure the first column (PRODUTOS) stays frozen
-   and to remove the visual gap between the two header rows. */
+/* sticky-fix.css
+   FIX: .table-container usava overflow:hidden que interceptava o scroll container
+   real (.table-wrapper). Corrigido em styles.css para overflow:clip.
+   Aqui apenas definimos position:sticky; left:0 com z-index correto.
+*/
 
-:root { --sticky-first-row-height: 48px; }
+/* Scroll container real */
+.table-wrapper {
+  overflow-x: auto !important;
+  overflow-y: auto !important;
+  position: relative !important;
+  -webkit-overflow-scrolling: touch;
+}
 
-.table-wrapper { overflow: auto !important; position: relative !important; -webkit-overflow-scrolling: touch; }
-
-/* Force table layout to allow sticky columns */
-#tabelaEstoque { border-collapse: separate !important; border-spacing: 0 !important; }
-
-/* Ensure background clipping so sticky cells don't show bleed */
-#tabelaEstoque th, #tabelaEstoque td { background-clip: padding-box !important; }
-
-/* Remove borders/gaps between header rows */
-#tabelaEstoque thead th { border-bottom: none !important; }
-#tabelaEstoque thead tr:nth-child(2) th { border-top: none !important; }
-
-/* Highest-specificity sticky for the 'PRODUTOS' header cell */
+/* PRODUTOS header: sticky nos dois eixos (top+left) */
 #tabelaEstoque > thead > tr > th.col-produto {
   position: sticky !important;
   left: 0 !important;
   top: 0 !important;
-  z-index: 2147483647 !important;
+  z-index: 900 !important;
   background: var(--primary-dark) !important;
   color: #fff !important;
-  box-shadow: 2px 0 6px rgba(0,0,0,0.12);
+  box-shadow: 2px 0 4px rgba(0,0,0,0.15);
 }
 
-/* First-column body cells */
+/* Celulas de produto no corpo: sticky horizontal */
 #tabelaEstoque > tbody > tr > td.produto-nome {
   position: sticky !important;
   left: 0 !important;
-  z-index: 2147483646 !important;
+  z-index: 800 !important;
   background: var(--bg-white) !important;
-  min-width: 260px !important;
-  background-clip: padding-box !important;
+  box-shadow: 2px 0 4px rgba(0,0,0,0.06);
 }
 
-/* Ensure the second header row sticks below the first header row */
-#tabelaEstoque > thead > tr:first-child > th { top: 0 !important; }
-#tabelaEstoque > thead > tr:nth-child(2) > th { top: var(--sticky-first-row-height) !important; }
+/* Zebragem */
+#tabelaEstoque > tbody > tr:nth-child(even) > td.produto-nome {
+  background: #f8fafc !important;
+}
 
-/* Extra: remove any transform on the table header that can create stacking contexts */
-#tabelaEstoque thead { transform: none !important; }
+/* Hover */
+#tabelaEstoque > tbody > tr:hover > td.produto-nome {
+  background: #eef2f7 !important;
+}
 
-/* Extra precaution for browsers: force translateZ on sticky cells */
-#tabelaEstoque th.col-produto, #tabelaEstoque td.produto-nome { transform: translateZ(0); }
-
-/* Make sure the wrapper is the scroll container */
-.table-wrapper { -ms-overflow-style: -ms-autohiding-scrollbar; }
-
-/* End of sticky-fix.css */
+/* Linha de totais */
+#tabelaEstoque > tbody > tr.total-row > td.produto-nome {
+  background: linear-gradient(135deg, #d4dde8 0%, #c8d4e2 100%) !important;
+}

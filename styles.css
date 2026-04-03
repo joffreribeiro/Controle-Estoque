@@ -753,7 +753,7 @@ header {
     background: var(--bg-white);
     border-radius: var(--radius-md);
     box-shadow: var(--shadow-sm);
-    overflow: hidden;
+    overflow: clip; /* clip: recorta visualmente mas NÃO cria scroll container — permite sticky funcionar */
     border: 1px solid var(--border-color);
 }
 
