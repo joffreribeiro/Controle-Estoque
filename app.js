@@ -448,7 +448,8 @@ function atualizarData() {
     const agora = new Date();
     const opcoes = { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' };
     const dataFormatada = agora.toLocaleDateString('pt-BR', opcoes);
-    document.getElementById('dataAtual').textContent = dataFormatada;
+    const dataAtualEl = document.getElementById('dataAtual');
+    if (dataAtualEl) dataAtualEl.textContent = dataFormatada;
 }
 
 function atualizarEstatisticas() {
@@ -1471,30 +1472,29 @@ function gerarFechamentoMensalComissoes() {
         if (!ok) return;
     }
 
-    const snapshot = {
-        id: Date.now(),
-        chave,
-        competencia,
-        filtroRep: filtroRep || '',
-        criadoEm: new Date().toISOString(),
-        criadoPor: getUsuarioAtual(),
-        linhas: contratos.map(c => ({
-            contrato: c.contrato,
-            loja: c.loja,
-            representantes: Array.from(c.representantes || []),
-            dataMin: c.dataMin || null,
-            dataMax: c.dataMax || null,
-            valorContrato: c.valorContrato,
-            comissao: c.comissao
-        })),
-        totalComissoes
-    };
-
-    if (idxExistente !== -1) estoque.fechamentosComissoes[idxExistente] = snapshot;
-    else estoque.fechamentosComissoes.push(snapshot);
-
-    salvarDados();
-    mostrarNotificacao(`Fechamento ${competencia} salvo com ${snapshot.linhas.length} contrato(s).`, 'success');
+    const tabela = `
+        <table class="dashboard-table">
+            <thead>
+                <tr>
+                    <th>Referência</th>
+                    <th>Lâmina</th>
+                    <th>Matéria</th>
+                    <th>Qtd</th>
+                    <th>Preço</th>
+                    <th>Local</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${linhas}
+            </tbody>
+            <tfoot>
+                <tr>
+                    <td colspan="5">Total no Estoque</td>
+                    <td>${totalGeral}</td>
+                </tr>
+            </tfoot>
+        </table>
+    `;
     abrirFechamentosComissoes();
 }
 
