@@ -9,6 +9,7 @@ let estoque = {
     representantes: ['KOLTE', 'ISA', 'LC', 'ADES', 'FL', 'IMBEL'],
     registroVendas: [],
     registroDistribuicao: [],
+    registroDevolucoes: [],
     controleEnvio: {},
     auditoriaVendas: [],
     fechamentosComissoes: []
@@ -200,6 +201,10 @@ function carregarDados() {
         if (!estoque.registroDistribuicao) {
             estoque.registroDistribuicao = [];
         }
+        // Garantir que registroDevolucoes existe
+        if (!estoque.registroDevolucoes) {
+            estoque.registroDevolucoes = [];
+        }
         // Garantir que controleEnvio existe
         if (!estoque.controleEnvio) {
             estoque.controleEnvio = {};
@@ -220,6 +225,7 @@ function carregarDados() {
         }));
         estoque.registroVendas = [];
         estoque.registroDistribuicao = [];
+        estoque.registroDevolucoes = [];
         estoque.controleEnvio = {};
         estoque.auditoriaVendas = [];
         estoque.fechamentosComissoes = [];
@@ -1659,6 +1665,17 @@ function exportarExcelCompleto() {
         Observacoes: d.observacoes || ''
     }));
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(distRows), 'Distribuicao');
+
+    // Incluir devoluções em aba separada
+    const devolRows = (estoque.registroDevolucoes || []).map(d => ({
+        Origem: d.origem,
+        Destino: d.destino,
+        Produto: d.produtoNome,
+        Quantidade: d.quantidade || 0,
+        Data: d.data || '',
+        Observacoes: d.observacoes || ''
+    }));
+    if (devolRows.length > 0) XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(devolRows), 'Devolucoes');
 
     const filtroRep = document.getElementById('filtroRelatoriosRep')?.value || '';
     const dataInicio = document.getElementById('filtroRelatoriosDataInicio')?.value || '';
@@ -4991,6 +5008,36 @@ function excluirDistribuicao(distId) {
     mostrarNotificacao(`Distribuição excluída! ${dist.quantidade} unidades devolvidas à IMBEL.`, 'success');
 }
 
+function excluirDevolucao(devId) {
+    if (!requireAdminOrNotify()) return;
+    const dev = (estoque.registroDevolucoes || []).find(d => d.id === devId);
+    if (!dev) {
+        mostrarNotificacao('Devolução não encontrada!', 'error');
+        return;
+    }
+
+    if (!confirm(`Deseja excluir esta devolução?\n\nOrigem: ${dev.origem}\nProduto: ${dev.produtoNome}\nQuantidade: ${dev.quantidade}\n\nATENÇÃO: Esta operação irá reverter a devolução (movendo as unidades de volta ao representante).`)) {
+        return;
+    }
+
+    // Reverter a devolução: subtrair do destino e recolocar no representante de origem
+    const produto = estoque.produtos.find(p => p.id === dev.produtoId);
+    if (produto) {
+        produto.distribuicao[dev.destino] = Math.max(0, (produto.distribuicao[dev.destino] || 0) - dev.quantidade);
+        produto.distribuicao[dev.origem] = (produto.distribuicao[dev.origem] || 0) + dev.quantidade;
+    }
+
+    // Remover registro de devolução
+    estoque.registroDevolucoes = (estoque.registroDevolucoes || []).filter(d => d.id !== devId);
+
+    salvarDados();
+    renderizarTabela();
+    renderizarDashboard();
+    renderizarRegistroDistribuicao();
+
+    mostrarNotificacao(`Devolução excluída e estoque revertido (${dev.quantidade} unidades).`, 'success');
+}
+
 function exportarDistribuicao() {
     const distribuicoes = estoque.registroDistribuicao || [];
     
@@ -5298,6 +5345,22 @@ function salvarDevolucao(event) {
 
     // Garantir chave de destino
     produto.distribuicao[destino] = (produto.distribuicao[destino] || 0) + quantidade;
+
+    // Registrar devolução no histórico de devoluções (para relatórios)
+    try {
+        if (!Array.isArray(estoque.registroDevolucoes)) estoque.registroDevolucoes = [];
+        const registro = {
+            id: Date.now(),
+            origem: representante,
+            destino: destino,
+            produtoId: produtoId,
+            produtoNome: produto.nome,
+            quantidade: quantidade,
+            data: (new Date()).toISOString().split('T')[0],
+            observacoes: ''
+        };
+        estoque.registroDevolucoes.push(registro);
+    } catch (e) { console.warn('Falha ao registrar devolução:', e); }
 
     salvarDados();
     renderizarTabela();
@@ -6524,12 +6587,17 @@ function prepararRelatorioDistribuicao() {
     const dataFim = document.getElementById('filtroRelatoriosDataFim')?.value || '';
 
     let distribuicoes = [...(estoque.registroDistribuicao || [])];
+    let devolucoes = [...(estoque.registroDevolucoes || [])];
 
-    if (filtroRep) distribuicoes = distribuicoes.filter(d => d.representante === filtroRep);
+    if (filtroRep) {
+        distribuicoes = distribuicoes.filter(d => d.representante === filtroRep);
+        devolucoes = devolucoes.filter(d => d.origem === filtroRep);
+    }
 
     // Filtrar por data (comparação por DATA YYYY-MM-DD para evitar timezone/formato)
-    if ((dataInicio && dataInicio !== '') || (dataFim && dataFim !== '')) {
-        distribuicoes = distribuicoes.filter(d => {
+    const aplicarFiltroData = (arr) => {
+        if ((!dataInicio || dataInicio === '') && (!dataFim || dataFim === '')) return arr;
+        return arr.filter(d => {
             if (!d.data) return false;
             const registroDateStr = parseDateToYYYYMMDD(d.data);
             if (!registroDateStr) return false;
@@ -6537,21 +6605,25 @@ function prepararRelatorioDistribuicao() {
             if (dataFim && dataFim !== '' && registroDateStr > dataFim) return false;
             return true;
         });
-    }
+    };
 
-    distribuicoes.sort((a, b) => {
-        const da = parseDateToYYYYMMDD(a.data);
-        const db = parseDateToYYYYMMDD(b.data);
-        const ta = da ? new Date(da).getTime() : 0;
-        const tb = db ? new Date(db).getTime() : 0;
-        return tb - ta;
-    });
+    distribuicoes = aplicarFiltroData(distribuicoes);
+    devolucoes = aplicarFiltroData(devolucoes);
 
-    // Agrupar por representante
+    // Ordenar por data (mais recente primeiro)
+    distribuicoes.sort((a, b) => new Date(b.data) - new Date(a.data));
+    devolucoes.sort((a, b) => new Date(b.data) - new Date(a.data));
+
+    // Agrupar por representante (considerar reps presentes em distribuições E devoluções)
     const porRep = {};
     distribuicoes.forEach(d => {
-        if (!porRep[d.representante]) porRep[d.representante] = [];
-        porRep[d.representante].push(d);
+        if (!porRep[d.representante]) porRep[d.representante] = { distrib: [], devol: [] };
+        porRep[d.representante].distrib.push(d);
+    });
+    devolucoes.forEach(d => {
+        const rep = d.origem || 'IMBEL';
+        if (!porRep[rep]) porRep[rep] = { distrib: [], devol: [] };
+        porRep[rep].devol.push(d);
     });
 
     const container = document.createElement('div');
@@ -6560,7 +6632,7 @@ function prepararRelatorioDistribuicao() {
     let totalGeral = 0;
 
     Object.keys(porRep).sort().forEach(rep => {
-        const items = porRep[rep];
+        const grupo = porRep[rep];
         const titulo = document.createElement('h3');
         titulo.textContent = `Representante: ${rep}`;
         titulo.style.margin = '12px 0 6px 0';
@@ -6577,26 +6649,44 @@ function prepararRelatorioDistribuicao() {
         </tr></thead><tbody></tbody>`;
 
         const tbody = table.querySelector('tbody');
-        let subtotal = 0;
+        // combinar listas preservando tipo
+        const items = [];
+        (grupo.distrib || []).forEach(d => items.push(Object.assign({ tipo: 'dist' }, d)));
+        (grupo.devol || []).forEach(d => items.push(Object.assign({ tipo: 'dev' }, d)));
+
+        // ordenar por data desc
+        items.sort((a, b) => new Date(b.data) - new Date(a.data));
+
+        let subtotalDist = 0;
+        let subtotalDev = 0;
         items.forEach(d => {
-            subtotal += d.quantidade;
-            totalGeral += d.quantidade;
+            if (d.tipo === 'dist') {
+                subtotalDist += d.quantidade || 0;
+                totalGeral += d.quantidade || 0;
+            } else {
+                subtotalDev += d.quantidade || 0;
+                totalGeral -= d.quantidade || 0;
+            }
+
             const parsed = parseDateToYYYYMMDD(d.data);
             const dataFmt = parsed ? new Date(parsed).toLocaleDateString('pt-BR') : '-';
             const tr = document.createElement('tr');
+            const qtdDisplay = d.tipo === 'dev' ? `-${d.quantidade}` : `${d.quantidade}`;
+            const obs = d.tipo === 'dev' ? (d.observacoes ? `Devolução: ${d.observacoes}` : 'Devolução') : (d.observacoes || '-');
             tr.innerHTML = `
                 <td style="padding:6px;border:1px solid #ddd">${d.produtoNome}</td>
-                <td style="padding:6px;border:1px solid #ddd;text-align:center">${d.quantidade}</td>
+                <td style="padding:6px;border:1px solid #ddd;text-align:center">${qtdDisplay}</td>
                 <td style="padding:6px;border:1px solid #ddd;text-align:center">${dataFmt}</td>
-                <td style="padding:6px;border:1px solid #ddd">${d.observacoes || '-'}</td>`;
+                <td style="padding:6px;border:1px solid #ddd">${obs}</td>`;
+            if (d.tipo === 'dev') tr.style.background = '#fff7f7';
             tbody.appendChild(tr);
         });
 
-        const trTotal = document.createElement('tr');
-        trTotal.innerHTML = `<td colspan="1" style="padding:6px;border:1px solid #ddd;text-align:right"><strong>Subtotal ${rep}</strong></td>
-            <td style="padding:6px;border:1px solid #ddd;text-align:center"><strong>${subtotal}</strong></td>
+        const trSubtotal = document.createElement('tr');
+        trSubtotal.innerHTML = `<td colspan="1" style="padding:6px;border:1px solid #ddd;text-align:right"><strong>Distribuído: ${subtotalDist} — Devolvido: ${subtotalDev}</strong></td>
+            <td style="padding:6px;border:1px solid #ddd;text-align:center"><strong>Saldo: ${subtotalDist - subtotalDev}</strong></td>
             <td colspan="2" style="padding:6px;border:1px solid #ddd"></td>`;
-        tbody.appendChild(trTotal);
+        tbody.appendChild(trSubtotal);
         container.appendChild(table);
     });
 
@@ -6695,9 +6785,11 @@ function exportarRelatorioPDF() {
     } else if (tipo === 'distribuicao') {
         titulo = 'Relatório de Distribuição';
         const headers = [['Rep', 'Produto', 'Qtd', 'Data', 'Obs']];
-        const data = (estoque.registroDistribuicao || []).map(d => {
-            return [d.representante, d.produtoNome, d.quantidade.toString(), d.data ? new Date(d.data+'T00:00:00').toLocaleDateString('pt-BR') : '-', d.observacoes || '-'];
-        });
+        // combinar distribuições e devoluções (devoluções aparecem como quantidade negativa)
+        const distrib = (estoque.registroDistribuicao || []).map(d => ({ rep: d.representante, produto: d.produtoNome, qtd: Number(d.quantidade||0), data: d.data || '', obs: d.observacoes || '', tipo: 'D' }));
+        const devol = (estoque.registroDevolucoes || []).map(d => ({ rep: d.origem || '', produto: d.produtoNome, qtd: -(Number(d.quantidade||0)), data: d.data || '', obs: d.observacoes || '', tipo: 'R' }));
+        const combined = [...distrib, ...devol].sort((a,b) => new Date(b.data||0) - new Date(a.data||0));
+        const data = combined.map(d => [d.rep, d.produto, d.qtd.toString(), d.data ? new Date(d.data+'T00:00:00').toLocaleDateString('pt-BR') : '-', (d.tipo==='R'?'Devolução: ':'') + (d.obs || '-')]);
         doc.setFontSize(14);
         doc.text(titulo, 14, 15);
         doc.setFontSize(9);
@@ -6764,32 +6856,36 @@ renderizarRegistroDistribuicao = function() {
     const dataInicio = document.getElementById('filtroDistribuicaoDataInicio')?.value || '';
     const dataFim = document.getElementById('filtroDistribuicaoDataFim')?.value || '';
 
-    let distribuicoesFiltradas = [...(estoque.registroDistribuicao || [])];
+    // Combina distribuições e devoluções para a visualização; devoluções serão marcadas com tipo 'dev'
+    const distrib = (estoque.registroDistribuicao || []).map(d => Object.assign({}, d, { tipo: 'dist' }));
+    const devol = (estoque.registroDevolucoes || []).map(d => Object.assign({}, d, { tipo: 'dev', representante: d.origem, produtoNome: d.produtoNome, produtoId: d.produtoId }));
 
-    if (filtroRep) distribuicoesFiltradas = distribuicoesFiltradas.filter(d => d.representante === filtroRep);
-    if (filtroProduto) distribuicoesFiltradas = distribuicoesFiltradas.filter(d => d.produtoId === parseInt(filtroProduto));
+    let combinado = [...distrib, ...devol];
 
-    // Filtro por data
+    if (filtroRep) combinado = combinado.filter(d => (d.representante || '') === filtroRep);
+    if (filtroProduto) combinado = combinado.filter(d => (d.produtoId || 0) === parseInt(filtroProduto));
+
+    // Filtro por data com boundaries
     if (dataInicio || dataFim) {
         const start = dataInicio ? new Date(dataInicio + 'T00:00:00').getTime() : null;
         const end = dataFim ? new Date(dataFim + 'T23:59:59').getTime() : null;
-        distribuicoesFiltradas = distribuicoesFiltradas.filter(d => {
+        combinado = combinado.filter(d => {
             if (!d.data) return false;
-            const t = new Date(d.data).getTime();
+            const t = new Date(d.data + (d.data.length===10 ? 'T00:00:00' : '')).getTime();
             if (start && t < start) return false;
             if (end && t > end) return false;
             return true;
         });
     }
 
-    // Ordenação
+    // Ordenação com suporte a campos e tipos
     const campo = _ordenDistribuicao.campo;
     const dir = _ordenDistribuicao.direcao === 'asc' ? 1 : -1;
-    distribuicoesFiltradas.sort((a, b) => {
+    combinado.sort((a, b) => {
         let va, vb;
-        if (campo === 'representante') { va = a.representante || ''; vb = b.representante || ''; }
-        else if (campo === 'produtoNome') { va = a.produtoNome || ''; vb = b.produtoNome || ''; }
-        else if (campo === 'quantidade') { va = a.quantidade || 0; vb = b.quantidade || 0; }
+        if (campo === 'representante') { va = (a.representante||'').toString(); vb = (b.representante||'').toString(); }
+        else if (campo === 'produtoNome') { va = (a.produtoNome||'').toString(); vb = (b.produtoNome||'').toString(); }
+        else if (campo === 'quantidade') { va = (a.tipo === 'dev' ? -(a.quantidade||0) : (a.quantidade||0)); vb = (b.tipo === 'dev' ? -(b.quantidade||0) : (b.quantidade||0)); }
         else if (campo === 'data') { va = a.data || ''; vb = b.data || ''; }
         else { va = a.data || ''; vb = b.data || ''; }
         if (va < vb) return -1 * dir;
@@ -6799,38 +6895,43 @@ renderizarRegistroDistribuicao = function() {
 
     tbody.innerHTML = '';
 
-    if (distribuicoesFiltradas.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="7" class="empty-state"><div class="empty-icon">🚚</div><div class="empty-text">Nenhuma distribuição registrada</div><div class="empty-hint">Clique em "Nova Distribuição"</div></td></tr>`;
+    if (combinado.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="7" class="empty-state"><div class="empty-icon">🚚</div><div class="empty-text">Nenhuma distribuição ou devolução registrada</div><div class="empty-hint">Clique em "Nova Distribuição" ou registre uma devolução</div></td></tr>`;
         atualizarTotaisDistribuicao(0);
         renderizarPaginacao('paginacaoDistribuicao', 1, 0, _itensPorPaginaDistribuicao, 'mudarPaginaDistribuicao', 'mudarItensPaginaDistribuicao');
         return;
     }
 
-    const totalLinhas = distribuicoesFiltradas.length;
+    const totalLinhas = combinado.length;
     const totalPaginas = Math.max(1, Math.ceil(totalLinhas / _itensPorPaginaDistribuicao));
     if (_paginaDistribuicao > totalPaginas) _paginaDistribuicao = totalPaginas;
     const inicio = (_paginaDistribuicao - 1) * _itensPorPaginaDistribuicao;
-    const pagina = distribuicoesFiltradas.slice(inicio, inicio + _itensPorPaginaDistribuicao);
+    const pagina = combinado.slice(inicio, inicio + _itensPorPaginaDistribuicao);
 
     let totalQtd = 0;
-    distribuicoesFiltradas.forEach(d => { totalQtd += d.quantidade; });
+    combinado.forEach(d => { totalQtd += (d.tipo === 'dev' ? -(d.quantidade||0) : (d.quantidade||0)); });
 
     let numero = totalLinhas - inicio;
 
-    pagina.forEach(dist => {
-        const repClass = dist.representante.toLowerCase();
-        const dataFormatada = dist.data ? new Date(dist.data + 'T00:00:00').toLocaleDateString('pt-BR') : '-';
+    pagina.forEach(item => {
+        const repClass = (item.representante || '').toLowerCase();
+        const dataFormatada = item.data ? new Date(item.data + 'T00:00:00').toLocaleDateString('pt-BR') : '-';
         const tr = document.createElement('tr');
+        const qtdDisplay = item.tipo === 'dev' ? `-${(item.quantidade||0)}` : `${(item.quantidade||0)}`;
+        const obs = item.tipo === 'dev' ? (item.observacoes ? `Devolução: ${item.observacoes}` : 'Devolução') : (item.observacoes || '-');
+        const acaoBtn = item.tipo === 'dev'
+            ? `<button class="btn-action btn-delete" onclick="excluirDevolucao(${item.id})" title="Excluir devolução">🗑</button>`
+            : `<button class="btn-action btn-delete" onclick="excluirDistribuicao(${item.id})" title="Excluir">🗑</button>`;
+
         tr.innerHTML = `
             <td class="col-contrato">${numero--}</td>
-            <td class="col-loja"><span class="badge-rep ${repClass}">${dist.representante}</span></td>
-            <td class="col-produto-venda" title="${dist.produtoNome}">${dist.produtoNome}</td>
-            <td class="col-qtd">${dist.quantidade}</td>
+            <td class="col-loja"><span class="badge-rep ${repClass}">${item.representante || '-'}</span></td>
+            <td class="col-produto-venda" title="${item.produtoNome || '-'}">${item.produtoNome || '-'}</td>
+            <td class="col-qtd">${qtdDisplay}</td>
             <td>${dataFormatada}</td>
-            <td class="col-obs" title="${dist.observacoes||'-'}">${dist.observacoes||'-'}</td>
-            <td class="col-acoes">
-                <button class="btn-action btn-delete" onclick="excluirDistribuicao(${dist.id})" title="Excluir">🗑</button>
-            </td>`;
+            <td class="col-obs" title="${obs}">${obs}</td>
+            <td class="col-acoes">${acaoBtn}</td>`;
+        if (item.tipo === 'dev') tr.style.background = '#fff7f7';
         tbody.appendChild(tr);
     });
 
