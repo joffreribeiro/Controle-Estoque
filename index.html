@@ -1526,5 +1526,39 @@
     </div>
 
     <script src="app.js"></script>
+
+    <script>
+    (function(){
+        try {
+            // fallback: attach click handlers to tab buttons (defensive)
+            document.querySelectorAll('.tabs-navigation .tab-btn').forEach(btn => {
+                if (btn.__fallbackHandler__) btn.removeEventListener('click', btn.__fallbackHandler__);
+                btn.__fallbackHandler__ = function(e){
+                    e.preventDefault();
+                    const tab = this.dataset.tab;
+                    if (typeof trocarAba === 'function') {
+                        try { trocarAba(tab); } catch(err){ console.error('trocarAba error:', err); }
+                    } else {
+                        document.querySelectorAll('.tabs-navigation .tab-btn').forEach(b=>b.classList.remove('active'));
+                        this.classList.add('active');
+                        document.querySelectorAll('.tab-content').forEach(c=>c.classList.remove('active'));
+                        const el = document.getElementById('tab-' + tab);
+                        if (el) el.classList.add('active');
+                    }
+                };
+                btn.addEventListener('click', btn.__fallbackHandler__);
+            });
+
+            // If no active tab or table empty, try re-running initialization once
+            const noActiveTab = !document.querySelector('.tab-content.active');
+            const corpo = document.getElementById('corpoTabela');
+            const corpoEmpty = !corpo || corpo.children.length === 0;
+            if ((noActiveTab || corpoEmpty) && typeof inicializar === 'function') {
+                console.info('Fallback: reexecutando inicializar()');
+                try { inicializar(); } catch(e){ console.error('inicializar fallback error', e); }
+            }
+        } catch (e) { console.error('Fallback init error', e); }
+    })();
+    </script>
 </body>
 </html>
