@@ -230,21 +230,32 @@ header {
     justify-content: center;
 }
 .logo-text h1 {
-    font-size: 1.6rem;
+    font-size: 1.7rem;
     color: var(--primary-color);
-    font-weight: 800;
-    letter-spacing: 0.2px;
-    line-height: 1.02;
+    font-weight: 900;
+    letter-spacing: 1px;
+    line-height: 1.1;
     margin: 0;
+    text-transform: uppercase;
+    text-shadow: 
+        2px 2px 0px rgba(0, 0, 0, 0.15),
+        3px 3px 0px rgba(0, 0, 0, 0.1),
+        4px 4px 0px rgba(0, 0, 0, 0.05),
+        0px 1px 2px rgba(255, 255, 255, 0.3);
+    filter: drop-shadow(0 2px 4px rgba(11, 23, 35, 0.2));
 }
 
 .logo-text .subtitle {
-    font-size: 0.78rem;
+    font-size: 0.72rem;
     color: var(--text-secondary);
     text-transform: uppercase;
-    letter-spacing: 0.6px;
+    letter-spacing: 1.2px;
     margin-top: 4px;
-    font-weight: 600;
+    font-weight: 700;
+    text-shadow: 
+        1px 1px 0px rgba(0, 0, 0, 0.1),
+        2px 2px 0px rgba(0, 0, 0, 0.05),
+        0px 1px 1px rgba(255, 255, 255, 0.2);
 }
 
 @media (max-width: 768px) {
