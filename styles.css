@@ -216,17 +216,20 @@ header {
     display: flex;
     align-items: center;
     gap: 14px;
-    /* limitar largura disponível para os cards, deixando mais espaço para o título */
-    max-width: calc(100% - 420px);
     flex-wrap: nowrap;
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
+}
+
+.header-right {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-left: auto;
 }
 
 /* Ajustes para painel de autenticação e informações da conta
    - posicionar à direita abaixo do indicador de sincronização
    - melhorar contraste de fonte e disposição visual */
-.header-info { position: relative; }
+.header-content { position: relative; }
 .auth-panel, .logged-account-info {
     margin-left: auto;
     display: flex;
@@ -322,6 +325,27 @@ header {
     text-transform: uppercase;
     letter-spacing: 1px;
     margin-top: 0;
+}
+
+/* Centralizar os cards no header em telas grandes */
+@media (min-width: 992px) {
+    .header-info {
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        transform: translate(-50%, -50%);
+        justify-content: center;
+        max-width: none;
+        overflow: visible;
+        z-index: 50;
+    }
+    .header-right {
+        margin-left: auto;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        z-index: 60;
+    }
 }
 
 /* Garantir que o título não quebre para linha inferior */

@@ -21,24 +21,12 @@
                     <div class="logo-icon">CE</div>
                     <div class="logo-text">
                         <h1>Controle de Estoque</h1>
-                        <div class="subtitle">Fábrica de Itajubá - FI.</div>
+                        <div class="subtitle">Fábrica de Itajubá - FI</div>
                     </div>
                 </div>
                 
                 <!-- busca global removida para simplificar a interface -->
-                <div class="header-info">
-                    <div class="header-stat">
-                        <div class="stat-value" id="totalProdutos">0</div>
-                        <div class="stat-label">Produtos</div>
-                    </div>
-                    <div class="header-stat">
-                        <div class="stat-value" id="totalEstoque">0</div>
-                        <div class="stat-label">Em Estoque</div>
-                    </div>
-                    <div class="header-stat accent">
-                        <div class="stat-value" id="totalVendas">0</div>
-                        <div class="stat-label">Vendidos</div>
-                    </div>
+                <div class="header-info" aria-hidden="true">
                     <div class="header-stat highlight">
                         <div class="stat-value" id="valorTotalVendas">R$ 0</div>
                         <div class="stat-label">Faturamento</div>
@@ -47,11 +35,15 @@
                         <div class="stat-value" id="totalComissoes">R$ 0</div>
                         <div class="stat-label">Comissões</div>
                     </div>
+                </div>
+
+                <div class="header-right">
                     <div class="current-date" id="dataAtual"></div>
                     <div id="firestoreStatus" class="firestore-status" title="Status do Cloud Firestore">
                         <span class="fs-dot fs-offline" id="fsDot"></span>
                         <span class="fs-text" id="fsText">Cloud: desconectado</span>
                     </div>
+
                     <!-- Login button + modal -->
                     <div id="authPanel" class="auth-panel">
                         <button id="openLoginBtn" class="btn btn-outline btn-sm" onclick="openLoginModal()">Login</button>
@@ -95,8 +87,6 @@
                             </div>
                         </div>
                     </div>
-                    <!-- Logged account short info (persistent visual) -->
-                    <!-- informações de e-mail e badge removidas para deixar a barra mais limpa -->
                 </div>
             </div>
         </header>

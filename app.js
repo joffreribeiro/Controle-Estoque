@@ -479,10 +479,17 @@ function atualizarEstatisticas() {
         });
     }
 
-    document.getElementById('totalProdutos').textContent = estoque.produtos.length;
-    document.getElementById('totalEstoque').textContent = totalEstoque.toLocaleString('pt-BR');
-    document.getElementById('totalVendas').textContent = totalVendas.toLocaleString('pt-BR');
-    document.getElementById('valorTotalVendas').textContent = formatarMoedaValor(valorTotalVendas);
+    const totalProdutosEl = document.getElementById('totalProdutos');
+    if (totalProdutosEl) totalProdutosEl.textContent = estoque.produtos.length;
+
+    const totalEstoqueEl = document.getElementById('totalEstoque');
+    if (totalEstoqueEl) totalEstoqueEl.textContent = totalEstoque.toLocaleString('pt-BR');
+
+    const totalVendasEl = document.getElementById('totalVendas');
+    if (totalVendasEl) totalVendasEl.textContent = totalVendas.toLocaleString('pt-BR');
+
+    const valorTotalVendasEl = document.getElementById('valorTotalVendas');
+    if (valorTotalVendasEl) valorTotalVendasEl.textContent = formatarMoedaValor(valorTotalVendas);
     // Calcular total de comissões (5%) excluindo vendas da IMBEL
     let totalComissoes = 0;
     if (Array.isArray(estoque.registroVendas)) {
