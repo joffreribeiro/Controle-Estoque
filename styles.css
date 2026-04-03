@@ -179,21 +179,6 @@ header {
     letter-spacing: 1px;
 }
 
-/* Logotipo ao lado do título (use um PNG com fundo transparente em assets/) */
-.site-logo {
-    height: 56px;
-    width: auto;
-    display: block;
-    object-fit: contain;
-    border-radius: 8px;
-    background: transparent;
-    box-shadow: 0 6px 18px rgba(11,23,35,0.22);
-}
-
-@media (max-width: 700px) {
-    .site-logo { height: 40px; }
-    .logo-text h1 { font-size: 1rem; }
-}
 
 .logo-text h1 {
     font-size: 1.3rem;
