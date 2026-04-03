@@ -497,16 +497,15 @@ function atualizarEstatisticas() {
 
     const valorTotalVendasEl = document.getElementById('valorTotalVendas');
     if (valorTotalVendasEl) valorTotalVendasEl.textContent = formatarMoedaValor(valorTotalVendas);
-        let totais = {
-            KOLTE: { disp: 0, venda: 0, saldo: 0 },
-            ISA: { disp: 0, venda: 0, saldo: 0 },
-            LC: { disp: 0, venda: 0, saldo: 0 },
-            ADES: { disp: 0, venda: 0, saldo: 0 },
-            FL: { disp: 0, venda: 0, saldo: 0 },
-            IMBEL: { disp: 0, venda: 0, saldo: 0 },
-            GERAL: { disp: 0, venda: 0, saldo: 0 }
-        };
-    }
+    let totais = {
+        KOLTE: { disp: 0, venda: 0, saldo: 0 },
+        ISA: { disp: 0, venda: 0, saldo: 0 },
+        LC: { disp: 0, venda: 0, saldo: 0 },
+        ADES: { disp: 0, venda: 0, saldo: 0 },
+        FL: { disp: 0, venda: 0, saldo: 0 },
+        IMBEL: { disp: 0, venda: 0, saldo: 0 },
+        GERAL: { disp: 0, venda: 0, saldo: 0 }
+    };
     try { document.getElementById('totalComissoes').textContent = formatarMoedaValor(totalComissoes); } catch (e) {}
 }
 
