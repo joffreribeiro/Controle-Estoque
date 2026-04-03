@@ -770,8 +770,7 @@ header {
 
 table {
     width: 100%;
-    border-collapse: separate;
-    border-spacing: 0;
+    border-collapse: collapse; /* collapse: remove linha dupla entre linhas do cabeçalho */
     font-size: 0.8rem;
 }
 
@@ -780,11 +779,9 @@ table {
 }
 
 thead {
-    position: sticky;
-    top: 0;
-    z-index: 950; /* garantir que o cabeçalho fique acima das células do corpo, mas abaixo de modais */
-    /* força camada de composição para evitar problemas de stacking em alguns navegadores */
-    transform: translateZ(0);
+    /* position:sticky e transform removidos daqui: sticky fica nos th individualmente.
+       transform:translateZ(0) no thead cria um novo containing block que impede
+       position:sticky;left:0 de funcionar nos th filhos. */
 }
 
 th {
@@ -2410,20 +2407,19 @@ tr.row-saldo-zero .geral-saldo {
 .tab-content {
     display: none;
     opacity: 0;
-    transform: translateY(8px);
-    transition: opacity 0.3s ease, transform 0.3s ease;
+    /* transform removido: qualquer transform em ancestral quebra position:sticky nos filhos */
+    transition: opacity 0.25s ease;
 }
 
 .tab-content.active {
     display: block;
     opacity: 1;
-    transform: translateY(0);
-    animation: fadeSlideIn 0.3s ease;
+    animation: fadeIn 0.25s ease;
 }
 
-@keyframes fadeSlideIn {
-    from { opacity: 0; transform: translateY(8px); }
-    to { opacity: 1; transform: translateY(0); }
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to   { opacity: 1; }
 }
 
 /* ========================================
