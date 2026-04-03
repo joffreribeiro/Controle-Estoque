@@ -753,7 +753,7 @@ header {
     background: var(--bg-white);
     border-radius: var(--radius-md);
     box-shadow: var(--shadow-sm);
-    overflow: clip; /* clip: recorta visualmente mas NÃO cria scroll container — permite sticky funcionar */
+    overflow: hidden;
     border: 1px solid var(--border-color);
 }
 
@@ -770,7 +770,8 @@ header {
 
 table {
     width: 100%;
-    border-collapse: collapse; /* collapse: remove linha dupla entre linhas do cabeçalho */
+    border-collapse: separate;
+    border-spacing: 0;
     font-size: 0.8rem;
 }
 
@@ -779,9 +780,11 @@ table {
 }
 
 thead {
-    /* position:sticky e transform removidos daqui: sticky fica nos th individualmente.
-       transform:translateZ(0) no thead cria um novo containing block que impede
-       position:sticky;left:0 de funcionar nos th filhos. */
+    position: sticky;
+    top: 0;
+    z-index: 950; /* garantir que o cabeçalho fique acima das células do corpo, mas abaixo de modais */
+    /* força camada de composição para evitar problemas de stacking em alguns navegadores */
+    transform: translateZ(0);
 }
 
 th {
@@ -2407,19 +2410,20 @@ tr.row-saldo-zero .geral-saldo {
 .tab-content {
     display: none;
     opacity: 0;
-    /* transform removido: qualquer transform em ancestral quebra position:sticky nos filhos */
-    transition: opacity 0.25s ease;
+    transform: translateY(8px);
+    transition: opacity 0.3s ease, transform 0.3s ease;
 }
 
 .tab-content.active {
     display: block;
     opacity: 1;
-    animation: fadeIn 0.25s ease;
+    transform: translateY(0);
+    animation: fadeSlideIn 0.3s ease;
 }
 
-@keyframes fadeIn {
-    from { opacity: 0; }
-    to   { opacity: 1; }
+@keyframes fadeSlideIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
 }
 
 /* ========================================
