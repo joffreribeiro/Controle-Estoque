@@ -5444,6 +5444,110 @@ function mostrarNotificacao(mensagem, tipo = 'info') {
     }, 4000);
 }
 
+// UI helpers: global loader, confirm modal, responsive tables
+
+function showGlobalLoader(message = 'Carregando...') {
+    const loader = document.getElementById('global-loader');
+    if (!loader) return;
+    const text = loader.querySelector('.loader-text');
+    if (text) text.textContent = message;
+    loader.style.display = 'flex';
+    loader.setAttribute('aria-hidden', 'false');
+}
+
+function hideGlobalLoader() {
+    const loader = document.getElementById('global-loader');
+    if (!loader) return;
+    loader.style.display = 'none';
+    loader.setAttribute('aria-hidden', 'true');
+}
+
+function openConfirmModal(message, onConfirm, title = 'Confirmação') {
+    const modal = document.getElementById('confirmModal');
+    if (!modal) {
+        if (window.confirm(message)) onConfirm && onConfirm();
+        return;
+    }
+    document.getElementById('confirmModalTitle').textContent = title;
+    document.getElementById('confirmModalMessage').textContent = message;
+    modal.style.display = 'flex';
+    modal.setAttribute('aria-hidden', 'false');
+    const okBtn = document.getElementById('confirmModalOk');
+    // replace node to remove previous listeners safely
+    const newOk = okBtn.cloneNode(true);
+    okBtn.parentNode.replaceChild(newOk, okBtn);
+    newOk.addEventListener('click', function handler() {
+        closeConfirmModal();
+        onConfirm && onConfirm();
+    });
+}
+
+function closeConfirmModal() {
+    const modal = document.getElementById('confirmModal');
+    if (!modal) return;
+    modal.style.display = 'none';
+    modal.setAttribute('aria-hidden', 'true');
+}
+
+function enhanceTablesResponsive() {
+    try {
+        document.querySelectorAll('table').forEach(table => {
+            if (table.dataset.responsiveInit) return;
+            table.dataset.responsiveInit = '1';
+            const thead = table.querySelector('thead');
+            const tbody = table.querySelector('tbody');
+            if (!thead || !tbody) return;
+            const headers = Array.from(thead.querySelectorAll('th')).map(th => th.textContent.trim());
+            const primaryCols = 2; // keep first 2 columns visible
+            Array.from(tbody.querySelectorAll('tr')).forEach(row => {
+                const cells = Array.from(row.children);
+                if (cells.length === 0) return;
+                cells.forEach((td, idx) => {
+                    if (idx >= primaryCols) td.classList.add('col-secondary');
+                });
+                const secItems = [];
+                cells.forEach((td, idx) => {
+                    if (idx >= primaryCols) secItems.push({ label: headers[idx] || '', html: td.innerHTML });
+                });
+                if (secItems.length > 0) {
+                    const detailsRow = document.createElement('tr');
+                    detailsRow.className = 'responsive-details';
+                    const tdContainer = document.createElement('td');
+                    tdContainer.colSpan = Math.max(1, headers.length);
+                    const details = document.createElement('details');
+                    details.innerHTML = '<summary>Ver detalhes</summary>';
+                    const grid = document.createElement('div');
+                    grid.className = 'details-grid';
+                    secItems.forEach(it => {
+                        const item = document.createElement('div');
+                        item.className = 'detail-item';
+                        const label = document.createElement('div');
+                        label.className = 'detail-label';
+                        label.textContent = it.label;
+                        const value = document.createElement('div');
+                        value.className = 'detail-value';
+                        value.innerHTML = it.html;
+                        item.appendChild(label);
+                        item.appendChild(value);
+                        grid.appendChild(item);
+                    });
+                    details.appendChild(grid);
+                    tdContainer.appendChild(details);
+                    detailsRow.appendChild(tdContainer);
+                    row.parentNode.insertBefore(detailsRow, row.nextSibling);
+                }
+            });
+        });
+    } catch (e) {
+        console.warn('enhanceTablesResponsive error', e);
+    }
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    try { enhanceTablesResponsive(); } catch(e) {}
+    document.addEventListener('keydown', function(ev){ if (ev.key === 'Escape') closeConfirmModal(); });
+}, { once: true });
+
 // ========================================
 // EXPORTAÇÃO DE DADOS
 // ========================================
