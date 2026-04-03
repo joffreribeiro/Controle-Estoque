@@ -1,19 +1,19 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Controle de Estoque | Material BÃ©lico</title>
+    <title>Controle de Estoque | Material Bélico</title>
     <link rel="stylesheet" href="styles.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>ðŸŽ¯</text></svg>">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎯</text></svg>">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 </head>
-<body>`n    <a class="skip-link" href="#main">Pular para o conteúdo</a>
-    <div class="container" id="main">
+<body>
+    <div class="container">
         <!-- Header -->
         <header>
             <div class="header-content">
@@ -26,7 +26,7 @@
                 </div>
                 
                 <div class="header-search">
-                    <input type="text" id="buscaGlobal" placeholder="ðŸ” Buscar produtos, contratos, lojas..." oninput="executarBuscaGlobal(this.value)">
+                    <input type="text" id="buscaGlobal" placeholder="🔍 Buscar produtos, contratos, lojas..." oninput="executarBuscaGlobal(this.value)">
                 </div>
                 <div class="header-info">
                     <div class="header-stat">
@@ -47,7 +47,7 @@
                     </div>
                     <div class="header-stat">
                         <div class="stat-value" id="totalComissoes">R$ 0</div>
-                        <div class="stat-label">ComissÃµes</div>
+                        <div class="stat-label">Comissões</div>
                     </div>
                     <div class="current-date" id="dataAtual"></div>
                     <div id="firestoreStatus" class="firestore-status" title="Status do Cloud Firestore">
@@ -58,20 +58,20 @@
                     <div id="authPanel" class="auth-panel">
                         <button id="openLoginBtn" class="btn btn-outline btn-sm" onclick="openLoginModal()">Login</button>
 
-                        <div id="authSignedIn" class="auth-signedin" aria-hidden="true" style="align-items:center; gap:8px;">
+                        <div id="authSignedIn" class="auth-signedin" style="display:none; align-items:center; gap:8px;">
                             <span id="authUserDisplay" style="font-weight:600"></span>
                             <button class="btn btn-outline btn-sm" id="btnAuthSignOut" onclick="signOut()">Sair</button>
                         </div>
 
                         <!-- Modal de Login -->
-                        <div id="loginModal" class="modal" aria-hidden="true">
+                        <div id="loginModal" class="modal" aria-hidden="true" style="display:none;">
                             <div class="modal-backdrop" onclick="closeLoginModal()"></div>
                             <div class="modal-content" role="dialog" aria-modal="true">
-                                <button class="modal-close" onclick="closeLoginModal()">Ã—</button>
+                                <button class="modal-close" onclick="closeLoginModal()">×</button>
                                 <div class="login-card">
-                                    <div class="login-card-icon">ðŸ“‹</div>
+                                    <div class="login-card-icon">📋</div>
                                     <h2 class="login-card-title">Acesso Administrador</h2>
-                                    <p class="login-card-sub">FaÃ§a login para editar dados</p>
+                                    <p class="login-card-sub">Faça login para editar dados</p>
 
                                     <form id="authPanelForm" onsubmit="event.preventDefault(); signIn(); closeLoginModal();">
                                         <div class="form-group">
@@ -106,38 +106,38 @@
             </div>
         </header>
 
-        <!-- NavegaÃ§Ã£o por Abas -->
+        <!-- Navegação por Abas -->
         <button class="hamburger-btn" id="hamburgerBtn" onclick="toggleMenuMobile()">
             <span></span><span></span><span></span>
         </button>
         <div class="tabs-navigation" id="tabsNav">
             <button class="tab-btn active" data-tab="estoque" onclick="trocarAba('estoque')">
-                <span>ðŸ“¦</span> Estoque
+                <span>📦</span> Estoque
             </button>
             <button class="tab-btn" data-tab="distribuicao" onclick="trocarAba('distribuicao')">
-                <span>ðŸšš</span> DistribuiÃ§Ã£o
+                <span>🚚</span> Distribuição
             </button>
             <button class="tab-btn" data-tab="vendas" onclick="trocarAba('vendas')">
-                <span>ðŸ“</span> Registro de Vendas
+                <span>📝</span> Registro de Vendas
             </button>
             <button class="tab-btn" data-tab="controleenvio" onclick="trocarAba('controleenvio')">
-                <span>ðŸ“®</span> Controle de Envio
+                <span>📮</span> Controle de Envio
             </button>
             <button class="tab-btn" data-tab="dashboard" onclick="trocarAba('dashboard')">
-                <span>ðŸ“Š</span> Dashboard
+                <span>📊</span> Dashboard
             </button>
             <button class="tab-btn" data-tab="relatorios" onclick="trocarAba('relatorios')">
-                <span>ðŸ“‘</span> RelatÃ³rios
+                <span>📑</span> Relatórios
             </button>
             <button class="tab-btn" data-tab="controleimbel" onclick="trocarAba('controleimbel')">
-                <span>ðŸ”ª</span> IMBEL (Facas)
+                <span>🔪</span> IMBEL (Facas)
             </button>
             <button class="tab-btn" data-tab="configuracoes" onclick="trocarAba('configuracoes')">
-                <span>âš™ï¸</span> ConfiguraÃ§Ãµes
+                <span>⚙️</span> Configurações
             </button>
         </div>
 
-        <!-- Barra de AÃ§Ãµes -->
+        <!-- Barra de Ações -->
         <div class="actions-bar" id="acoesEstoque">
             <div class="actions-group">
                 <button class="btn btn-primary" data-admin="true" onclick="abrirModalProduto()">
@@ -145,18 +145,18 @@
                     Novo Produto
                 </button>
                 <button class="btn btn-warning" onclick="abrirModalEntradaEstoque()">
-                    <span class="btn-icon">ðŸ“¥</span>
+                    <span class="btn-icon">📥</span>
                     Entrada Estoque
                 </button>
-                <!-- BotÃµes 'Distribuir' e 'Registrar Venda' removidos conforme solicitaÃ§Ã£o -->
+                <!-- Botões 'Distribuir' e 'Registrar Venda' removidos conforme solicitação -->
             </div>
             
             <div class="actions-divider"></div>
             
             <div class="actions-group">
                 <button class="btn btn-outline" data-admin="true" onclick="abrirModalDevolucao()">
-                    <span class="btn-icon">â†©</span>
-                    DevoluÃ§Ã£o
+                    <span class="btn-icon">↩</span>
+                    Devolução
                 </button>
             </div>
 
@@ -164,7 +164,7 @@
 
             <div class="actions-group">
                 <button class="btn btn-outline" onclick="limparFiltros()">
-                    <span class="btn-icon">ðŸ”„</span>
+                    <span class="btn-icon">🔄</span>
                     Atualizar
                 </button>
             </div>
@@ -172,11 +172,11 @@
             <div class="actions-divider"></div>
             <div class="actions-group">
                 <button class="btn btn-outline" data-admin="true" onclick="salvarNoCloudUI()" title="Salvar dados no Firestore">
-                    <span class="btn-icon">â˜ï¸</span>
+                    <span class="btn-icon">☁️</span>
                     Salvar no Cloud
                 </button>
                 <button class="btn btn-outline" data-admin="true" onclick="carregarDoCloudUI()" title="Carregar dados do Firestore">
-                    <span class="btn-icon">ðŸ“¥</span>
+                    <span class="btn-icon">📥</span>
                     Carregar do Cloud
                 </button>
             </div>
@@ -188,12 +188,12 @@
         <div class="tab-content active" id="tab-estoque">
             <div class="content-area">
                 <div class="section-header">
-                    <h2 class="section-title">InventÃ¡rio de Produtos</h2>
+                    <h2 class="section-title">Inventário de Produtos</h2>
                     <div class="header-actions">
-                        <input type="text" id="filtroEstoqueBusca" placeholder="ðŸ” Filtrar produtos..." oninput="filtrarTabelaEstoque(this.value)" class="input-busca-tabela">
+                        <input type="text" id="filtroEstoqueBusca" placeholder="🔍 Filtrar produtos..." oninput="filtrarTabelaEstoque(this.value)" class="input-busca-tabela">
                         <span class="badge badge-info" id="ultimaAtualizacao">Atualizado agora</span>
                         <button class="btn btn-outline btn-sm" onclick="imprimirRelatorioAba('estoque')" style="margin-left:8px">
-                            <span class="btn-icon">ðŸ–¨ï¸</span>
+                            <span class="btn-icon">🖨️</span>
                             Imprimir
                         </button>
                     </div>
@@ -245,19 +245,19 @@
         </div>
 
         <!-- ========================================
-             ABA: DISTRIBUIÃ‡ÃƒO
+             ABA: DISTRIBUIÇÃO
              ======================================== -->
         <div class="tab-content" id="tab-distribuicao">
             <div class="content-area">
                 <div class="section-header">
-                    <h2 class="section-title">Registro de DistribuiÃ§Ã£o</h2>
+                    <h2 class="section-title">Registro de Distribuição</h2>
                     <div class="header-actions">
                         <button class="btn btn-success" data-admin="true" onclick="abrirModalNovaDistribuicao()">
                             <span class="btn-icon">+</span>
-                            Nova DistribuiÃ§Ã£o
+                            Nova Distribuição
                         </button>
                         <button class="btn btn-outline btn-sm" onclick="imprimirRelatorioAba('distribuicao')" style="margin-left:8px">
-                            <span class="btn-icon">ðŸ–¨ï¸</span>
+                            <span class="btn-icon">🖨️</span>
                             Imprimir
                         </button>
                     </div>
@@ -287,11 +287,11 @@
                         <input type="date" id="filtroDistribuicaoDataInicio" onchange="renderizarRegistroDistribuicao()">
                     </div>
                     <div class="filtro-group">
-                        <label>AtÃ©:</label>
+                        <label>Até:</label>
                         <input type="date" id="filtroDistribuicaoDataFim" onchange="renderizarRegistroDistribuicao()">
                     </div>
                     <button class="btn btn-outline btn-sm" onclick="limparFiltrosDistribuicao()">
-                        <span>ðŸ”„</span> Limpar Filtros
+                        <span>🔄</span> Limpar Filtros
                     </button>
                 </div>
 
@@ -300,13 +300,13 @@
                         <table class="dashboard-table" id="tabelaRegistroDistribuicao">
                             <thead>
                                 <tr>
-                                    <th style="width: 80px;">NÂº</th>
-                                    <th class="col-loja sortable" data-sort="representante" onclick="ordenarDistribuicao('representante')">Representante <span class="sort-icon">â‡…</span></th>
-                                    <th class="col-produto sortable" data-sort="produtoNome" onclick="ordenarDistribuicao('produtoNome')">Produto <span class="sort-icon">â‡…</span></th>
-                                    <th style="width: 100px;" class="sortable" data-sort="quantidade" onclick="ordenarDistribuicao('quantidade')">Quantidade <span class="sort-icon">â‡…</span></th>
-                                    <th style="width: 150px;" class="sortable" data-sort="data" onclick="ordenarDistribuicao('data')">Data <span class="sort-icon">â‡…</span></th>
-                                    <th style="width: 200px;">ObservaÃ§Ãµes</th>
-                                    <th style="width: 80px;">AÃ§Ãµes</th>
+                                    <th style="width: 80px;">Nº</th>
+                                    <th class="col-loja sortable" data-sort="representante" onclick="ordenarDistribuicao('representante')">Representante <span class="sort-icon">⇅</span></th>
+                                    <th class="col-produto sortable" data-sort="produtoNome" onclick="ordenarDistribuicao('produtoNome')">Produto <span class="sort-icon">⇅</span></th>
+                                    <th style="width: 100px;" class="sortable" data-sort="quantidade" onclick="ordenarDistribuicao('quantidade')">Quantidade <span class="sort-icon">⇅</span></th>
+                                    <th style="width: 150px;" class="sortable" data-sort="data" onclick="ordenarDistribuicao('data')">Data <span class="sort-icon">⇅</span></th>
+                                    <th style="width: 200px;">Observações</th>
+                                    <th style="width: 80px;">Ações</th>
                                 </tr>
                             </thead>
                             <tbody id="tabelaRegistroDistribuicaoBody"></tbody>
@@ -337,11 +337,11 @@
                             Nova Venda
                         </button>
                         <button class="btn btn-outline" onclick="abrirHistoricoContrato()">
-                            <span class="btn-icon">ðŸ•˜</span>
-                            HistÃ³rico do Contrato
+                            <span class="btn-icon">🕘</span>
+                            Histórico do Contrato
                         </button>
                         <button class="btn btn-outline btn-sm" onclick="imprimirRelatorioAba('vendas')" style="margin-left:8px">
-                            <span class="btn-icon">ðŸ–¨ï¸</span>
+                            <span class="btn-icon">🖨️</span>
                             Imprimir
                         </button>
                     </div>
@@ -372,11 +372,11 @@
                         <input type="date" id="filtroVendasDataInicio" onchange="filtrarVendas()">
                     </div>
                     <div class="filtro-group">
-                        <label>AtÃ©:</label>
+                        <label>Até:</label>
                         <input type="date" id="filtroVendasDataFim" onchange="filtrarVendas()">
                     </div>
                     <button class="btn btn-outline btn-sm" onclick="limparFiltrosVendas()">
-                        <span>ðŸ”„</span> Limpar Filtros
+                        <span>🔄</span> Limpar Filtros
                     </button>
                 </div>
 
@@ -385,17 +385,17 @@
                         <table class="dashboard-table" id="tabelaRegistroVendas">
                             <thead>
                                 <tr>
-                                    <th style="width: 80px;" class="sortable" data-sort="contrato" onclick="ordenarVendas('contrato')">Contrato <span class="sort-icon">â‡…</span></th>
-                                    <th class="col-loja sortable" data-sort="loja" onclick="ordenarVendas('loja')">Loja / Cliente <span class="sort-icon">â‡…</span></th>
-                                    <th style="width: 120px;" class="sortable" data-sort="representante" onclick="ordenarVendas('representante')">Representante <span class="sort-icon">â‡…</span></th>
+                                    <th style="width: 80px;" class="sortable" data-sort="contrato" onclick="ordenarVendas('contrato')">Contrato <span class="sort-icon">⇅</span></th>
+                                    <th class="col-loja sortable" data-sort="loja" onclick="ordenarVendas('loja')">Loja / Cliente <span class="sort-icon">⇅</span></th>
+                                    <th style="width: 120px;" class="sortable" data-sort="representante" onclick="ordenarVendas('representante')">Representante <span class="sort-icon">⇅</span></th>
                                     <th class="col-produto">Produto</th>
                                     <th style="width: 90px;">Qtd</th>
                                     <th style="width: 120px;">Valor Un.</th>
-                                    <th style="width: 130px;" class="sortable" data-sort="valorTotal" onclick="ordenarVendas('valorTotal')">Valor Total <span class="sort-icon">â‡…</span></th>
-                                    <th style="width: 120px;" class="sortable" data-sort="data" onclick="ordenarVendas('data')">Data <span class="sort-icon">â‡…</span></th>
+                                    <th style="width: 130px;" class="sortable" data-sort="valorTotal" onclick="ordenarVendas('valorTotal')">Valor Total <span class="sort-icon">⇅</span></th>
+                                    <th style="width: 120px;" class="sortable" data-sort="data" onclick="ordenarVendas('data')">Data <span class="sort-icon">⇅</span></th>
                                     <th style="width: 140px;">Total Contrato (R$)</th>
                                     <th style="width: 150px;">Obs</th>
-                                    <th style="width: 80px;">AÃ§Ãµes</th>
+                                    <th style="width: 80px;">Ações</th>
                                 </tr>
                             </thead>
                             <tbody id="tabelaRegistroVendasBody"></tbody>
@@ -426,7 +426,7 @@
                     <h2 class="section-title">Dashboard</h2>
                     <div class="header-actions">
                         <button class="btn btn-outline btn-sm" onclick="imprimirRelatorioAba('dashboard')">
-                            <span class="btn-icon">ðŸ–¨ï¸</span>
+                            <span class="btn-icon">🖨️</span>
                             Imprimir
                         </button>
                     </div>
@@ -434,28 +434,28 @@
                 <!-- Cards de Resumo -->
                 <div class="dashboard-cards">
                     <div class="dash-card card-blue">
-                        <div class="dash-card-icon">ðŸ“¦</div>
+                        <div class="dash-card-icon">📦</div>
                         <div class="dash-card-info">
                             <div class="dash-card-value" id="dashTotalUnidades">0</div>
                             <div class="dash-card-label">Total de Unidades Vendidas</div>
                         </div>
                     </div>
                     <div class="dash-card card-green">
-                        <div class="dash-card-icon">ðŸ’°</div>
+                        <div class="dash-card-icon">💰</div>
                         <div class="dash-card-info">
                             <div class="dash-card-value" id="dashTotalFaturamento">R$ 0,00</div>
                             <div class="dash-card-label">Faturamento Total</div>
                         </div>
                     </div>
                     <div class="dash-card card-orange">
-                        <div class="dash-card-icon">ðŸ†</div>
+                        <div class="dash-card-icon">🏆</div>
                         <div class="dash-card-info">
                             <div class="dash-card-value" id="dashMelhorRep">-</div>
                             <div class="dash-card-label">Melhor Representante</div>
                         </div>
                     </div>
                     <div class="dash-card card-purple">
-                        <div class="dash-card-icon">â­</div>
+                        <div class="dash-card-icon">⭐</div>
                         <div class="dash-card-info">
                             <div class="dash-card-value" id="dashProdutoTop">-</div>
                             <div class="dash-card-label">Produto Mais Vendido</div>
@@ -463,7 +463,7 @@
                     </div>
                 </div>
 
-                <!-- GrÃ¡ficos -->
+                <!-- Gráficos -->
                 <div class="dashboard-charts">
                     <div class="chart-container">
                         <h3 class="chart-title">Vendas por Representante</h3>
@@ -483,7 +483,7 @@
                             <h2 class="section-title">Quantidade Vendida por Produto</h2>
                             <div class="header-actions">
                                 <button class="btn btn-outline btn-sm" onclick="imprimirDashboardQtdProduto()">
-                                    <span class="btn-icon">ðŸ–¨ï¸</span>
+                                    <span class="btn-icon">🖨️</span>
                                     Imprimir
                                 </button>
                             </div>
@@ -507,7 +507,7 @@
                             <h2 class="section-title">Valor das Vendas por Produto</h2>
                             <div class="header-actions">
                                 <button class="btn btn-outline btn-sm" onclick="imprimirDashboardValorProduto()">
-                                    <span class="btn-icon">ðŸ–¨ï¸</span>
+                                    <span class="btn-icon">🖨️</span>
                                     Imprimir
                                 </button>
                             </div>
@@ -532,7 +532,7 @@
                         <h2 class="section-title">Quantidade de Vendas por Representante</h2>
                         <div class="header-actions">
                             <button class="btn btn-outline btn-sm" onclick="imprimirDashboardVendasRepresentante()">
-                                <span class="btn-icon">ðŸ–¨ï¸</span>
+                                <span class="btn-icon">🖨️</span>
                                 Imprimir
                             </button>
                         </div>
@@ -561,12 +561,12 @@
         </div>
 
         <!-- ========================================
-             ABA: RELATÃ“RIOS
+             ABA: RELATÓRIOS
              ======================================== -->
         <div class="tab-content" id="tab-relatorios">
             <div class="content-area">
                 <div class="section-header">
-                    <h2 class="section-title">RelatÃ³rios</h2>
+                    <h2 class="section-title">Relatórios</h2>
                     <div class="header-actions">
                         <label style="margin-right:8px">Representante:</label>
                         <select id="filtroRelatoriosRep" onchange="prepararRelatorioInventario()">
@@ -578,65 +578,65 @@
                         </select>
                         <label style="margin:0 8px">De:</label>
                         <input type="date" id="filtroRelatoriosDataInicio" onchange="visualizarRelatorioSelecionado()" />
-                        <label style="margin:0 8px">AtÃ©:</label>
+                        <label style="margin:0 8px">Até:</label>
                         <input type="date" id="filtroRelatoriosDataFim" onchange="visualizarRelatorioSelecionado()" />
                         <label style="margin:0 8px">Tipo:</label>
                         <select id="filtroRelatoriosTipo" style="margin-right:8px" onchange="visualizarRelatorioSelecionado()">
-                            <option value="inventario">InventÃ¡rio</option>
-                            <option value="comissoes">ComissÃµes</option>
-                            <option value="distribuicao">DistribuiÃ§Ã£o</option>
+                            <option value="inventario">Inventário</option>
+                            <option value="comissoes">Comissões</option>
+                            <option value="distribuicao">Distribuição</option>
                         </select>
                         <button class="btn btn-outline" onclick="visualizarRelatorioSelecionado()">
-                            <span class="btn-icon">ðŸ”</span>
-                            Visualizar RelatÃ³rio
+                            <span class="btn-icon">🔍</span>
+                            Visualizar Relatório
                         </button>
                         <button class="btn btn-primary" onclick="imprimirRelatorioSelecionado()">
-                            <span class="btn-icon">ðŸ–¨ï¸</span>
+                            <span class="btn-icon">🖨️</span>
                             Imprimir Selecionado
                         </button>
                         <button class="btn btn-primary" onclick="prepararRelatorioComissoes()" style="margin-left:8px">
-                            <span class="btn-icon">ðŸ“‘</span>
-                            RelatÃ³rio ComissÃµes
+                            <span class="btn-icon">📑</span>
+                            Relatório Comissões
                         </button>
                         <button class="btn btn-outline" onclick="imprimirComissoes()" style="margin-left:6px">
-                            <span class="btn-icon">ðŸ–¨ï¸</span>
-                            Imprimir ComissÃµes
+                            <span class="btn-icon">🖨️</span>
+                            Imprimir Comissões
                         </button>
                         <button class="btn btn-outline" onclick="exportarComissoesCSV()" style="margin-left:6px">
-                            <span class="btn-icon">ðŸ“¤</span>
-                            Exportar ComissÃµes
+                            <span class="btn-icon">📤</span>
+                            Exportar Comissões
                         </button>
                         <button class="btn btn-outline" onclick="gerarFechamentoMensalComissoes()" style="margin-left:6px">
-                            <span class="btn-icon">ðŸ§Š</span>
-                            Fechar MÃªs
+                            <span class="btn-icon">🧊</span>
+                            Fechar Mês
                         </button>
                         <button class="btn btn-outline" onclick="abrirFechamentosComissoes()" style="margin-left:6px">
-                            <span class="btn-icon">ðŸ“š</span>
+                            <span class="btn-icon">📚</span>
                             Ver Fechamentos
                         </button>
                         <button class="btn btn-success" onclick="exportarExcelCompleto()" style="margin-left:6px">
-                            <span class="btn-icon">ðŸ“—</span>
+                            <span class="btn-icon">📗</span>
                             Exportar Excel (.xlsx)
                         </button>
                         <button class="btn btn-info" onclick="exportarRelatorioPDF()" style="margin-left:6px">
-                            <span class="btn-icon">ðŸ“„</span>
+                            <span class="btn-icon">📄</span>
                             Exportar PDF
                         </button>
-                        <label style="margin:0 8px">OrientaÃ§Ã£o:</label>
+                        <label style="margin:0 8px">Orientação:</label>
                         <select id="filtroRelatoriosOrientacao" style="margin-right:8px">
                             <option value="landscape">Paisagem</option>
                             <option value="portrait">Retrato</option>
                         </select>
                         <button class="btn btn-outline" onclick="prepararRelatorioInventario()">
-                            <span class="btn-icon">ðŸ”</span>
+                            <span class="btn-icon">🔍</span>
                             Atualizar Preview
                         </button>
                         <button class="btn btn-primary" onclick="imprimirRelatorioPreview()" style="margin-left:8px">
-                            <span class="btn-icon">ðŸ–¨ï¸</span>
-                            Imprimir RelatÃ³rio Visualizado
+                            <span class="btn-icon">🖨️</span>
+                            Imprimir Relatório Visualizado
                         </button>
-                        <button class="btn btn-secondary" onclick="imprimirRelatorioSelecionado()" title="Imprimir o relatÃ³rio atualmente selecionado" style="margin-left:8px">
-                            <span class="btn-icon">ðŸ–¨ï¸</span>
+                        <button class="btn btn-secondary" onclick="imprimirRelatorioSelecionado()" title="Imprimir o relatório atualmente selecionado" style="margin-left:8px">
+                            <span class="btn-icon">🖨️</span>
                             Imprimir Selecionado
                         </button>
                     </div>
@@ -652,19 +652,19 @@
              ABA: CONTROLE IMBEL (FACAS) - SEPARADO
              ======================================== -->
         <div class="tab-content" id="tab-controleimbel">
-            <!-- Sub-navegaÃ§Ã£o (mesmo padrÃ£o do sistema principal) -->
+            <!-- Sub-navegação (mesmo padrão do sistema principal) -->
             <div class="tabs-navigation" id="imbelSubNav" style="border-top: 1px solid var(--border-color);">
                 <button class="tab-btn active" data-imbeltab="estoque" onclick="trocarSubAbaControleImbel('estoque')">
-                    <span>ðŸ“¦</span> Estoque
+                    <span>📦</span> Estoque
                 </button>
                 <button class="tab-btn" data-imbeltab="cadastro" onclick="trocarSubAbaControleImbel('cadastro')">
-                    <span>ðŸ“‹</span> Cadastro de Produtos
+                    <span>📋</span> Cadastro de Produtos
                 </button>
                 <button class="tab-btn" data-imbeltab="movimentacao" onclick="trocarSubAbaControleImbel('movimentacao')">
-                    <span>ðŸ”„</span> MovimentaÃ§Ã£o
+                    <span>🔄</span> Movimentação
                 </button>
                 <button class="tab-btn" data-imbeltab="dashboard" onclick="trocarSubAbaControleImbel('dashboard')">
-                    <span>ðŸ“Š</span> Dashboard
+                    <span>📊</span> Dashboard
                 </button>
             </div>
 
@@ -672,17 +672,17 @@
                 <!-- Sub-aba: Estoque -->
                 <div id="controleImbel-estoque" class="controleimbel-subtab">
                     <div class="section-header">
-                        <h2 class="section-title">Estoque atual â€” Facas IMBEL (Sede)</h2>
+                        <h2 class="section-title">Estoque atual — Facas IMBEL (Sede)</h2>
                         <div class="header-actions">
                             <button class="btn btn-outline" onclick="renderControleImbelEstoque()">
-                                <span class="btn-icon">ðŸ”„</span> Atualizar
+                                <span class="btn-icon">🔄</span> Atualizar
                             </button>
                             <button class="btn btn-info" onclick="document.getElementById('inputImportarImbel').click()" style="margin-left:6px">
-                                <span class="btn-icon">ðŸ“¥</span> Importar Excel
+                                <span class="btn-icon">📥</span> Importar Excel
                             </button>
                             <input type="file" id="inputImportarImbel" accept=".csv,.xlsx,.xls" style="display:none" onchange="importarImbel(event)">
                             <button class="btn btn-outline" onclick="exportarImbel()" style="margin-left:6px">
-                                <span class="btn-icon">ðŸ“¤</span> Exportar Excel
+                                <span class="btn-icon">📤</span> Exportar Excel
                             </button>
                         </div>
                     </div>
@@ -695,28 +695,28 @@
                         <h2 class="section-title">Cadastro de Produtos</h2>
                         <div class="header-actions">
                             <button class="btn btn-info" onclick="document.getElementById('inputImportarImbelCadastro').click()">
-                                <span class="btn-icon">ðŸ“¥</span> Importar Excel
+                                <span class="btn-icon">📥</span> Importar Excel
                             </button>
                             <input type="file" id="inputImportarImbelCadastro" accept=".csv,.xlsx,.xls" style="display:none" onchange="importarImbelCadastro(event)">
                             <button class="btn btn-outline" onclick="exportarImbelCadastro()" style="margin-left:6px">
-                                <span class="btn-icon">ðŸ“¤</span> Exportar Excel
+                                <span class="btn-icon">📤</span> Exportar Excel
                             </button>
                         </div>
                     </div>
                     <div id="controleImbelCadastroContainer"></div>
                 </div>
 
-                <!-- Sub-aba: MovimentaÃ§Ã£o -->
+                <!-- Sub-aba: Movimentação -->
                 <div id="controleImbel-movimentacao" class="controleimbel-subtab" style="display:none">
                     <div class="section-header">
-                        <h2 class="section-title">Registrar MovimentaÃ§Ã£o</h2>
+                        <h2 class="section-title">Registrar Movimentação</h2>
                         <div class="header-actions">
                             <button class="btn btn-info" onclick="document.getElementById('inputImportarImbelMov').click()">
-                                <span class="btn-icon">ðŸ“¥</span> Importar Excel
+                                <span class="btn-icon">📥</span> Importar Excel
                             </button>
                             <input type="file" id="inputImportarImbelMov" accept=".csv,.xlsx,.xls" style="display:none" onchange="importarImbelMovimentacao(event)">
                             <button class="btn btn-outline" onclick="exportarImbelMovimentacao()" style="margin-left:6px">
-                                <span class="btn-icon">ðŸ“¤</span> Exportar Excel
+                                <span class="btn-icon">📤</span> Exportar Excel
                             </button>
                         </div>
                     </div>
@@ -726,10 +726,10 @@
                 <!-- Sub-aba: Dashboard IMBEL -->
                 <div id="controleImbel-dashboard" class="controleimbel-subtab" style="display:none">
                     <div class="section-header">
-                        <h2 class="section-title">Dashboard â€” IMBEL (Facas)</h2>
+                        <h2 class="section-title">Dashboard — IMBEL (Facas)</h2>
                         <div class="header-actions">
                             <button class="btn btn-outline" onclick="renderControleImbelDashboard()">
-                                <span class="btn-icon">ðŸ”„</span> Atualizar
+                                <span class="btn-icon">🔄</span> Atualizar
                             </button>
                         </div>
                     </div>
@@ -747,15 +747,15 @@
                     <h2 class="section-title">Controle de Envio de Contratos</h2>
                     <div class="header-actions">
                         <button class="btn btn-outline" onclick="renderizarControleEnvio()">
-                            <span class="btn-icon">ðŸ”„</span>
+                            <span class="btn-icon">🔄</span>
                             Atualizar
                         </button>
                         <button class="btn btn-outline" onclick="exportarControleEnvio()">
-                            <span class="btn-icon">ðŸ“¤</span>
+                            <span class="btn-icon">📤</span>
                             Exportar Excel
                         </button>
                         <button class="btn btn-outline" onclick="imprimirControleEnvio()">
-                            <span class="btn-icon">ðŸ–¨ï¸</span>
+                            <span class="btn-icon">🖨️</span>
                             Imprimir
                         </button>
                     </div>
@@ -779,7 +779,7 @@
                         <select id="filtroControleEnvioSistema" onchange="renderizarControleEnvio()">
                             <option value="">Todos</option>
                             <option value="sim">Marcado</option>
-                            <option value="nao">NÃ£o marcado</option>
+                            <option value="nao">Não marcado</option>
                         </select>
                     </div>
                     <div class="filtro-group">
@@ -787,7 +787,7 @@
                         <select id="filtroControleEnvioAssinado" onchange="renderizarControleEnvio()">
                             <option value="">Todos</option>
                             <option value="sim">Marcado</option>
-                            <option value="nao">NÃ£o marcado</option>
+                            <option value="nao">Não marcado</option>
                         </select>
                     </div>
                     <div class="filtro-group">
@@ -795,11 +795,11 @@
                         <select id="filtroControleEnvioEnviado" onchange="renderizarControleEnvio()">
                             <option value="">Todos</option>
                             <option value="sim">Marcado</option>
-                            <option value="nao">NÃ£o marcado</option>
+                            <option value="nao">Não marcado</option>
                         </select>
                     </div>
                     <button class="btn btn-outline btn-sm" onclick="limparFiltrosControleEnvio()">
-                        <span>ðŸ”„</span> Limpar Filtros
+                        <span>🔄</span> Limpar Filtros
                     </button>
                 </div>
 
@@ -814,8 +814,8 @@
                                     <th style="width: 100px;">SISTEMA</th>
                                     <th style="width: 100px;">ASSINADO</th>
                                     <th style="width: 100px;">ENVIADO</th>
-                                    <th style="width: 150px;">SOLICITAÃ‡ÃƒO</th>
-                                    <th style="width: 80px;">AÃ§Ãµes</th>
+                                    <th style="width: 150px;">SOLICITAÇÃO</th>
+                                    <th style="width: 80px;">Ações</th>
                                 </tr>
                             </thead>
                             <tbody id="tabelaControleEnvioBody"></tbody>
@@ -826,15 +826,15 @@
         </div>
 
         <!-- ========================================
-             ABA: CONFIGURAÃ‡Ã•ES
+             ABA: CONFIGURAÇÕES
              ======================================== -->
         <div class="tab-content" id="tab-configuracoes">
             <div class="content-area">
                 <div class="section-header">
-                    <h2 class="section-title">âš™ï¸ ConfiguraÃ§Ãµes</h2>
+                    <h2 class="section-title">⚙️ Configurações</h2>
                     <div class="header-actions">
                         <button class="btn btn-outline btn-sm" onclick="imprimirRelatorioAba('configuracoes')">
-                            <span class="btn-icon">ðŸ–¨ï¸</span>
+                            <span class="btn-icon">🖨️</span>
                             Imprimir
                         </button>
                     </div>
@@ -843,93 +843,93 @@
                 <div class="config-sections">
                     <!-- Estoque -->
                     <div class="config-card">
-                        <h3>ðŸ“¦ Estoque</h3>
+                        <h3>📦 Estoque</h3>
                         <div class="config-actions">
                             <button class="btn btn-info" onclick="document.getElementById('inputImportarEstoque').click()">
-                                <span class="btn-icon">ðŸ“¥</span> Importar Excel
+                                <span class="btn-icon">📥</span> Importar Excel
                             </button>
                             <input type="file" id="inputImportarEstoque" accept=".csv,.xlsx,.xls" style="display:none" onchange="importarEstoque(event)">
                             <button class="btn btn-outline" onclick="exportarEstoqueCompleto()">
-                                <span class="btn-icon">ðŸ“¤</span> Exportar Excel
+                                <span class="btn-icon">📤</span> Exportar Excel
                             </button>
                         </div>
                     </div>
 
-                    <!-- DistribuiÃ§Ã£o -->
+                    <!-- Distribuição -->
                     <div class="config-card">
-                        <h3>ðŸšš DistribuiÃ§Ã£o</h3>
+                        <h3>🚚 Distribuição</h3>
                         <div class="config-actions">
                             <button class="btn btn-info" onclick="document.getElementById('inputImportarDistribuicao').click()">
-                                <span class="btn-icon">ðŸ“¥</span> Importar Excel
+                                <span class="btn-icon">📥</span> Importar Excel
                             </button>
                             <input type="file" id="inputImportarDistribuicao" accept=".csv,.xlsx,.xls" style="display:none" onchange="importarDistribuicao(event)">
                             <button class="btn btn-outline" onclick="exportarDistribuicao()">
-                                <span class="btn-icon">ðŸ“¤</span> Exportar Excel
+                                <span class="btn-icon">📤</span> Exportar Excel
                             </button>
                         </div>
                     </div>
 
                     <!-- Vendas -->
                     <div class="config-card">
-                        <h3>ðŸ“ Vendas</h3>
+                        <h3>📝 Vendas</h3>
                         <div class="config-actions">
                             <button class="btn btn-info" onclick="document.getElementById('inputImportarVendas').click()">
-                                <span class="btn-icon">ðŸ“¥</span> Importar Excel
+                                <span class="btn-icon">📥</span> Importar Excel
                             </button>
                             <input type="file" id="inputImportarVendas" accept=".csv,.xlsx,.xls" style="display:none" onchange="importarVendas(event)">
                             <button class="btn btn-outline" onclick="exportarVendas()">
-                                <span class="btn-icon">ðŸ“¤</span> Exportar Excel
+                                <span class="btn-icon">📤</span> Exportar Excel
                             </button>
                         </div>
                     </div>
 
                     <!-- Sistema (JSON) -->
                     <div class="config-card">
-                        <h3>ðŸ’¾ Backup do Sistema</h3>
+                        <h3>💾 Backup do Sistema</h3>
                         <div class="config-actions">
                             <button class="btn btn-info" onclick="document.getElementById('inputImportarSistema').click()">
-                                <span class="btn-icon">ðŸ”</span> Importar Sistema
+                                <span class="btn-icon">🔁</span> Importar Sistema
                             </button>
                             <input type="file" id="inputImportarSistema" accept=".json,application/json" style="display:none" onchange="importarSistema(event)">
                             <button class="btn btn-outline" onclick="exportarSistema()">
-                                <span class="btn-icon">ðŸ’¾</span> Exportar Sistema
+                                <span class="btn-icon">💾</span> Exportar Sistema
                             </button>
                         </div>
                     </div>
 
                     <!-- Cloud -->
                     <div class="config-card">
-                        <h3>â˜ï¸ Cloud (Firestore)</h3>
+                        <h3>☁️ Cloud (Firestore)</h3>
                         <div class="config-actions">
                             <button class="btn btn-outline" data-admin="true" onclick="salvarNoCloudUI()" title="Salvar dados no Firestore">
-                                <span class="btn-icon">â˜ï¸</span> Salvar no Cloud
+                                <span class="btn-icon">☁️</span> Salvar no Cloud
                             </button>
                             <button class="btn btn-outline" data-admin="true" onclick="carregarDoCloudUI()" title="Carregar dados do Firestore">
-                                <span class="btn-icon">ðŸ“¥</span> Carregar do Cloud
+                                <span class="btn-icon">📥</span> Carregar do Cloud
                             </button>
                         </div>
                     </div>
 
-                    <!-- HistÃ³rico de AlteraÃ§Ãµes -->
+                    <!-- Histórico de Alterações -->
                     <div class="config-card">
-                        <h3>ðŸ“‹ HistÃ³rico de AlteraÃ§Ãµes</h3>
+                        <h3>📋 Histórico de Alterações</h3>
                         <div class="config-actions">
                             <button class="btn btn-outline" onclick="abrirHistorico()">
-                                <span class="btn-icon">ðŸ“‹</span> Ver HistÃ³rico
+                                <span class="btn-icon">📋</span> Ver Histórico
                             </button>
                             <button class="btn btn-outline" onclick="limparHistorico()">
-                                <span class="btn-icon">ðŸ—‘</span> Limpar HistÃ³rico
+                                <span class="btn-icon">🗑</span> Limpar Histórico
                             </button>
                         </div>
                     </div>
 
                     <!-- Limpar Dados -->
                     <div class="config-card config-card-danger">
-                        <h3>ðŸ—‘ Zona de Perigo</h3>
-                        <p style="color:#666; margin-bottom:12px;">Esta aÃ§Ã£o irÃ¡ apagar todos os dados do sistema permanentemente.</p>
+                        <h3>🗑 Zona de Perigo</h3>
+                        <p style="color:#666; margin-bottom:12px;">Esta ação irá apagar todos os dados do sistema permanentemente.</p>
                         <div class="config-actions">
                             <button class="btn btn-danger" onclick="limparTodosDados()">
-                                <span class="btn-icon">ðŸ—‘</span> Limpar Todos os Dados
+                                <span class="btn-icon">🗑</span> Limpar Todos os Dados
                             </button>
                         </div>
                     </div>
@@ -948,7 +948,7 @@
                 </span>
             </div>
             <div>
-                Â© 2026 - GestÃ£o de Material BÃ©lico
+                © 2026 - Gestão de Material Bélico
             </div>
         </footer>
 
@@ -988,7 +988,7 @@
         <div id="modalEntradaEstoque" class="modal">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h2><span>ðŸ“¥</span> Entrada de Estoque (IMBEL)</h2>
+                    <h2><span>📥</span> Entrada de Estoque (IMBEL)</h2>
                     <span class="close" onclick="fecharModal('modalEntradaEstoque')">&times;</span>
                 </div>
                 <form id="formEntradaEstoque" onsubmit="salvarEntradaEstoque(event)">
@@ -1008,23 +1008,23 @@
                             <input type="number" id="quantidadeEntrada" required min="1" placeholder="0">
                         </div>
                         <div class="form-group">
-                            <label for="observacaoEntrada">ObservaÃ§Ã£o</label>
+                            <label for="observacaoEntrada">Observação</label>
                             <input type="text" id="observacaoEntrada" placeholder="Ex: Lote 2026-001">
                         </div>
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn btn-outline" onclick="fecharModal('modalEntradaEstoque')">Cancelar</button>
-                        <button type="submit" class="btn btn-warning">ðŸ“¥ Registrar Entrada</button>
+                        <button type="submit" class="btn btn-warning">📥 Registrar Entrada</button>
                     </div>
                 </form>
             </div>
         </div>
 
-        <!-- Modal DistribuiÃ§Ã£o -->
+        <!-- Modal Distribuição -->
         <div id="modalDistribuicao" class="modal">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h2><span>ðŸ“¦</span> Distribuir Estoque</h2>
+                    <h2><span>📦</span> Distribuir Estoque</h2>
                     <span class="close" onclick="fecharModal('modalDistribuicao')">&times;</span>
                 </div>
                 <form id="formDistribuicao" onsubmit="salvarDistribuicao(event)">
@@ -1063,7 +1063,7 @@
         <div id="modalVenda" class="modal">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h2><span>ðŸ’°</span> Registrar Venda</h2>
+                    <h2><span>💰</span> Registrar Venda</h2>
                     <span class="close" onclick="fecharModal('modalVenda')">&times;</span>
                 </div>
                 <form id="formVenda" onsubmit="salvarVenda(event)">
@@ -1099,11 +1099,11 @@
             </div>
         </div>
 
-        <!-- Modal DevoluÃ§Ã£o -->
+        <!-- Modal Devolução -->
         <div id="modalDevolucao" class="modal">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h2><span>â†©</span> Registrar DevoluÃ§Ã£o</h2>
+                    <h2><span>↩</span> Registrar Devolução</h2>
                     <span class="close" onclick="fecharModal('modalDevolucao')">&times;</span>
                 </div>
                 <form id="formDevolucao" onsubmit="salvarDevolucao(event)">
@@ -1132,7 +1132,7 @@
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn btn-outline" onclick="fecharModal('modalDevolucao')">Cancelar</button>
-                        <button type="submit" class="btn btn-primary">Registrar DevoluÃ§Ã£o</button>
+                        <button type="submit" class="btn btn-primary">Registrar Devolução</button>
                     </div>
                 </form>
             </div>
@@ -1142,7 +1142,7 @@
         <div id="modalVendaDetalhada" class="modal">
             <div class="modal-content modal-lg">
                 <div class="modal-header">
-                    <h2><span>ðŸ“</span> Nova Venda Detalhada</h2>
+                    <h2><span>📝</span> Nova Venda Detalhada</h2>
                     <span class="close" onclick="fecharModal('modalVendaDetalhada')">&times;</span>
                 </div>
                 <form id="formVendaDetalhada" onsubmit="salvarVendaDetalhada(event)">
@@ -1155,7 +1155,7 @@
                                     <li><a href="#sec-representante">Representante</a></li>
                                     <li><a href="#sec-itens">Itens</a></li>
                                     <li><a href="#sec-totais">Totais</a></li>
-                                    <li><a href="#sec-observacoes">ObservaÃ§Ãµes</a></li>
+                                    <li><a href="#sec-observacoes">Observações</a></li>
                                 </ul>
                             </nav>
 
@@ -1163,7 +1163,7 @@
                                 <section id="sec-contrato" class="form-section">
                                     <div class="form-row">
                                         <div class="form-group">
-                                            <label for="contratoVenda">NÂº Contrato <span class="required">*</span></label>
+                                            <label for="contratoVenda">Nº Contrato <span class="required">*</span></label>
                                             <input type="text" id="contratoVenda" required placeholder="Ex: 123">
                                         </div>
                                         <div class="form-group">
@@ -1209,7 +1209,7 @@
                                 <section id="sec-totais" class="form-section">
                                     <div class="form-row">
                                         <div class="form-group">
-                                            <label for="valorUnitarioVenda">Valor UnitÃ¡rio (mÃ©dia)</label>
+                                            <label for="valorUnitarioVenda">Valor Unitário (média)</label>
                                             <input type="text" id="valorUnitarioVenda" readonly class="readonly-field">
                                         </div>
                                         <div class="form-group">
@@ -1221,8 +1221,8 @@
 
                                 <section id="sec-observacoes" class="form-section">
                                     <div class="form-group">
-                                        <label for="observacoesVenda">ObservaÃ§Ãµes</label>
-                                        <textarea id="observacoesVenda" rows="3" placeholder="ObservaÃ§Ãµes adicionais sobre a venda..."></textarea>
+                                        <label for="observacoesVenda">Observações</label>
+                                        <textarea id="observacoesVenda" rows="3" placeholder="Observações adicionais sobre a venda..."></textarea>
                                     </div>
                                 </section>
                             </div>
@@ -1230,17 +1230,17 @@
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn btn-outline" onclick="fecharModal('modalVendaDetalhada')">Cancelar</button>
-                        <button type="submit" class="btn btn-success">ðŸ’¾ Salvar Venda</button>
+                        <button type="submit" class="btn btn-success">💾 Salvar Venda</button>
                     </div>
                 </form>
             </div>
         </div>
 
-        <!-- Modal Nova DistribuiÃ§Ã£o Detalhada -->
+        <!-- Modal Nova Distribuição Detalhada -->
         <div id="modalNovaDistribuicao" class="modal">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h2><span>ðŸšš</span> Nova DistribuiÃ§Ã£o</h2>
+                    <h2><span>🚚</span> Nova Distribuição</h2>
                     <span class="close" onclick="fecharModal('modalNovaDistribuicao')">&times;</span>
                 </div>
                 <form id="formNovaDistribuicao" onsubmit="salvarNovaDistribuicao(event)">
@@ -1275,24 +1275,24 @@
                             </div>
                         </div>
                         <div class="form-group">
-                            <label for="observacoesDistDet">ObservaÃ§Ãµes</label>
-                            <textarea id="observacoesDistDet" rows="2" placeholder="ObservaÃ§Ãµes sobre a distribuiÃ§Ã£o..."></textarea>
+                            <label for="observacoesDistDet">Observações</label>
+                            <textarea id="observacoesDistDet" rows="2" placeholder="Observações sobre a distribuição..."></textarea>
                         </div>
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn btn-outline" onclick="fecharModal('modalNovaDistribuicao')">Cancelar</button>
-                        <button type="submit" class="btn btn-info">ðŸšš Registrar DistribuiÃ§Ã£o</button>
+                        <button type="submit" class="btn btn-info">🚚 Registrar Distribuição</button>
                     </div>
                 </form>
             </div>
         </div>
     </div>
 
-    <!-- Modal Fechamentos de ComissÃµes -->
+    <!-- Modal Fechamentos de Comissões -->
     <div id="modalFechamentosComissoes" class="modal">
         <div class="modal-content modal-lg">
             <div class="modal-header">
-                <h2><span>ðŸ§Š</span> Fechamentos Mensais de ComissÃµes</h2>
+                <h2><span>🧊</span> Fechamentos Mensais de Comissões</h2>
                 <span class="close" onclick="fecharModal('modalFechamentosComissoes')">&times;</span>
             </div>
             <div class="modal-body">
@@ -1310,11 +1310,11 @@
         <span class="progress-bar-text" id="progressBarText">0%</span>
     </div>
 
-    <!-- Modal HistÃ³rico -->
+    <!-- Modal Histórico -->
     <div id="modalHistorico" class="modal">
         <div class="modal-content modal-lg">
             <div class="modal-header">
-                <h2><span>ðŸ“‹</span> HistÃ³rico de AlteraÃ§Ãµes</h2>
+                <h2><span>📋</span> Histórico de Alterações</h2>
                 <span class="close" onclick="fecharModal('modalHistorico')">&times;</span>
             </div>
             <div class="modal-body">
@@ -1330,7 +1330,7 @@
     <div id="modalBuscaGlobal" class="modal">
         <div class="modal-content modal-lg">
             <div class="modal-header">
-                <h2><span>ðŸ”</span> Resultados da Busca</h2>
+                <h2><span>🔍</span> Resultados da Busca</h2>
                 <span class="close" onclick="fecharModal('modalBuscaGlobal')">&times;</span>
             </div>
             <div class="modal-body">
@@ -1350,7 +1350,7 @@
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
     <script>
-        // FunÃ§Ãµes auxiliares para o modal de login
+        // Funções auxiliares para o modal de login
         function openLoginModal() {
             const m = document.getElementById('loginModal');
             if (!m) return;
@@ -1393,16 +1393,16 @@
                         <input type="text" id="imbel_prod_nome" placeholder="Nome" style="width:100%;padding:7px 8px;border:1px solid #ddd;border-radius:6px;font-size:.85rem"/>
                     </div>
                     <div>
-                        <label style="font-size:.82rem;font-weight:600;color:#555;display:block;margin-bottom:4px">CÃ³digo</label>
-                        <input type="text" id="imbel_prod_codigo" placeholder="CÃ³d." style="width:100%;padding:7px 8px;border:1px solid #ddd;border-radius:6px;font-size:.85rem"/>
+                        <label style="font-size:.82rem;font-weight:600;color:#555;display:block;margin-bottom:4px">Código</label>
+                        <input type="text" id="imbel_prod_codigo" placeholder="Cód." style="width:100%;padding:7px 8px;border:1px solid #ddd;border-radius:6px;font-size:.85rem"/>
                     </div>
                     <div>
                         <label style="font-size:.82rem;font-weight:600;color:#555;display:block;margin-bottom:4px">Quantidade Inicial</label>
                         <input type="number" id="imbel_prod_qtd_inicial" value="0" min="0" style="width:100%;padding:7px 8px;border:1px solid #ddd;border-radius:6px;font-size:.85rem"/>
                     </div>
                     <div>
-                        <label style="font-size:.82rem;font-weight:600;color:#555;display:block;margin-bottom:4px">ObservaÃ§Ã£o</label>
-                        <input type="text" id="imbel_prod_obs" placeholder="ObservaÃ§Ã£o" style="width:100%;padding:7px 8px;border:1px solid #ddd;border-radius:6px;font-size:.85rem"/>
+                        <label style="font-size:.82rem;font-weight:600;color:#555;display:block;margin-bottom:4px">Observação</label>
+                        <input type="text" id="imbel_prod_obs" placeholder="Observação" style="width:100%;padding:7px 8px;border:1px solid #ddd;border-radius:6px;font-size:.85rem"/>
                     </div>
                     <div style="grid-column:1/-1;display:flex;gap:8px;justify-content:flex-end">
                         <button type="button" class="btn btn-outline imbel-modal-cancel" style="margin-top:16px">Cancelar</button>
@@ -1417,21 +1417,21 @@
         <div class="imbel-modal-backdrop"></div>
         <div class="imbel-modal-panel">
             <div class="imbel-modal-header">
-                <h3>Registrar MovimentaÃ§Ã£o</h3>
+                <h3>Registrar Movimentação</h3>
                 <button class="imbel-modal-close">&times;</button>
             </div>
             <div class="imbel-modal-body" style="max-height:70vh;overflow-y:auto">
                 <input type="hidden" id="imbel_mov_edit_id" />
                 <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;align-items:end">
                     <div>
-                        <label style="font-size:.82rem;font-weight:600;color:#555;display:block;margin-bottom:4px">DescriÃ§Ã£o (Produto)</label>
+                        <label style="font-size:.82rem;font-weight:600;color:#555;display:block;margin-bottom:4px">Descrição (Produto)</label>
                         <select id="imbel_mov_prod" style="width:100%;padding:7px 8px;border:1px solid #ddd;border-radius:6px;font-size:.85rem"></select>
                     </div>
                     <div>
                         <label style="font-size:.82rem;font-weight:600;color:#555;display:block;margin-bottom:4px">Tipo</label>
                         <select id="imbel_mov_tipo" style="width:100%;padding:7px 8px;border:1px solid #ddd;border-radius:6px;font-size:.85rem">
                             <option value="Entrada">Entrada</option>
-                            <option value="SaÃ­da">SaÃ­da</option>
+                            <option value="Saída">Saída</option>
                         </select>
                     </div>
                     <div>
@@ -1443,7 +1443,7 @@
                         <input type="number" id="imbel_mov_qtd" value="1" min="1" style="width:100%;padding:7px 8px;border:1px solid #ddd;border-radius:6px;font-size:.85rem"/>
                     </div>
                     <div>
-                        <label style="font-size:.82rem;font-weight:600;color:#555;display:block;margin-bottom:4px">DestinatÃ¡rio</label>
+                        <label style="font-size:.82rem;font-weight:600;color:#555;display:block;margin-bottom:4px">Destinatário</label>
                         <input type="text" id="imbel_mov_dest" placeholder="Nome" style="width:100%;padding:7px 8px;border:1px solid #ddd;border-radius:6px;font-size:.85rem"/>
                     </div>
                     <div>
@@ -1455,8 +1455,8 @@
                         <input type="text" inputmode="decimal" id="imbel_mov_valor" placeholder="0,00" style="width:100%;padding:7px 8px;border:1px solid #ddd;border-radius:6px;font-size:.85rem"/>
                     </div>
                     <div style="grid-column:span 2">
-                        <label style="font-size:.82rem;font-weight:600;color:#555;display:block;margin-bottom:4px">EndereÃ§o</label>
-                        <input type="text" id="imbel_mov_endereco" placeholder="Rua, nÃºmero, cidade" style="width:100%;padding:7px 8px;border:1px solid #ddd;border-radius:6px;font-size:.85rem"/>
+                        <label style="font-size:.82rem;font-weight:600;color:#555;display:block;margin-bottom:4px">Endereço</label>
+                        <input type="text" id="imbel_mov_endereco" placeholder="Rua, número, cidade" style="width:100%;padding:7px 8px;border:1px solid #ddd;border-radius:6px;font-size:.85rem"/>
                     </div>
                     <div>
                         <label style="font-size:.82rem;font-weight:600;color:#555;display:block;margin-bottom:4px">Telefone</label>
@@ -1467,14 +1467,14 @@
                         <input type="email" id="imbel_mov_email" placeholder="email@exemplo.com" style="width:100%;padding:7px 8px;border:1px solid #ddd;border-radius:6px;font-size:.85rem"/>
                     </div>
                     <div style="grid-column:1/-1">
-                        <label style="font-size:.82rem;font-weight:600;color:#555;display:block;margin-bottom:4px">ObservaÃ§Ãµes</label>
-                        <input type="text" id="imbel_mov_obs" placeholder="ObservaÃ§Ãµes adicionais" style="width:100%;padding:7px 8px;border:1px solid #ddd;border-radius:6px;font-size:.85rem"/>
+                        <label style="font-size:.82rem;font-weight:600;color:#555;display:block;margin-bottom:4px">Observações</label>
+                        <input type="text" id="imbel_mov_obs" placeholder="Observações adicionais" style="width:100%;padding:7px 8px;border:1px solid #ddd;border-radius:6px;font-size:.85rem"/>
                     </div>
                 </div>
             </div>
             <div class="imbel-modal-footer">
                 <button type="button" class="btn btn-outline imbel-modal-cancel">Cancelar</button>
-                <button type="button" id="imbel_mov_salvar" class="btn btn-primary">Registrar MovimentaÃ§Ã£o</button>
+                <button type="button" id="imbel_mov_salvar" class="btn btn-primary">Registrar Movimentação</button>
             </div>
         </div>
     </div>
@@ -1482,4 +1482,3 @@
     <script src="app.js"></script>
 </body>
 </html>
-
