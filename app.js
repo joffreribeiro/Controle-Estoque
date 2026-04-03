@@ -506,7 +506,16 @@ function atualizarEstatisticas() {
         IMBEL: { disp: 0, venda: 0, saldo: 0 },
         GERAL: { disp: 0, venda: 0, saldo: 0 }
     };
-    try { document.getElementById('totalComissoes').textContent = formatarMoedaValor(totalComissoes); } catch (e) {}
+
+    // Calcular total de comissões via helper para evitar colisão com elemento DOM 'totalComissoes'
+    try {
+        const comissoesObj = typeof obterComissoesConsolidadas === 'function' ? obterComissoesConsolidadas({}) : { totalComissoes: 0 };
+        const totalComissoesValor = comissoesObj && typeof comissoesObj.totalComissoes === 'number' ? comissoesObj.totalComissoes : 0;
+        const totalComEl = document.getElementById('totalComissoes');
+        if (totalComEl) totalComEl.textContent = formatarMoedaValor(totalComissoesValor);
+    } catch (e) {
+        try { document.getElementById('totalComissoes').textContent = 'R$ 0,00'; } catch (ee) {}
+    }
 }
 
 // Helper global: normaliza várias formas de data para YYYY-MM-DD
