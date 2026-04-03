@@ -215,8 +215,12 @@ header {
 .header-info {
     display: flex;
     align-items: center;
-    gap: 12px;
-    flex-wrap: wrap;
+    gap: 14px;
+    /* limitar largura disponível para os cards, deixando mais espaço para o título */
+    max-width: calc(100% - 420px);
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
 }
 
 /* Ajustes para painel de autenticação e informações da conta
@@ -268,17 +272,18 @@ header {
 
 .header-stat {
     text-align: center;
-    padding: 10px 18px;
+    padding: 8px 12px;
     background: var(--bg-white);
     border-radius: var(--radius-sm);
     border: 1px solid var(--border-color);
     box-shadow: var(--shadow-sm);
     transition: var(--transition);
-    min-width: 110px;
+    min-width: 86px; /* reduzir largura para caber na linha */
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 6px;
+    gap: 4px;
+    flex: 0 0 auto;
 }
 
 .header-stat:hover {
@@ -298,7 +303,7 @@ header {
 }
 
 .header-stat .stat-value {
-    font-size: 1.1rem;
+    font-size: 1rem;
     font-weight: 700;
     color: var(--text-primary);
 }
@@ -312,11 +317,26 @@ header {
 }
 
 .header-stat .stat-label {
-    font-size: 0.6rem;
+    font-size: 0.62rem;
     color: var(--text-secondary);
     text-transform: uppercase;
-    letter-spacing: 1.2px;
-    margin-top: 2px;
+    letter-spacing: 1px;
+    margin-top: 0;
+}
+
+/* Garantir que o título não quebre para linha inferior */
+.logo-text h1 {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Em telas pequenas, permitir wrap e tornar os cards menores */
+@media (max-width: 992px) {
+    .header-info { max-width: none; flex-wrap: wrap; overflow: visible; }
+    .header-stat { min-width: 80px; padding: 8px 10px; }
+    .logo-text h1 { font-size: 1.15rem; }
+    .logo-text .subtitle { font-size: 0.65rem; }
 }
 
 .current-date {
