@@ -2958,3 +2958,15 @@ th.sortable.sort-desc .sort-icon::after { content: ' â–¼'; opacity: 1; }
 .logo-icon path { vector-effect: non-scaling-stroke; }
 .logo-icon .sr-only { display:none; }
 
+
+/* FIX: Ensure first column (Produto) header and cells remain sticky and visible */
+/* Header should sit above body cells; body cells should stay left-aligned */
+th.col-produto { position: sticky !important; left: 0 !important; top: 0 !important; z-index: 2400 !important; background: var(--primary-dark) !important; color: #fff !important; box-shadow: 2px 0 6px rgba(0,0,0,0.06); }
+td.produto-nome { position: sticky !important; left: 0 !important; z-index: 2300 !important; background: var(--bg-white) !important; color: var(--text-primary) !important; border-right: 1px solid var(--border-color) !important; }
+/* Increase z-index of all thead cells to ensure header rows overlay body when scrolling */
+thead th { z-index: 2350 !important; }
+/* For multi-row headers, ensure second row offset remains below first row */
+thead tr:nth-child(2) th { top: 44px !important; }
+/* If needed, reduce transform usage to avoid stacking context issues */
+thead { transform: none !important; }
+
