@@ -2717,10 +2717,10 @@ function renderControleImbelEstoque() {
     const thStyle = 'padding:8px 12px;border:1px solid #ddd;background:#1e3a5f;color:#fff;font-size:.82rem;white-space:nowrap;text-align:center';
     const tabela = document.createElement('table');
     tabela.style.cssText = 'width:100%;border-collapse:collapse;font-size:.85rem';
+    // Observação removida para simplificar a tabela IMBEL
     tabela.innerHTML = `<thead><tr>
         <th style="${thStyle}">ID</th>
         <th style="${thStyle}">Descrição</th>
-        <th style="${thStyle}">Observação</th>
         <th style="${thStyle}">Quantidade Inicial</th>
         <th style="${thStyle}">Entrada</th>
         <th style="${thStyle}">Saída</th>
@@ -2746,7 +2746,7 @@ function renderControleImbelEstoque() {
 
     if (produtos.length === 0) {
         const tr = document.createElement('tr');
-        tr.innerHTML = `<td colspan="7" style="${tdBase};text-align:center;color:#999;font-style:italic">Nenhum produto cadastrado. Cadastre na sub-aba "Cadastro de Produtos".</td>`;
+        tr.innerHTML = `<td colspan="6" style="${tdBase};text-align:center;color:#999;font-style:italic">Nenhum produto cadastrado. Cadastre na sub-aba "Cadastro de Produtos".</td>`;
         tbody.appendChild(tr);
     }
 
@@ -2760,10 +2760,10 @@ function renderControleImbelEstoque() {
 
         const tr = document.createElement('tr');
         tr.style.background = idx % 2 === 0 ? '#fff' : '#f7f9fc';
+        // Observação removida: manter apenas colunas essenciais
         tr.innerHTML = `
             <td style="${tdCenter}">${idx + 1}</td>
             <td style="${tdBase}">${p.nome}${p.codigo ? ' <span style="color:#888;font-size:.75rem">('+p.codigo+')</span>' : ''} <button class="btn btn-outline" data-editprod="${p.id}" style="margin-left:8px;padding:4px 8px;font-size:.8rem">Editar</button></td>
-            <td style="${tdBase}">${p.observacao || '-'}</td>
             <td style="${tdCenter};font-weight:600">${inicial}</td>
             <td style="${tdCenter};color:#155724;font-weight:600">${entrada}</td>
             <td style="${tdCenter};color:#721c24;font-weight:600">${saida}</td>
@@ -2781,7 +2781,7 @@ function renderControleImbelEstoque() {
         const tr = document.createElement('tr');
         tr.style.cssText = 'background:#1e3a5f;color:#fff;font-weight:700';
         tr.innerHTML = `
-            <td colspan="3" style="${tdBase};background:#1e3a5f;color:#fff;text-align:right">TOTAL GERAL</td>
+            <td colspan="2" style="${tdBase};background:#1e3a5f;color:#fff;text-align:right">TOTAL GERAL</td>
             <td style="${tdCenter};background:#1e3a5f;color:#fff">${totalInicial}</td>
             <td style="${tdCenter};background:#1e3a5f;color:#fff">${totalE}</td>
             <td style="${tdCenter};background:#1e3a5f;color:#fff">${totalS}</td>
