@@ -2233,6 +2233,34 @@ function imprimirConfiguracoes() {
 // ================================
 const IMBEL_KEY = 'estoqueImbelV1';
 
+// Tenta migrar dados IMBEL caso exista alguma chave antiga no localStorage
+function migrateImbelStorage() {
+    try {
+        // já existe a chave atual
+        if (localStorage.getItem(IMBEL_KEY)) return false;
+
+        const candidates = Object.keys(localStorage).filter(k => /imbel/i.test(k) && k !== IMBEL_KEY);
+        if (candidates.length === 0) return false;
+
+        for (const k of candidates) {
+            try {
+                const raw = localStorage.getItem(k);
+                if (!raw) continue;
+                const v = JSON.parse(raw);
+                if (v && (Array.isArray(v.produtos) || Array.isArray(v.movimentacoes) || (v.produtos && v.movimentacoes))) {
+                    localStorage.setItem(IMBEL_KEY, JSON.stringify(v));
+                    console.info(`IMBEL: migrado ${k} -> ${IMBEL_KEY}`);
+                    try { mostrarNotificacao(`Dados IMBEL restaurados de "${k}"`, 'success'); } catch(e) {}
+                    return true;
+                }
+            } catch(e) {
+                // ignora chaves que não são JSON válidos
+            }
+        }
+    } catch(e) {}
+    return false;
+}
+
 function loadImbel() {
     try {
         return JSON.parse(localStorage.getItem(IMBEL_KEY) || '{"produtos":[],"movimentacoes":[]}');
@@ -2335,6 +2363,9 @@ document.addEventListener('DOMContentLoaded', function(){
             closeImbelMovModal();
         }
     });
+
+    // Tentar migrar dados IMBEL de chaves antigas (se houver)
+    try { migrateImbelStorage(); } catch(e) {}
 }, { once: true });
 
 function renderControleImbelDashboard() {
