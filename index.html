@@ -410,6 +410,7 @@
                                     <th style="width: 120px;">Valor Un.</th>
                                     <th style="width: 130px;" class="sortable" data-sort="valorTotal" onclick="ordenarVendas('valorTotal')">Valor Total <span class="sort-icon">⇅</span></th>
                                     <th style="width: 120px;" class="sortable" data-sort="data" onclick="ordenarVendas('data')">Data <span class="sort-icon">⇅</span></th>
+                                    <th style="width: 140px;">Total Contrato (R$)</th>
                                     <th style="width: 150px;">Obs</th>
                                     <th style="width: 80px;">Ações</th>
                                 </tr>
@@ -417,12 +418,12 @@
                             <tbody id="tabelaRegistroVendasBody"></tbody>
                             <tfoot>
                                 <tr class="total-row">
-                                                    <td colspan="4"><strong>TOTAL</strong></td>
-                                                    <td id="totalQtdVendas"><strong>0</strong></td>
-                                                    <td></td>
-                                                    <td id="totalValorVendas"><strong>R$ 0,00</strong></td>
-                                                    <td colspan="3"></td>
-                                                </tr>
+                                    <td colspan="4"><strong>TOTAL</strong></td>
+                                    <td id="totalQtdVendas"><strong>0</strong></td>
+                                    <td></td>
+                                    <td id="totalValorVendas"><strong>R$ 0,00</strong></td>
+                                    <td colspan="4"></td>
+                                </tr>
                             </tfoot>
                         </table>
                     </div>
@@ -1494,71 +1495,7 @@
             </div>
         </div>
     </div>
-    
-    <!-- Toast container (progressively enhanced) -->
-    <div id="toast-container" aria-live="polite" class="toast-container" style="z-index:9998;position:fixed;right:20px;bottom:20px;display:flex;flex-direction:column;gap:8px;"></div>
-
-    <!-- Global loader -->
-    <div id="global-loader" class="global-loader" aria-hidden="true" style="display:none;">
-        <div class="global-loader-backdrop"></div>
-        <div class="global-loader-content" role="status" aria-live="assertive">
-            <div class="spinner" aria-hidden="true"></div>
-            <div class="loader-text">Carregando...</div>
-        </div>
-    </div>
-
-    <!-- Confirm modal -->
-    <div id="confirmModal" class="modal" aria-hidden="true" style="display:none;">
-        <div class="modal-backdrop" onclick="closeConfirmModal()"></div>
-        <div class="modal-content" role="dialog" aria-modal="true">
-            <div style="display:flex;align-items:center;gap:12px;">
-                <div style="font-size:24px">❗</div>
-                <div>
-                    <h3 id="confirmModalTitle" style="margin:0 0 8px 0">Confirmação</h3>
-                    <div id="confirmModalMessage" style="font-size:0.95rem;color:var(--text-secondary)">Deseja prosseguir?</div>
-                </div>
-            </div>
-            <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:18px;">
-                <button class="btn btn-outline" onclick="closeConfirmModal()">Cancelar</button>
-                <button id="confirmModalOk" class="btn btn-primary">Confirmar</button>
-            </div>
-        </div>
-    </div>
 
     <script src="app.js"></script>
-
-    <script>
-    (function(){
-        try {
-            // fallback: attach click handlers to tab buttons (defensive)
-            document.querySelectorAll('.tabs-navigation .tab-btn').forEach(btn => {
-                if (btn.__fallbackHandler__) btn.removeEventListener('click', btn.__fallbackHandler__);
-                btn.__fallbackHandler__ = function(e){
-                    e.preventDefault();
-                    const tab = this.dataset.tab;
-                    if (typeof trocarAba === 'function') {
-                        try { trocarAba(tab); } catch(err){ console.error('trocarAba error:', err); }
-                    } else {
-                        document.querySelectorAll('.tabs-navigation .tab-btn').forEach(b=>b.classList.remove('active'));
-                        this.classList.add('active');
-                        document.querySelectorAll('.tab-content').forEach(c=>c.classList.remove('active'));
-                        const el = document.getElementById('tab-' + tab);
-                        if (el) el.classList.add('active');
-                    }
-                };
-                btn.addEventListener('click', btn.__fallbackHandler__);
-            });
-
-            // If no active tab or table empty, try re-running initialization once
-            const noActiveTab = !document.querySelector('.tab-content.active');
-            const corpo = document.getElementById('corpoTabela');
-            const corpoEmpty = !corpo || corpo.children.length === 0;
-            if ((noActiveTab || corpoEmpty) && typeof inicializar === 'function') {
-                console.info('Fallback: reexecutando inicializar()');
-                try { inicializar(); } catch(e){ console.error('inicializar fallback error', e); }
-            }
-        } catch (e) { console.error('Fallback init error', e); }
-    })();
-    </script>
 </body>
 </html>

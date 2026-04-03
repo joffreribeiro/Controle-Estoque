@@ -497,25 +497,17 @@ function atualizarEstatisticas() {
 
     const valorTotalVendasEl = document.getElementById('valorTotalVendas');
     if (valorTotalVendasEl) valorTotalVendasEl.textContent = formatarMoedaValor(valorTotalVendas);
-    let totais = {
-        KOLTE: { disp: 0, venda: 0, saldo: 0 },
-        ISA: { disp: 0, venda: 0, saldo: 0 },
-        LC: { disp: 0, venda: 0, saldo: 0 },
-        ADES: { disp: 0, venda: 0, saldo: 0 },
-        FL: { disp: 0, venda: 0, saldo: 0 },
-        IMBEL: { disp: 0, venda: 0, saldo: 0 },
-        GERAL: { disp: 0, venda: 0, saldo: 0 }
-    };
-
-    // Calcular total de comissões via helper para evitar colisão com elemento DOM 'totalComissoes'
-    try {
-        const comissoesObj = typeof obterComissoesConsolidadas === 'function' ? obterComissoesConsolidadas({}) : { totalComissoes: 0 };
-        const totalComissoesValor = comissoesObj && typeof comissoesObj.totalComissoes === 'number' ? comissoesObj.totalComissoes : 0;
-        const totalComEl = document.getElementById('totalComissoes');
-        if (totalComEl) totalComEl.textContent = formatarMoedaValor(totalComissoesValor);
-    } catch (e) {
-        try { document.getElementById('totalComissoes').textContent = 'R$ 0,00'; } catch (ee) {}
+    // Calcular total de comissões (5%) excluindo vendas da IMBEL
+    let totalComissoes = 0;
+    if (Array.isArray(estoque.registroVendas)) {
+        estoque.registroVendas.forEach(venda => {
+            const rep = (venda.representante || '').toString().trim().toUpperCase();
+            if (rep === 'IMBEL') return; // sem comissão
+            const valor = typeof venda.valorTotal === 'number' ? venda.valorTotal : 0;
+            totalComissoes += (Math.round((valor * 0.05) * 100) / 100);
+        });
     }
+    try { document.getElementById('totalComissoes').textContent = formatarMoedaValor(totalComissoes); } catch (e) {}
 }
 
 // Helper global: normaliza várias formas de data para YYYY-MM-DD
@@ -2111,7 +2103,7 @@ function imprimirVendas() {
         return a.localeCompare(b);
     });
 
-    // Construir tabela única para impressão (coluna 'Total Contrato' removida)
+    // Construir tabela única (removida coluna OBS; mesclar células de contrato/loja/total por contrato quando for >1 linha)
     let tabelaHtml = `
         <table class="tabela-relatorio vendas-table" style="width:100%;border-collapse:collapse">
             <colgroup>
@@ -2122,6 +2114,7 @@ function imprimirVendas() {
                 <col style="width:4%" />
                 <col style="width:10%" />
                 <col style="width:14%" />
+                <col style="width:12%" />
                 <col style="width:6%" />
             </colgroup>
             <thead>
@@ -2133,6 +2126,7 @@ function imprimirVendas() {
                     <th class="numeric" style="padding:6px;border:1px solid #ddd;vertical-align:middle;text-align:center">QTD</th>
                     <th class="numeric" style="padding:6px;border:1px solid #ddd;vertical-align:middle;text-align:center">VALOR UN.</th>
                     <th class="numeric" style="padding:6px;border:1px solid #ddd;vertical-align:middle;text-align:center">VALOR TOTAL</th>
+                    <th class="numeric" style="padding:6px;border:1px solid #ddd;vertical-align:middle;text-align:center">TOTAL CONTRATO (R$)</th>
                     <th style="padding:6px;border:1px solid #ddd;vertical-align:middle;text-align:center">DATA</th>
                 </tr>
             </thead>
@@ -2166,6 +2160,10 @@ function imprimirVendas() {
                 <td class="numeric" style="padding:6px;border:1px solid #ddd;text-align:center;vertical-align:middle">${r.quantidade}</td>
                 <td class="numeric" style="padding:6px;border:1px solid #ddd;text-align:center;vertical-align:middle">${r.valorUnitario ? formatarMoedaValor(r.valorUnitario) : '-'}</td>
                 <td class="numeric" style="padding:6px;border:1px solid #ddd;text-align:center;vertical-align:middle">${formatarMoedaValor(r.valorTotal || 0)}</td>`;
+
+            if (primeiraLinha) {
+                tabelaHtml += `<td class="numeric" style="padding:6px;border:1px solid #ddd;text-align:center;vertical-align:middle"${rowspanAttr}><strong>${formatarMoedaValor(subtotalValor)}</strong></td>`;
+            }
 
             tabelaHtml += `<td style="padding:6px;border:1px solid #ddd;vertical-align:middle;text-align:center">${dataFmt}</td>`;
             tabelaHtml += `</tr>`;
@@ -4605,6 +4603,7 @@ function renderizarRegistroVendas() {
             <td class="col-valor-un">-</td>
             <td class="col-valor-total">${formatarMoedaValor(totalContrato)}</td>
             <td class="col-data">${dataDisplay}</td>
+            <td class="col-total-contrato">${formatarMoedaValor(totalContrato)}</td>
             <td class="col-obs" title="${obsGrupo}">${obsGrupo}</td>
             <td class="col-acoes">
                 <button class="btn-action btn-edit" onclick="abrirModalVendaDetalhada(${primeira.vendaId})" title="Editar venda">✎</button>
@@ -4631,6 +4630,7 @@ function renderizarRegistroVendas() {
                 <td class="col-valor-un">${valorUn}</td>
                 <td class="col-valor-total">${valorTot > 0 ? formatarMoedaValor(valorTot) : '-'}</td>
                 <td class="col-data">${linha.dataNorm ? formatDateToDDMMYYYY(linha.dataNorm) : '-'}</td>
+                <td class="col-total-contrato">-</td>
                 <td class="col-obs" title="${linha.observacoes || '-'}">${linha.observacoes || '-'}</td>
                 <td class="col-acoes">
                     <button class="btn-action btn-edit" onclick="abrirModalVendaDetalhada(${linha.vendaId})" title="Editar venda">✎</button>
@@ -5443,110 +5443,6 @@ function mostrarNotificacao(mensagem, tipo = 'info') {
         setTimeout(() => notificacao.remove(), 300);
     }, 4000);
 }
-
-// UI helpers: global loader, confirm modal, responsive tables
-
-function showGlobalLoader(message = 'Carregando...') {
-    const loader = document.getElementById('global-loader');
-    if (!loader) return;
-    const text = loader.querySelector('.loader-text');
-    if (text) text.textContent = message;
-    loader.style.display = 'flex';
-    loader.setAttribute('aria-hidden', 'false');
-}
-
-function hideGlobalLoader() {
-    const loader = document.getElementById('global-loader');
-    if (!loader) return;
-    loader.style.display = 'none';
-    loader.setAttribute('aria-hidden', 'true');
-}
-
-function openConfirmModal(message, onConfirm, title = 'Confirmação') {
-    const modal = document.getElementById('confirmModal');
-    if (!modal) {
-        if (window.confirm(message)) onConfirm && onConfirm();
-        return;
-    }
-    document.getElementById('confirmModalTitle').textContent = title;
-    document.getElementById('confirmModalMessage').textContent = message;
-    modal.style.display = 'flex';
-    modal.setAttribute('aria-hidden', 'false');
-    const okBtn = document.getElementById('confirmModalOk');
-    // replace node to remove previous listeners safely
-    const newOk = okBtn.cloneNode(true);
-    okBtn.parentNode.replaceChild(newOk, okBtn);
-    newOk.addEventListener('click', function handler() {
-        closeConfirmModal();
-        onConfirm && onConfirm();
-    });
-}
-
-function closeConfirmModal() {
-    const modal = document.getElementById('confirmModal');
-    if (!modal) return;
-    modal.style.display = 'none';
-    modal.setAttribute('aria-hidden', 'true');
-}
-
-function enhanceTablesResponsive() {
-    try {
-        document.querySelectorAll('table').forEach(table => {
-            if (table.dataset.responsiveInit) return;
-            table.dataset.responsiveInit = '1';
-            const thead = table.querySelector('thead');
-            const tbody = table.querySelector('tbody');
-            if (!thead || !tbody) return;
-            const headers = Array.from(thead.querySelectorAll('th')).map(th => th.textContent.trim());
-            const primaryCols = 2; // keep first 2 columns visible
-            Array.from(tbody.querySelectorAll('tr')).forEach(row => {
-                const cells = Array.from(row.children);
-                if (cells.length === 0) return;
-                cells.forEach((td, idx) => {
-                    if (idx >= primaryCols) td.classList.add('col-secondary');
-                });
-                const secItems = [];
-                cells.forEach((td, idx) => {
-                    if (idx >= primaryCols) secItems.push({ label: headers[idx] || '', html: td.innerHTML });
-                });
-                if (secItems.length > 0) {
-                    const detailsRow = document.createElement('tr');
-                    detailsRow.className = 'responsive-details';
-                    const tdContainer = document.createElement('td');
-                    tdContainer.colSpan = Math.max(1, headers.length);
-                    const details = document.createElement('details');
-                    details.innerHTML = '<summary>Ver detalhes</summary>';
-                    const grid = document.createElement('div');
-                    grid.className = 'details-grid';
-                    secItems.forEach(it => {
-                        const item = document.createElement('div');
-                        item.className = 'detail-item';
-                        const label = document.createElement('div');
-                        label.className = 'detail-label';
-                        label.textContent = it.label;
-                        const value = document.createElement('div');
-                        value.className = 'detail-value';
-                        value.innerHTML = it.html;
-                        item.appendChild(label);
-                        item.appendChild(value);
-                        grid.appendChild(item);
-                    });
-                    details.appendChild(grid);
-                    tdContainer.appendChild(details);
-                    detailsRow.appendChild(tdContainer);
-                    row.parentNode.insertBefore(detailsRow, row.nextSibling);
-                }
-            });
-        });
-    } catch (e) {
-        console.warn('enhanceTablesResponsive error', e);
-    }
-}
-
-document.addEventListener('DOMContentLoaded', function() {
-    try { enhanceTablesResponsive(); } catch(e) {}
-    document.addEventListener('keydown', function(ev){ if (ev.key === 'Escape') closeConfirmModal(); });
-}, { once: true });
 
 // ========================================
 // EXPORTAÇÃO DE DADOS
