@@ -190,19 +190,26 @@ header {
     justify-content: center;
 }
 .logo-text h1 {
-    font-size: 1.3rem;
-    color: var(--text-primary);
-    font-weight: 700;
-    letter-spacing: 0.3px;
-    line-height: 1.05;
+    font-size: 1.6rem;
+    color: var(--primary-color);
+    font-weight: 800;
+    letter-spacing: 0.2px;
+    line-height: 1.02;
+    margin: 0;
 }
 
 .logo-text .subtitle {
     font-size: 0.78rem;
     color: var(--text-secondary);
-    text-transform: none;
-    letter-spacing: 0.2px;
-    margin-top: 2px;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    margin-top: 4px;
+    font-weight: 600;
+}
+
+@media (max-width: 768px) {
+    .logo-text h1 { font-size: 1.15rem; }
+    .logo-text .subtitle { font-size: 0.65rem; }
 }
 
 .header-info {
