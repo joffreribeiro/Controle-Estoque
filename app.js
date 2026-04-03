@@ -497,15 +497,15 @@ function atualizarEstatisticas() {
 
     const valorTotalVendasEl = document.getElementById('valorTotalVendas');
     if (valorTotalVendasEl) valorTotalVendasEl.textContent = formatarMoedaValor(valorTotalVendas);
-    // Calcular total de comissões (5%) excluindo vendas da IMBEL
-    let totalComissoes = 0;
-    if (Array.isArray(estoque.registroVendas)) {
-        estoque.registroVendas.forEach(venda => {
-            const rep = (venda.representante || '').toString().trim().toUpperCase();
-            if (rep === 'IMBEL') return; // sem comissão
-            const valor = typeof venda.valorTotal === 'number' ? venda.valorTotal : 0;
-            totalComissoes += (Math.round((valor * 0.05) * 100) / 100);
-        });
+        let totais = {
+            KOLTE: { disp: 0, venda: 0, saldo: 0 },
+            ISA: { disp: 0, venda: 0, saldo: 0 },
+            LC: { disp: 0, venda: 0, saldo: 0 },
+            ADES: { disp: 0, venda: 0, saldo: 0 },
+            FL: { disp: 0, venda: 0, saldo: 0 },
+            IMBEL: { disp: 0, venda: 0, saldo: 0 },
+            GERAL: { disp: 0, venda: 0, saldo: 0 }
+        };
     }
     try { document.getElementById('totalComissoes').textContent = formatarMoedaValor(totalComissoes); } catch (e) {}
 }
@@ -2103,7 +2103,7 @@ function imprimirVendas() {
         return a.localeCompare(b);
     });
 
-    // Construir tabela única (removida coluna OBS; mesclar células de contrato/loja/total por contrato quando for >1 linha)
+    // Construir tabela única para impressão (coluna 'Total Contrato' removida)
     let tabelaHtml = `
         <table class="tabela-relatorio vendas-table" style="width:100%;border-collapse:collapse">
             <colgroup>
@@ -2114,7 +2114,6 @@ function imprimirVendas() {
                 <col style="width:4%" />
                 <col style="width:10%" />
                 <col style="width:14%" />
-                <col style="width:12%" />
                 <col style="width:6%" />
             </colgroup>
             <thead>
@@ -2126,7 +2125,6 @@ function imprimirVendas() {
                     <th class="numeric" style="padding:6px;border:1px solid #ddd;vertical-align:middle;text-align:center">QTD</th>
                     <th class="numeric" style="padding:6px;border:1px solid #ddd;vertical-align:middle;text-align:center">VALOR UN.</th>
                     <th class="numeric" style="padding:6px;border:1px solid #ddd;vertical-align:middle;text-align:center">VALOR TOTAL</th>
-                    <th class="numeric" style="padding:6px;border:1px solid #ddd;vertical-align:middle;text-align:center">TOTAL CONTRATO (R$)</th>
                     <th style="padding:6px;border:1px solid #ddd;vertical-align:middle;text-align:center">DATA</th>
                 </tr>
             </thead>
@@ -2160,10 +2158,6 @@ function imprimirVendas() {
                 <td class="numeric" style="padding:6px;border:1px solid #ddd;text-align:center;vertical-align:middle">${r.quantidade}</td>
                 <td class="numeric" style="padding:6px;border:1px solid #ddd;text-align:center;vertical-align:middle">${r.valorUnitario ? formatarMoedaValor(r.valorUnitario) : '-'}</td>
                 <td class="numeric" style="padding:6px;border:1px solid #ddd;text-align:center;vertical-align:middle">${formatarMoedaValor(r.valorTotal || 0)}</td>`;
-
-            if (primeiraLinha) {
-                tabelaHtml += `<td class="numeric" style="padding:6px;border:1px solid #ddd;text-align:center;vertical-align:middle"${rowspanAttr}><strong>${formatarMoedaValor(subtotalValor)}</strong></td>`;
-            }
 
             tabelaHtml += `<td style="padding:6px;border:1px solid #ddd;vertical-align:middle;text-align:center">${dataFmt}</td>`;
             tabelaHtml += `</tr>`;
@@ -4603,7 +4597,6 @@ function renderizarRegistroVendas() {
             <td class="col-valor-un">-</td>
             <td class="col-valor-total">${formatarMoedaValor(totalContrato)}</td>
             <td class="col-data">${dataDisplay}</td>
-            <td class="col-total-contrato">${formatarMoedaValor(totalContrato)}</td>
             <td class="col-obs" title="${obsGrupo}">${obsGrupo}</td>
             <td class="col-acoes">
                 <button class="btn-action btn-edit" onclick="abrirModalVendaDetalhada(${primeira.vendaId})" title="Editar venda">✎</button>
@@ -4630,7 +4623,6 @@ function renderizarRegistroVendas() {
                 <td class="col-valor-un">${valorUn}</td>
                 <td class="col-valor-total">${valorTot > 0 ? formatarMoedaValor(valorTot) : '-'}</td>
                 <td class="col-data">${linha.dataNorm ? formatDateToDDMMYYYY(linha.dataNorm) : '-'}</td>
-                <td class="col-total-contrato">-</td>
                 <td class="col-obs" title="${linha.observacoes || '-'}">${linha.observacoes || '-'}</td>
                 <td class="col-acoes">
                     <button class="btn-action btn-edit" onclick="abrirModalVendaDetalhada(${linha.vendaId})" title="Editar venda">✎</button>
