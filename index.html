@@ -18,7 +18,21 @@
         <header>
             <div class="header-content">
                 <div class="logo-section">
-                    <div class="logo-icon">CE</div>
+                    <div class="logo-icon">
+                        <svg class="logo-svg" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                            <defs>
+                                <linearGradient id="boxGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                                    <stop offset="0%" style="stop-color:#1e3a5f;stop-opacity:1" />
+                                    <stop offset="100%" style="stop-color:#2d5a8f;stop-opacity:1" />
+                                </linearGradient>
+                            </defs>
+                            <!-- Caixa estilizada representando estoque -->
+                            <rect x="15" y="35" width="70" height="45" rx="4" fill="url(#boxGrad)" stroke="#fff" stroke-width="2" opacity="0.9"/>
+                            <path d="M 15 50 L 50 35 L 85 50 L 85 35 L 50 20 L 15 35 Z" fill="#2d5a8f" stroke="#fff" stroke-width="1.5"/>
+                            <line x1="50" y1="35" x2="50" y2="55" stroke="#fff" stroke-width="2" opacity="0.7"/>
+                            <text x="50" y="68" font-family="Inter, sans-serif" font-size="20" font-weight="900" fill="#fff" text-anchor="middle" letter-spacing="2">CE</text>
+                        </svg>
+                    </div>
                     <div class="logo-text">
                         <h1>Controle de Estoque</h1>
                         <div class="subtitle">Fábrica de Itajubá - FI</div>
