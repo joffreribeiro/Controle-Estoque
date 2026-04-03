@@ -42,7 +42,7 @@
     ======================================== */
 
 /* Visible focus for keyboard users */
-:focus-visible {
+*:focus {
      outline: 3px solid rgba(30,58,95,0.12);
      outline-offset: 2px;
      box-shadow: 0 0 0 3px rgba(201,162,39,0.08);
@@ -201,9 +201,9 @@ header {
     flex-wrap: wrap;
 }
 
-/* Ajustes para painel de autenticaÃ§Ã£o e informaÃ§Ãµes da conta
-   - posicionar Ã  direita abaixo do indicador de sincronizaÃ§Ã£o
-   - melhorar contraste de fonte e disposiÃ§Ã£o visual */
+/* Ajustes para painel de autenticação e informações da conta
+   - posicionar à direita abaixo do indicador de sincronização
+   - melhorar contraste de fonte e disposição visual */
 .header-info { position: relative; }
 .auth-panel, .logged-account-info {
     margin-left: auto;
@@ -234,14 +234,14 @@ header {
     margin-left: 8px;
     display: inline-block;
     padding: 4px 8px;
-    background: #1e90ff; /* destaque azul mais visÃ­vel */
+    background: #1e90ff; /* destaque azul mais visível */
     color: #ffffff;
     border-radius: 6px;
     font-size: 11px;
     font-weight: 700;
 }
 
-/* Em telas muito grandes, garantir que o bloco fique fixo Ã  direita */
+/* Em telas muito grandes, garantir que o bloco fique fixo à direita */
 @media (min-width: 1200px) {
     .auth-panel, .logged-account-info { position: relative; }
 }
@@ -328,7 +328,7 @@ header {
 .fs-text { color: rgba(255,255,255,0.9); font-weight:600; }
 
 /* ========================================
-   NAVEGAÃ‡ÃƒO POR ABAS
+   NAVEGAÇÃO POR ABAS
    ======================================== */
 
 .tabs-navigation {
@@ -381,7 +381,7 @@ header {
 /* tab-content transitions handled in new section below */
 
 /* ========================================
-   BARRA DE AÃ‡Ã•ES
+   BARRA DE AÇÕES
    ======================================== */
 
 .actions-bar {
@@ -513,7 +513,7 @@ header {
 }
 
 /* ========================================
-   ÃREA DE CONTEÃšDO
+   ÁREA DE CONTEÚDO
    ======================================== */
 
 .content-area {
@@ -782,8 +782,8 @@ table {
 thead {
     position: sticky;
     top: 0;
-    z-index: 950; /* garantir que o cabeÃ§alho fique acima das cÃ©lulas do corpo, mas abaixo de modais */
-    /* forÃ§a camada de composiÃ§Ã£o para evitar problemas de stacking em alguns navegadores */
+    z-index: 950; /* garantir que o cabeçalho fique acima das células do corpo, mas abaixo de modais */
+    /* força camada de composição para evitar problemas de stacking em alguns navegadores */
     transform: translateZ(0);
 }
 
@@ -813,7 +813,7 @@ th.col-produto {
     position: sticky;
     left: 0;
     top: 0;
-    z-index: 951; /* acima de todos os outros th por ser sticky em 2 direÃ§Ãµes */
+    z-index: 951; /* acima de todos os outros th por ser sticky em 2 direções */
 }
 
 .header-rep {
@@ -830,7 +830,7 @@ th.col-produto {
 .header-geral { background: var(--primary-dark); }
 
 .sub-header {
-    background: var(--primary-color); /* cor sÃ³lida para funcionar com sticky */
+    background: var(--primary-color); /* cor sólida para funcionar com sticky */
     font-size: 0.65rem;
     padding: 8px 6px;
     font-weight: 600;
@@ -863,7 +863,7 @@ td {
     font-variant-numeric: tabular-nums;
     transition: background 0.15s ease;
 
-    /* NÃ£o criar novo contexto de empilhamento aqui â€” manter z-index padrÃ£o para evitar sobreposiÃ§Ã£o do cabeÃ§alho */
+    /* Não criar novo contexto de empilhamento aqui — manter z-index padrão para evitar sobreposição do cabeçalho */
     position: static;
 }
 
@@ -907,7 +907,7 @@ tbody tr:nth-child(even) td.produto-nome {
     background: #f8fafc;
 }
 
-/* ForÃ§ar th individuais a ficarem acima do corpo em navegadores com stacking contexts estranhos */
+/* Forçar th individuais a ficarem acima do corpo em navegadores com stacking contexts estranhos */
 thead th {
     position: sticky;
     top: 0;
@@ -915,7 +915,7 @@ thead th {
     transform: translateZ(0);
 }
 
-/* Aumentar z-index da primeira coluna do cabeÃ§alho para evitar sobreposiÃ§Ã£o */
+/* Aumentar z-index da primeira coluna do cabeçalho para evitar sobreposição */
 thead th.col-produto {
     z-index: 951;
 }
@@ -930,7 +930,7 @@ thead th.col-produto {
 .cell-saldo.negativo { color: var(--danger-color); background: rgba(220, 53, 69, 0.08); }
 .cell-saldo.negativo { font-weight: 800; }
 
-/* Garantir que saldos consolidados negativos tambÃ©m fiquem vermelhos */
+/* Garantir que saldos consolidados negativos também fiquem vermelhos */
 #tabelaEstoque td.geral-saldo.negativo {
     color: var(--danger-color);
     background: rgba(220, 53, 69, 0.06);
@@ -945,7 +945,7 @@ tr.total-row td.geral-saldo.negativo {
 .cell-saldo.baixo { color: #e67e22; background: rgba(230, 126, 34, 0.08); }
 .cell-zero { color: #adb5bd; }
 
-/* AnimaÃ§Ã£o sutil para chamar atenÃ§Ã£o a valores negativos */
+/* Animação sutil para chamar atenção a valores negativos */
 @keyframes pulso-negativo {
     0% { box-shadow: 0 0 0 0 rgba(220,53,69,0.00); transform: translateY(0); }
     50% { box-shadow: 0 0 8px 2px rgba(220,53,69,0.08); transform: translateY(-1px); }
@@ -956,7 +956,7 @@ tr.total-row td.geral-saldo.negativo {
     animation: pulso-negativo 1.6s ease-in-out infinite;
 }
 
-/* Aplicar animaÃ§Ã£o tambÃ©m a saldos gerais/total quando negativos */
+/* Aplicar animação também a saldos gerais/total quando negativos */
 #tabelaEstoque td.geral-saldo.negativo.animate-negativo,
 tr.total-row td.geral-saldo.negativo.animate-negativo {
     animation: pulso-negativo 1.6s ease-in-out infinite;
@@ -1094,14 +1094,14 @@ tr.total-row:hover {
     flex: 1 1 auto;
 }
 
-/* Tornar o modal com altura limitada e o corpo rolÃ¡vel para manter o rodapÃ© visÃ­vel */
+/* Tornar o modal com altura limitada e o corpo rolável para manter o rodapé visível */
 .modal-content {
     display: flex;
     flex-direction: column;
     max-height: 80vh;
 }
 
-/* Permitir redimensionar a janela do modal pelo usuÃ¡rio */
+/* Permitir redimensionar a janela do modal pelo usuário */
 .modal-content {
     resize: both;
     overflow: auto;
@@ -1109,7 +1109,7 @@ tr.total-row:hover {
     min-height: 320px;
 }
 
-/* Modal grande com navegaÃ§Ã£o vertical */
+/* Modal grande com navegação vertical */
 .modal-content.modal-lg {
     max-width: 900px;
 }
@@ -1165,10 +1165,10 @@ tr.total-row:hover {
     padding-right: 8px;
 }
 
-/* Permitir tambÃ©m rolagem horizontal quando em layout horizontal */
+/* Permitir também rolagem horizontal quando em layout horizontal */
 .itens-venda-container { overflow: auto; }
 
-/* Layout vertical (padrÃ£o) */
+/* Layout vertical (padrão) */
 .itens-venda-container.itens-layout-vertical {
     display: flex;
     flex-direction: column;
@@ -1317,7 +1317,7 @@ tr.total-row:hover {
 }
 
 /* ========================================
-   ABA CONFIGURAÃ‡Ã•ES
+   ABA CONFIGURAÇÕES
    ======================================== */
 
 .config-sections {
@@ -1528,7 +1528,7 @@ tr.total-row:hover {
 }
 
 /* ========================================
-   ANIMAÃ‡Ã•ES
+   ANIMAÇÕES
    ======================================== */
 
 @keyframes pulse {
@@ -1541,7 +1541,7 @@ tr.total-row:hover {
 }
 
 /* ========================================
-   UTILITÃRIOS
+   UTILITÁRIOS
    ======================================== */
 
 .text-center { text-align: center; }
@@ -1891,7 +1891,7 @@ tr.total-row:hover {
 .badge-rep.fl { background: rgba(123, 45, 38, 0.15); color: #7b2d26; }
 .badge-rep.imbel { background: rgba(30, 58, 95, 0.15); color: #1e3a5f; }
 
-/* ===== Melhorias visuais para a tabela de inventÃ¡rio ===== */
+/* ===== Melhorias visuais para a tabela de inventário ===== */
 /* Destacar cada bloco de 3 colunas por representante com cor suave */
 #tabelaEstoque td:nth-child(2),
 #tabelaEstoque td:nth-child(3),
@@ -1947,7 +1947,7 @@ tr.total-row:hover {
     border-right: 3px solid rgba(0,0,0,0.06);
 }
 
-/* Sub-headers (segunda linha do thead) com cores correspondentes - mais legÃ­vel */
+/* Sub-headers (segunda linha do thead) com cores correspondentes - mais legível */
 #tabelaEstoque thead tr:nth-child(2) th.sub-header {
     font-weight: 700;
     font-size: 0.72rem;
@@ -1985,12 +1985,12 @@ tr.total-row:hover {
 #tabelaEstoque thead tr:nth-child(2) th:nth-child(20),
 #tabelaEstoque thead tr:nth-child(2) th:nth-child(21) { background: rgba(16, 30, 46, 0.12); color: #0b1a2a; }
 
-/* Melhor contraste para nÃºmeros importantes */
+/* Melhor contraste para números importantes */
 #tabelaEstoque td.cell-disp { color: #1f2d3d; }
 #tabelaEstoque td.cell-venda { color: #0d6efd; }
 #tabelaEstoque td.cell-saldo { color: #198754; }
 
-/* Tornar as colunas de saldo mais visÃ­veis */
+/* Tornar as colunas de saldo mais visíveis */
 #tabelaEstoque td.cell-saldo { font-weight: 700; }
 
 /* Garantir prioridade para saldos negativos (especificidade maior) */
@@ -2000,7 +2000,7 @@ tr.total-row:hover {
     font-weight: 800 !important;
 }
 
-/* Garantir animaÃ§Ã£o para negativos com especificidade aumentada */
+/* Garantir animação para negativos com especificidade aumentada */
 #tabelaEstoque td.cell-saldo.negativo.animate-negativo {
     animation: pulso-negativo 1.6s ease-in-out infinite !important;
 }
@@ -2008,13 +2008,13 @@ tr.total-row:hover {
 /* Reduzir preenchimento horizontal para caber melhor */
 #tabelaEstoque td { padding: 8px 6px; }
 
-/* Pequeno ajuste para o cabeÃ§alho principal por representante */
+/* Pequeno ajuste para o cabeçalho principal por representante */
 th.header-rep { border-right: 2px solid rgba(255,255,255,0.06); }
 
 /* ========================================
-   INVENTÃRIO - AparÃªncia igual ao RelatÃ³rio
+   INVENTÁRIO - Aparência igual ao Relatório
    Uniformiza a tabela de `#tabelaEstoque` para ficar visualmente
-   igual Ã  tabela usada no preview/relatÃ³rio (bordas, padding, alinhamentos).
+   igual à tabela usada no preview/relatório (bordas, padding, alinhamentos).
    ======================================== */
 
 #tabelaEstoque {
@@ -2035,7 +2035,7 @@ th.header-rep { border-right: 2px solid rgba(255,255,255,0.06); }
     font-weight: 600;
 }
 
-/* Manter coluna de produto fixa Ã  esquerda e alinhada Ã  esquerda */
+/* Manter coluna de produto fixa à esquerda e alinhada à esquerda */
 #tabelaEstoque th.col-produto,
 #tabelaEstoque td.produto-nome {
     text-align: left;
@@ -2046,9 +2046,9 @@ th.header-rep { border-right: 2px solid rgba(255,255,255,0.06); }
     background: var(--bg-white);
 }
 
-/* Aumentar destaque do nome do produto na tabela de InventÃ¡rio */
+/* Aumentar destaque do nome do produto na tabela de Inventário */
 #tabelaEstoque th.col-produto {
-    font-size: 1.05rem; /* maior que o padrÃ£o do thead */
+    font-size: 1.05rem; /* maior que o padrão do thead */
     font-weight: 700;
     padding-top: 12px;
     padding-bottom: 12px;
@@ -2059,19 +2059,19 @@ th.header-rep { border-right: 2px solid rgba(255,255,255,0.06); }
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    font-size: 1rem; /* texto das cÃ©lulas de produto maior */
+    font-size: 1rem; /* texto das células de produto maior */
     font-weight: 600;
     padding-top: 10px;
     padding-bottom: 10px;
 }
 
-/* Garantir contraste para a linha de totais e linhas especiais (mantÃ©m regras anteriores) */
+/* Garantir contraste para a linha de totais e linhas especiais (mantém regras anteriores) */
 #tabelaEstoque tr.total-row td {
     border-top: 2px solid var(--primary-color);
 }
 
 /* ==============================
-   RELATÃ“RIOS / IMPRESSÃƒO
+   RELATÓRIOS / IMPRESSÃO
    ============================== */
 
 .report-preview {
@@ -2099,7 +2099,7 @@ th.header-rep { border-right: 2px solid rgba(255,255,255,0.06); }
     text-align: left;
 }
 
-/* Centralizar os dados numÃ©ricos no preview do InventÃ¡rio, mas manter a coluna de produtos Ã  esquerda */
+/* Centralizar os dados numéricos no preview do Inventário, mas manter a coluna de produtos à esquerda */
 .report-printable #tabelaEstoqueRelatorio th,
 .report-printable #tabelaEstoqueRelatorio td {
     text-align: center;
@@ -2110,7 +2110,7 @@ th.header-rep { border-right: 2px solid rgba(255,255,255,0.06); }
     padding-left: 20px;
 }
 
-/* Aumentar fonte no relatÃ³rio/preview tambÃ©m */
+/* Aumentar fonte no relatório/preview também */
 .report-printable #tabelaEstoqueRelatorio th.col-produto {
     font-size: 1.05rem;
     font-weight: 700;
@@ -2129,14 +2129,14 @@ th.header-rep { border-right: 2px solid rgba(255,255,255,0.06); }
     color: white;
 }
 
-/* CabeÃ§alho do preview/relatÃ³rio mantÃ©m cor primÃ¡ria */
+/* Cabeçalho do preview/relatório mantém cor primária */
 .report-printable thead th {
     background: var(--primary-color);
     color: white;
 }
 
-/* Restaurar cores por representante especificamente na tabela de InventÃ¡rio
-   para facilitar a identificaÃ§Ã£o visual (mesma paleta usada no layout geral). */
+/* Restaurar cores por representante especificamente na tabela de Inventário
+   para facilitar a identificação visual (mesma paleta usada no layout geral). */
 #tabelaEstoque thead th {
     border: 1px solid #e6e9ee;
     padding: 8px 10px;
@@ -2146,7 +2146,7 @@ th.header-rep { border-right: 2px solid rgba(255,255,255,0.06); }
 
 /* Cores por representante (mesmas usadas globalmente, aplicadas com maior especificidade)
     para que a tabela de inventario reflita a imagem fornecida. */
-/* Garantir que a primeira coluna (PRODUTOS) tenha o mesmo estilo do relatÃ³rio */
+/* Garantir que a primeira coluna (PRODUTOS) tenha o mesmo estilo do relatório */
 #tabelaEstoque th.col-produto {
      background: var(--primary-dark) !important;
      color: #ffffff !important;
@@ -2164,7 +2164,7 @@ th.header-rep { border-right: 2px solid rgba(255,255,255,0.06); }
 #tabelaEstoque thead th.header-geral     { background: var(--primary-dark) !important; }
 
 /* Segunda linha (sub-headers Disp/Venda/Saldo) com as mesmas tonalidades por grupo.
-    Aqui usamos seletores por blocos de 3 colunas, comeÃ§ando no primeiro th da segunda linha. */
+    Aqui usamos seletores por blocos de 3 colunas, começando no primeiro th da segunda linha. */
 #tabelaEstoque thead tr:nth-child(2) th.sub-header { color: #ffffff !important; }
 #tabelaEstoque thead tr:nth-child(2) th:nth-child(1),
 #tabelaEstoque thead tr:nth-child(2) th:nth-child(2),
@@ -2194,7 +2194,7 @@ th.header-rep { border-right: 2px solid rgba(255,255,255,0.06); }
 #tabelaEstoque thead tr:nth-child(2) th:nth-child(20),
 #tabelaEstoque thead tr:nth-child(2) th:nth-child(21) { background: var(--primary-dark) !important; }
 
-/* ReforÃ§ar texto branco nas cÃ©lulas do thead da tabela de inventÃ¡rio */
+/* Reforçar texto branco nas células do thead da tabela de inventário */
 #tabelaEstoque thead th { color: #ffffff !important; }
 
 /* Linha com saldo consolidado zerado */
@@ -2213,7 +2213,7 @@ tr.row-saldo-zero .geral-saldo {
     font-weight: 700;
 }
 
-/* ImpressÃ£o: esconder cabeÃ§alho, navegaÃ§Ã£o e elementos nÃ£o relacionados ao relatÃ³rio */
+/* Impressão: esconder cabeçalho, navegação e elementos não relacionados ao relatório */
 @media print {
     body * { visibility: hidden; }
     .report-printable, .report-printable * { visibility: visible; }
@@ -2221,7 +2221,7 @@ tr.row-saldo-zero .geral-saldo {
 }
 
 /* ========================================
-   CONTROLE DE ENVIO - CAMPOS EDITÃVEIS
+   CONTROLE DE ENVIO - CAMPOS EDITÁVEIS
    ======================================== */
 
 .campo-editavel {
@@ -2260,7 +2260,7 @@ tr.row-saldo-zero .geral-saldo {
 }
 
 /* ========================================
-   NOTIFICAÃ‡Ã•ES / TOASTS
+   NOTIFICAÇÕES / TOASTS
    ======================================== */
 
 .notificacao {
@@ -2404,7 +2404,7 @@ tr.row-saldo-zero .geral-saldo {
 }
 
 /* ========================================
-   TRANSIÃ‡Ã•ES DE ABA (FADE)
+   TRANSIÇÕES DE ABA (FADE)
    ======================================== */
 
 .tab-content {
@@ -2427,7 +2427,7 @@ tr.row-saldo-zero .geral-saldo {
 }
 
 /* ========================================
-   MENU HAMBÃšRGUER (MOBILE)
+   MENU HAMBÚRGUER (MOBILE)
    ======================================== */
 
 .hamburger-btn {
@@ -2501,7 +2501,7 @@ tr.row-saldo-zero .geral-saldo {
 }
 
 /* ========================================
-   ORDENAÃ‡ÃƒO CLICÃVEL NAS COLUNAS
+   ORDENAÇÃO CLICÁVEL NAS COLUNAS
    ======================================== */
 
 th.sortable {
@@ -2520,11 +2520,11 @@ th.sortable .sort-icon {
     margin-left: 4px;
 }
 
-th.sortable.sort-asc .sort-icon::after { content: ' â–²'; opacity: 1; }
-th.sortable.sort-desc .sort-icon::after { content: ' â–¼'; opacity: 1; }
+th.sortable.sort-asc .sort-icon::after { content: ' ▲'; opacity: 1; }
+th.sortable.sort-desc .sort-icon::after { content: ' ▼'; opacity: 1; }
 
 /* ========================================
-   PAGINAÃ‡ÃƒO
+   PAGINAÇÃO
    ======================================== */
 
 .pagination-container {
@@ -2578,7 +2578,7 @@ th.sortable.sort-desc .sort-icon::after { content: ' â–¼'; opacity: 1; }
 }
 
 /* ========================================
-   GRÃFICOS DO DASHBOARD
+   GRÁFICOS DO DASHBOARD
    ======================================== */
 
 .dashboard-charts {
@@ -2696,7 +2696,7 @@ th.sortable.sort-desc .sort-icon::after { content: ' â–¼'; opacity: 1; }
 }
 
 /* ========================================
-   HISTÃ“RICO DE ALTERAÃ‡Ã•ES
+   HISTÓRICO DE ALTERAÇÕES
    ======================================== */
 
 .historico-lista {
@@ -2934,39 +2934,4 @@ th.sortable.sort-desc .sort-icon::after { content: ' â–¼'; opacity: 1; }
 .imbel-modal-cancel {
     margin: 0 !important;
 }
-
-
-
-/* Added: skip-link, focus-visible, responsive table stacking */
-.skip-link { position: absolute; left: -999px; top: auto; width: 1px; height: 1px; overflow: hidden; z-index: 2000; }
-.skip-link:focus, .skip-link:active, .skip-link:focus-visible { left: 16px; top: 16px; width: auto; height: auto; padding:8px 12px; background:var(--primary-color); color:#fff; border-radius:6px; box-shadow:var(--shadow-md); text-decoration:none; }
-:focus-visible { outline: 3px solid rgba(30,58,95,0.18); outline-offset:3px; box-shadow:none; }
-.btn:focus-visible { outline: 3px solid rgba(45,90,139,0.2); outline-offset:3px; box-shadow: none; }
-@media (max-width: 700px) {
-  .table-wrapper { max-height: none; }
-  .table-wrapper table thead { display: none; }
-  .table-wrapper table tbody tr { display: block; margin-bottom: 12px; border-radius:8px; background: var(--bg-white); padding: 10px; box-shadow: var(--shadow-sm); }
-  .table-wrapper table tbody td { display:flex; justify-content: space-between; padding: 8px 6px; border: none; }
-  .table-wrapper table tbody td::before { content: attr(data-label); color: var(--text-secondary); font-weight:600; margin-right:8px; }
-  td.produto-nome { position: static; overflow: visible; white-space: normal; padding-left: 0; border-right: none; }
-}
-
-/* Updated logo styles: cleaner, svg-friendly */
-.logo-icon { width:56px; height:56px; display:flex; align-items:center; justify-content:center; padding:0; border-radius:12px; background: transparent; box-shadow: 0 6px 18px rgba(11,23,35,0.08); border: 1px solid rgba(11,23,35,0.06); }
-.logo-icon svg { width:46px; height:46px; display:block; }
-.logo-icon rect { shape-rendering:geometricPrecision; }
-.logo-icon path { vector-effect: non-scaling-stroke; }
-.logo-icon .sr-only { display:none; }
-
-
-/* FIX: Ensure first column (Produto) header and cells remain sticky and visible */
-/* Header should sit above body cells; body cells should stay left-aligned */
-th.col-produto { position: sticky !important; left: 0 !important; top: 0 !important; z-index: 2400 !important; background: var(--primary-dark) !important; color: #fff !important; box-shadow: 2px 0 6px rgba(0,0,0,0.06); }
-td.produto-nome { position: sticky !important; left: 0 !important; z-index: 2300 !important; background: var(--bg-white) !important; color: var(--text-primary) !important; border-right: 1px solid var(--border-color) !important; }
-/* Increase z-index of all thead cells to ensure header rows overlay body when scrolling */
-thead th { z-index: 2350 !important; }
-/* For multi-row headers, ensure second row offset remains below first row */
-thead tr:nth-child(2) th { top: 44px !important; }
-/* If needed, reduce transform usage to avoid stacking context issues */
-thead { transform: none !important; }
 
