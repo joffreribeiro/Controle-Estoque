@@ -226,18 +226,18 @@ header {
 
 
 .logo-text {
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
+    display: inline-block;
+    vertical-align: middle;
 }
 .logo-text h1 {
+    display: block;
     font-size: 1.7rem;
     color: var(--primary-color);
     font-weight: 900;
     letter-spacing: 1px;
     line-height: 1.1;
     margin: 0;
-    text-transform: uppercase;
+    text-transform: none;
     text-shadow: 
         2px 2px 0px rgba(0, 0, 0, 0.15),
         3px 3px 0px rgba(0, 0, 0, 0.1),
@@ -247,6 +247,9 @@ header {
 }
 
 .logo-text .subtitle {
+    display: block;
+    width: 100%;
+    box-sizing: border-box;
     font-size: 0.72rem;
     color: var(--text-secondary);
     text-transform: uppercase;
