@@ -1499,18 +1499,20 @@
     <script src="app.js"></script>
     <script>
     (function matchSubtitleWidth(){
+        const logoText = document.querySelector('.logo-text');
         function update(){
-            const title = document.querySelector('.logo-text h1');
-            const subtitle = document.querySelector('.logo-text .subtitle');
-            if(!title || !subtitle) return;
+            const title = logoText ? logoText.querySelector('h1') : document.querySelector('.logo-text h1');
+            const subtitle = logoText ? logoText.querySelector('.subtitle') : document.querySelector('.logo-text .subtitle');
+            if(!logoText || !title || !subtitle) return;
             subtitle.style.width = 'auto';
-            const w = title.getBoundingClientRect().width;
-            subtitle.style.width = Math.round(w) + 'px';
+            const rect = title.getBoundingClientRect();
+            const w = Math.ceil(rect.width);
+            logoText.style.setProperty('--logo-title-width', w + 'px');
         }
         window.addEventListener('load', update);
         window.addEventListener('resize', update);
         if (document.fonts && document.fonts.ready) document.fonts.ready.then(update);
-        setTimeout(update, 200);
+        setTimeout(update, 250);
     })();
     </script>
     <script>

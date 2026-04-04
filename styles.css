@@ -219,9 +219,10 @@ header {
 }
 
 .logo-svg {
-    width: 70%;
-    height: 70%;
+    width: 92%;
+    height: 92%;
     filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
+    transition: transform .18s ease;
 }
 
 
@@ -246,6 +247,10 @@ header {
     filter: drop-shadow(0 2px 4px rgba(11, 23, 35, 0.2));
 }
 
+.logo-text {
+    --logo-title-width: auto;
+}
+
 .logo-text .subtitle {
     display: block;
     box-sizing: border-box;
@@ -260,7 +265,9 @@ header {
         1px 1px 0px rgba(0, 0, 0, 0.1),
         2px 2px 0px rgba(0, 0, 0, 0.05),
         0px 1px 1px rgba(255, 255, 255, 0.2);
-    word-break: break-word;
+    width: var(--logo-title-width, auto);
+    white-space: normal;
+    word-wrap: break-word;
 }
 
 @media (max-width: 768px) {
