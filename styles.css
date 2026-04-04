@@ -168,8 +168,8 @@ header {
 }
 
 .logo-icon {
-    width: 68px;
-    height: 68px;
+    width: 52px;
+    height: 52px;
     background: linear-gradient(135deg, #0b1723 0%, #1a2937 50%, #0b1723 100%);
     border-radius: 50%;
     display: flex;
@@ -219,8 +219,8 @@ header {
 }
 
 .logo-svg {
-    width: 76%;
-    height: 76%;
+    width: 70%;
+    height: 70%;
     filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
 }
 
@@ -248,23 +248,24 @@ header {
 
 .logo-text .subtitle {
     display: block;
-    width: 100%;
     box-sizing: border-box;
-    font-size: 0.72rem;
+    font-size: 0.95rem;
     color: var(--text-secondary);
     text-transform: uppercase;
-    letter-spacing: 1.2px;
-    margin-top: 4px;
-    font-weight: 700;
+    letter-spacing: 2px;
+    margin-top: 6px;
+    font-weight: 800;
+    line-height: 1.05;
     text-shadow: 
         1px 1px 0px rgba(0, 0, 0, 0.1),
         2px 2px 0px rgba(0, 0, 0, 0.05),
         0px 1px 1px rgba(255, 255, 255, 0.2);
+    word-break: break-word;
 }
 
 @media (max-width: 768px) {
     .logo-text h1 { font-size: 1.15rem; }
-    .logo-text .subtitle { font-size: 0.65rem; }
+    .logo-text .subtitle { font-size: 0.82rem; letter-spacing: 1.2px; }
 }
 
 .header-info {

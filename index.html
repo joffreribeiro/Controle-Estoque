@@ -55,7 +55,7 @@
                     </div>
                     <div class="logo-text">
                         <h1>Controle de Estoque</h1>
-                        <div class="subtitle">FÁBRICA DE ITAJUBÁ - FI</div>
+                        <div class="subtitle">FABRICA DE IRAJUBA-FI</div>
                     </div>
                 </div>
                 
@@ -1497,6 +1497,22 @@
     </div>
 
     <script src="app.js"></script>
+    <script>
+    (function matchSubtitleWidth(){
+        function update(){
+            const title = document.querySelector('.logo-text h1');
+            const subtitle = document.querySelector('.logo-text .subtitle');
+            if(!title || !subtitle) return;
+            subtitle.style.width = 'auto';
+            const w = title.getBoundingClientRect().width;
+            subtitle.style.width = Math.round(w) + 'px';
+        }
+        window.addEventListener('load', update);
+        window.addEventListener('resize', update);
+        if (document.fonts && document.fonts.ready) document.fonts.ready.then(update);
+        setTimeout(update, 200);
+    })();
+    </script>
     <script>
     (function setFaviconFromLogo(){
         try {
