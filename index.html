@@ -6,7 +6,7 @@
     <title>Controle de Estoque | Material Bélico</title>
     <link rel="stylesheet" href="styles.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎯</text></svg>">
+    <link id="favicon" rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎯</text></svg>">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
@@ -1497,5 +1497,25 @@
     </div>
 
     <script src="app.js"></script>
+    <script>
+    (function setFaviconFromLogo(){
+        try {
+            const logoSvg = document.querySelector('.logo-svg');
+            if (!logoSvg) return;
+            const inner = logoSvg.innerHTML;
+            const svg = "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='50' fill='#0b1723'/>" + inner + "</svg>";
+            const href = 'data:image/svg+xml;utf8,' + encodeURIComponent(svg);
+            var link = document.getElementById('favicon') || document.querySelector("link[rel*='icon']");
+            if (!link) {
+                link = document.createElement('link');
+                link.rel = 'icon';
+                document.head.appendChild(link);
+            }
+            link.href = href;
+        } catch(e) {
+            console.error('setFaviconFromLogo error', e);
+        }
+    })();
+    </script>
 </body>
 </html>
