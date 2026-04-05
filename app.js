@@ -695,12 +695,14 @@ function obterAuditoriaPorContrato(contrato) {
 // ========================================
 
 function trocarAba(aba) {
-    // Atualizar botões — usa data-tab para robustez
-    document.querySelectorAll('.tabs-navigation .tab-btn').forEach(btn => {
+    // Atualizar botões de navegação (sidebar e fallback antigo)
+    document.querySelectorAll('.sidebar .nav-item, .tabs-navigation .tab-btn').forEach(btn => {
         btn.classList.remove('active');
     });
-    const activeBtn = document.querySelector(`.tabs-navigation .tab-btn[data-tab="${aba}"]`);
-    if (activeBtn) activeBtn.classList.add('active');
+    const activeSidebarBtn = document.querySelector(`.sidebar .nav-item[data-tab="${aba}"]`);
+    const activeLegacyBtn = document.querySelector(`.tabs-navigation .tab-btn[data-tab="${aba}"]`);
+    if (activeSidebarBtn) activeSidebarBtn.classList.add('active');
+    if (activeLegacyBtn) activeLegacyBtn.classList.add('active');
     
     // Atualizar conteúdo
     document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
@@ -737,27 +739,40 @@ function trocarAba(aba) {
 
 function renderizarTabela() {
     const tbody = document.getElementById('corpoTabela');
+    if (!tbody) return;
     tbody.innerHTML = '';
 
-    let totais = {
-        KOLTE: { disp: 0, venda: 0, saldo: 0 },
-        ISA: { disp: 0, venda: 0, saldo: 0 },
-        LC: { disp: 0, venda: 0, saldo: 0 },
-        ADES: { disp: 0, venda: 0, saldo: 0 },
-        FL: { disp: 0, venda: 0, saldo: 0 },
-        IMBEL: { disp: 0, venda: 0, saldo: 0 },
-        GERAL: { disp: 0, venda: 0, saldo: 0 }
-    };
+    const totais = { GERAL: { disp: 0, venda: 0, saldo: 0 } };
+    estoque.representantes.forEach(rep => {
+        totais[rep] = { disp: 0, venda: 0, saldo: 0 };
+    });
+
+    // KPI: vendas no período (mês atual)
+    const now = new Date();
+    const inicioMes = new Date(now.getFullYear(), now.getMonth(), 1);
+    const fimMes = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+    let vendasPeriodo = 0;
+    (estoque.registroVendas || []).forEach(venda => {
+        const d = venda?.data ? new Date(venda.data) : null;
+        if (!d || isNaN(d.getTime()) || d < inicioMes || d > fimMes) return;
+        if (Array.isArray(venda.items) && venda.items.length > 0) {
+            venda.items.forEach(it => { vendasPeriodo += Number(it.quantidade) || 0; });
+        } else {
+            vendasPeriodo += Number(venda.quantidade) || 0;
+        }
+    });
 
     // Ordenar produtos alfabeticamente por nome para exibição
     const produtosOrdenados = [...estoque.produtos].sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
+    let saldoZeroProdutos = 0;
     produtosOrdenados.forEach(produto => {
         const tr = document.createElement('tr');
         tr.dataset.id = produto.id;
-        tr.innerHTML = `<td class="produto-nome col-produto" title="${produto.nome}">${produto.nome}</td>`;
+        let produtoHtml = produto.nome;
 
         let geralDisp = 0;
         let geralVenda = 0;
+        let allSaldoZero = true;
 
         estoque.representantes.forEach(rep => {
             const disp = produto.distribuicao[rep] || 0;
@@ -770,34 +785,39 @@ function renderizarTabela() {
             totais[rep].disp += disp;
             totais[rep].venda += venda;
             totais[rep].saldo += saldo;
+            allSaldoZero = allSaldoZero && saldo === 0;
 
-            const saldoClass = saldo < 0 ? 'negativo' : (saldo > 0 && saldo <= 5 ? 'baixo' : '');
-            const animateClass = saldo < 0 ? 'animate-negativo' : '';
+            const vendaClass = venda > 0 ? 'venda-positiva' : '';
+            let saldoClass = '';
+            if (saldo > 0) saldoClass = 'saldo-positivo';
+            else if (saldo === 0) saldoClass = 'saldo-zero';
+            else saldoClass = 'negativo saldo-zero';
 
             tr.innerHTML += `
-                <td class="cell-disp ${disp === 0 ? 'cell-zero' : ''}">${formatarNumero(disp)}</td>
-                <td class="cell-venda ${venda === 0 ? 'cell-zero' : ''}">${formatarNumero(venda)}</td>
-                <td class="cell-saldo ${saldoClass} ${saldo === 0 ? 'cell-zero' : ''} ${animateClass}">${formatarNumero(saldo)}</td>
+                <td class="cell-disp numeric-cell ${disp === 0 ? 'cell-zero' : ''}">${formatarNumero(disp)}</td>
+                <td class="cell-venda numeric-cell ${venda === 0 ? 'cell-zero' : ''} ${vendaClass}">${formatarNumero(venda)}</td>
+                <td class="cell-saldo numeric-cell ${saldoClass} ${saldo === 0 ? 'cell-zero' : ''}">${formatarNumero(saldo)}</td>
             `;
         });
+
+        if (allSaldoZero) {
+            saldoZeroProdutos += 1;
+            tr.classList.add('row-saldo-zero-all');
+            produtoHtml += '<span class="badge-repor">⚠ Repor</span>';
+        }
+
+        tr.innerHTML = `<td class="produto-nome col-produto" title="${produto.nome}">${produtoHtml}</td>` + tr.innerHTML;
 
         const geralSaldo = geralDisp - geralVenda;
         totais.GERAL.disp += geralDisp;
         totais.GERAL.venda += geralVenda;
         totais.GERAL.saldo += geralSaldo;
-
-        const saldoGeralClass = geralSaldo < 0 ? 'negativo' : (geralSaldo > 0 && geralSaldo <= 10 ? 'baixo' : '');
-        const animateGeral = geralSaldo < 0 ? 'animate-negativo' : '';
-
-        // Marcação vermelha quando saldo consolidado === 0
-        if (geralSaldo === 0) {
-            tr.classList.add('row-saldo-zero');
-        }
+        const saldoGeralClass = geralSaldo > 0 ? 'saldo-positivo' : 'saldo-zero';
 
         tr.innerHTML += `
-            <td class="geral-disp">${formatarNumero(geralDisp)}</td>
-            <td class="geral-venda">${formatarNumero(geralVenda)}</td>
-            <td class="geral-saldo ${saldoGeralClass} ${animateGeral}">${formatarNumero(geralSaldo)}</td>
+            <td class="geral-disp numeric-cell">${formatarNumero(geralDisp)}</td>
+            <td class="geral-venda numeric-cell">${formatarNumero(geralVenda)}</td>
+            <td class="geral-saldo numeric-cell ${saldoGeralClass}">${formatarNumero(geralSaldo)}</td>
         `;
 
         tbody.appendChild(tr);
@@ -808,29 +828,39 @@ function renderizarTabela() {
     trTotal.className = 'total-row';
     trTotal.innerHTML = `<td class="produto-nome col-produto"><strong>TOTAL GERAL</strong></td>`;
 
-    produtosOrdenados.forEach(repProd => {}); // placeholder to keep lint tools happy
     estoque.representantes.forEach(rep => {
         const saldoRep = totais[rep].saldo;
-        const saldoRepClass = saldoRep < 0 ? 'negativo' : (saldoRep > 0 && saldoRep <= 5 ? 'baixo' : '');
-        const animateRep = saldoRep < 0 ? 'animate-negativo' : '';
+        const saldoRepClass = saldoRep > 0 ? 'saldo-positivo' : 'saldo-zero';
         trTotal.innerHTML += `
-            <td class="cell-disp"><strong>${formatarNumero(totais[rep].disp)}</strong></td>
-            <td class="cell-venda"><strong>${formatarNumero(totais[rep].venda)}</strong></td>
-            <td class="cell-saldo ${saldoRepClass} ${animateRep}"><strong>${formatarNumero(totais[rep].saldo)}</strong></td>
+            <td class="cell-disp numeric-cell"><strong>${formatarNumero(totais[rep].disp)}</strong></td>
+            <td class="cell-venda numeric-cell ${totais[rep].venda > 0 ? 'venda-positiva' : ''}"><strong>${formatarNumero(totais[rep].venda)}</strong></td>
+            <td class="cell-saldo numeric-cell ${saldoRepClass}"><strong>${formatarNumero(totais[rep].saldo)}</strong></td>
         `;
     });
 
-    const saldoGeralTotal = totais.GERAL.saldo;
-    const saldoGeralTotalClass = saldoGeralTotal < 0 ? 'negativo' : (saldoGeralTotal > 0 && saldoGeralTotal <= 10 ? 'baixo' : '');
-    const animateGeralTotal = saldoGeralTotal < 0 ? 'animate-negativo' : '';
+    const saldoGeralTotalClass = totais.GERAL.saldo > 0 ? 'saldo-positivo' : 'saldo-zero';
 
     trTotal.innerHTML += `
-        <td class="geral-disp"><strong>${formatarNumero(totais.GERAL.disp)}</strong></td>
-        <td class="geral-venda"><strong>${formatarNumero(totais.GERAL.venda)}</strong></td>
-        <td class="geral-saldo ${saldoGeralTotalClass} ${animateGeralTotal}"><strong>${formatarNumero(totais.GERAL.saldo)}</strong></td>
+        <td class="geral-disp numeric-cell"><strong>${formatarNumero(totais.GERAL.disp)}</strong></td>
+        <td class="geral-venda numeric-cell"><strong>${formatarNumero(totais.GERAL.venda)}</strong></td>
+        <td class="geral-saldo numeric-cell ${saldoGeralTotalClass}"><strong>${formatarNumero(totais.GERAL.saldo)}</strong></td>
     `;
 
     tbody.appendChild(trTotal);
+
+    // KPIs da aba estoque
+    const repsAtivos = estoque.representantes.filter(rep => {
+        const t = totais[rep] || { disp: 0, venda: 0 };
+        return t.disp > 0 || t.venda > 0;
+    }).length;
+    const kpiTotalEstoqueEl = document.getElementById('kpiTotalEstoque');
+    const kpiVendasPeriodoEl = document.getElementById('kpiVendasPeriodo');
+    const kpiRepsAtivosEl = document.getElementById('kpiRepsAtivos');
+    const kpiSaldoZeroEl = document.getElementById('kpiSaldoZero');
+    if (kpiTotalEstoqueEl) kpiTotalEstoqueEl.textContent = totais.GERAL.saldo.toLocaleString('pt-BR');
+    if (kpiVendasPeriodoEl) kpiVendasPeriodoEl.textContent = vendasPeriodo.toLocaleString('pt-BR');
+    if (kpiRepsAtivosEl) kpiRepsAtivosEl.textContent = repsAtivos.toLocaleString('pt-BR');
+    if (kpiSaldoZeroEl) kpiSaldoZeroEl.textContent = saldoZeroProdutos.toLocaleString('pt-BR');
 
     // Ajustar posição sticky da segunda linha do header
     ajustarStickyHeader();
@@ -1823,6 +1853,9 @@ function imprimirControleEnvio() {
     clone.querySelectorAll('td').forEach(td => {
         const cb = td.querySelector('input[type="checkbox"]');
         if (cb) { td.innerHTML = cb.checked ? '✔' : ''; return; }
+
+        const status = td.querySelector('.status-indicator');
+        if (status) { td.innerHTML = status.classList.contains('checked') ? '✔' : ''; return; }
 
         const inp = td.querySelector('input[type="text"], textarea');
         if (inp) { td.textContent = inp.value || '-'; return; }
@@ -3640,171 +3673,192 @@ function importarImbelMovimentacao(event) {
 }
 
 
+function obterItensVendaNormalizados(venda) {
+    if (Array.isArray(venda.items) && venda.items.length > 0) {
+        return venda.items.map(it => ({
+            produtoNome: it.produtoNome || venda.produtoNome || '',
+            quantidade: Number(it.quantidade) || 0,
+            valorTotal: typeof it.valorTotal === 'number' ? it.valorTotal : ((Number(it.valorUnitario) || 0) * (Number(it.quantidade) || 0))
+        }));
+    }
+    return [{
+        produtoNome: venda.produtoNome || '',
+        quantidade: Number(venda.quantidade) || 0,
+        valorTotal: typeof venda.valorTotal === 'number' ? venda.valorTotal : ((Number(venda.valorUnitario) || 0) * (Number(venda.quantidade) || 0))
+    }];
+}
+
+function obterVendasDashboardFiltradas() {
+    const preset = document.getElementById('dashboardRangePreset')?.value || '30';
+    const startInput = document.getElementById('dashboardDateStart')?.value || '';
+    const endInput = document.getElementById('dashboardDateEnd')?.value || '';
+
+    const hoje = new Date();
+    let inicio = null;
+    let fim = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate(), 23, 59, 59);
+
+    if (preset === '7' || preset === '30' || preset === '90') {
+        const dias = Number(preset);
+        inicio = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate() - (dias - 1), 0, 0, 0);
+    } else if (preset === 'custom') {
+        if (startInput) inicio = new Date(startInput + 'T00:00:00');
+        if (endInput) fim = new Date(endInput + 'T23:59:59');
+    }
+
+    return (estoque.registroVendas || []).filter(v => {
+        if (!v.data) return false;
+        const d = new Date(v.data);
+        if (isNaN(d.getTime())) return false;
+        if (inicio && d < inicio) return false;
+        if (fim && d > fim) return false;
+        return true;
+    });
+}
+
+function atualizarFiltroDashboardPeriodo() {
+    const preset = document.getElementById('dashboardRangePreset');
+    const startEl = document.getElementById('dashboardDateStart');
+    const endEl = document.getElementById('dashboardDateEnd');
+    if (!preset || !startEl || !endEl) return;
+
+    const custom = preset.value === 'custom';
+    startEl.style.display = custom ? '' : 'none';
+    endEl.style.display = custom ? '' : 'none';
+
+    if (!custom) {
+        startEl.value = '';
+        endEl.value = '';
+    }
+    renderizarDashboard();
+}
+
 function renderizarDashboard() {
-    // Calcular dados
-    let dadosVendas = [];
-    let vendasPorRep = { ADES: 0, FL: 0, IMBEL: 0, ISA: 0, KOLTE: 0, LC: 0 };
+    const vendasFiltradas = obterVendasDashboardFiltradas();
+    const repsOrdem = ['ADES', 'FL', 'IMBEL', 'ISA', 'KOLTE', 'LC'];
+    const vendasPorRep = {};
+    repsOrdem.forEach(rep => { vendasPorRep[rep] = 0; });
+
+    const produtoMap = new Map();
     let totalUnidades = 0;
     let totalFaturamento = 0;
 
-    // Valor por produto deve vir apenas das vendas registradas
-    const valorPorProduto = {};
-    (estoque.registroVendas || []).forEach(venda => {
-        if (Array.isArray(venda.items) && venda.items.length > 0) {
-            venda.items.forEach(it => {
-                const nome = it.produtoNome || '';
-                if (!nome) return;
-                const valorItem = typeof it.valorTotal === 'number'
-                    ? it.valorTotal
-                    : ((Number(it.valorUnitario) || 0) * (Number(it.quantidade) || 0));
-                valorPorProduto[nome] = (valorPorProduto[nome] || 0) + valorItem;
-            });
-        } else {
-            const nome = venda.produtoNome || '';
-            if (!nome) return;
-            const valorLegacy = typeof venda.valorTotal === 'number'
-                ? venda.valorTotal
-                : ((Number(venda.valorUnitario) || 0) * (Number(venda.quantidade) || 0));
-            valorPorProduto[nome] = (valorPorProduto[nome] || 0) + valorLegacy;
-        }
+    vendasFiltradas.forEach(venda => {
+        const rep = (venda.representante || '').toUpperCase();
+        const itens = obterItensVendaNormalizados(venda);
+        itens.forEach(it => {
+            if (!it.produtoNome) return;
+            const registro = produtoMap.get(it.produtoNome) || {
+                nome: it.produtoNome,
+                quantidade: 0,
+                valor: 0,
+                vendasPorRep: {}
+            };
+            registro.quantidade += it.quantidade;
+            registro.valor += it.valorTotal;
+            registro.vendasPorRep[rep] = (registro.vendasPorRep[rep] || 0) + it.quantidade;
+            produtoMap.set(it.produtoNome, registro);
+
+            totalUnidades += it.quantidade;
+            totalFaturamento += it.valorTotal;
+            if (vendasPorRep[rep] === undefined) vendasPorRep[rep] = 0;
+            vendasPorRep[rep] += it.quantidade;
+        });
     });
 
-    estoque.produtos.forEach(produto => {
-        let totalProduto = 0;
-        let vendasProdutoPorRep = {};
-        
-        estoque.representantes.forEach(rep => {
-            const venda = produto.vendas[rep] || 0;
-            totalProduto += venda;
-            vendasPorRep[rep] = (vendasPorRep[rep] || 0) + venda;
-            vendasProdutoPorRep[rep] = venda;
-        });
+    const dadosVendas = Array.from(produtoMap.values()).sort((a, b) => b.quantidade - a.quantidade);
+    const dadosVendasAlpha = [...dadosVendas].sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
 
-        const valorTotal = valorPorProduto[produto.nome] || 0;
-        
-        dadosVendas.push({
-            nome: produto.nome,
-            quantidade: totalProduto,
-            valor: valorTotal,
-            vendasPorRep: vendasProdutoPorRep
-        });
-
-        totalUnidades += totalProduto;
-        totalFaturamento += valorTotal;
-    });
-
-    // Ordenar por quantidade
-    dadosVendas.sort((a, b) => b.quantidade - a.quantidade);
-
-    // Encontrar melhor representante
     let melhorRep = '-';
     let maxVendas = 0;
-    Object.entries(vendasPorRep).forEach(([rep, vendas]) => {
-        if (vendas > maxVendas) {
-            maxVendas = vendas;
+    Object.entries(vendasPorRep).forEach(([rep, qtd]) => {
+        if (qtd > maxVendas) {
             melhorRep = rep;
+            maxVendas = qtd;
         }
     });
 
-    // Produto mais vendido
-    const produtoTop = dadosVendas.length > 0 && dadosVendas[0].quantidade > 0 
+    const produtoTop = dadosVendas.length > 0 && dadosVendas[0].quantidade > 0
         ? dadosVendas[0].nome.substring(0, 25) + (dadosVendas[0].nome.length > 25 ? '...' : '')
         : '-';
 
-    // Criar versão ordenada alfabeticamente para exibição nas tabelas do dashboard
-    const dadosVendasAlpha = [...dadosVendas].sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
+    const dashTotalUnidadesEl = document.getElementById('dashTotalUnidades');
+    const dashTotalFaturamentoEl = document.getElementById('dashTotalFaturamento');
+    const dashMelhorRepEl = document.getElementById('dashMelhorRep');
+    const dashProdutoTopEl = document.getElementById('dashProdutoTop');
+    if (dashTotalUnidadesEl) dashTotalUnidadesEl.textContent = totalUnidades.toLocaleString('pt-BR');
+    if (dashTotalFaturamentoEl) dashTotalFaturamentoEl.textContent = formatarMoedaValor(totalFaturamento);
+    if (dashMelhorRepEl) dashMelhorRepEl.textContent = maxVendas > 0 ? `${melhorRep} (${maxVendas})` : '-';
+    if (dashProdutoTopEl) dashProdutoTopEl.textContent = produtoTop;
 
-    // Atualizar cards
-    document.getElementById('dashTotalUnidades').textContent = totalUnidades.toLocaleString('pt-BR');
-    document.getElementById('dashTotalFaturamento').textContent = formatarMoedaValor(totalFaturamento);
-    document.getElementById('dashMelhorRep').textContent = melhorRep + ` (${maxVendas})`;
-    document.getElementById('dashProdutoTop').textContent = produtoTop;
-
-    // Tabela: Quantidade por Produto
     const tabelaQtd = document.getElementById('tabelaQtdProduto');
-    tabelaQtd.innerHTML = '';
-    
-    dadosVendasAlpha.forEach(item => {
-        if (item.quantidade > 0) {
+    if (tabelaQtd) {
+        tabelaQtd.innerHTML = '';
+        dadosVendasAlpha.forEach(item => {
             const tr = document.createElement('tr');
             tr.innerHTML = `
                 <td class="produto-nome">${item.nome}</td>
                 <td class="cell-qtd">${item.quantidade.toLocaleString('pt-BR')}</td>
             `;
             tabelaQtd.appendChild(tr);
-        }
-    });
+        });
+        const trTotalQtd = document.createElement('tr');
+        trTotalQtd.className = 'total-row';
+        trTotalQtd.innerHTML = `
+            <td class="produto-nome"><strong>Total Geral</strong></td>
+            <td class="cell-qtd"><strong>${totalUnidades.toLocaleString('pt-BR')}</strong></td>
+        `;
+        tabelaQtd.appendChild(trTotalQtd);
+    }
 
-    // Linha total
-    const trTotalQtd = document.createElement('tr');
-    trTotalQtd.className = 'total-row';
-    trTotalQtd.innerHTML = `
-        <td class="produto-nome"><strong>Total Geral</strong></td>
-        <td class="cell-qtd"><strong>${totalUnidades.toLocaleString('pt-BR')}</strong></td>
-    `;
-    tabelaQtd.appendChild(trTotalQtd);
-
-    // Tabela: Valor por Produto
     const tabelaValor = document.getElementById('tabelaValorProduto');
-    tabelaValor.innerHTML = '';
-    
-    // Exibir lista de produtos em ordem alfabética por nome (valor exibido permanece)
-    dadosVendasAlpha.forEach(item => {
-        if (item.valor > 0) {
+    if (tabelaValor) {
+        tabelaValor.innerHTML = '';
+        dadosVendasAlpha.forEach(item => {
             const tr = document.createElement('tr');
             tr.innerHTML = `
                 <td class="produto-nome">${item.nome}</td>
                 <td class="cell-valor">${formatarMoedaValor(item.valor)}</td>
             `;
             tabelaValor.appendChild(tr);
-        }
-    });
+        });
+        const trTotalValor = document.createElement('tr');
+        trTotalValor.className = 'total-row';
+        trTotalValor.innerHTML = `
+            <td class="produto-nome"><strong>Total Geral</strong></td>
+            <td class="cell-valor"><strong>${formatarMoedaValor(totalFaturamento)}</strong></td>
+        `;
+        tabelaValor.appendChild(trTotalValor);
+    }
 
-    // Linha total
-    const trTotalValor = document.createElement('tr');
-    trTotalValor.className = 'total-row';
-    trTotalValor.innerHTML = `
-        <td class="produto-nome"><strong>Total Geral</strong></td>
-        <td class="cell-valor"><strong>${formatarMoedaValor(totalFaturamento)}</strong></td>
-    `;
-    tabelaValor.appendChild(trTotalValor);
-
-    // Tabela: Vendas por Representante
     const tabelaRep = document.getElementById('tabelaVendasRepBody');
-    tabelaRep.innerHTML = '';
-    
-    const repsOrdem = ['ADES', 'FL', 'IMBEL', 'ISA', 'KOLTE', 'LC'];
-    let totaisPorRep = { ADES: 0, FL: 0, IMBEL: 0, ISA: 0, KOLTE: 0, LC: 0 };
+    if (tabelaRep) {
+        tabelaRep.innerHTML = '';
+        const totaisPorRep = {};
+        repsOrdem.forEach(rep => { totaisPorRep[rep] = 0; });
 
-    dadosVendasAlpha.forEach(item => {
-        if (item.quantidade > 0) {
+        dadosVendasAlpha.forEach(item => {
             const tr = document.createElement('tr');
             let html = `<td class="produto-nome">${item.nome}</td>`;
-
             repsOrdem.forEach(rep => {
-                const venda = item.vendasPorRep[rep] || 0;
-                totaisPorRep[rep] += venda;
-                html += `<td class="${venda === 0 ? 'cell-zero' : 'cell-qtd'}">${venda > 0 ? venda : '-'}</td>`;
+                const qtd = item.vendasPorRep[rep] || 0;
+                totaisPorRep[rep] += qtd;
+                html += `<td class="${qtd === 0 ? 'cell-zero' : 'cell-qtd'}">${qtd > 0 ? qtd : '-'}</td>`;
             });
-
             html += `<td class="geral-venda"><strong>${item.quantidade}</strong></td>`;
             tr.innerHTML = html;
             tabelaRep.appendChild(tr);
-        }
-    });
+        });
 
-    // Linha total
-    const trTotalRep = document.createElement('tr');
-    trTotalRep.className = 'total-row';
-    let htmlTotal = `<td class="produto-nome"><strong>Total Geral</strong></td>`;
-    
-    repsOrdem.forEach(rep => {
-        htmlTotal += `<td class="cell-qtd"><strong>${totaisPorRep[rep]}</strong></td>`;
-    });
-    
-    htmlTotal += `<td class="geral-venda"><strong>${totalUnidades}</strong></td>`;
-    trTotalRep.innerHTML = htmlTotal;
-    tabelaRep.appendChild(trTotalRep);
+        const trTotalRep = document.createElement('tr');
+        trTotalRep.className = 'total-row';
+        let htmlTotal = `<td class="produto-nome"><strong>Total Geral</strong></td>`;
+        repsOrdem.forEach(rep => {
+            htmlTotal += `<td class="cell-qtd"><strong>${totaisPorRep[rep]}</strong></td>`;
+        });
+        htmlTotal += `<td class="geral-venda"><strong>${totalUnidades}</strong></td>`;
+        trTotalRep.innerHTML = htmlTotal;
+        tabelaRep.appendChild(trTotalRep);
+    }
 }
 
 // ========================================
@@ -6018,21 +6072,36 @@ function renderizarControleEnvio() {
     contratos.forEach(contrato => {
         const envio = estoque.controleEnvio[contrato.contrato] || {};
         const sistemaMarcado = campoMarcado(envio.sistema);
+        const assinadoMarcado = campoMarcado(envio.assinado);
+        const enviadoMarcado = campoMarcado(envio.enviado);
         const repClass = (contrato.representante || '').toLowerCase();
+        const concluidos = Number(sistemaMarcado) + Number(assinadoMarcado) + Number(enviadoMarcado);
+
+        const statusBtn = (checked, campo) => `
+            <button type="button" class="status-indicator ${checked ? 'checked' : ''}" onclick="salvarControleEnvio('${contrato.contrato}', '${campo}', ${!checked})" title="${campo}">
+                <svg viewBox="0 0 12 12" aria-hidden="true"><path fill="white" d="M4.7 9.2 1.9 6.4l1.1-1.1 1.7 1.7 4.2-4.2L10 4z"/></svg>
+            </button>
+        `;
 
         const tr = document.createElement('tr');
+        if (concluidos === 3) tr.classList.add('row-envio-completo');
         tr.innerHTML = `
-            <td class="col-contrato">${contrato.contrato}</td>
+            <td class="col-contrato">
+                <div class="ctr-cell">
+                    <span>${contrato.contrato}</span>
+                    <span class="ctr-progress">${concluidos}/3</span>
+                </div>
+            </td>
             <td class="col-loja" title="${contrato.loja}">${contrato.loja}</td>
             <td class="col-representante"><span class="badge-rep ${repClass}">${contrato.representante}</span></td>
             <td class="col-sistema">
-                <input type="checkbox" class="checkbox-campo" ${sistemaMarcado ? 'checked' : ''} onchange="salvarControleEnvio('${contrato.contrato}', 'sistema', this.checked)">
+                ${statusBtn(sistemaMarcado, 'sistema')}
             </td>
             <td class="col-assinado">
-                <input type="checkbox" class="checkbox-campo" ${envio.assinado ? 'checked' : ''} onchange="salvarControleEnvio('${contrato.contrato}', 'assinado', this.checked)">
+                ${statusBtn(assinadoMarcado, 'assinado')}
             </td>
             <td class="col-enviado">
-                <input type="checkbox" class="checkbox-campo" ${envio.enviado ? 'checked' : ''} onchange="salvarControleEnvio('${contrato.contrato}', 'enviado', this.checked)">
+                ${statusBtn(enviadoMarcado, 'enviado')}
             </td>
             <td class="col-solicitacao">
                 <input type="text" class="campo-editavel" value="${envio.solicitacao || ''}" placeholder="Data ou observação" onchange="salvarControleEnvio('${contrato.contrato}', 'solicitacao', this.value)">
@@ -6232,23 +6301,31 @@ function _executarBuscaGlobalReal(termo) {
 }
 
 // ========================================
-// MENU HAMBÚRGUER (MOBILE)
+// SIDEBAR RESPONSIVA (DESKTOP + MOBILE)
 // ========================================
 
-function toggleMenuMobile() {
-    const btn = document.getElementById('hamburgerBtn');
-    const nav = document.getElementById('tabsNav');
-    btn.classList.toggle('active');
-    nav.classList.toggle('mobile-open');
+function toggleSidebarExpanded() {
+    document.body.classList.toggle('sidebar-expanded');
 }
 
-// Fechar menu ao trocar aba (mobile)
+function toggleMobileSidebar(forceOpen) {
+    const shouldOpen = typeof forceOpen === 'boolean'
+        ? forceOpen
+        : !document.body.classList.contains('mobile-sidebar-open');
+    document.body.classList.toggle('mobile-sidebar-open', shouldOpen);
+}
+
+// Compatibilidade com chamadas antigas
+function toggleMenuMobile() {
+    toggleMobileSidebar();
+}
+
+// Fechar drawer ao trocar aba (mobile)
 const _trocarAbaOriginal = trocarAba;
 trocarAba = function(aba) {
     _trocarAbaOriginal(aba);
     try {
-        document.getElementById('hamburgerBtn')?.classList.remove('active');
-        document.getElementById('tabsNav')?.classList.remove('mobile-open');
+        document.body.classList.remove('mobile-sidebar-open');
     } catch(e) {}
 };
 
@@ -6387,14 +6464,23 @@ let _chartTopProdutos = null;
 function renderizarGraficos() {
     if (typeof Chart === 'undefined') return;
 
-    // Dados por representante
     const reps = ['KOLTE', 'ISA', 'LC', 'ADES', 'FL', 'IMBEL'];
-    const coresReps = ['#3d5a80', '#5c4d7d', '#2d6a4f', '#9c4a1a', '#7b2d26', '#1e3a5f'];
-    const vendasPorRep = reps.map(rep => {
-        let total = 0;
-        estoque.produtos.forEach(p => { total += (p.vendas[rep] || 0); });
-        return total;
+    const coresReps = ['#79c0ff', '#7ee787', '#58a6ff', '#ffa657', '#d2a8ff', '#ff7b72'];
+    const vendasFiltradas = obterVendasDashboardFiltradas();
+    const vendasPorRepMap = {};
+    reps.forEach(rep => { vendasPorRepMap[rep] = 0; });
+
+    const produtoTotals = new Map();
+    vendasFiltradas.forEach(v => {
+        const rep = (v.representante || '').toUpperCase();
+        const itens = obterItensVendaNormalizados(v);
+        itens.forEach(it => {
+            if (vendasPorRepMap[rep] === undefined) vendasPorRepMap[rep] = 0;
+            vendasPorRepMap[rep] += Number(it.quantidade) || 0;
+            produtoTotals.set(it.produtoNome, (produtoTotals.get(it.produtoNome) || 0) + (Number(it.quantidade) || 0));
+        });
     });
+    const vendasPorRep = reps.map(rep => vendasPorRepMap[rep] || 0);
 
     // Chart 1: Vendas por Representante (bar)
     const ctx1 = document.getElementById('chartVendasRep');
@@ -6407,7 +6493,7 @@ function renderizarGraficos() {
                 datasets: [{
                     label: 'Unidades Vendidas',
                     data: vendasPorRep,
-                    backgroundColor: coresReps.map(c => c + 'cc'),
+                    backgroundColor: coresReps,
                     borderColor: coresReps,
                     borderWidth: 1,
                     borderRadius: 6
@@ -6423,16 +6509,16 @@ function renderizarGraficos() {
     }
 
     // Chart 2: Top Produtos (doughnut)
-    const dadosProdutos = estoque.produtos.map(p => {
-        let total = 0;
-        estoque.representantes.forEach(r => { total += (p.vendas[r] || 0); });
-        return { nome: p.nome.substring(0, 20), total };
-    }).filter(p => p.total > 0).sort((a, b) => b.total - a.total).slice(0, 6);
+    const dadosProdutos = Array.from(produtoTotals.entries())
+        .map(([nome, total]) => ({ nome: (nome || '').substring(0, 20), total }))
+        .filter(p => p.total > 0)
+        .sort((a, b) => b.total - a.total)
+        .slice(0, 6);
 
     const ctx2 = document.getElementById('chartTopProdutos');
     if (ctx2) {
         if (_chartTopProdutos) _chartTopProdutos.destroy();
-        const palette = ['#3b82f6', '#22c55e', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4'];
+        const palette = ['#79c0ff', '#7ee787', '#58a6ff', '#ffa657', '#d2a8ff', '#ff7b72'];
         _chartTopProdutos = new Chart(ctx2, {
             type: 'doughnut',
             data: {

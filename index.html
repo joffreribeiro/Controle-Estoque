@@ -14,145 +14,100 @@
 </head>
 <body>
     <div class="container">
-        <!-- Header -->
-        <header>
-            <div class="header-content">
-                <div class="logo-section">
-                    <div class="logo-icon">
-                        <svg class="logo-svg" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-                            <defs>
-                                <linearGradient id="goldGrad1" x1="0%" y1="0%" x2="100%" y2="100%">
-                                    <stop offset="0%" style="stop-color:#ffd700;stop-opacity:1" />
-                                    <stop offset="100%" style="stop-color:#b8942a;stop-opacity:1" />
-                                </linearGradient>
-                                <linearGradient id="goldGrad2" x1="0%" y1="0%" x2="100%" y2="100%">
-                                    <stop offset="0%" style="stop-color:#f6c84c;stop-opacity:1" />
-                                    <stop offset="100%" style="stop-color:#d4af37;stop-opacity:1" />
-                                </linearGradient>
-                                <linearGradient id="goldGrad3" x1="0%" y1="0%" x2="100%" y2="100%">
-                                    <stop offset="0%" style="stop-color:#d4af37;stop-opacity:1" />
-                                    <stop offset="100%" style="stop-color:#aa8c2a;stop-opacity:1" />
-                                </linearGradient>
-                            </defs>
-                            <!-- Blocos empilhados representando estoque -->
-                            <!-- Bloco base (maior) -->
-                            <rect x="30" y="70" width="40" height="12" rx="1" fill="url(#goldGrad3)" stroke="#0b1723" stroke-width="1" opacity="0.95"/>
-                            <!-- Segunda camada - 3 blocos -->
-                            <rect x="20" y="55" width="15" height="12" rx="1" fill="url(#goldGrad2)" stroke="#0b1723" stroke-width="1" opacity="0.9"/>
-                            <rect x="42" y="55" width="15" height="12" rx="1" fill="url(#goldGrad2)" stroke="#0b1723" stroke-width="1" opacity="0.9"/>
-                            <rect x="65" y="55" width="15" height="12" rx="1" fill="url(#goldGrad2)" stroke="#0b1723" stroke-width="1" opacity="0.9"/>
-                            <!-- Terceira camada - 2 blocos -->
-                            <rect x="30" y="40" width="15" height="12" rx="1" fill="url(#goldGrad1)" stroke="#0b1723" stroke-width="1" opacity="0.85"/>
-                            <rect x="55" y="40" width="15" height="12" rx="1" fill="url(#goldGrad1)" stroke="#0b1723" stroke-width="1" opacity="0.85"/>
-                            <!-- Quarta camada - 3 blocos menores -->
-                            <rect x="25" y="28" width="12" height="9" rx="1" fill="url(#goldGrad2)" stroke="#0b1723" stroke-width="0.8" opacity="0.8"/>
-                            <rect x="44" y="28" width="12" height="9" rx="1" fill="url(#goldGrad2)" stroke="#0b1723" stroke-width="0.8" opacity="0.8"/>
-                            <rect x="63" y="28" width="12" height="9" rx="1" fill="url(#goldGrad2)" stroke="#0b1723" stroke-width="0.8" opacity="0.8"/>
-                            <!-- Topo - 2 blocos pequenos -->
-                            <rect x="35" y="18" width="10" height="8" rx="1" fill="url(#goldGrad1)" stroke="#0b1723" stroke-width="0.8" opacity="0.75"/>
-                            <rect x="55" y="18" width="10" height="8" rx="1" fill="url(#goldGrad1)" stroke="#0b1723" stroke-width="0.8" opacity="0.75"/>
-                        </svg>
-                    </div>
+        <!-- Sidebar (convertido da barra superior) -->
+        <aside class="sidebar" role="navigation" aria-label="Barra lateral">
+            <button class="sidebar-toggle" id="sidebarToggle" type="button" onclick="toggleSidebarExpanded()" aria-label="Expandir ou recolher menu">
+                <span class="sidebar-toggle-icon">☰</span>
+            </button>
+            <div class="sidebar-top">
+                <div class="sidebar-logo">
+                    <div class="fi-badge">FI</div>
                     <div class="logo-text">
                         <h1>Controle de Estoque</h1>
-                        <div class="subtitle">FÁBRICA DE ITAJUBÁ - FI</div>
+                        <div class="subtitle">FÁBRICA DE ITAJUBÁ</div>
                     </div>
                 </div>
-                
-                <!-- busca global removida para simplificar a interface -->
-                <div class="header-info" aria-hidden="true">
-                    <div class="header-stat highlight">
-                        <div class="stat-value" id="valorTotalVendas">R$ 0</div>
-                        <div class="stat-label">Faturamento</div>
-                    </div>
-                    <div class="header-stat">
-                        <div class="stat-value" id="totalComissoes">R$ 0</div>
-                        <div class="stat-label">Comissões</div>
-                    </div>
-                </div>
-
-                <div class="header-right">
-                    <div id="firestoreStatus" class="firestore-status" title="Status do Cloud Firestore">
-                        <span class="fs-dot fs-offline" id="fsDot"></span>
-                        <span class="fs-text" id="fsText">Cloud: desconectado</span>
-                    </div>
-
-                    <!-- Login button + modal -->
-                    <div id="authPanel" class="auth-panel">
-                        <button id="openLoginBtn" class="btn btn-outline btn-sm" onclick="openLoginModal()">Login</button>
-
-                        <div id="authSignedIn" class="auth-signedin" style="display:none; align-items:center; gap:8px;">
-                            <span id="authUserDisplay" style="font-weight:600"></span>
-                            <button class="btn btn-outline btn-sm" id="btnAuthSignOut" onclick="signOut()">Sair</button>
-                        </div>
-
-                        <!-- Modal de Login -->
-                        <div id="loginModal" class="modal" aria-hidden="true" style="display:none;">
-                            <div class="modal-backdrop" onclick="closeLoginModal()"></div>
-                            <div class="modal-content" role="dialog" aria-modal="true">
-                                <button class="modal-close" onclick="closeLoginModal()">×</button>
-                                <div class="login-card">
-                                    <div class="login-card-icon">📋</div>
-                                    <h2 class="login-card-title">Acesso Administrador</h2>
-                                    <p class="login-card-sub">Faça login para editar dados</p>
-
-                                    <form id="authPanelForm" onsubmit="event.preventDefault(); signIn(); closeLoginModal();">
-                                        <div class="form-group">
-                                            <label for="authEmail">Email</label>
-                                            <input type="email" id="authEmail" placeholder="seu@email.com" autocomplete="username" required>
-                                        </div>
-
-                                        <div class="form-group">
-                                            <label for="authPassword">Senha</label>
-                                            <div class="password-row">
-                                                <input type="password" id="authPassword" placeholder="senha" autocomplete="current-password" required>
-                                                <label class="show-pass">
-                                                    <input type="checkbox" id="toggleShowPassword" onclick="togglePasswordVisibility()"> Mostrar
-                                                </label>
-                                            </div>
-                                        </div>
-
-                                        <div class="form-actions">
-                                            <button type="submit" class="btn btn-primary btn-block">Entrar</button>
-                                        </div>
-                                    </form>
-                                </div>
-                            </div>
-                        </div>
+                <div id="authPanel" class="auth-panel" style="margin-left:auto;">
+                    <button id="openLoginBtn" class="btn btn-outline btn-sm" onclick="openLoginModal()">Login</button>
+                    <div id="authSignedIn" class="auth-signedin" style="display:none; align-items:center; gap:8px;">
+                        <span id="authUserDisplay" style="font-weight:600"></span>
+                        <button class="btn btn-outline btn-sm" id="btnAuthSignOut" onclick="signOut()">Sair</button>
                     </div>
                 </div>
             </div>
-        </header>
 
-        <!-- Navegação por Abas -->
-        <button class="hamburger-btn" id="hamburgerBtn" onclick="toggleMenuMobile()">
-            <span></span><span></span><span></span>
-        </button>
-        <div class="tabs-navigation" id="tabsNav">
-            <button class="tab-btn active" data-tab="estoque" onclick="trocarAba('estoque')">
-                <span>📦</span> Estoque
-            </button>
-            <button class="tab-btn" data-tab="distribuicao" onclick="trocarAba('distribuicao')">
-                <span>🚚</span> Distribuição
-            </button>
-            <button class="tab-btn" data-tab="vendas" onclick="trocarAba('vendas')">
-                <span>📝</span> Registro de Vendas
-            </button>
-            <button class="tab-btn" data-tab="controleenvio" onclick="trocarAba('controleenvio')">
-                <span>📮</span> Controle de Envio
-            </button>
-            <button class="tab-btn" data-tab="dashboard" onclick="trocarAba('dashboard')">
-                <span>📊</span> Dashboard
-            </button>
-            <button class="tab-btn" data-tab="relatorios" onclick="trocarAba('relatorios')">
-                <span>📑</span> Relatórios
-            </button>
-            <button class="tab-btn" data-tab="controleimbel" onclick="trocarAba('controleimbel')">
-                <span>🔪</span> IMBEL (Facas)
-            </button>
-            <button class="tab-btn" data-tab="configuracoes" onclick="trocarAba('configuracoes')">
-                <span>⚙️</span> Configurações
-            </button>
+            <nav class="sidebar-nav" aria-label="Navegação principal">
+                <div class="nav-group">
+                    <div class="nav-group-label">Principal</div>
+                    <button class="nav-item active" data-tab="estoque" onclick="trocarAba('estoque')"><span>📦</span><span class="nav-text">Estoque</span></button>
+                    <button class="nav-item" data-tab="dashboard" onclick="trocarAba('dashboard')"><span>📊</span><span class="nav-text">Dashboard</span></button>
+                </div>
+
+                <div class="nav-group">
+                    <div class="nav-group-label">Controle</div>
+                    <button class="nav-item" data-tab="distribuicao" onclick="trocarAba('distribuicao')"><span>🚚</span><span class="nav-text">Distribuição</span></button>
+                    <button class="nav-item" data-tab="vendas" onclick="trocarAba('vendas')"><span>📝</span><span class="nav-text">Registro de Vendas</span></button>
+                    <button class="nav-item" data-tab="controleenvio" onclick="trocarAba('controleenvio')"><span>📮</span><span class="nav-text">Controle de Envio</span></button>
+                    <button class="nav-item" data-tab="controleimbel" onclick="trocarAba('controleimbel')"><span>🔪</span><span class="nav-text">IMBEL</span></button>
+                </div>
+
+                <div class="nav-group">
+                    <div class="nav-group-label">Análise</div>
+                    <button class="nav-item" data-tab="relatorios" onclick="trocarAba('relatorios')"><span>📑</span><span class="nav-text">Relatórios</span></button>
+                    <button class="nav-item" data-tab="configuracoes" onclick="trocarAba('configuracoes')"><span>⚙️</span><span class="nav-text">Configurações</span></button>
+                </div>
+            </nav>
+
+            <div class="sidebar-footer">
+                <div class="faturamento">
+                    <div class="faturamento-label">Faturamento</div>
+                    <div class="faturamento-value" id="valorTotalVendas">R$ 0</div>
+                </div>
+                <div id="firestoreStatus" class="cloud-status" title="Status do Cloud Firestore">
+                    <span class="fs-dot fs-offline" id="fsDot"></span>
+                    <span class="fs-text" id="fsText">Cloud: desconectado</span>
+                </div>
+            </div>
+        </aside>
+
+        <div class="mobile-topbar" id="mobileTopbar">
+            <button class="mobile-menu-btn" type="button" onclick="toggleMobileSidebar()" aria-label="Abrir menu">☰</button>
+            <div class="mobile-topbar-title">Controle de Estoque</div>
+        </div>
+        <div class="mobile-drawer-overlay" id="mobileDrawerOverlay" onclick="toggleMobileSidebar(false)"></div>
+
+        <!-- Modal de Login (mantido) -->
+        <div id="loginModal" class="modal" aria-hidden="true" style="display:none;">
+            <div class="modal-backdrop" onclick="closeLoginModal()"></div>
+            <div class="modal-content" role="dialog" aria-modal="true">
+                <button class="modal-close" onclick="closeLoginModal()">×</button>
+                <div class="login-card">
+                    <div class="login-card-icon">📋</div>
+                    <h2 class="login-card-title">Acesso Administrador</h2>
+                    <p class="login-card-sub">Faça login para editar dados</p>
+
+                    <form id="authPanelForm" onsubmit="event.preventDefault(); signIn(); closeLoginModal();">
+                        <div class="form-group">
+                            <label for="authEmail">Email</label>
+                            <input type="email" id="authEmail" placeholder="seu@email.com" autocomplete="username" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="authPassword">Senha</label>
+                            <div class="password-row">
+                                <input type="password" id="authPassword" placeholder="senha" autocomplete="current-password" required>
+                                <label class="show-pass">
+                                    <input type="checkbox" id="toggleShowPassword" onclick="togglePasswordVisibility()"> Mostrar
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="form-actions">
+                            <button type="submit" class="btn btn-primary btn-block">Entrar</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
         </div>
 
         <!-- Barra de Ações -->
@@ -210,6 +165,29 @@
                             Imprimir
                         </button>
                     </div>
+                </div>
+
+                <div class="kpi-grid estoque-kpis" id="estoqueKpis">
+                    <article class="kpi-card kpi-accent">
+                        <div class="kpi-label">Total em Estoque</div>
+                        <div class="kpi-value" id="kpiTotalEstoque">0</div>
+                        <div class="kpi-subtitle">Unidades disponíveis</div>
+                    </article>
+                    <article class="kpi-card kpi-success">
+                        <div class="kpi-label">Vendas no Período</div>
+                        <div class="kpi-value" id="kpiVendasPeriodo">0</div>
+                        <div class="kpi-subtitle">Total vendido no mês atual</div>
+                    </article>
+                    <article class="kpi-card kpi-info">
+                        <div class="kpi-label">Representantes Ativos</div>
+                        <div class="kpi-value" id="kpiRepsAtivos">0</div>
+                        <div class="kpi-subtitle">Com estoque ou vendas</div>
+                    </article>
+                    <article class="kpi-card kpi-danger">
+                        <div class="kpi-label">Saldo Zero</div>
+                        <div class="kpi-value" id="kpiSaldoZero">0</div>
+                        <div class="kpi-subtitle">Produtos a repor</div>
+                    </article>
                 </div>
 
                 <div class="table-container">
@@ -442,60 +420,56 @@
                 <div class="section-header">
                     <h2 class="section-title">Dashboard</h2>
                     <div class="header-actions">
+                        <select id="dashboardRangePreset" onchange="atualizarFiltroDashboardPeriodo()">
+                            <option value="7">Últimos 7 dias</option>
+                            <option value="30" selected>Últimos 30 dias</option>
+                            <option value="90">Últimos 90 dias</option>
+                            <option value="custom">Personalizado</option>
+                        </select>
+                        <input type="date" id="dashboardDateStart" onchange="renderizarDashboard()" style="display:none">
+                        <input type="date" id="dashboardDateEnd" onchange="renderizarDashboard()" style="display:none">
                         <button class="btn btn-outline btn-sm" onclick="imprimirRelatorioAba('dashboard')">
                             <span class="btn-icon">🖨️</span>
                             Imprimir
                         </button>
                     </div>
                 </div>
-                <!-- Cards de Resumo -->
-                <div class="dashboard-cards">
-                    <div class="dash-card card-blue">
-                        <div class="dash-card-icon">📦</div>
-                        <div class="dash-card-info">
-                            <div class="dash-card-value" id="dashTotalUnidades">0</div>
-                            <div class="dash-card-label">Total de Unidades Vendidas</div>
-                        </div>
-                    </div>
-                    <div class="dash-card card-green">
-                        <div class="dash-card-icon">💰</div>
-                        <div class="dash-card-info">
-                            <div class="dash-card-value" id="dashTotalFaturamento">R$ 0,00</div>
-                            <div class="dash-card-label">Faturamento Total</div>
-                        </div>
-                    </div>
-                    <div class="dash-card card-orange">
-                        <div class="dash-card-icon">🏆</div>
-                        <div class="dash-card-info">
-                            <div class="dash-card-value" id="dashMelhorRep">-</div>
-                            <div class="dash-card-label">Melhor Representante</div>
-                        </div>
-                    </div>
-                    <div class="dash-card card-purple">
-                        <div class="dash-card-icon">⭐</div>
-                        <div class="dash-card-info">
-                            <div class="dash-card-value" id="dashProdutoTop">-</div>
-                            <div class="dash-card-label">Produto Mais Vendido</div>
-                        </div>
-                    </div>
+                <div class="kpi-grid dashboard-kpis">
+                    <article class="kpi-card kpi-accent">
+                        <div class="kpi-label">Total de Unidades Vendidas</div>
+                        <div class="kpi-value" id="dashTotalUnidades">0</div>
+                        <div class="kpi-subtitle">No período selecionado</div>
+                    </article>
+                    <article class="kpi-card kpi-success">
+                        <div class="kpi-label">Faturamento Total</div>
+                        <div class="kpi-value" id="dashTotalFaturamento">R$ 0,00</div>
+                        <div class="kpi-subtitle">Receita consolidada</div>
+                    </article>
+                    <article class="kpi-card kpi-info">
+                        <div class="kpi-label">Melhor Representante</div>
+                        <div class="kpi-value" id="dashMelhorRep">-</div>
+                        <div class="kpi-subtitle">Maior volume de vendas</div>
+                    </article>
+                    <article class="kpi-card kpi-danger">
+                        <div class="kpi-label">Produto Mais Vendido</div>
+                        <div class="kpi-value" id="dashProdutoTop">-</div>
+                        <div class="kpi-subtitle">Maior saída em unidades</div>
+                    </article>
                 </div>
 
-                <!-- Gráficos -->
-                <div class="dashboard-charts">
-                    <div class="chart-container">
+                <div class="dashboard-charts-row">
+                    <div class="chart-container dashboard-card">
                         <h3 class="chart-title">Vendas por Representante</h3>
                         <canvas id="chartVendasRep"></canvas>
                     </div>
-                    <div class="chart-container">
+                    <div class="chart-container dashboard-card">
                         <h3 class="chart-title">Top Produtos Vendidos</h3>
                         <canvas id="chartTopProdutos"></canvas>
                     </div>
                 </div>
 
-                <!-- Tabelas do Dashboard -->
-                <div class="dashboard-grid">
-                    <!-- Quantidade Vendida por Produto -->
-                    <div class="dashboard-section">
+                <div class="dashboard-tables-row">
+                    <div class="dashboard-section dashboard-card">
                         <div class="section-header">
                             <h2 class="section-title">Quantidade Vendida por Produto</h2>
                             <div class="header-actions">
@@ -518,8 +492,7 @@
                         </div>
                     </div>
 
-                    <!-- Valor Total por Produto -->
-                    <div class="dashboard-section">
+                    <div class="dashboard-section dashboard-card">
                         <div class="section-header">
                             <h2 class="section-title">Valor das Vendas por Produto</h2>
                             <div class="header-actions">
@@ -543,36 +516,22 @@
                     </div>
                 </div>
 
-                <!-- Tabela de Vendas por Representante -->
-                <div class="dashboard-section full-width">
-                    <div class="section-header">
-                        <h2 class="section-title">Quantidade de Vendas por Representante</h2>
-                        <div class="header-actions">
-                            <button class="btn btn-outline btn-sm" onclick="imprimirDashboardVendasRepresentante()">
-                                <span class="btn-icon">🖨️</span>
-                                Imprimir
-                            </button>
-                        </div>
-                    </div>
-                    <div class="table-container">
-                        <div class="table-wrapper">
-                            <table class="dashboard-table" id="tabelaVendasRep">
-                                <thead>
-                                    <tr>
-                                        <th class="col-produto">Produto</th>
-                                        <th class="header-rep ades">ADES</th>
-                                        <th class="header-rep fl">FL</th>
-                                        <th class="header-rep imbel">IMBEL</th>
-                                        <th class="header-rep isa">ISA</th>
-                                        <th class="header-rep kolte">KOLTE</th>
-                                        <th class="header-rep lc">LC</th>
-                                        <th class="header-geral">Total</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="tabelaVendasRepBody"></tbody>
-                            </table>
-                        </div>
-                    </div>
+                <div class="dashboard-section" style="display:none;">
+                    <table class="dashboard-table" id="tabelaVendasRep">
+                        <thead>
+                            <tr>
+                                <th class="col-produto">Produto</th>
+                                <th class="header-rep ades">ADES</th>
+                                <th class="header-rep fl">FL</th>
+                                <th class="header-rep imbel">IMBEL</th>
+                                <th class="header-rep isa">ISA</th>
+                                <th class="header-rep kolte">KOLTE</th>
+                                <th class="header-rep lc">LC</th>
+                                <th class="header-geral">Total</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tabelaVendasRepBody"></tbody>
+                    </table>
                 </div>
             </div>
         </div>
@@ -825,7 +784,7 @@
                         <table class="dashboard-table" id="tabelaControleEnvio">
                             <thead>
                                 <tr>
-                                    <th style="width: 80px;">CTR</th>
+                                    <th style="width: 110px;">CTR</th>
                                     <th class="col-loja">NOME</th>
                                     <th style="width: 120px;">REPRESENTANTE</th>
                                     <th style="width: 100px;">SISTEMA</th>
