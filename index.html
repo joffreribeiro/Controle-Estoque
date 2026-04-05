@@ -140,12 +140,6 @@
                 </button>
                 <!-- Botões 'Distribuir' e 'Registrar Venda' removidos conforme solicitação -->
             </div>
-            
-            <div class="actions-divider"></div>
-            
-            <!-- Devolução movida para a aba Distribuição -->
-
-            <div class="actions-divider"></div>
 
             <div class="actions-group">
                 <button class="btn btn-outline" onclick="limparFiltros()">
@@ -153,9 +147,8 @@
                     Atualizar
                 </button>
             </div>
-            
-            <div class="actions-divider"></div>
-            <div class="actions-group">
+
+            <div class="actions-group auth-group">
                 <button class="btn btn-outline" data-admin="true" onclick="salvarNoCloudUI()" title="Salvar dados no Firestore">
                     <span class="btn-icon">☁️</span>
                     Salvar no Cloud
@@ -195,12 +188,22 @@
                     <article class="kpi-card kpi-accent">
                         <div class="kpi-label">Faturamento</div>
                         <div class="kpi-value" id="valorTotalVendas">R$ 0,00</div>
-                        <div class="kpi-subtitle">Total de vendas acumulado</div>
+                        <div class="kpi-subtitle">Receita total</div>
                     </article>
-                    <article class="kpi-card kpi-info">
+                    <article class="kpi-card kpi-success">
                         <div class="kpi-label">Comissões</div>
                         <div class="kpi-value" id="totalComissoes">R$ 0,00</div>
-                        <div class="kpi-subtitle">Comissão total (5%)</div>
+                        <div class="kpi-subtitle">Comissão acumulada</div>
+                    </article>
+                    <article class="kpi-card kpi-info">
+                        <div class="kpi-label">Total Vendido</div>
+                        <div class="kpi-value" id="kpiTotalVendido">0 un.</div>
+                        <div class="kpi-subtitle">Unidades vendidas</div>
+                    </article>
+                    <article class="kpi-card kpi-danger">
+                        <div class="kpi-label">Saldo Zero</div>
+                        <div class="kpi-value" id="kpiSaldoZero">0 produtos</div>
+                        <div class="kpi-subtitle">Produtos a repor</div>
                     </article>
                 </div>
 

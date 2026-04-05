@@ -759,21 +759,6 @@ function renderizarTabela() {
         totais[rep] = { disp: 0, venda: 0, saldo: 0 };
     });
 
-    // KPI: vendas no período (mês atual)
-    const now = new Date();
-    const inicioMes = new Date(now.getFullYear(), now.getMonth(), 1);
-    const fimMes = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
-    let vendasPeriodo = 0;
-    (estoque.registroVendas || []).forEach(venda => {
-        const d = venda?.data ? new Date(venda.data) : null;
-        if (!d || isNaN(d.getTime()) || d < inicioMes || d > fimMes) return;
-        if (Array.isArray(venda.items) && venda.items.length > 0) {
-            venda.items.forEach(it => { vendasPeriodo += Number(it.quantidade) || 0; });
-        } else {
-            vendasPeriodo += Number(venda.quantidade) || 0;
-        }
-    });
-
     // Ordenar produtos alfabeticamente por nome para exibição
     const produtosOrdenados = [...estoque.produtos].sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
     let saldoZeroProdutos = 0;
@@ -861,18 +846,10 @@ function renderizarTabela() {
     tbody.appendChild(trTotal);
 
     // KPIs da aba estoque
-    const repsAtivos = estoque.representantes.filter(rep => {
-        const t = totais[rep] || { disp: 0, venda: 0 };
-        return t.disp > 0 || t.venda > 0;
-    }).length;
-    const kpiTotalEstoqueEl = document.getElementById('kpiTotalEstoque');
-    const kpiVendasPeriodoEl = document.getElementById('kpiVendasPeriodo');
-    const kpiRepsAtivosEl = document.getElementById('kpiRepsAtivos');
+    const kpiTotalVendidoEl = document.getElementById('kpiTotalVendido');
     const kpiSaldoZeroEl = document.getElementById('kpiSaldoZero');
-    if (kpiTotalEstoqueEl) kpiTotalEstoqueEl.textContent = totais.GERAL.saldo.toLocaleString('pt-BR');
-    if (kpiVendasPeriodoEl) kpiVendasPeriodoEl.textContent = vendasPeriodo.toLocaleString('pt-BR');
-    if (kpiRepsAtivosEl) kpiRepsAtivosEl.textContent = repsAtivos.toLocaleString('pt-BR');
-    if (kpiSaldoZeroEl) kpiSaldoZeroEl.textContent = saldoZeroProdutos.toLocaleString('pt-BR');
+    if (kpiTotalVendidoEl) kpiTotalVendidoEl.textContent = `${totais.GERAL.venda.toLocaleString('pt-BR')} un.`;
+    if (kpiSaldoZeroEl) kpiSaldoZeroEl.textContent = `${saldoZeroProdutos.toLocaleString('pt-BR')} produtos`;
 
     // Ajustar posição sticky da segunda linha do header
     ajustarStickyHeader();
