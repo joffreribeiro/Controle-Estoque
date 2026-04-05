@@ -1011,7 +1011,7 @@ header {
     background: var(--bg-white);
     border-radius: var(--radius-md);
     box-shadow: var(--shadow-sm);
-    overflow: hidden;
+    overflow: visible;
     border: 1px solid var(--border-color);
 }
 
@@ -1048,7 +1048,7 @@ thead {
     top: 0;
     z-index: 950; /* garantir que o cabeçalho fique acima das células do corpo, mas abaixo de modais */
     /* força camada de composição para evitar problemas de stacking em alguns navegadores */
-    transform: translateZ(0);
+   
 }
 
 th {
@@ -1152,20 +1152,7 @@ tbody tr:hover td.produto-nome {
     background: #e2e8f0;
 }
 
-td.produto-nome {
-    text-align: left;
-    font-weight: 500;
-    padding-left: 20px;
-    background: var(--bg-white);
-    position: sticky;
-    left: 0;
-    z-index: 10;
-    border-right: 2px solid var(--border-color);
-    max-width: 300px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
+
 
 tbody tr:nth-child(even) td.produto-nome {
     background: #f8fafc;
@@ -1176,7 +1163,7 @@ thead th {
     position: sticky;
     top: 0;
     z-index: 950;
-    transform: translateZ(0);
+   
 }
 
 /* Aumentar z-index da primeira coluna do cabeçalho para evitar sobreposição */
@@ -3781,39 +3768,49 @@ th.sortable.sort-desc .sort-icon::after { content: ' ▼'; opacity: 1; }
     overflow-y: visible !important;
 }
 
-#tab-estoque #tabelaEstoque {
-    border-collapse: separate !important;
-    border-spacing: 0 !important;
+/* ========================================
+   STICKY CHECKLIST — VERSÃO CORRIGIDA
+   ======================================== */
+
+/* 1. Corrige o overflow do container */
+#tab-estoque .table-container {
+    overflow: visible !important;
 }
 
+/* 2. Scroll horizontal no wrapper */
+#tab-estoque .table-wrapper {
+    overflow-x: auto !important;
+    overflow-y: visible !important;
+    width: 100% !important;
+    max-height: none !important;
+}
+
+/* 3. Remove transform do thead que quebra sticky */
+#tab-estoque #tabelaEstoque thead {
+    transform: none !important;
+}
+
+#tab-estoque #tabelaEstoque thead th {
+    transform: none !important;
+}
+
+/* 4. Apenas o th.col-produto fica sticky à esquerda */
 #tab-estoque #tabelaEstoque th.col-produto {
     position: sticky !important;
     left: 0 !important;
-    top: o !important;
-    z-index: 5 !important;
+    top: 0 !important;       /* canto: sticky nas 2 direções */
+    top: auto !important;    /* cancela o top:0 da regra global para sticky horizontal puro */
+    z-index: 951 !important;
     background: #1a1a2e !important;
 }
 
-
-
-/* Separadores fortes após cada SALDO */
-#tab-estoque #tabelaEstoque thead tr:nth-child(2) th:nth-child(3),
-#tab-estoque #tabelaEstoque thead tr:nth-child(2) th:nth-child(6),
-#tab-estoque #tabelaEstoque thead tr:nth-child(2) th:nth-child(9),
-#tab-estoque #tabelaEstoque thead tr:nth-child(2) th:nth-child(12),
-#tab-estoque #tabelaEstoque thead tr:nth-child(2) th:nth-child(15),
-#tab-estoque #tabelaEstoque thead tr:nth-child(2) th:nth-child(18),
-#tab-estoque #tabelaEstoque thead tr:nth-child(2) th:nth-child(21) {
-    border-right: 3px solid rgba(255,255,255,0.15) !important;
+/* 5. REMOVER sticky do corpo — apenas header fica fixo */
+#tab-estoque #tabelaEstoque tbody td.produto-nome,
+#tab-estoque #tabelaEstoque tr.total-row td.produto-nome {
+    position: static !important;
+    left: auto !important;
+    box-shadow: none !important;
 }
-
-#tab-estoque #tabelaEstoque tbody td:nth-child(4),
-#tab-estoque #tabelaEstoque tbody td:nth-child(7),
-#tab-estoque #tabelaEstoque tbody td:nth-child(10),
-#tab-estoque #tabelaEstoque tbody td:nth-child(13),
-#tab-estoque #tabelaEstoque tbody td:nth-child(16),
-#tab-estoque #tabelaEstoque tbody td:nth-child(19),
-#tab-estoque #tabelaEstoque tbody td:nth-child(22),
 #tab-estoque #tabelaEstoque tr.total-row td:nth-child(4),
 #tab-estoque #tabelaEstoque tr.total-row td:nth-child(7),
 #tab-estoque #tabelaEstoque tr.total-row td:nth-child(10),
