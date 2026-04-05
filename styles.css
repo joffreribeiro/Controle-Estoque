@@ -3258,6 +3258,28 @@ th.sortable.sort-desc .sort-icon::after { content: ' ▼'; opacity: 1; }
 
 .estoque-kpis {
     grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+    margin-bottom: 10px;
+}
+
+.estoque-kpis .kpi-card {
+    padding: 10px 12px;
+    border-radius: 8px;
+}
+
+.estoque-kpis .kpi-label {
+    font-size: 9px;
+    letter-spacing: 0.6px;
+}
+
+.estoque-kpis .kpi-value {
+    font-size: 16px;
+    margin-top: 3px;
+}
+
+.estoque-kpis .kpi-subtitle {
+    font-size: 10px;
+    margin-top: 2px;
 }
 
 .kpi-card {
