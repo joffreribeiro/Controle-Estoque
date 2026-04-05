@@ -6,7 +6,7 @@
     <title>Controle de Estoque | Material Bélico</title>
     <link rel="stylesheet" href="styles.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-    <link id="favicon" rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎯</text></svg>">
+    <link id="favicon" rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='48' fill='%230b1723'/%3E%3Crect x='30' y='70' width='40' height='12' rx='1' fill='%23d4af37'/%3E%3Crect x='20' y='55' width='15' height='12' rx='1' fill='%23f6c84c'/%3E%3Crect x='42' y='55' width='15' height='12' rx='1' fill='%23f6c84c'/%3E%3Crect x='65' y='55' width='15' height='12' rx='1' fill='%23f6c84c'/%3E%3Crect x='30' y='40' width='15' height='12' rx='1' fill='%23ffd700'/%3E%3Crect x='55' y='40' width='15' height='12' rx='1' fill='%23ffd700'/%3E%3Crect x='25' y='28' width='12' height='9' rx='1' fill='%23f6c84c'/%3E%3Crect x='44' y='28' width='12' height='9' rx='1' fill='%23f6c84c'/%3E%3Crect x='63' y='28' width='12' height='9' rx='1' fill='%23f6c84c'/%3E%3C/svg%3E">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
@@ -21,7 +21,35 @@
             </button>
             <div class="sidebar-top">
                 <div class="sidebar-logo">
-                    <div class="fi-badge">FI</div>
+                    <div class="logo-icon" aria-hidden="true">
+                        <svg class="logo-svg" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                            <defs>
+                                <linearGradient id="goldGrad1Sidebar" x1="0%" y1="0%" x2="100%" y2="100%">
+                                    <stop offset="0%" style="stop-color:#ffd700;stop-opacity:1" />
+                                    <stop offset="100%" style="stop-color:#b8942a;stop-opacity:1" />
+                                </linearGradient>
+                                <linearGradient id="goldGrad2Sidebar" x1="0%" y1="0%" x2="100%" y2="100%">
+                                    <stop offset="0%" style="stop-color:#f6c84c;stop-opacity:1" />
+                                    <stop offset="100%" style="stop-color:#d4af37;stop-opacity:1" />
+                                </linearGradient>
+                                <linearGradient id="goldGrad3Sidebar" x1="0%" y1="0%" x2="100%" y2="100%">
+                                    <stop offset="0%" style="stop-color:#d4af37;stop-opacity:1" />
+                                    <stop offset="100%" style="stop-color:#aa8c2a;stop-opacity:1" />
+                                </linearGradient>
+                            </defs>
+                            <rect x="30" y="70" width="40" height="12" rx="1" fill="url(#goldGrad3Sidebar)" stroke="#0b1723" stroke-width="1" opacity="0.95"/>
+                            <rect x="20" y="55" width="15" height="12" rx="1" fill="url(#goldGrad2Sidebar)" stroke="#0b1723" stroke-width="1" opacity="0.9"/>
+                            <rect x="42" y="55" width="15" height="12" rx="1" fill="url(#goldGrad2Sidebar)" stroke="#0b1723" stroke-width="1" opacity="0.9"/>
+                            <rect x="65" y="55" width="15" height="12" rx="1" fill="url(#goldGrad2Sidebar)" stroke="#0b1723" stroke-width="1" opacity="0.9"/>
+                            <rect x="30" y="40" width="15" height="12" rx="1" fill="url(#goldGrad1Sidebar)" stroke="#0b1723" stroke-width="1" opacity="0.85"/>
+                            <rect x="55" y="40" width="15" height="12" rx="1" fill="url(#goldGrad1Sidebar)" stroke="#0b1723" stroke-width="1" opacity="0.85"/>
+                            <rect x="25" y="28" width="12" height="9" rx="1" fill="url(#goldGrad2Sidebar)" stroke="#0b1723" stroke-width="0.8" opacity="0.8"/>
+                            <rect x="44" y="28" width="12" height="9" rx="1" fill="url(#goldGrad2Sidebar)" stroke="#0b1723" stroke-width="0.8" opacity="0.8"/>
+                            <rect x="63" y="28" width="12" height="9" rx="1" fill="url(#goldGrad2Sidebar)" stroke="#0b1723" stroke-width="0.8" opacity="0.8"/>
+                            <rect x="35" y="18" width="10" height="8" rx="1" fill="url(#goldGrad1Sidebar)" stroke="#0b1723" stroke-width="0.8" opacity="0.75"/>
+                            <rect x="55" y="18" width="10" height="8" rx="1" fill="url(#goldGrad1Sidebar)" stroke="#0b1723" stroke-width="0.8" opacity="0.75"/>
+                        </svg>
+                    </div>
                     <div class="logo-text">
                         <h1>Controle de Estoque</h1>
                         <div class="subtitle">FÁBRICA DE ITAJUBÁ</div>
