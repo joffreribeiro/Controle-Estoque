@@ -503,7 +503,19 @@ function atualizarEstatisticas() {
         estoque.registroVendas.forEach(venda => {
             const rep = (venda.representante || '').toString().trim().toUpperCase();
             if (rep === 'IMBEL') return; // sem comissão
-            const valor = typeof venda.valorTotal === 'number' ? venda.valorTotal : 0;
+            let valor = 0;
+            if (Array.isArray(venda.items) && venda.items.length > 0) {
+                venda.items.forEach(it => {
+                    const valorItem = typeof it.valorTotal === 'number'
+                        ? it.valorTotal
+                        : ((Number(it.valorUnitario) || 0) * (Number(it.quantidade) || 0));
+                    valor += valorItem;
+                });
+            } else {
+                valor = typeof venda.valorTotal === 'number'
+                    ? venda.valorTotal
+                    : ((Number(venda.valorUnitario) || 0) * (Number(venda.quantidade) || 0));
+            }
             totalComissoes += (Math.round((valor * 0.05) * 100) / 100);
         });
     }

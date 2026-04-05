@@ -3256,6 +3256,10 @@ th.sortable.sort-desc .sort-icon::after { content: ' ▼'; opacity: 1; }
     margin-bottom: 14px;
 }
 
+.estoque-kpis {
+    grid-template-columns: repeat(2, 1fr);
+}
+
 .kpi-card {
     background: #ffffff;
     border: 1px solid #d0d7de;

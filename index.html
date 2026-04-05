@@ -52,10 +52,6 @@
             </nav>
 
             <div class="sidebar-footer">
-                <div class="faturamento">
-                    <div class="faturamento-label">Faturamento</div>
-                    <div class="faturamento-value" id="valorTotalVendas">R$ 0</div>
-                </div>
                 <div id="firestoreStatus" class="cloud-status" title="Status do Cloud Firestore">
                     <span class="fs-dot fs-offline" id="fsDot"></span>
                     <span class="fs-text" id="fsText">Cloud: desconectado</span>
@@ -169,24 +165,14 @@
 
                 <div class="kpi-grid estoque-kpis" id="estoqueKpis">
                     <article class="kpi-card kpi-accent">
-                        <div class="kpi-label">Total em Estoque</div>
-                        <div class="kpi-value" id="kpiTotalEstoque">0</div>
-                        <div class="kpi-subtitle">Unidades disponíveis</div>
-                    </article>
-                    <article class="kpi-card kpi-success">
-                        <div class="kpi-label">Vendas no Período</div>
-                        <div class="kpi-value" id="kpiVendasPeriodo">0</div>
-                        <div class="kpi-subtitle">Total vendido no mês atual</div>
+                        <div class="kpi-label">Faturamento</div>
+                        <div class="kpi-value" id="valorTotalVendas">R$ 0,00</div>
+                        <div class="kpi-subtitle">Total de vendas acumulado</div>
                     </article>
                     <article class="kpi-card kpi-info">
-                        <div class="kpi-label">Representantes Ativos</div>
-                        <div class="kpi-value" id="kpiRepsAtivos">0</div>
-                        <div class="kpi-subtitle">Com estoque ou vendas</div>
-                    </article>
-                    <article class="kpi-card kpi-danger">
-                        <div class="kpi-label">Saldo Zero</div>
-                        <div class="kpi-value" id="kpiSaldoZero">0</div>
-                        <div class="kpi-subtitle">Produtos a repor</div>
+                        <div class="kpi-label">Comissões</div>
+                        <div class="kpi-value" id="totalComissoes">R$ 0,00</div>
+                        <div class="kpi-subtitle">Comissão total (5%)</div>
                     </article>
                 </div>
 
