@@ -27,13 +27,6 @@
                         <div class="subtitle">FÁBRICA DE ITAJUBÁ</div>
                     </div>
                 </div>
-                <div id="authPanel" class="auth-panel" style="margin-left:auto;">
-                    <button id="openLoginBtn" class="btn btn-outline btn-sm" onclick="openLoginModal()">Login</button>
-                    <div id="authSignedIn" class="auth-signedin" style="display:none; align-items:center; gap:8px;">
-                        <span id="authUserDisplay" style="font-weight:600"></span>
-                        <button class="btn btn-outline btn-sm" id="btnAuthSignOut" onclick="signOut()">Sair</button>
-                    </div>
-                </div>
             </div>
 
             <nav class="sidebar-nav" aria-label="Navegação principal">
@@ -147,6 +140,13 @@
                     <span class="btn-icon">📥</span>
                     Carregar do Cloud
                 </button>
+                <div id="authPanel" class="auth-panel">
+                    <button id="openLoginBtn" class="btn btn-outline btn-sm" onclick="openLoginModal()">Login</button>
+                    <div id="authSignedIn" class="auth-signedin" style="display:none; align-items:center; gap:8px;">
+                        <span id="authUserDisplay" style="font-weight:600"></span>
+                        <button class="btn btn-outline btn-sm" id="btnAuthSignOut" onclick="signOut()">Sair</button>
+                    </div>
+                </div>
             </div>
         </div>
 
