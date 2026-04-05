@@ -2,6 +2,7 @@
    SISTEMA DE CONTROLE DE ESTOQUE
    Estilos Profissionais v2.0
    ======================================== */
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400&display=swap');
 
 * {
     margin: 0;
@@ -14,11 +15,23 @@
     --primary-dark: #0f1f35;
     --primary-light: #2d5a8b;
     --accent-color: #c9a227;
+    /* Design system additions */
+    --accent-gold: #c9a227;
+    --sidebar-bg: #0d1117;
+    --content-bg: #f6f8fa;
+    --rep-kolte: #79c0ff;
+    --rep-isa: #7ee787;
+    --rep-ades: #ffa657;
+    --rep-fl: #d2a8ff;
+    --rep-imbel: #ff7b72;
     --accent-hover: #ddb62e;
     --success-color: #22c55e;
     --danger-color: #ef4444;
     --warning-color: #f59e0b;
     --info-color: #0ea5e9;
+    /* Typography */
+    --font-primary: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    --font-mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, 'Roboto Mono', 'Courier New', monospace;
     --text-primary: #1e293b;
     --text-secondary: #64748b;
     --text-light: #f8fafc;
@@ -123,7 +136,7 @@ table thead th { position: sticky; top: 0; background: linear-gradient(180deg,#f
 
 
 body {
-    font-family: 'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, 'Helvetica Neue', Arial, sans-serif;
+    font-family: var(--font-primary);
     background: var(--bg-light);
     min-height: 100vh;
     color: var(--text-primary);
