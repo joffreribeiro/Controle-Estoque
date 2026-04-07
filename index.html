@@ -645,10 +645,15 @@
              ABA: CONTROLE IMBEL (FACAS) - SEPARADO
              ======================================== -->
         <div class="tab-content" id="tab-controleimbel">
+            <!-- HEADER da seção IMBEL -->
+            <div class="imbel-section-header">
+                <span class="imbel-dot" aria-hidden="true"></span>
+                <div class="imbel-label">IMBEL</div>
+            </div>
             <!-- Sub-navegação (mesmo padrão do sistema principal) -->
-            <div class="tabs-navigation" id="imbelSubNav" style="border-top: 1px solid var(--border-color);">
+            <div class="tabs-navigation imbel-subnav" id="imbelSubNav" style="border-top: 1px solid var(--border-color);">
                 <button class="tab-btn active" data-imbeltab="estoque" onclick="trocarSubAbaControleImbel('estoque')">
-                    <span>🔪</span> Estoque Facas
+                    <span>🔪</span> Estoque Facas <span class="imbel-badge">0</span>
                 </button>
                 <button class="tab-btn" data-imbeltab="cadastro" onclick="trocarSubAbaControleImbel('cadastro')">
                     <span>📋</span> Cadastro de Produtos
@@ -667,16 +672,18 @@
                     <div class="section-header">
                         <h2 class="section-title">Estoque atual — Facas IMBEL (Sede)</h2>
                         <div class="header-actions">
-                            <button class="btn btn-outline" onclick="renderControleImbelEstoque()">
-                                <span class="btn-icon">🔄</span> Atualizar
-                            </button>
-                            <button class="btn btn-info" onclick="document.getElementById('inputImportarImbel').click()" style="margin-left:6px">
-                                <span class="btn-icon">📥</span> Importar Excel
-                            </button>
-                            <input type="file" id="inputImportarImbel" accept=".csv,.xlsx,.xls" style="display:none" onchange="importarImbel(event)">
-                            <button class="btn btn-outline" onclick="exportarImbel()" style="margin-left:6px">
-                                <span class="btn-icon">📤</span> Exportar Excel
-                            </button>
+                            <div class="imbel-toolbar">
+                                <button class="btn btn-outline" onclick="renderControleImbelEstoque()">
+                                    <span class="btn-icon">🔄</span> Atualizar
+                                </button>
+                                <button class="btn btn-info" onclick="document.getElementById('inputImportarImbel').click()" style="margin-left:6px">
+                                    <span class="btn-icon">📥</span> Importar Excel
+                                </button>
+                                <input type="file" id="inputImportarImbel" accept=".csv,.xlsx,.xls" style="display:none" onchange="importarImbel(event)">
+                                <button class="btn btn-outline" onclick="exportarImbel()" style="margin-left:6px">
+                                    <span class="btn-icon">📤</span> Exportar Excel
+                                </button>
+                            </div>
                         </div>
                     </div>
                     <div id="controleImbelEstoqueContainer"></div>
@@ -687,13 +694,15 @@
                     <div class="section-header">
                         <h2 class="section-title">Cadastro de Produtos</h2>
                         <div class="header-actions">
-                            <button class="btn btn-info" onclick="document.getElementById('inputImportarImbelCadastro').click()">
-                                <span class="btn-icon">📥</span> Importar Excel
-                            </button>
-                            <input type="file" id="inputImportarImbelCadastro" accept=".csv,.xlsx,.xls" style="display:none" onchange="importarImbelCadastro(event)">
-                            <button class="btn btn-outline" onclick="exportarImbelCadastro()" style="margin-left:6px">
-                                <span class="btn-icon">📤</span> Exportar Excel
-                            </button>
+                            <div class="imbel-toolbar">
+                                <button class="btn btn-info" onclick="document.getElementById('inputImportarImbelCadastro').click()">
+                                    <span class="btn-icon">📥</span> Importar Excel
+                                </button>
+                                <input type="file" id="inputImportarImbelCadastro" accept=".csv,.xlsx,.xls" style="display:none" onchange="importarImbelCadastro(event)">
+                                <button class="btn btn-outline" onclick="exportarImbelCadastro()" style="margin-left:6px">
+                                    <span class="btn-icon">📤</span> Exportar Excel
+                                </button>
+                            </div>
                         </div>
                     </div>
                     <div id="controleImbelCadastroContainer"></div>
@@ -704,13 +713,15 @@
                     <div class="section-header">
                         <h2 class="section-title">Registrar Movimentação</h2>
                         <div class="header-actions">
-                            <button class="btn btn-info" onclick="document.getElementById('inputImportarImbelMov').click()">
-                                <span class="btn-icon">📥</span> Importar Excel
-                            </button>
-                            <input type="file" id="inputImportarImbelMov" accept=".csv,.xlsx,.xls" style="display:none" onchange="importarImbelMovimentacao(event)">
-                            <button class="btn btn-outline" onclick="exportarImbelMovimentacao()" style="margin-left:6px">
-                                <span class="btn-icon">📤</span> Exportar Excel
-                            </button>
+                            <div class="imbel-toolbar">
+                                <button class="btn btn-info" onclick="document.getElementById('inputImportarImbelMov').click()">
+                                    <span class="btn-icon">📥</span> Importar Excel
+                                </button>
+                                <input type="file" id="inputImportarImbelMov" accept=".csv,.xlsx,.xls" style="display:none" onchange="importarImbelMovimentacao(event)">
+                                <button class="btn btn-outline" onclick="exportarImbelMovimentacao()" style="margin-left:6px">
+                                    <span class="btn-icon">📤</span> Exportar Excel
+                                </button>
+                            </div>
                         </div>
                     </div>
                     <div id="controleImbelMovContainer"></div>
@@ -721,9 +732,11 @@
                     <div class="section-header">
                         <h2 class="section-title">Dashboard — IMBEL (Facas)</h2>
                         <div class="header-actions">
-                            <button class="btn btn-outline" onclick="renderControleImbelDashboard()">
-                                <span class="btn-icon">🔄</span> Atualizar
-                            </button>
+                            <div class="imbel-toolbar">
+                                <button class="btn btn-outline" onclick="renderControleImbelDashboard()">
+                                    <span class="btn-icon">🔄</span> Atualizar
+                                </button>
+                            </div>
                         </div>
                     </div>
                     <div id="controleImbelDashboardContainer"></div>
