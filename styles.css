@@ -3891,3 +3891,124 @@ th.sortable.sort-desc .sort-icon::after { content: ' ▼'; opacity: 1; }
     }
 }
 
+/* ==========================
+   Melhorias visuais solicitadas
+   ========================== */
+
+/* 1. SIDEBAR — Nav item ativo */
+.sidebar .nav-item {
+    border-left: 3px solid transparent;
+    transition: background 0.18s ease, border-color 0.18s ease;
+}
+.sidebar .nav-item.active {
+    border-left: 3px solid #c9a227;
+    background: linear-gradient(90deg, rgba(201,162,39,0.12) 0%, transparent 100%);
+}
+.sidebar .nav-item:hover {
+    border-left: 3px solid rgba(201,162,39,0.4);
+    background: rgba(201,162,39,0.06);
+}
+
+/* 2. KPI CARDS — Ícone decorativo de fundo */
+.kpi-card {
+    position: relative;
+    overflow: hidden;
+}
+.kpi-card::after {
+    content: attr(data-icon);
+    position: absolute;
+    right: 12px;
+    bottom: 8px;
+    font-size: 3.5rem;
+    opacity: 0.06;
+    pointer-events: none;
+    line-height: 1;
+    transform: translateZ(0);
+}
+
+/* 3. TABELA DE ESTOQUE — Borda superior colorida por representante */
+#tabelaEstoque thead tr:first-child th.header-rep.kolte { border-top: 4px solid #79c0ff; }
+#tabelaEstoque thead tr:first-child th.header-rep.isa { border-top: 4px solid #7ee787; }
+#tabelaEstoque thead tr:first-child th.header-rep.ades { border-top: 4px solid #ffa657; }
+#tabelaEstoque thead tr:first-child th.header-rep.fl { border-top: 4px solid #d2a8ff; }
+#tabelaEstoque thead tr:first-child th.header-rep.imbel { border-top: 4px solid #ff7b72; }
+#tabelaEstoque thead tr:first-child th.header-rep.header-geral { border-top: 4px solid #c9a227; }
+
+/* 4. BADGES DE REPRESENTANTE — Pílula com ponto colorido */
+.badge-rep {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    border-radius: 20px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    padding: 3px 9px;
+    line-height: 1;
+}
+.badge-rep::before {
+    content: '';
+    display: inline-block;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+.badge-rep.kolte { background: #dbeafe; color: #1d4ed8; }
+.badge-rep.kolte::before { background: #79c0ff; }
+.badge-rep.isa { background: #dcfce7; color: #15803d; }
+.badge-rep.isa::before { background: #7ee787; }
+.badge-rep.ades { background: #fff7ed; color: #c2410c; }
+.badge-rep.ades::before { background: #ffa657; }
+.badge-rep.fl { background: #faf5ff; color: #7e22ce; }
+.badge-rep.fl::before { background: #d2a8ff; }
+.badge-rep.imbel { background: #fff1f2; color: #be123c; }
+.badge-rep.imbel::before { background: #ff7b72; }
+
+/* 5. HEADER STATS — Agrupamento visual (CSS preparado; aplicar wrapper no HTML se existirem elementos) */
+.header-stats-group {
+    display: flex;
+    gap: 1px;
+    background: #e2e8f0;
+    border-radius: 8px;
+    overflow: hidden;
+    border: 1px solid #d0d7de;
+}
+.header-stats-group .header-stat {
+    border-radius: 0;
+    box-shadow: none;
+    border-right: 1px solid #e2e8f0;
+}
+.header-stats-group .header-stat:last-child { border-right: none; }
+
+/* 6. NOTIFICAÇÕES / TOASTS — Ícone e borda esquerda */
+.notificacao {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    border-left: 4px solid rgba(255,255,255,0.4);
+    padding-left: 18px;
+}
+.notificacao::before {
+    content: '';
+    font-size: 1.1rem;
+    flex-shrink: 0;
+    margin-right: 6px;
+}
+.notificacao.success::before { content: '✓'; }
+.notificacao.error::before { content: '✕'; }
+.notificacao.info::before { content: 'ℹ'; }
+.notificacao.warning::before { content: '⚠'; }
+
+/* 7. SCROLLBAR — Mais sutil */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #d0d7de; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #a8b3c1; }
+
+/* 8. LINHA DE TOTAIS DA TABELA — Contraste */
+#tabelaEstoque tr.total-row td { color: #ffffff !important; background: #0d1117 !important; }
+#tabelaEstoque tr.total-row td.produto-nome { color: #c9a227 !important; }
+#tabelaEstoque tr.total-row td.negative,
+#tabelaEstoque tr.total-row td span.negative { color: var(--danger-color) !important; }
+
+

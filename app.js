@@ -6112,6 +6112,8 @@ function salvarControleEnvio(contrato, campo, valor) {
     
     estoque.controleEnvio[contrato][campo] = valor;
     salvarDados();
+    // Re-renderizar a tabela para refletir imediatamente a alteração visual
+    try { renderizarControleEnvio(); } catch (e) {}
 }
 
 function limparFiltrosControleEnvio() {
