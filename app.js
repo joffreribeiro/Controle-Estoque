@@ -4584,7 +4584,7 @@ function renderizarRegistroVendas() {
     if (linhas.length === 0) {
         tbody.innerHTML = `
             <tr>
-                <td colspan="11" class="empty-state">
+                <td colspan="10" class="empty-state">
                     <div class="empty-icon">📋</div>
                     <div class="empty-text">Nenhuma venda registrada</div>
                     <div class="empty-hint">Clique em "Nova Venda" para adicionar o primeiro registro</div>
@@ -4646,7 +4646,6 @@ function renderizarRegistroVendas() {
             <td class="col-valor-un">-</td>
             <td class="col-valor-total">${formatarMoedaValor(totalContrato)}</td>
             <td class="col-data">${dataDisplay}</td>
-            <td class="col-total-contrato">${formatarMoedaValor(totalContrato)}</td>
             <td class="col-obs" title="${obsGrupo}">${obsGrupo}</td>
             <td class="col-acoes">
                 <button class="btn-action btn-edit" onclick="abrirModalVendaDetalhada(${primeira.vendaId})" title="Editar venda">✎</button>
@@ -4673,7 +4672,6 @@ function renderizarRegistroVendas() {
                 <td class="col-valor-un">${valorUn}</td>
                 <td class="col-valor-total">${valorTot > 0 ? formatarMoedaValor(valorTot) : '-'}</td>
                 <td class="col-data">${linha.dataNorm ? formatDateToDDMMYYYY(linha.dataNorm) : '-'}</td>
-                <td class="col-total-contrato">-</td>
                 <td class="col-obs" title="${linha.observacoes || '-'}">${linha.observacoes || '-'}</td>
                 <td class="col-acoes">
                     <button class="btn-action btn-edit" onclick="abrirModalVendaDetalhada(${linha.vendaId})" title="Editar venda">✎</button>
