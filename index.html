@@ -397,17 +397,17 @@
                         <table class="dashboard-table" id="tabelaRegistroVendas">
                             <thead>
                                 <tr>
-                                    <th style="width: 80px;" class="sortable" data-sort="contrato" onclick="ordenarVendas('contrato')">Contrato <span class="sort-icon">⇅</span></th>
+                                    <th style="width: 80px;" class="col-contrato sortable" data-sort="contrato" onclick="ordenarVendas('contrato')">Contrato <span class="sort-icon">⇅</span></th>
                                     <th class="col-loja sortable" data-sort="loja" onclick="ordenarVendas('loja')">Loja / Cliente <span class="sort-icon">⇅</span></th>
-                                    <th style="width: 120px;" class="sortable" data-sort="representante" onclick="ordenarVendas('representante')">Representante <span class="sort-icon">⇅</span></th>
-                                    <th class="col-produto">Produto</th>
-                                    <th style="width: 90px;">Qtd</th>
-                                    <th style="width: 120px;">Valor Un.</th>
-                                    <th style="width: 130px;" class="sortable" data-sort="valorTotal" onclick="ordenarVendas('valorTotal')">Valor Total <span class="sort-icon">⇅</span></th>
-                                    <th style="width: 120px;" class="sortable" data-sort="data" onclick="ordenarVendas('data')">Data <span class="sort-icon">⇅</span></th>
+                                    <th style="width: 120px;" class="col-representante sortable" data-sort="representante" onclick="ordenarVendas('representante')">Representante <span class="sort-icon">⇅</span></th>
+                                    <th class="col-produto-venda">Produto</th>
+                                    <th style="width: 90px;" class="col-qtd">Qtd</th>
+                                    <th style="width: 120px;" class="col-valor-un">Valor Un.</th>
+                                    <th style="width: 130px;" class="col-valor-total sortable" data-sort="valorTotal" onclick="ordenarVendas('valorTotal')">Valor Total <span class="sort-icon">⇅</span></th>
+                                    <th style="width: 120px;" class="col-data sortable" data-sort="data" onclick="ordenarVendas('data')">Data <span class="sort-icon">⇅</span></th>
                                     <!-- Coluna 'Total Contrato (R$)' removida -->
-                                    <th style="width: 150px;">Obs</th>
-                                    <th style="width: 80px;">Ações</th>
+                                    <th style="width: 150px;" class="col-obs">Obs</th>
+                                    <th style="width: 80px;" class="col-acoes">Ações</th>
                                 </tr>
                             </thead>
                             <tbody id="tabelaRegistroVendasBody"></tbody>

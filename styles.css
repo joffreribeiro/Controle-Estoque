@@ -1069,6 +1069,21 @@ th {
     padding: 14px 15px;
 }
 
+/* Fix: alinhar e fixar (sticky) a coluna Ações nas tabelas do dashboard */
+.dashboard-table th.col-acoes,
+.dashboard-table td.col-acoes {
+    position: sticky;
+    right: 0;
+    z-index: 960;
+}
+.dashboard-table th.col-acoes {
+    background: var(--primary-color) !important;
+    color: #fff;
+}
+.dashboard-table td.col-acoes {
+    background: var(--bg-white);
+}
+
 th.col-produto {
     min-width: 280px;
     text-align: left;
