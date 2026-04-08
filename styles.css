@@ -195,6 +195,19 @@ header .header-content { padding: 10px 20px; }
 #loggedAccountBadge { background: var(--accent-color); color: #fff; box-shadow: var(--shadow-xs); }
 .badge-rep.imbel { background: rgba(30,58,95,0.12); color: var(--primary-color); }
 
+/* Badge para vendas/contratos cancelados */
+.badge-cancelado {
+    background: #b71c1c;
+    color: #fff;
+    padding: 2px 8px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    display: inline-block;
+}
+.row-contrato-resumo.contrato-cancelado { opacity: 0.8; background: rgba(183,28,28,0.03); }
+.row-contrato-detalhe .badge-cancelado { font-size: 12px; padding: 2px 6px; border-radius: 4px; }
+
 /* ========================================
     Tables: zebra, hover, sticky header
     ======================================== */

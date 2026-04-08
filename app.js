@@ -476,6 +476,7 @@ function atualizarEstatisticas() {
     valorTotalVendas = 0;
     if (Array.isArray(estoque.registroVendas)) {
         estoque.registroVendas.forEach(venda => {
+            if (venda && venda.cancelado) return; // ignorar vendas canceladas ao somar faturamento
             if (Array.isArray(venda.items) && venda.items.length > 0) {
                 venda.items.forEach(it => {
                     valorTotalVendas += it.valorTotal || 0;
@@ -501,6 +502,7 @@ function atualizarEstatisticas() {
     let totalComissoes = 0;
     if (Array.isArray(estoque.registroVendas)) {
         estoque.registroVendas.forEach(venda => {
+            if (venda && venda.cancelado) return; // ignorar vendas canceladas
             const rep = (venda.representante || '').toString().trim().toUpperCase();
             if (rep === 'IMBEL') return; // sem comissão
             let valor = 0;
@@ -1121,7 +1123,7 @@ function imprimirRelatorioSelecionado() {
 // =============================
 
 function obterComissoesConsolidadas({ filtroRep = '', dataInicio = '', dataFim = '' } = {}) {
-    const vendas = Array.isArray(estoque.registroVendas) ? [...estoque.registroVendas] : [];
+    const vendas = (Array.isArray(estoque.registroVendas) ? [...estoque.registroVendas] : []).filter(v => !v.cancelado);
     const vendasSemImbel = vendas.filter(v => ((v.representante || '').toString().trim().toUpperCase() !== 'IMBEL'));
 
     const vendasFiltradas = vendasSemImbel.filter(v => {
@@ -1191,7 +1193,7 @@ function prepararRelatorioComissoes() {
     const dataFim = document.getElementById('filtroRelatoriosDataFim') ? document.getElementById('filtroRelatoriosDataFim').value : '';
 
     // Agrupar vendas por representante (ignorar vendas da IMBEL — sem comissão)
-    const vendas = Array.isArray(estoque.registroVendas) ? [...estoque.registroVendas] : [];
+    const vendas = (Array.isArray(estoque.registroVendas) ? [...estoque.registroVendas] : []).filter(v => !v.cancelado);
     const vendasSemImbel = vendas.filter(v => ((v.representante || '').toString().trim().toUpperCase() !== 'IMBEL'));
     
     // Filtrar por intervalo de datas se fornecido (comparação por DATA apenas, formato YYYY-MM-DD)
@@ -1381,7 +1383,7 @@ function exportarComissoesCSV() {
     // Excluir vendas da IMBEL (sem comissão) e aplicar filtro de datas se fornecido
     const dataInicio = document.getElementById('filtroRelatoriosDataInicio') ? document.getElementById('filtroRelatoriosDataInicio').value : '';
     const dataFim = document.getElementById('filtroRelatoriosDataFim') ? document.getElementById('filtroRelatoriosDataFim').value : '';
-    const vendasRaw = Array.isArray(estoque.registroVendas) ? [...estoque.registroVendas] : [];
+    const vendasRaw = (Array.isArray(estoque.registroVendas) ? [...estoque.registroVendas] : []).filter(v => !v.cancelado);
     const vendasFiltradasPorRep = vendasRaw.filter(v => ((v.representante || '').toString().trim().toUpperCase() !== 'IMBEL'));
     let startTs = null, endTs = null;
     try {
@@ -4635,10 +4637,26 @@ function renderizarRegistroVendas() {
             : '-';
 
         const expandido = !!_contratosExpandidos[contratoKey];
+
+        // verificar se todas as vendas deste contrato estão canceladas
+        const vendasDoContrato = (estoque.registroVendas || []).filter(v => normalizarContratoKey(v.contrato) === contratoKey);
+        const contratoCancelado = vendasDoContrato.length > 0 && vendasDoContrato.every(v => !!v.cancelado);
+        const cancelBadgeHtml = contratoCancelado ? '<span class="badge-cancelado">CANCELADO</span>' : '';
+
         const resumo = document.createElement('tr');
-        resumo.className = 'row-contrato-resumo';
+        resumo.className = 'row-contrato-resumo' + (contratoCancelado ? ' contrato-cancelado' : '');
+        let actionsHtml = '';
+        if (contratoCancelado) {
+            actionsHtml = '<span class="badge-cancelado">CANCELADO</span>';
+        } else {
+            actionsHtml = `<button class="btn-action btn-edit" onclick="abrirModalVendaDetalhada(${primeira.vendaId})" title="Editar venda">✎</button>` +
+                          `<button class="btn-action btn-delete" onclick="excluirVenda(${primeira.vendaId})" title="Excluir venda">🗑</button>` +
+                          `<button class="btn-action" onclick="abrirHistoricoContrato('${contratoKey}')" title="Histórico do Contrato">🕘</button>` +
+                          `<button class="btn-action btn-cancel" onclick="cancelarContrato('${contratoKey}')" title="Cancelar contrato">✖</button>`;
+        }
+
         resumo.innerHTML = `
-            <td class="col-contrato">${contratoKey || '-'}</td>
+            <td class="col-contrato">${contratoKey || '-'} ${cancelBadgeHtml}</td>
             <td class="col-loja" title="${primeira.loja}">${primeira.loja}</td>
             <td class="col-representante"><span class="badge-rep ${repClass}">${primeira.representante}</span></td>
             <td class="col-produto-venda"><button class="btn-expand-contrato" onclick="toggleContratoExpandido('${contratoKey}')">${expandido ? '▾' : '▸'} ${linhasDoContrato} item(ns)</button></td>
@@ -4647,11 +4665,7 @@ function renderizarRegistroVendas() {
             <td class="col-valor-total">${formatarMoedaValor(totalContrato)}</td>
             <td class="col-data">${dataDisplay}</td>
             <td class="col-obs" title="${obsGrupo}">${obsGrupo}</td>
-            <td class="col-acoes">
-                <button class="btn-action btn-edit" onclick="abrirModalVendaDetalhada(${primeira.vendaId})" title="Editar venda">✎</button>
-                <button class="btn-action btn-delete" onclick="excluirVenda(${primeira.vendaId})" title="Excluir venda">🗑</button>
-                <button class="btn-action" onclick="abrirHistoricoContrato('${contratoKey}')" title="Histórico do Contrato">🕘</button>
-            </td>
+            <td class="col-acoes">${actionsHtml}</td>
         `;
         tbody.appendChild(resumo);
 
@@ -4663,6 +4677,13 @@ function renderizarRegistroVendas() {
             totalQtd += linha.quantidade || 0;
             totalValor += valorTot || 0;
 
+            // verificar se a venda específica está cancelada
+            const vendaObj = estoque.registroVendas.find(v => v.id === linha.vendaId);
+            const isLinhaCancelada = vendaObj && vendaObj.cancelado;
+            const detalheAcoesHtml = isLinhaCancelada
+                ? '<span class="badge-cancelado">CANCELADO</span>'
+                : `<button class="btn-action btn-edit" onclick="abrirModalVendaDetalhada(${linha.vendaId})" title="Editar venda">✎</button><button class="btn-action btn-delete" onclick="excluirVenda(${linha.vendaId})" title="Excluir venda">🗑</button>`;
+
             tr.innerHTML = `
                 <td class="col-contrato detalhe-vazio"></td>
                 <td class="col-loja detalhe-vazio"></td>
@@ -4673,11 +4694,9 @@ function renderizarRegistroVendas() {
                 <td class="col-valor-total">${valorTot > 0 ? formatarMoedaValor(valorTot) : '-'}</td>
                 <td class="col-data">${linha.dataNorm ? formatDateToDDMMYYYY(linha.dataNorm) : '-'}</td>
                 <td class="col-obs" title="${linha.observacoes || '-'}">${linha.observacoes || '-'}</td>
-                <td class="col-acoes">
-                    <button class="btn-action btn-edit" onclick="abrirModalVendaDetalhada(${linha.vendaId})" title="Editar venda">✎</button>
-                    <button class="btn-action btn-delete" onclick="excluirVenda(${linha.vendaId})" title="Excluir venda">🗑</button>
-                </td>
+                <td class="col-acoes">${detalheAcoesHtml}</td>
             `;
+
             tbody.appendChild(tr);
         });
     });
@@ -4802,6 +4821,51 @@ function excluirVenda(vendaId) {
             `Contrato ${venda.contrato} excluído`
         );
     } catch (e) {}
+}
+
+function cancelarContrato(contratoKey) {
+    if (!requireAdminOrNotify()) return;
+    if (!contratoKey) return mostrarNotificacao('Contrato inválido para cancelamento.', 'error');
+    const ok = confirm(`Confirma cancelamento do contrato ${contratoKey}?\n\nAs quantidades serão devolvidas ao representante e a comissão não será considerada.`);
+    if (!ok) return;
+
+    const vendasAfetadas = (estoque.registroVendas || []).filter(v => normalizarContratoKey(v.contrato) === contratoKey && !v.cancelado);
+    if (vendasAfetadas.length === 0) {
+        mostrarNotificacao(`Nenhuma venda ativa encontrada para o contrato ${contratoKey}.`, 'warning');
+        return;
+    }
+
+    vendasAfetadas.forEach(venda => {
+        let snapshot = null;
+        try { snapshot = JSON.parse(JSON.stringify(venda)); } catch (e) { snapshot = null; }
+
+        // Reverter quantidades vendidas no representante
+        if (Array.isArray(venda.items) && venda.items.length > 0) {
+            venda.items.forEach(it => {
+                const produto = estoque.produtos.find(p => p.id === it.produtoId);
+                if (produto) produto.vendas[venda.representante] = Math.max(0, (produto.vendas[venda.representante] || 0) - it.quantidade);
+            });
+        } else {
+            const produto = estoque.produtos.find(p => p.id === venda.produtoId);
+            if (produto) produto.vendas[venda.representante] = Math.max(0, (produto.vendas[venda.representante] || 0) - (venda.quantidade || 0));
+        }
+
+        venda.cancelado = true;
+        venda.canceladoEm = new Date().toISOString();
+        venda.canceladoPor = getUsuarioAtual();
+
+        try {
+            registrarAuditoriaVenda('cancelamento', snapshot, JSON.parse(JSON.stringify(venda)), `Contrato ${contratoKey} cancelado`);
+        } catch (e) {}
+    });
+
+    salvarDados();
+    renderizarTabela();
+    renderizarDashboard();
+    renderizarRegistroVendas();
+    renderizarControleEnvio();
+
+    mostrarNotificacao(`Contrato ${contratoKey} cancelado. Quantidades devolvidas ao representante.`, 'success');
 }
 
 function exportarVendas() {
