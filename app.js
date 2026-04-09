@@ -1172,10 +1172,23 @@ function prepararRelatorioInventario() {
         first.appendChild(thGeral);
 
         const second = document.createElement('tr');
-        ['Disp', 'Venda', 'Saldo', 'Disp', 'Venda', 'Saldo'].forEach(text => {
+        const subLabels = ['DIST', 'VENDA', 'SALDO', 'TOTAL', 'VENDA', 'SALDO'];
+        const ariaMap = {
+            'DIST': 'Quantidade distribuída para este representante',
+            'ESTOQUE': 'Quantidade disponível no galpão IMBEL',
+            'TOTAL': 'Estoque total cadastrado no sistema',
+            'VENDA': 'Total vendido',
+            'SALDO': 'Saldo disponível para venda'
+        };
+        subLabels.forEach(text => {
             const t = document.createElement('th');
             t.className = 'sub-header';
             t.textContent = text;
+            const aria = ariaMap[text] || '';
+            if (aria) {
+                t.setAttribute('aria-label', aria);
+                t.setAttribute('title', aria);
+            }
             second.appendChild(t);
         });
 
