@@ -14,6 +14,7 @@ let estoque = {
     auditoriaVendas: [],
     fechamentosComissoes: [],
     clientes: [],
+    propostas: [],
     precificacao: {},
     precificacaoConfig: null
 };
@@ -185,6 +186,8 @@ async function inicializar() {
     renderizarClientes();
     atualizarKPIsClientes();
     atualizarDatalistClientes();
+    renderizarPropostas();
+    atualizarKPIsPropostas();
     renderizarPrecificacao();
     atualizarSelectsProdutos();
     atualizarSelectsRelatorios();
@@ -226,6 +229,10 @@ function carregarDados() {
             estoque.clientes = [];
         }
         clientes = estoque.clientes;
+        if (!Array.isArray(estoque.propostas)) {
+            estoque.propostas = [];
+        }
+        propostas = estoque.propostas;
         if (estoque.precificacao && typeof estoque.precificacao === 'object') {
             precificacao = estoque.precificacao;
         }
@@ -357,6 +364,8 @@ async function carregarDoCloud({confirmOverwrite=true} = {}) {
         if (!Array.isArray(estoque.fechamentosComissoes)) estoque.fechamentosComissoes = [];
         if (!Array.isArray(estoque.clientes)) estoque.clientes = [];
         clientes = estoque.clientes;
+        if (!Array.isArray(estoque.propostas)) estoque.propostas = [];
+        propostas = estoque.propostas;
         if (estoque.precificacao && typeof estoque.precificacao === 'object') precificacao = estoque.precificacao;
         else { estoque.precificacao = {}; precificacao = estoque.precificacao; }
         salvarDados();
@@ -368,6 +377,8 @@ async function carregarDoCloud({confirmOverwrite=true} = {}) {
         renderizarClientes();
         atualizarKPIsClientes();
         atualizarDatalistClientes();
+        renderizarPropostas();
+        atualizarKPIsPropostas();
         renderizarPrecificacao();
         atualizarSelectsProdutos();
         atualizarSelectsRelatorios();
@@ -405,6 +416,8 @@ async function carregarDoCloudAuto() {
             if (!Array.isArray(estoque.fechamentosComissoes)) estoque.fechamentosComissoes = [];
             if (!Array.isArray(estoque.clientes)) estoque.clientes = [];
             clientes = estoque.clientes;
+            if (!Array.isArray(estoque.propostas)) estoque.propostas = [];
+            propostas = estoque.propostas;
             if (estoque.precificacao && typeof estoque.precificacao === 'object') precificacao = estoque.precificacao;
             else { estoque.precificacao = {}; precificacao = estoque.precificacao; }
             salvarDados();
@@ -416,6 +429,8 @@ async function carregarDoCloudAuto() {
             renderizarClientes();
             atualizarKPIsClientes();
             atualizarDatalistClientes();
+            renderizarPropostas();
+            atualizarKPIsPropostas();
             renderizarPrecificacao();
             atualizarSelectsProdutos();
             atualizarSelectsRelatorios();
@@ -2075,6 +2090,9 @@ function imprimirRelatorioAba(tabId) {
                 break;
             case 'precificacao':
                 imprimirPrecificacao();
+                break;
+            case 'propostas':
+                imprimirPropostas();
                 break;
             default:
                 alert('Não há relatório configurado para esta aba.');
@@ -4133,8 +4151,9 @@ function salvarEntradaEstoque(event) {
 // REGISTRO DE VENDAS DETALHADO
 // ========================================
 
-function abrirModalVendaDetalhada(vendaId = null) {
+function abrirModalVendaDetalhada(vendaId = null, propostaId = null) {
     // vendaId: se fornecido, abre o modal em modo de edição para essa venda
+    // propostaId: se fornecido, preenche campos a partir da proposta para revisão
     if (!requireAdminOrNotify()) return;
     const modalEl = document.getElementById('modalVendaDetalhada');
     modalEl.style.display = 'flex';
@@ -4145,6 +4164,35 @@ function abrirModalVendaDetalhada(vendaId = null) {
 
     const container = document.getElementById('itensVendaContainer');
     if (!container) return;
+
+    // Pre-fill from proposal if propostaId provided
+    if (propostaId && !vendaId) {
+        const proposta = (propostas || []).find(p => p.id === propostaId || p.id === String(propostaId));
+        if (proposta) {
+            vendaEditandoId = null;
+            container.innerHTML = '';
+
+            const ultimoContrato = estoque.registroVendas.length > 0
+                ? Math.max(...estoque.registroVendas.map(v => parseInt(v.contrato) || 0))
+                : 0;
+            document.getElementById('contratoVenda').value = ultimoContrato + 1;
+            document.getElementById('lojaVenda').value = proposta.cliente || '';
+            document.getElementById('representanteVendaDet').value = proposta.representante || '';
+            document.getElementById('observacoesVenda').value = 'Gerado a partir da proposta ' + proposta.numero + (proposta.observacoes ? '\n' + proposta.observacoes : '');
+            try { document.getElementById('dataVenda').value = new Date().toISOString().slice(0, 10); } catch (e) {}
+
+            if (Array.isArray(proposta.itens) && proposta.itens.length > 0) {
+                proposta.itens.forEach(it => {
+                    const preValor = it.valorUnitario ? it.valorUnitario.toLocaleString('pt-BR', { minimumFractionDigits: 2 }) : '';
+                    adicionarItemVendaRow(it.produtoId, it.quantidade, preValor);
+                });
+            } else {
+                adicionarItemVendaRow();
+            }
+            atualizarTotalVendaDetalhada();
+            return;
+        }
+    }
 
     // Se estamos criando nova venda, inicializa com uma linha vazia e sugere contrato
     if (!vendaId) {
@@ -5756,6 +5804,8 @@ function importarSistema(event) {
             estoque = obj;
             if (!Array.isArray(estoque.clientes)) estoque.clientes = [];
             clientes = estoque.clientes;
+            if (!Array.isArray(estoque.propostas)) estoque.propostas = [];
+            propostas = estoque.propostas;
             if (estoque.precificacao && typeof estoque.precificacao === 'object') precificacao = estoque.precificacao;
             else { estoque.precificacao = {}; precificacao = estoque.precificacao; }
             salvarDados();
@@ -5768,6 +5818,8 @@ function importarSistema(event) {
             renderizarClientes();
             atualizarKPIsClientes();
             atualizarDatalistClientes();
+            renderizarPropostas();
+            atualizarKPIsPropostas();
             renderizarPrecificacao();
             atualizarSelectsProdutos();
             atualizarEstatisticas();
@@ -6082,6 +6134,8 @@ function limparTodosDados() {
     estoque.controleEnvio = {};
     estoque.clientes = [];
     clientes = estoque.clientes;
+    estoque.propostas = [];
+    propostas = estoque.propostas;
     estoque.precificacao = {};
     estoque.precificacaoConfig = null;
     precificacao = estoque.precificacao;
@@ -6095,6 +6149,8 @@ function limparTodosDados() {
     renderizarClientes();
     atualizarKPIsClientes();
     atualizarDatalistClientes();
+    renderizarPropostas();
+    atualizarKPIsPropostas();
     renderizarPrecificacao();
     atualizarSelectsProdutos();
     atualizarEstatisticas();
@@ -7155,6 +7211,412 @@ function imprimirPrecificacao() {
         <style>body{font-family:Inter,Arial,sans-serif;padding:20px}table{border-collapse:collapse;width:100%}th,td{border:1px solid #ddd;padding:6px 8px;font-size:11px}th{background:#f5f5f5;font-weight:600}input{border:none;background:transparent;text-align:right;font-size:11px}</style>
         <script>window.onload=function(){ setTimeout(function(){ window.print(); },200); }<\/script>
     </head><body><h2>Precificação de Produtos</h2>${html}</body></html>`);
+    win.document.close();
+}
+
+// ========================================
+// MÓDULO: PROPOSTAS COMERCIAIS
+// ========================================
+
+let propostas = [];
+
+function gerarNumeroProposta() {
+    const existentes = propostas.map(p => {
+        const m = (p.numero || '').match(/P-(\d+)/);
+        return m ? parseInt(m[1]) : 0;
+    });
+    const proximo = existentes.length ? Math.max(...existentes) + 1 : 1;
+    return 'P-' + String(proximo).padStart(3, '0');
+}
+
+function abrirModalProposta(id = null) {
+    if (!requireAdminOrNotify()) return;
+    const modalEl = document.getElementById('modalProposta');
+    modalEl.style.display = 'flex';
+    document.getElementById('formProposta').reset();
+    document.getElementById('propostaEditId').value = '';
+    const container = document.getElementById('itensPropostaContainer');
+    if (container) container.innerHTML = '';
+
+    try { document.getElementById('propostaData').value = new Date().toISOString().slice(0, 10); } catch (e) {}
+
+    if (!id) {
+        document.getElementById('modalPropostaTitulo').textContent = 'Nova Proposta';
+        document.getElementById('propostaNumero').value = gerarNumeroProposta();
+        document.getElementById('propostaValidade').value = 30;
+        document.getElementById('propostaValorTotal').value = '';
+        adicionarItemPropostaRow();
+        return;
+    }
+
+    const proposta = propostas.find(p => p.id === id);
+    if (!proposta) { mostrarNotificacao('Proposta não encontrada.', 'error'); return; }
+
+    document.getElementById('modalPropostaTitulo').textContent = 'Editar Proposta ' + proposta.numero;
+    document.getElementById('propostaEditId').value = proposta.id;
+    document.getElementById('propostaNumero').value = proposta.numero || '';
+    document.getElementById('propostaCliente').value = proposta.cliente || '';
+    document.getElementById('propostaRepresentante').value = proposta.representante || '';
+    document.getElementById('propostaStatus').value = proposta.status || 'rascunho';
+    document.getElementById('propostaValidade').value = proposta.validade || 30;
+    document.getElementById('propostaObservacoes').value = proposta.observacoes || '';
+    try { document.getElementById('propostaData').value = proposta.data ? proposta.data.split('T')[0] : ''; } catch (e) {}
+
+    if (Array.isArray(proposta.itens) && proposta.itens.length > 0) {
+        proposta.itens.forEach(it => {
+            const preValor = it.valorUnitario ? it.valorUnitario.toLocaleString('pt-BR', { minimumFractionDigits: 2 }) : '';
+            adicionarItemPropostaRow({ produtoId: it.produtoId, quantidade: it.quantidade, valorUnit: preValor });
+        });
+    } else {
+        adicionarItemPropostaRow();
+    }
+
+    calcularTotalProposta();
+}
+
+function adicionarItemPropostaRow(item = null) {
+    const container = document.getElementById('itensPropostaContainer');
+    if (!container) return;
+
+    const row = document.createElement('div');
+    row.className = 'item-venda-row';
+    row.style.display = 'flex';
+    row.style.gap = '8px';
+    row.style.alignItems = 'center';
+    row.style.marginBottom = '6px';
+
+    let opcoesHtml = '';
+    try { opcoesHtml = construirOpcoesProdutos(); } catch (e) { opcoesHtml = '<option value="">(nenhum produto)</option>'; }
+
+    const preQtd = item ? (item.quantidade || 1) : 1;
+    const preValor = item ? (item.valorUnit || '') : '';
+
+    row.innerHTML = `
+        <select class="item-produto" onchange="autoPreencherPrecoItemProposta(this); atualizarItemPropostaRow(this)">${opcoesHtml}</select>
+        <input type="number" class="item-quantidade" min="1" value="${preQtd}" style="width:90px" onchange="atualizarItemPropostaRow(this)" />
+        <input type="text" class="item-valor" placeholder="Valor unit." style="width:140px" oninput="formatarMoeda(this); atualizarItemPropostaRow(this)" value="${preValor}" />
+        <div class="item-subtotal" style="min-width:120px">-</div>
+        <button type="button" class="btn btn-outline btn-sm" onclick="removerItemPropostaRow(this)">Remover</button>
+    `;
+
+    container.appendChild(row);
+
+    if (item && item.produtoId) row.querySelector('.item-produto').value = item.produtoId;
+
+    atualizarItemPropostaRow(row.querySelector('.item-produto'));
+}
+
+function autoPreencherPrecoItemProposta(selectEl) {
+    const row = selectEl.closest('.item-venda-row');
+    if (!row) return;
+    const valorInput = row.querySelector('.item-valor');
+    if (!valorInput) return;
+    if (valorInput.value && valorInput.value.trim() !== '') return;
+    const produtoId = parseInt(selectEl.value);
+    const produto = (estoque.produtos || []).find(p => p.id === produtoId);
+    if (produto && precificacao[produto.nome]) {
+        const calc = _calcPrecProduto(produto.nome);
+        if (calc.precoFinal > 0) {
+            valorInput.value = calc.precoFinal.toFixed(2).replace('.', ',');
+        }
+    }
+}
+
+function atualizarItemPropostaRow(el) {
+    const row = el.closest('.item-venda-row');
+    if (!row) return;
+    const qtdInput = row.querySelector('.item-quantidade');
+    const valorInput = row.querySelector('.item-valor');
+    const subtotalDiv = row.querySelector('.item-subtotal');
+
+    const qtd = parseInt(qtdInput?.value) || 0;
+    const valorStr = (valorInput?.value || '').replace(/\./g, '').replace(',', '.');
+    const valor = parseFloat(valorStr) || 0;
+    const sub = qtd * valor;
+
+    if (subtotalDiv) subtotalDiv.textContent = sub > 0 ? formatarMoedaValor(sub) : '-';
+    calcularTotalProposta();
+}
+
+function removerItemPropostaRow(btnEl) {
+    const row = btnEl.closest('.item-venda-row');
+    if (row) row.remove();
+    calcularTotalProposta();
+}
+
+function calcularTotalProposta() {
+    const container = document.getElementById('itensPropostaContainer');
+    if (!container) return;
+    let total = 0;
+    container.querySelectorAll('.item-venda-row').forEach(row => {
+        const qtd = parseInt(row.querySelector('.item-quantidade')?.value) || 0;
+        const valorStr = (row.querySelector('.item-valor')?.value || '').replace(/\./g, '').replace(',', '.');
+        total += qtd * (parseFloat(valorStr) || 0);
+    });
+    const el = document.getElementById('propostaValorTotal');
+    if (el) el.value = formatarMoedaValor(total);
+}
+
+function _coletarItensProposta() {
+    const container = document.getElementById('itensPropostaContainer');
+    if (!container) return [];
+    const itens = [];
+    container.querySelectorAll('.item-venda-row').forEach(row => {
+        const select = row.querySelector('.item-produto');
+        const produtoId = parseInt(select?.value) || 0;
+        if (!produtoId) return;
+        const produto = (estoque.produtos || []).find(p => p.id === produtoId);
+        const quantidade = parseInt(row.querySelector('.item-quantidade')?.value) || 0;
+        const valorStr = (row.querySelector('.item-valor')?.value || '').replace(/\./g, '').replace(',', '.');
+        const valorUnitario = parseFloat(valorStr) || 0;
+        itens.push({
+            produtoId,
+            produtoNome: produto ? produto.nome : '',
+            quantidade,
+            valorUnitario,
+            valorTotal: quantidade * valorUnitario
+        });
+    });
+    return itens;
+}
+
+function salvarProposta(event) {
+    if (event) event.preventDefault();
+    const editId = document.getElementById('propostaEditId').value;
+    const numero = document.getElementById('propostaNumero').value;
+    const cliente = document.getElementById('propostaCliente').value.trim();
+    const representante = document.getElementById('propostaRepresentante').value;
+    const status = document.getElementById('propostaStatus').value;
+    const dataStr = document.getElementById('propostaData').value;
+    const validade = parseInt(document.getElementById('propostaValidade').value) || 30;
+    const observacoes = document.getElementById('propostaObservacoes').value.trim();
+    const itens = _coletarItensProposta();
+
+    if (!cliente) { mostrarNotificacao('Informe o cliente.', 'error'); return; }
+    if (!representante) { mostrarNotificacao('Selecione o representante.', 'error'); return; }
+    if (itens.length === 0) { mostrarNotificacao('Adicione pelo menos um item.', 'error'); return; }
+
+    const valorTotal = itens.reduce((s, i) => s + i.valorTotal, 0);
+    const dataISO = dataStr ? new Date(dataStr + 'T00:00:00').toISOString() : new Date().toISOString();
+    const dataExp = new Date(dataISO);
+    dataExp.setDate(dataExp.getDate() + validade);
+
+    if (editId) {
+        const idx = propostas.findIndex(p => p.id === editId);
+        if (idx !== -1) {
+            propostas[idx].cliente = cliente;
+            propostas[idx].representante = representante;
+            propostas[idx].status = status;
+            propostas[idx].data = dataISO;
+            propostas[idx].validade = validade;
+            propostas[idx].dataExpiracao = dataExp.toISOString();
+            propostas[idx].itens = itens;
+            propostas[idx].valorTotal = valorTotal;
+            propostas[idx].observacoes = observacoes;
+        }
+    } else {
+        const novaProposta = {
+            id: Date.now().toString(),
+            numero: numero,
+            cliente: cliente,
+            representante: representante,
+            data: dataISO,
+            validade: validade,
+            dataExpiracao: dataExp.toISOString(),
+            status: status,
+            itens: itens,
+            valorTotal: valorTotal,
+            observacoes: observacoes,
+            contratoNumero: null,
+            vendaId: null,
+            dataCriacao: new Date().toISOString()
+        };
+        propostas.push(novaProposta);
+    }
+
+    estoque.propostas = propostas;
+    salvarDados();
+    renderizarPropostas();
+    atualizarKPIsPropostas();
+    fecharModal('modalProposta');
+    mostrarNotificacao(editId ? 'Proposta atualizada!' : 'Proposta criada: ' + numero, 'success');
+}
+
+function salvarPropostaRascunho() {
+    document.getElementById('propostaStatus').value = 'rascunho';
+    salvarProposta(null);
+}
+
+function converterPropostaEmVenda(propostaId) {
+    const proposta = propostas.find(p => p.id === propostaId);
+    if (!proposta) { mostrarNotificacao('Proposta não encontrada.', 'error'); return; }
+
+    if (!confirm('Converter proposta ' + proposta.numero + ' em venda?\nSerá gerado o próximo número de contrato.')) return;
+
+    const ultimoContrato = estoque.registroVendas.length > 0
+        ? Math.max(...estoque.registroVendas.map(v => parseInt(v.contrato) || 0))
+        : 0;
+    const nextContractNumber = ultimoContrato + 1;
+
+    const itensVenda = (proposta.itens || []).map(it => ({
+        produtoId: it.produtoId,
+        produtoNome: it.produtoNome,
+        quantidade: it.quantidade,
+        valorUnitario: it.valorUnitario,
+        valorTotal: it.valorTotal
+    }));
+
+    const totalQtd = itensVenda.reduce((s, i) => s + i.quantidade, 0);
+
+    const novaVenda = {
+        id: Date.now(),
+        contrato: nextContractNumber.toString(),
+        loja: proposta.cliente,
+        representante: proposta.representante,
+        items: itensVenda,
+        quantidadeTotal: totalQtd,
+        valorTotal: proposta.valorTotal,
+        observacoes: 'Gerado a partir da proposta ' + proposta.numero + (proposta.observacoes ? '\n' + proposta.observacoes : ''),
+        data: new Date().toISOString()
+    };
+
+    estoque.registroVendas.push(novaVenda);
+
+    proposta.status = 'aceita';
+    proposta.contratoNumero = nextContractNumber;
+    proposta.vendaId = novaVenda.id;
+
+    estoque.propostas = propostas;
+    salvarDados();
+    renderizarRegistroVendas();
+    renderizarPropostas();
+    atualizarKPIsPropostas();
+    renderizarTabela();
+    renderizarDashboard();
+
+    mostrarNotificacao('Proposta convertida! Contrato nº ' + nextContractNumber + ' criado.', 'success');
+    trocarAba('vendas');
+}
+
+function excluirProposta(id) {
+    if (!requireAdminOrNotify()) return;
+    const proposta = propostas.find(p => p.id === id);
+    if (!proposta) return;
+    if (!confirm('Excluir proposta ' + proposta.numero + '?')) return;
+
+    propostas = propostas.filter(p => p.id !== id);
+    estoque.propostas = propostas;
+    salvarDados();
+    renderizarPropostas();
+    atualizarKPIsPropostas();
+    mostrarNotificacao('Proposta excluída.', 'success');
+}
+
+function renderizarPropostas(filtro, statusFiltro) {
+    const tbody = document.getElementById('tabelaPropostasBody');
+    if (!tbody) return;
+
+    if (filtro === undefined) filtro = (document.getElementById('filtroProposta')?.value || '').trim().toLowerCase();
+    else filtro = (filtro || '').trim().toLowerCase();
+    if (statusFiltro === undefined) statusFiltro = document.getElementById('filtroStatusProposta')?.value || '';
+
+    const agora = new Date();
+    propostas.forEach(p => {
+        if (p.status === 'enviada' && p.dataExpiracao && new Date(p.dataExpiracao) < agora) {
+            p.status = 'expirada';
+        }
+    });
+
+    let lista = propostas;
+    if (filtro) {
+        lista = lista.filter(p =>
+            (p.numero || '').toLowerCase().includes(filtro) ||
+            (p.cliente || '').toLowerCase().includes(filtro) ||
+            (p.representante || '').toLowerCase().includes(filtro)
+        );
+    }
+    if (statusFiltro) {
+        lista = lista.filter(p => p.status === statusFiltro);
+    }
+
+    const statusLabels = {
+        rascunho: { label: 'Rascunho', bg: '#6b7280' },
+        enviada:  { label: 'Enviada',  bg: '#0ea5e9' },
+        aceita:   { label: 'Aceita',   bg: '#22c55e' },
+        recusada: { label: 'Recusada', bg: '#ef4444' },
+        expirada: { label: 'Expirada', bg: '#f59e0b' }
+    };
+
+    tbody.innerHTML = lista.map(p => {
+        const repClass = (p.representante || '').toLowerCase();
+        const statusConf = statusLabels[p.status] || statusLabels.rascunho;
+        const dataProposta = p.data ? new Date(p.data).toLocaleDateString('pt-BR') : '-';
+        const dataValidade = p.dataExpiracao ? new Date(p.dataExpiracao).toLocaleDateString('pt-BR') : '-';
+        const validadeExpirada = p.dataExpiracao && new Date(p.dataExpiracao) < agora;
+        const contratoDisplay = p.contratoNumero ? p.contratoNumero : '-';
+
+        const podeConverter = p.status === 'rascunho' || p.status === 'enviada';
+
+        return `<tr>
+            <td><span style="background:#0ea5e9; color:#fff; padding:2px 10px; border-radius:12px; font-size:0.82rem; font-weight:600;">${p.numero}</span></td>
+            <td style="text-align:left">${p.cliente || '-'}</td>
+            <td><span class="badge-rep ${repClass}">${p.representante || '-'}</span></td>
+            <td style="color:#16a34a; font-weight:600">${formatarMoedaValor(p.valorTotal || 0)}</td>
+            <td>${dataProposta}</td>
+            <td style="${validadeExpirada ? 'color:#ef4444; font-weight:600' : ''}">${dataValidade}</td>
+            <td><span style="background:${statusConf.bg}; color:#fff; padding:2px 10px; border-radius:12px; font-size:0.8rem;">${statusConf.label}</span></td>
+            <td style="font-weight:600">${contratoDisplay}</td>
+            <td>
+                <button class="btn btn-outline btn-sm" data-admin="true" onclick="abrirModalProposta('${p.id}')" title="Editar">✏️</button>
+                ${podeConverter ? `<button class="btn btn-success btn-sm" data-admin="true" onclick="converterPropostaEmVenda('${p.id}')" title="Converter em Venda" style="font-size:0.78rem;">🔄</button>` : ''}
+                <button class="btn btn-outline btn-sm" data-admin="true" onclick="excluirProposta('${p.id}')" title="Excluir" style="color:#ef4444">🗑️</button>
+            </td>
+        </tr>`;
+    }).join('');
+}
+
+function filtrarPropostas(valor) {
+    const statusVal = document.getElementById('filtroStatusProposta')?.value || '';
+    renderizarPropostas(valor || '', statusVal);
+}
+
+function atualizarKPIsPropostas() {
+    const abertas = propostas.filter(p => p.status === 'rascunho' || p.status === 'enviada').length;
+    const aceitas = propostas.filter(p => p.status === 'aceita').length;
+    const recusadas = propostas.filter(p => p.status === 'recusada').length;
+    const totalNaoRascunho = propostas.filter(p => p.status !== 'rascunho').length;
+    const taxa = totalNaoRascunho > 0 ? ((aceitas / totalNaoRascunho) * 100).toFixed(1) : '0';
+
+    const elAbertas = document.getElementById('kpiPropostasAbertas');
+    const elAceitas = document.getElementById('kpiPropostasAceitas');
+    const elRecusadas = document.getElementById('kpiPropostasRecusadas');
+    const elTaxa = document.getElementById('kpiTaxaConversao');
+    if (elAbertas) elAbertas.textContent = abertas;
+    if (elAceitas) elAceitas.textContent = aceitas;
+    if (elRecusadas) elRecusadas.textContent = recusadas;
+    if (elTaxa) elTaxa.textContent = taxa + '%';
+}
+
+function preencherDadosCliente(nomeCliente) {
+    if (!nomeCliente) return;
+    const repSelect = document.getElementById('propostaRepresentante');
+    if (!repSelect || repSelect.value) return;
+    const cliente = (clientes || []).find(c => (c.nome || '').toLowerCase() === nomeCliente.toLowerCase());
+    if (cliente && cliente.representante) {
+        repSelect.value = cliente.representante;
+    }
+}
+
+function imprimirPropostas() {
+    const tabEl = document.getElementById('tab-propostas');
+    if (!tabEl) return;
+    const html = tabEl.querySelector('.table-container')?.innerHTML || '';
+    const win = window.open('', '_blank');
+    if (!win) { mostrarNotificacao('Pop-up bloqueado pelo navegador.', 'error'); return; }
+    win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Propostas Comerciais</title>
+        <style>body{font-family:Inter,Arial,sans-serif;padding:20px}table{border-collapse:collapse;width:100%}th,td{border:1px solid #ddd;padding:6px 8px;font-size:11px}th{background:#f5f5f5;font-weight:600}.badge-rep,.btn{font-size:10px}span[style*="background"]{padding:2px 8px;border-radius:10px;font-size:10px}</style>
+        <script>window.onload=function(){ setTimeout(function(){ window.print(); },200); }<\/script>
+    </head><body><h2>Propostas Comerciais</h2>${html}</body></html>`);
     win.document.close();
 }
 

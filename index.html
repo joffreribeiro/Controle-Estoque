@@ -321,6 +321,81 @@
         </div>
 
         <!-- ========================================
+             ABA: PROPOSTAS COMERCIAIS
+             ======================================== -->
+        <div class="tab-content" id="tab-propostas">
+            <div class="content-area">
+                <div class="section-header">
+                    <h2 class="section-title">Propostas Comerciais</h2>
+                    <div class="header-actions">
+                        <input type="text" id="filtroProposta" placeholder="🔍 Buscar proposta..."
+                               oninput="filtrarPropostas(this.value)" class="input-busca-tabela">
+                        <select id="filtroStatusProposta" onchange="filtrarPropostas()"
+                                class="input-busca-tabela" style="width:auto">
+                            <option value="">Todos os status</option>
+                            <option value="rascunho">Rascunho</option>
+                            <option value="enviada">Enviada</option>
+                            <option value="aceita">Aceita</option>
+                            <option value="recusada">Recusada</option>
+                            <option value="expirada">Expirada</option>
+                        </select>
+                        <button class="btn btn-primary" data-admin="true" onclick="abrirModalProposta()">
+                            <span class="btn-icon">+</span> Nova Proposta
+                        </button>
+                        <button class="btn btn-outline btn-sm" onclick="imprimirRelatorioAba('propostas')">
+                            <span class="btn-icon">🖨️</span> Imprimir
+                        </button>
+                    </div>
+                </div>
+
+                <!-- KPI row -->
+                <div class="kpi-grid" style="grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:20px;">
+                    <article class="kpi-card kpi-info">
+                        <div class="kpi-label">Em Aberto</div>
+                        <div class="kpi-value" id="kpiPropostasAbertas">0</div>
+                        <div class="kpi-subtitle">Rascunho + Enviadas</div>
+                    </article>
+                    <article class="kpi-card kpi-success">
+                        <div class="kpi-label">Aceitas</div>
+                        <div class="kpi-value" id="kpiPropostasAceitas">0</div>
+                        <div class="kpi-subtitle">Convertidas em venda</div>
+                    </article>
+                    <article class="kpi-card kpi-danger">
+                        <div class="kpi-label">Recusadas</div>
+                        <div class="kpi-value" id="kpiPropostasRecusadas">0</div>
+                        <div class="kpi-subtitle">Não convertidas</div>
+                    </article>
+                    <article class="kpi-card kpi-accent">
+                        <div class="kpi-label">Taxa de Conversão</div>
+                        <div class="kpi-value" id="kpiTaxaConversao">0%</div>
+                        <div class="kpi-subtitle">Aceitas / Total enviadas</div>
+                    </article>
+                </div>
+
+                <div class="table-container">
+                    <div class="table-wrapper">
+                        <table class="dashboard-table" id="tabelaPropostas">
+                            <thead>
+                                <tr>
+                                    <th style="width:70px">Nº</th>
+                                    <th style="text-align:left">Cliente</th>
+                                    <th>Representante</th>
+                                    <th>Valor Total</th>
+                                    <th>Data</th>
+                                    <th>Validade</th>
+                                    <th>Status</th>
+                                    <th>Contrato</th>
+                                    <th style="width:140px">Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tabelaPropostasBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ========================================
              ABA: PRECIFICAÇÃO
              ======================================== -->
         <div class="tab-content" id="tab-precificacao">
@@ -1689,6 +1764,109 @@
                 <div class="modal-footer">
                     <button type="button" class="btn btn-outline" onclick="fecharModal('modalCliente')">Cancelar</button>
                     <button type="submit" class="btn btn-primary">💾 Salvar Cliente</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ========================================
+         MODAL: PROPOSTA COMERCIAL
+         ======================================== -->
+    <div id="modalProposta" class="modal">
+        <div class="modal-content modal-lg">
+            <div class="modal-header">
+                <h2><span>📋</span> <span id="modalPropostaTitulo">Nova Proposta</span></h2>
+                <span class="close" onclick="fecharModal('modalProposta')">&times;</span>
+            </div>
+            <form id="formProposta" onsubmit="salvarProposta(event)">
+                <div class="modal-body">
+                    <div class="modal-inner">
+                        <div class="modal-form">
+                            <input type="hidden" id="propostaEditId">
+
+                            <section class="form-section">
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label>Nº Proposta</label>
+                                        <input type="text" id="propostaNumero" readonly
+                                               class="readonly-field" placeholder="Gerado automaticamente">
+                                    </div>
+                                    <div class="form-group" style="flex:2">
+                                        <label>Cliente <span class="required">*</span></label>
+                                        <input type="text" id="propostaCliente" required
+                                               list="clientesDatalist"
+                                               placeholder="Nome do cliente"
+                                               oninput="preencherDadosCliente(this.value)">
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Data da Proposta</label>
+                                        <input type="date" id="propostaData">
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Validade (dias) <span class="required">*</span></label>
+                                        <input type="number" id="propostaValidade" value="30" min="1">
+                                    </div>
+                                </div>
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label>Representante <span class="required">*</span></label>
+                                        <select id="propostaRepresentante" required>
+                                            <option value="">Selecione</option>
+                                            <option value="KOLTE">KOLTE</option>
+                                            <option value="ISA">ISA</option>
+                                            <option value="LC">LC</option>
+                                            <option value="ADES">ADES</option>
+                                            <option value="FL">FL</option>
+                                            <option value="IMBEL">IMBEL</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Status</label>
+                                        <select id="propostaStatus">
+                                            <option value="rascunho">Rascunho</option>
+                                            <option value="enviada">Enviada</option>
+                                            <option value="aceita">Aceita</option>
+                                            <option value="recusada">Recusada</option>
+                                            <option value="expirada">Expirada</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </section>
+
+                            <section class="form-section">
+                                <label style="font-weight:600; margin-bottom:8px; display:block">
+                                    Itens da Proposta
+                                </label>
+                                <div id="itensPropostaContainer" class="itens-venda-container itens-layout-vertical"></div>
+                                <button type="button" class="btn btn-outline btn-sm"
+                                        style="margin-top:8px" onclick="adicionarItemPropostaRow()">
+                                    + Adicionar Item
+                                </button>
+                            </section>
+
+                            <section class="form-section">
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label>Valor Total (R$)</label>
+                                        <input type="text" id="propostaValorTotal"
+                                               readonly class="readonly-field highlight-field">
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label>Observações / Condições Comerciais</label>
+                                    <textarea id="propostaObservacoes" rows="3"
+                                              placeholder="Ex: Pagamento 30/60/90 dias, entrega em 15 dias úteis..."></textarea>
+                                </div>
+                            </section>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline"
+                            onclick="fecharModal('modalProposta')">Cancelar</button>
+                    <button type="button" class="btn btn-outline"
+                            onclick="salvarPropostaRascunho()">💾 Salvar Rascunho</button>
+                    <button type="submit" class="btn btn-primary">📤 Salvar Proposta</button>
                 </div>
             </form>
         </div>
