@@ -19,6 +19,9 @@ let estoque = {
     precificacaoConfig: null
 };
 
+// Configuração de alertas (persistida separadamente)
+let configAlertas = { limite: 5, ativo: true };
+
 // =============================
 // Firebase (inicialização e helpers)
 // =============================
@@ -233,6 +236,11 @@ function carregarDados() {
             estoque.propostas = [];
         }
         propostas = estoque.propostas;
+        // Carregar configuração de alertas se presente
+        try {
+            const cfg = localStorage.getItem('configAlertas');
+            if (cfg) configAlertas = JSON.parse(cfg);
+        } catch (e) { console.warn('Erro ao carregar configAlertas:', e); }
         if (estoque.precificacao && typeof estoque.precificacao === 'object') {
             precificacao = estoque.precificacao;
         }
@@ -4126,6 +4134,119 @@ function atualizarSelectsProdutos() {
             select.value = valorAtual;
         }
     });
+
+    // Atualizar selects dinâmicos de itens (se existirem)
+    try {
+        const produtosOrdenados = [...estoque.produtos].sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
+        document.querySelectorAll('.item-produto-dist, .item-produto-dev').forEach(sel => {
+            const cur = sel.value;
+            sel.innerHTML = '<option value="">Selecione um produto</option>';
+            produtosOrdenados.forEach(produto => {
+                const opt = document.createElement('option');
+                opt.value = produto.id;
+                opt.textContent = produto.nome;
+                sel.appendChild(opt);
+            });
+            sel.value = cur;
+        });
+    } catch (e) {}
+}
+
+// Helpers para adicionar/remover linhas nos modais de distribuição/devolução
+function adicionarItemDistribuicao(produtoId = null, quantidade = 1) {
+    const container = document.getElementById('itensDistribuicaoContainer');
+    if (!container) return;
+    const row = document.createElement('div');
+    row.className = 'item-dist-row';
+    row.style.display = 'flex';
+    row.style.gap = '8px';
+
+    const sel = document.createElement('select');
+    sel.className = 'item-produto-dist';
+    sel.style.flex = '1';
+    sel.innerHTML = '<option value="">Carregando...</option>';
+
+    const inp = document.createElement('input');
+    inp.type = 'number';
+    inp.min = '1';
+    inp.value = quantidade || 1;
+    inp.className = 'item-quantidade-dist';
+    inp.style.width = '96px';
+    inp.placeholder = 'Qtd';
+
+    const btnRem = document.createElement('button');
+    btnRem.type = 'button';
+    btnRem.className = 'btn btn-outline btn-sm';
+    btnRem.style.width = '40px';
+    btnRem.textContent = '✕';
+    btnRem.title = 'Remover'
+    btnRem.onclick = function() { row.remove(); };
+
+    row.appendChild(sel);
+    row.appendChild(inp);
+    row.appendChild(btnRem);
+    container.appendChild(row);
+
+    // popular opções
+    try {
+        const produtosOrdenados = [...estoque.produtos].sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
+        sel.innerHTML = '<option value="">Selecione um produto</option>';
+        produtosOrdenados.forEach(produto => {
+            const opt = document.createElement('option');
+            opt.value = produto.id;
+            opt.textContent = produto.nome;
+            sel.appendChild(opt);
+        });
+        if (produtoId) sel.value = String(produtoId);
+    } catch (e) { sel.innerHTML = '<option value="">Nenhum produto</option>'; }
+}
+
+function adicionarItemDevolucao(produtoId = null, quantidade = 1) {
+    const container = document.getElementById('itensDevolucaoContainer');
+    if (!container) return;
+    const row = document.createElement('div');
+    row.className = 'item-dev-row';
+    row.style.display = 'flex';
+    row.style.gap = '8px';
+
+    const sel = document.createElement('select');
+    sel.className = 'item-produto-dev';
+    sel.style.flex = '1';
+    sel.innerHTML = '<option value="">Carregando...</option>';
+
+    const inp = document.createElement('input');
+    inp.type = 'number';
+    inp.min = '1';
+    inp.value = quantidade || 1;
+    inp.className = 'item-quantidade-dev';
+    inp.style.width = '96px';
+    inp.placeholder = 'Qtd';
+
+    const btnRem = document.createElement('button');
+    btnRem.type = 'button';
+    btnRem.className = 'btn btn-outline btn-sm';
+    btnRem.style.width = '40px';
+    btnRem.textContent = '✕';
+    btnRem.title = 'Remover'
+    btnRem.onclick = function() { row.remove(); };
+
+    row.appendChild(sel);
+    row.appendChild(inp);
+    row.appendChild(btnRem);
+    container.appendChild(row);
+
+    // popular opções
+    try {
+        const produtosOrdenados = [...estoque.produtos].sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
+        sel.innerHTML = '<option value="">Selecione um produto</option>';
+        produtosOrdenados.forEach(produto => {
+            const opt = document.createElement('option');
+            opt.value = produto.id;
+            opt.textContent = produto.nome;
+            sel.appendChild(opt);
+        });
+        if (produtoId) sel.value = String(produtoId);
+    } catch (e) { sel.innerHTML = '<option value="">Nenhum produto</option>'; }
 }
 
 function atualizarSelectsRelatorios() {
@@ -4205,19 +4326,6 @@ function abrirModalDevolucao() {
     modal.style.display = 'flex';
     document.getElementById('formDevolucao').reset();
     // Popular select de produtos
-    const selectProduto = document.getElementById('produtoDevolucao');
-    if (selectProduto) {
-        selectProduto.innerHTML = '<option value="">Selecione um produto</option>';
-        const produtosOrdenados = [...estoque.produtos].sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
-        produtosOrdenados.forEach(produto => {
-            const option = document.createElement('option');
-            option.value = produto.id;
-            option.textContent = produto.nome;
-            selectProduto.appendChild(option);
-        });
-    }
-
-    // Popular select de representantes (origem)
     const selectRep = document.getElementById('representanteDevolucao');
     if (selectRep) {
         selectRep.innerHTML = '<option value="">Selecione o representante</option>';
@@ -4242,6 +4350,15 @@ function abrirModalDevolucao() {
             }
         });
     }
+
+    // Reset container de itens e adicionar uma linha inicial
+    try {
+        const container = document.getElementById('itensDevolucaoContainer');
+        if (container) {
+            container.innerHTML = '';
+            adicionarItemDevolucao();
+        }
+    } catch (e) {}
 }
 
 // Fecha um modal e restaura z-index do header fixo se necessário
@@ -5228,7 +5345,15 @@ function abrirModalNovaDistribuicao() {
     document.getElementById('modalNovaDistribuicao').style.display = 'flex';
     document.getElementById('formNovaDistribuicao').reset();
     atualizarSelectsProdutos();
-    
+    // Reset container de itens e adicionar uma linha inicial
+    try {
+        const container = document.getElementById('itensDistribuicaoContainer');
+        if (container) {
+            container.innerHTML = '';
+            adicionarItemDistribuicao();
+        }
+    } catch (e) {}
+
     // Definir data atual
     const hoje = new Date().toISOString().split('T')[0];
     document.getElementById('dataDistDet').value = hoje;
@@ -5237,52 +5362,97 @@ function abrirModalNovaDistribuicao() {
 function salvarNovaDistribuicao(event) {
     if (!requireAdminOrNotify()) return;
     event.preventDefault();
-    
     const representante = document.getElementById('representanteDistDet').value;
-    const produtoId = parseInt(document.getElementById('produtoDistDet').value);
-    const quantidade = parseInt(document.getElementById('quantidadeDistDet').value);
     const data = document.getElementById('dataDistDet').value || new Date().toISOString().split('T')[0];
     const observacoes = document.getElementById('observacoesDistDet').value.trim();
-    
-    const produto = estoque.produtos.find(p => p.id === produtoId);
-    
-    if (!produto) {
-        mostrarNotificacao('Produto não encontrado!', 'error');
+
+    const container = document.getElementById('itensDistribuicaoContainer');
+    if (!container) {
+        mostrarNotificacao('Container de itens não encontrado.', 'error');
         return;
     }
-    
-    // Verificar estoque disponível na IMBEL
-    const estoqueIMBEL = (produto.distribuicao.IMBEL || 0) - (produto.vendas.IMBEL || 0);
-    if (quantidade > estoqueIMBEL) {
-        mostrarNotificacao(`Estoque insuficiente na IMBEL! Disponível: ${estoqueIMBEL} unidades`, 'error');
+
+    const rows = Array.from(container.querySelectorAll('.item-dist-row'));
+    if (rows.length === 0) {
+        mostrarNotificacao('Adicione ao menos um produto para distribuir.', 'error');
         return;
     }
-    
-    // Criar registro da distribuição
-    const novaDistribuicao = {
-        id: Date.now(),
-        representante: representante,
-        produtoId: produtoId,
-        produtoNome: produto.nome,
-        quantidade: quantidade,
-        data: data,
-        observacoes: observacoes
-    };
-    
-    // Retirar da IMBEL e adicionar ao representante
-    produto.distribuicao.IMBEL = (produto.distribuicao.IMBEL || 0) - quantidade;
-    produto.distribuicao[representante] = (produto.distribuicao[representante] || 0) + quantidade;
-    
-    // Adicionar ao registro
-    estoque.registroDistribuicao.push(novaDistribuicao);
-    
+
+    // Agregar solicitações por produto (para validar estoque IMBEL consolidado)
+    const solicitadoMap = new Map();
+    const detalhesLinhas = [];
+    const erros = [];
+
+    rows.forEach((row, idx) => {
+        const prodId = parseInt(row.querySelector('.item-produto-dist')?.value || '0');
+        const qtd = parseInt(row.querySelector('.item-quantidade-dist')?.value || '0');
+        if (!prodId || qtd <= 0) {
+            erros.push(`Linha ${idx + 1}: produto ou quantidade inválidos.`);
+            return;
+        }
+        detalhesLinhas.push({ produtoId: prodId, quantidade: qtd });
+        solicitadoMap.set(prodId, (solicitadoMap.get(prodId) || 0) + qtd);
+    });
+
+    if (erros.length > 0) {
+        mostrarNotificacao(erros.join('\n'), 'error');
+        return;
+    }
+
+    // Validar estoque IMBEL para cada produto agregado
+    const insuficientes = [];
+    solicitadoMap.forEach((totalSolicitado, produtoId) => {
+        const produto = estoque.produtos.find(p => p.id === produtoId);
+        if (!produto) {
+            insuficientes.push({ produtoId, nome: '(produto não encontrado)', disponivel: 0, solicitado: totalSolicitado });
+            return;
+        }
+        const disponivel = (produto.distribuicao.IMBEL || 0) - (produto.vendas.IMBEL || 0);
+        if (totalSolicitado > disponivel) {
+            insuficientes.push({ produtoId, nome: produto.nome, disponivel, solicitado: totalSolicitado });
+        }
+    });
+
+    if (insuficientes.length > 0) {
+        let msg = '⚠️ Estoque insuficiente na IMBEL para os seguintes produtos:\n\n';
+        insuficientes.forEach(i => { msg += `• ${i.nome}: solicitado ${i.solicitado}, disponível ${i.disponivel}\n`; });
+        mostrarNotificacao(msg, 'error');
+        return;
+    }
+
+    // Processar cada linha
+    const registrosCriados = [];
+    detalhesLinhas.forEach(item => {
+        const produto = estoque.produtos.find(p => p.id === item.produtoId);
+        if (!produto) return;
+
+        // Atualizar estoques
+        produto.distribuicao.IMBEL = (produto.distribuicao.IMBEL || 0) - item.quantidade;
+        produto.distribuicao[representante] = (produto.distribuicao[representante] || 0) + item.quantidade;
+
+        // Criar registro individual para cada item
+        const novaDistribuicao = {
+            id: Date.now() + Math.floor(Math.random() * 1000),
+            representante: representante,
+            produtoId: item.produtoId,
+            produtoNome: produto.nome,
+            quantidade: item.quantidade,
+            data: data,
+            observacoes: observacoes
+        };
+        estoque.registroDistribuicao.push(novaDistribuicao);
+        registrosCriados.push(novaDistribuicao);
+    });
+
     salvarDados();
     renderizarTabela();
     renderizarDashboard();
     renderizarRegistroDistribuicao();
     fecharModal('modalNovaDistribuicao');
-    
-    mostrarNotificacao(`Distribuição registrada: ${quantidade}x "${produto.nome}" para ${representante}`, 'success');
+
+    try { verificarAlertasEstoque(); } catch (e) {}
+
+    mostrarNotificacao(`Distribuição registrada: ${registrosCriados.length} item(s) para ${representante}`, 'success');
 }
 
 function renderizarRegistroDistribuicao() {
@@ -5658,6 +5828,7 @@ function salvarDistribuicao(event) {
     salvarDados();
     renderizarTabela();
     renderizarDashboard();
+    try { verificarAlertasEstoque(); } catch(e) {}
     fecharModal('modalDistribuicao');
     
     mostrarNotificacao(`${quantidade} unidades distribuídas para ${representante}!`, 'success');
@@ -5706,55 +5877,90 @@ function salvarVenda(event) {
 
 function salvarDevolucao(event) {
     event.preventDefault();
-    
-    const produtoId = parseInt(document.getElementById('produtoDevolucao').value);
+
     const representante = document.getElementById('representanteDevolucao').value;
-    const quantidade = parseInt(document.getElementById('quantidadeDevolucao').value);
     const destino = document.getElementById('destinoDevolucao') ? document.getElementById('destinoDevolucao').value : 'IMBEL';
-    
-    const produto = estoque.produtos.find(p => p.id === produtoId);
-    
-    if (!produto) {
-        mostrarNotificacao('Produto não encontrado!', 'error');
-        return;
-    }
-    
-    const disp = produto.distribuicao[representante] || 0;
-    const vendido = produto.vendas[representante] || 0;
-    const saldo = disp - vendido;
-    
-    if (quantidade > saldo) {
-        mostrarNotificacao(`Quantidade inválida! ${representante} possui apenas ${saldo} unidades em saldo.`, 'error');
-        return;
-    }
-    
-    if (destino === representante) {
-        mostrarNotificacao('Destino selecionado é o mesmo representante de origem. Selecione outro destino.', 'error');
+    const container = document.getElementById('itensDevolucaoContainer');
+    if (!container) {
+        mostrarNotificacao('Container de itens não encontrado.', 'error');
         return;
     }
 
-    // Subtrair do representante de origem
-    produto.distribuicao[representante] = (produto.distribuicao[representante] || 0) - quantidade;
-    if (produto.distribuicao[representante] < 0) produto.distribuicao[representante] = 0;
+    const rows = Array.from(container.querySelectorAll('.item-dev-row'));
+    if (rows.length === 0) {
+        mostrarNotificacao('Adicione ao menos um produto para devolução.', 'error');
+        return;
+    }
 
-    // Garantir chave de destino
-    produto.distribuicao[destino] = (produto.distribuicao[destino] || 0) + quantidade;
+    // Agregar por produto para validar saldos no representante de origem
+    const solicitadoMap = new Map();
+    const detalhes = [];
+    const erros = [];
 
-    // Registrar devolução no histórico de devoluções (para relatórios)
-    try {
-        if (!Array.isArray(estoque.registroDevolucoes)) estoque.registroDevolucoes = [];
-        const registro = {
-            id: Date.now(),
-            origem: representante,
-            destino: destino,
-            produtoId: produtoId,
-            produtoNome: produto.nome,
-            quantidade: quantidade,
-            data: (new Date()).toISOString().split('T')[0],
-            observacoes: ''
-        };
-        estoque.registroDevolucoes.push(registro);
-    } catch (e) { console.warn('Falha ao registrar devolução:', e); }
+    rows.forEach((row, idx) => {
+        const prodId = parseInt(row.querySelector('.item-produto-dev')?.value || '0');
+        const qtd = parseInt(row.querySelector('.item-quantidade-dev')?.value || '0');
+        if (!prodId || qtd <= 0) {
+            erros.push(`Linha ${idx + 1}: produto ou quantidade inválidos.`);
+            return;
+        }
+        detalhes.push({ produtoId: prodId, quantidade: qtd });
+        solicitadoMap.set(prodId, (solicitadoMap.get(prodId) || 0) + qtd);
+    });
+
+    if (erros.length > 0) {
+        mostrarNotificacao(erros.join('\n'), 'error');
+        return;
+    }
+
+    const insuficientes = [];
+    solicitadoMap.forEach((totalSolicitado, produtoId) => {
+        const produto = estoque.produtos.find(p => p.id === produtoId);
+        if (!produto) { insuficientes.push({ produtoId, nome: '(produto não encontrado)', disponivel: 0, solicitado: totalSolicitado }); return; }
+        const disp = produto.distribuicao[representante] || 0;
+        const vendido = produto.vendas[representante] || 0;
+        const saldo = disp - vendido;
+        if (totalSolicitado > saldo) insuficientes.push({ produtoId, nome: produto.nome, disponivel: saldo, solicitado: totalSolicitado });
+    });
+
+    if (insuficientes.length > 0) {
+        let msg = '⚠️ Saldo insuficiente no representante para:\n\n';
+        insuficientes.forEach(i => { msg += `• ${i.nome}: solicitado ${i.solicitado}, disponível ${i.disponivel}\n`; });
+        mostrarNotificacao(msg, 'error');
+        return;
+    }
+
+    const registros = [];
+    detalhes.forEach(item => {
+        const produto = estoque.produtos.find(p => p.id === item.produtoId);
+        if (!produto) return;
+
+        if (destino === representante) return; // pular (não faz sentido)
+
+        // Subtrair do representante de origem
+        produto.distribuicao[representante] = (produto.distribuicao[representante] || 0) - item.quantidade;
+        if (produto.distribuicao[representante] < 0) produto.distribuicao[representante] = 0;
+
+        // Garantir chave de destino
+        produto.distribuicao[destino] = (produto.distribuicao[destino] || 0) + item.quantidade;
+
+        // Registrar devolução
+        try {
+            if (!Array.isArray(estoque.registroDevolucoes)) estoque.registroDevolucoes = [];
+            const registro = {
+                id: Date.now() + Math.floor(Math.random() * 1000),
+                origem: representante,
+                destino: destino,
+                produtoId: item.produtoId,
+                produtoNome: produto.nome,
+                quantidade: item.quantidade,
+                data: (new Date()).toISOString().split('T')[0],
+                observacoes: ''
+            };
+            estoque.registroDevolucoes.push(registro);
+            registros.push(registro);
+        } catch (e) { console.warn('Falha ao registrar devolução:', e); }
+    });
 
     salvarDados();
     renderizarTabela();
@@ -5763,7 +5969,9 @@ function salvarDevolucao(event) {
 
     fecharModal('modalDevolucao');
 
-    mostrarNotificacao(`${quantidade} unidades movidas de ${representante} para ${destino}!`, 'success');
+    try { verificarAlertasEstoque(); } catch(e) {}
+
+    mostrarNotificacao(`${registros.length} item(s) devolvidos de ${representante} para ${destino}!`, 'success');
 }
 
 function limparFiltros() {
@@ -6792,33 +7000,117 @@ function mudarItensPaginaDistribuicao(n) { _itensPorPaginaDistribuicao = n; _pag
 const LIMITE_ESTOQUE_BAIXO = 3;
 
 function verificarEstoqueBaixo() {
-    const alertas = [];
-    estoque.produtos.forEach(produto => {
-        let totalDisp = 0, totalVenda = 0;
-        estoque.representantes.forEach(rep => {
-            totalDisp += (produto.distribuicao[rep] || 0);
-            totalVenda += (produto.vendas[rep] || 0);
-        });
-        const saldo = totalDisp - totalVenda;
-        if (saldo > 0 && saldo <= LIMITE_ESTOQUE_BAIXO) {
-            alertas.push({ nome: produto.nome, saldo: saldo });
-        }
-    });
-
-    const el = document.getElementById('alertaEstoqueBaixo');
-    if (!el) return;
-
-    if (alertas.length === 0) {
-        el.style.display = 'none';
-        return;
+    try {
+        return verificarAlertasEstoque();
+    } catch (e) {
+        console.warn('verificarAlertasEstoque falhou', e);
+        return 0;
     }
+}
 
-    let html = '<div class="alerta-titulo"><span>⚠️ Estoque Baixo</span><span class="alerta-close" onclick="this.closest(\'.alerta-estoque-baixo\').style.display=\'none\'">✕</span></div>';
-    alertas.forEach(a => {
-        html += `<div class="alerta-item"><span>${a.nome}</span><strong>${a.saldo} un.</strong></div>`;
-    });
-    el.innerHTML = html;
-    el.style.display = 'block';
+function salvarConfigAlertas() {
+    try {
+        const limEl = document.getElementById('limiteAlertaEstoque');
+        const ativoEl = document.getElementById('alertasAtivos');
+        const limite = limEl ? parseInt(limEl.value || '0', 10) : configAlertas.limite;
+        const ativo = ativoEl ? !!ativoEl.checked : !!configAlertas.ativo;
+        configAlertas.limite = isNaN(limite) ? configAlertas.limite : limite;
+        configAlertas.ativo = ativo;
+        try { localStorage.setItem('configAlertas', JSON.stringify(configAlertas)); } catch (e) {}
+        mostrarNotificacao('Configurações de alertas salvas.', 'success');
+        verificarAlertasEstoque();
+    } catch (e) {
+        console.warn('salvarConfigAlertas erro', e);
+        mostrarNotificacao('Erro ao salvar configurações de alertas.', 'error');
+    }
+}
+
+function togglePainelAlertas() {
+    try {
+        const painel = document.getElementById('painelAlertas');
+        if (!painel) return;
+        if (painel.style.display === 'block') painel.style.display = 'none';
+        else { painel.style.display = 'block'; verificarAlertasEstoque(); }
+    } catch (e) { console.warn('togglePainelAlertas erro', e); }
+}
+
+function verificarAlertasEstoque() {
+    try {
+        const limite = (configAlertas && typeof configAlertas.limite === 'number') ? configAlertas.limite : LIMITE_ESTOQUE_BAIXO;
+        const ativo = (configAlertas && typeof configAlertas.ativo !== 'undefined') ? !!configAlertas.ativo : true;
+        const alertas = [];
+        if (!Array.isArray(estoque.produtos) || !Array.isArray(estoque.representantes)) {
+            const badge = document.getElementById('badgeAlertas'); if (badge) badge.style.display = 'none';
+            const el = document.getElementById('alertaEstoqueBaixo'); if (el) el.style.display = 'none';
+            const lista = document.getElementById('listaPainelAlertas'); if (lista) lista.innerHTML = '';
+            return 0;
+        }
+
+        estoque.produtos.forEach(produto => {
+            let totalDisp = 0, totalVenda = 0;
+            const repsZerados = [];
+            estoque.representantes.forEach(rep => {
+                const disp = Number((produto.distribuicao && produto.distribuicao[rep]) || 0);
+                const venda = Number((produto.vendas && produto.vendas[rep]) || 0);
+                totalDisp += disp;
+                totalVenda += venda;
+                const saldoRep = disp - venda;
+                if (saldoRep === 0) repsZerados.push(rep);
+            });
+            const saldoConsolidado = totalDisp - totalVenda;
+            if (saldoConsolidado <= limite) {
+                alertas.push({ id: produto.id, nome: produto.nome, saldoConsolidado, repsZerados });
+            }
+        });
+
+        // atualizar badge
+        const badge = document.getElementById('badgeAlertas');
+        if (badge) {
+            if (alertas.length > 0) { badge.style.display = 'inline-flex'; badge.textContent = String(alertas.length); }
+            else { badge.style.display = 'none'; }
+        }
+
+        // atualizar lista do painel
+        const lista = document.getElementById('listaPainelAlertas');
+        if (lista) {
+            if (alertas.length === 0) {
+                lista.innerHTML = '<div style="color:#64748b">Nenhum alerta no momento.</div>';
+            } else {
+                let html = '';
+                alertas.forEach(a => {
+                    const label = (a.saldoConsolidado === 0) ? 'ZERADO' : ((a.saldoConsolidado <= Math.max(1, Math.floor(limite/2))) ? 'CRÍTICO' : 'BAIXO');
+                    const color = label === 'ZERADO' ? '#ef4444' : (label === 'CRÍTICO' ? '#f59e0b' : '#fb923c');
+                    const bg = label === 'ZERADO' ? '#fff1f2' : '#fff7ed';
+                    html += `<div style="padding:10px; margin-bottom:8px; border-radius:8px; border-left:4px solid ${color}; background:${bg}">` +
+                                `<div style="font-weight:700; color:#0f172a">${a.nome}</div>` +
+                                `<div style="font-size:0.85rem; color:#334155; margin-top:6px">Saldo consolidado: <strong>${a.saldoConsolidado}</strong> un.</div>` +
+                                (a.repsZerados && a.repsZerados.length ? `<div style="font-size:0.8rem; color:#64748b; margin-top:6px">Representantes sem saldo: ${a.repsZerados.join(', ')}</div>` : '') +
+                              `</div>`;
+                });
+                lista.innerHTML = html;
+            }
+        }
+
+        // atualizar alerta pequeno na página
+        const el = document.getElementById('alertaEstoqueBaixo');
+        if (el) {
+            if (!ativo || alertas.length === 0) {
+                el.style.display = 'none';
+                el.innerHTML = '';
+            } else {
+                const shortHtml = `<div style="padding:12px; background:#fff7ed; border-left:4px solid #fb923c; border-radius:8px;">` +
+                                  `⚠️ <strong>${alertas.length}</strong> produto(s) abaixo do limite. <a href="#" onclick="togglePainelAlertas(); return false;">Ver detalhes</a>` +
+                                  `</div>`;
+                el.innerHTML = shortHtml;
+                el.style.display = 'block';
+            }
+        }
+
+        return alertas.length;
+    } catch (e) {
+        console.warn('verificarAlertasEstoque erro', e);
+        return 0;
+    }
 }
 
 // ========================================
@@ -8343,7 +8635,7 @@ limparFiltrosDistribuicao = function() {
 const _inicializarOriginal = inicializar;
 inicializar = async function() {
     await _inicializarOriginal();
-    try { verificarEstoqueBaixo(); } catch(e) {}
+    try { verificarAlertasEstoque(); } catch(e) {}
 };
 
 // Hook salvarDados to check low stock and register audit
@@ -8353,7 +8645,7 @@ const _salvarDadosHook = salvarDados;
 const _renderizarTabelaOriginal = renderizarTabela;
 renderizarTabela = function() {
     _renderizarTabelaOriginal();
-    try { verificarEstoqueBaixo(); } catch(e) {}
+    try { verificarAlertasEstoque(); } catch(e) {}
 };
 
 // Hooks for audit log on key operations
@@ -8362,9 +8654,20 @@ salvarNovaDistribuicao = function(event) {
     _salvarNovaDistribuicaoOriginal(event);
     try {
         const rep = document.getElementById('representanteDistDet')?.value || '';
-        const prod = document.getElementById('produtoDistDet')?.selectedOptions[0]?.text || '';
-        const qtd = document.getElementById('quantidadeDistDet')?.value || '';
-        registrarHistorico('distribuicao', `${qtd}x ${prod} → ${rep}`);
+        const container = document.getElementById('itensDistribuicaoContainer');
+        if (container) {
+            const rows = Array.from(container.querySelectorAll('.item-dist-row'));
+            const resumo = rows.map(r => {
+                const prod = r.querySelector('.item-produto-dist')?.selectedOptions[0]?.text || '';
+                const qtd = r.querySelector('.item-quantidade-dist')?.value || '';
+                return `${qtd}x ${prod}`;
+            }).join(', ');
+            registrarHistorico('distribuicao', `${resumo} → ${rep}`);
+        } else {
+            const prod = document.getElementById('produtoDistDet')?.selectedOptions[0]?.text || '';
+            const qtd = document.getElementById('quantidadeDistDet')?.value || '';
+            registrarHistorico('distribuicao', `${qtd}x ${prod} → ${rep}`);
+        }
     } catch(e) {}
 };
 
@@ -8376,6 +8679,7 @@ salvarEntradaEstoque = function(event) {
     const qtd = qtdEl?.value || '';
     _salvarEntradaEstoqueOriginal(event);
     try { registrarHistorico('entrada', `+${qtd} ${prodNome} (IMBEL)`); } catch(e) {}
+    try { verificarAlertasEstoque(); } catch(e) {}
 };
 
 const _excluirVendaOriginal = excluirVenda;

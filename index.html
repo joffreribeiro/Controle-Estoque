@@ -94,7 +94,33 @@
             </div>
         </aside>
 
-        <div class="mobile-topbar" id="mobileTopbar">
+                <!-- Painel de Alertas (flutuante) -->
+                <div id="painelAlertas" style="display:none; position:fixed; top:60px; right:16px; 
+                         width:340px; max-height:70vh; overflow-y:auto; z-index:1500;
+                         background:#fff; border-radius:12px; box-shadow:0 8px 30px rgba(0,0,0,0.15);
+                         border:1px solid #e2e8f0; animation: slideIn 0.3s ease;">
+                    <div style="background:linear-gradient(135deg,#1e3a5f,#0f1f35); 
+                                            padding:14px 18px; border-radius:12px 12px 0 0;
+                                            display:flex; justify-content:space-between; align-items:center;">
+                        <span style="color:#fff; font-weight:600; font-size:0.95rem;">
+                            🔔 Alertas de Estoque
+                        </span>
+                        <button onclick="document.getElementById('painelAlertas').style.display='none'"
+                                        style="background:transparent; border:none; color:rgba(255,255,255,0.7); 
+                                                     font-size:18px; cursor:pointer; line-height:1">×</button>
+                    </div>
+                    <div id="listaPainelAlertas" style="padding:12px"></div>
+                    <div style="padding:10px 16px; border-top:1px solid #e2e8f0; 
+                                            display:flex; justify-content:space-between; align-items:center;">
+                        <span id="totalAlertasMsg" style="font-size:0.8rem; color:#64748b"></span>
+                        <button class="btn btn-outline btn-sm" 
+                                        onclick="document.getElementById('painelAlertas').style.display='none'">
+                            Fechar
+                        </button>
+                    </div>
+                </div>
+
+                <div class="mobile-topbar" id="mobileTopbar">
             <button class="mobile-menu-btn" type="button" onclick="toggleMobileSidebar()" aria-label="Abrir menu">☰</button>
             <div class="mobile-topbar-title">Controle de Estoque</div>
         </div>
@@ -171,6 +197,15 @@
                         <button class="btn btn-outline btn-sm" id="btnAuthSignOut" onclick="signOut()">Sair</button>
                     </div>
                 </div>
+            </div>
+            <div class="actions-group" style="align-items:center;">
+                <button id="btnAlertas" class="btn btn-outline" title="Alertas de estoque" onclick="togglePainelAlertas()" style="position:relative;">
+                    <span class="btn-icon">🔔</span>
+                    Alertas
+                    <span id="badgeAlertas" style="display:none; position:absolute; top:-6px; right:-6px; 
+                          background:#ef4444; color:#fff; font-size:0.72rem; padding:2px 6px; border-radius:999px;
+                          box-shadow:0 2px 6px rgba(0,0,0,0.12);">0</span>
+                </button>
             </div>
         </div>
 
@@ -1137,6 +1172,28 @@
                         </div>
                     </div>
 
+                    <!-- Alertas de Estoque (configuração do usuário) -->
+                    <div class="config-card">
+                        <h3>🔔 Alertas de Estoque</h3>
+                        <div class="form-row" style="margin-top:12px">
+                            <div class="form-group">
+                                <label>Limite de alerta (unidades consolidadas)</label>
+                                <input type="number" id="limiteAlertaEstoque" value="5" min="0"
+                                       style="width:120px; padding:8px; border:1px solid var(--border-color); 
+                                              border-radius:6px;"
+                                       onchange="salvarConfigAlertas()">
+                            </div>
+                            <div class="form-group">
+                                <label>Alertas ao abrir o sistema</label>
+                                <label style="display:flex; align-items:center; gap:8px; margin-top:8px">
+                                    <input type="checkbox" id="alertasAtivos" checked 
+                                           onchange="salvarConfigAlertas()">
+                                    Ativado
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- Limpar Dados -->
                     <div class="config-card config-card-danger">
                         <h3>🗑 Zona de Perigo</h3>
@@ -1322,26 +1379,31 @@
                 </div>
                 <form id="formDevolucao" onsubmit="salvarDevolucao(event)">
                     <div class="modal-body">
-                        <div class="form-group">
-                            <label for="produtoDevolucao">Produto <span class="required">*</span></label>
-                            <select id="produtoDevolucao" required>
-                                <option value="">Selecione um produto</option>
-                            </select>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="representanteDevolucao">Representante (origem) <span class="required">*</span></label>
+                                <select id="representanteDevolucao" required>
+                                    <option value="">Selecione o representante</option>
+                                    <option value="KOLTE">KOLTE</option>
+                                    <option value="ISA">ISA</option>
+                                    <option value="LC">LC</option>
+                                    <option value="ADES">ADES</option>
+                                    <option value="FL">FL</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="destinoDevolucao">Destino</label>
+                                <select id="destinoDevolucao">
+                                    <option value="IMBEL">IMBEL (estoque central)</option>
+                                </select>
+                            </div>
                         </div>
                         <div class="form-group">
-                            <label for="representanteDevolucao">Representante <span class="required">*</span></label>
-                            <select id="representanteDevolucao" required>
-                                <option value="">Selecione o representante</option>
-                                <option value="KOLTE">KOLTE</option>
-                                <option value="ISA">ISA</option>
-                                <option value="LC">LC</option>
-                                <option value="ADES">ADES</option>
-                                <option value="FL">FL</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label for="quantidadeDevolucao">Quantidade <span class="required">*</span></label>
-                            <input type="number" id="quantidadeDevolucao" required min="1" placeholder="0">
+                            <label>Produtos</label>
+                            <div id="itensDevolucaoContainer" style="display:flex; flex-direction:column; gap:8px; margin-top:8px"></div>
+                            <div style="margin-top:8px">
+                                <button type="button" class="btn btn-outline btn-sm" onclick="adicionarItemDevolucao()">+ Adicionar produto</button>
+                            </div>
                         </div>
                     </div>
                     <div class="modal-footer">
@@ -1472,18 +1534,15 @@
                                     <option value="FL">FL</option>
                                 </select>
                             </div>
-                            <div class="form-group">
-                                <label for="produtoDistDet">Produto <span class="required">*</span></label>
-                                <select id="produtoDistDet" required>
-                                    <option value="">Selecione um produto</option>
-                                </select>
+                            <div class="form-group" style="flex:1">
+                                <label>Produtos</label>
+                                <div id="itensDistribuicaoContainer" style="display:flex; flex-direction:column; gap:8px; margin-top:8px"></div>
+                                <div style="margin-top:8px">
+                                    <button type="button" class="btn btn-outline btn-sm" onclick="adicionarItemDistribuicao()">+ Adicionar produto</button>
+                                </div>
                             </div>
                         </div>
                         <div class="form-row">
-                            <div class="form-group">
-                                <label for="quantidadeDistDet">Quantidade <span class="required">*</span></label>
-                                <input type="number" id="quantidadeDistDet" required min="1" placeholder="0">
-                            </div>
                             <div class="form-group">
                                 <label for="dataDistDet">Data</label>
                                 <input type="date" id="dataDistDet">
