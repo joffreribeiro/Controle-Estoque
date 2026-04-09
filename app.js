@@ -4362,6 +4362,130 @@ function atualizarPrecoVenda() {
     atualizarTotalVendaDetalhada();
 }
 
+function validarEstoqueParaVenda(representante, itens) {
+    const erros = [];
+    (itens || []).forEach(it => {
+        let produto = null;
+        if (it.produtoId) produto = (estoque.produtos || []).find(p => p.id === it.produtoId);
+        if (!produto && it.produtoNome) produto = (estoque.produtos || []).find(p => (p.nome || '').toLowerCase() === (it.produtoNome || '').toLowerCase());
+        if (!produto) {
+            erros.push({ produto: it.produtoNome || ('ID:' + (it.produtoId || '')), solicitado: it.quantidade || 0, disponivel: 0 });
+            return;
+        }
+        const disp = (produto.distribuicao && produto.distribuicao[representante]) ? produto.distribuicao[representante] : 0;
+        const vendido = (produto.vendas && produto.vendas[representante]) ? produto.vendas[representante] : 0;
+        const saldo = disp - vendido;
+        if ((it.quantidade || 0) > saldo) {
+            erros.push({ produto: produto.nome, solicitado: it.quantidade || 0, disponivel: saldo });
+        }
+    });
+    return erros.length ? { valido: false, erros } : { valido: true };
+}
+
+function mostrarConfirmacaoEstoque(mensagem, callbackConfirmar, callbackCancelar) {
+    const elMsg = document.getElementById('msgConfirmacaoEstoque');
+    const modal = document.getElementById('modalConfirmacaoEstoque');
+    if (!elMsg || !modal) {
+        if (typeof callbackConfirmar === 'function') callbackConfirmar();
+        return;
+    }
+    elMsg.textContent = mensagem;
+    modal.style.display = 'block';
+    const btn = document.getElementById('btnConfirmarVendaSemEstoque');
+    if (btn) {
+        btn.onclick = () => {
+            fecharModal('modalConfirmacaoEstoque');
+            if (typeof callbackConfirmar === 'function') callbackConfirmar();
+        };
+    }
+    const btnCancel = modal.querySelector('.modal-footer .btn.btn-outline');
+    if (btnCancel) {
+        btnCancel.onclick = () => {
+            fecharModal('modalConfirmacaoEstoque');
+            if (typeof callbackCancelar === 'function') callbackCancelar();
+        };
+    }
+}
+
+function finalizarSalvamentoVendaDetalhada(params) {
+    const { contrato, loja, representante, observacoes, itens, totalQtd, totalValor, isEditing, vendaAnterior, vendaAnteriorSnapshot, vendaEditandoIdLocal } = params;
+
+    // Aplicar novos valores ao estoque
+    (itens || []).forEach(it => {
+        const produto = estoque.produtos.find(p => p.id === it.produtoId);
+        if (produto) produto.vendas[representante] = (produto.vendas[representante] || 0) + it.quantidade;
+    });
+
+    if (isEditing && vendaAnterior) {
+        const idx = estoque.registroVendas.findIndex(v => v.id === vendaEditandoIdLocal);
+        if (idx !== -1) {
+            estoque.registroVendas[idx].contrato = contrato;
+            estoque.registroVendas[idx].loja = loja;
+            estoque.registroVendas[idx].representante = representante;
+            estoque.registroVendas[idx].items = itens;
+            estoque.registroVendas[idx].quantidadeTotal = totalQtd;
+            estoque.registroVendas[idx].valorTotal = totalValor;
+            estoque.registroVendas[idx].observacoes = observacoes;
+            const dataInput = document.getElementById('dataVenda') ? document.getElementById('dataVenda').value : '';
+            if (dataInput && dataInput !== '') {
+                try { estoque.registroVendas[idx].data = new Date(dataInput + 'T00:00:00Z').toISOString(); } catch (e) { estoque.registroVendas[idx].data = new Date().toISOString(); }
+            } else {
+                estoque.registroVendas[idx].data = new Date().toISOString();
+            }
+            try {
+                registrarAuditoriaVenda(
+                    'edicao',
+                    vendaAnteriorSnapshot,
+                    JSON.parse(JSON.stringify(estoque.registroVendas[idx])),
+                    `Contrato ${contrato} atualizado (${totalQtd} itens / ${formatarMoedaValor(totalValor)})`
+                );
+            } catch (e) {}
+        }
+        vendaEditandoId = null;
+
+        salvarDados();
+        renderizarTabela();
+        renderizarDashboard();
+        renderizarRegistroVendas();
+        fecharModal('modalVendaDetalhada');
+
+        mostrarNotificacao(`Venda atualizada: Contrato ${contrato} - ${totalQtd} itens - ${formatarMoedaValor(totalValor)}`, 'success');
+        return;
+    }
+
+    // Criar registro de venda com múltiplos itens (novo)
+    const novaVenda = {
+        id: Date.now(),
+        contrato: contrato,
+        loja: loja,
+        representante: representante,
+        items: itens,
+        quantidadeTotal: totalQtd,
+        valorTotal: totalValor,
+        observacoes: observacoes,
+        data: (function(){ const di = document.getElementById('dataVenda') ? document.getElementById('dataVenda').value : ''; if (di && di !== '') { try { return new Date(di + 'T00:00:00Z').toISOString(); } catch(e){} } return new Date().toISOString(); })()
+    };
+
+    estoque.registroVendas.push(novaVenda);
+
+    try {
+        registrarAuditoriaVenda(
+            'criacao',
+            null,
+            JSON.parse(JSON.stringify(novaVenda)),
+            `Contrato ${contrato} criado (${totalQtd} itens / ${formatarMoedaValor(totalValor)})`
+        );
+    } catch (e) {}
+
+    salvarDados();
+    renderizarTabela();
+    renderizarDashboard();
+    renderizarRegistroVendas();
+    fecharModal('modalVendaDetalhada');
+
+    mostrarNotificacao(`Venda registrada: Contrato ${contrato} - ${totalQtd} itens - ${formatarMoedaValor(totalValor)}`, 'success');
+}
+
 function salvarVendaDetalhada(event) {
     if (!requireAdminOrNotify()) return;
     event.preventDefault();
@@ -4460,114 +4584,38 @@ function salvarVendaDetalhada(event) {
         }
     }
 
-    // Validar estoque para cada item (no representante selecionado)
-    let falta = [];
-    itens.forEach(it => {
-        const produto = estoque.produtos.find(p => p.id === it.produtoId);
-        const disp = produto.distribuicao[representante] || 0;
-        const vendido = produto.vendas[representante] || 0;
-        const saldo = disp - vendido;
-        if (it.quantidade > saldo) {
-            falta.push(`${produto.nome}: disponível ${saldo}, solicitado ${it.quantidade}`);
-        }
-    });
+    // Validar estoque antes de salvar
+    const validacao = validarEstoqueParaVenda(representante, itens);
+    if (!validacao.valido) {
+        let msg = '⚠️ Estoque insuficiente para ' + representante + ':\n\n';
+        validacao.erros.forEach(e => { msg += `• ${e.produto}: solicitado ${e.solicitado}, disponível ${e.disponivel}\n`; });
+        msg += '\nDeseja registrar mesmo assim?';
 
-    if (falta.length > 0) {
-        // Restaurar venda anterior caso haja erro na validação
-        if (isEditing && vendaAnterior) {
-            if (Array.isArray(vendaAnterior.items) && vendaAnterior.items.length > 0) {
-                vendaAnterior.items.forEach(it => {
-                    const produto = estoque.produtos.find(p => p.id === it.produtoId);
-                    if (produto) produto.vendas[vendaAnterior.representante] = (produto.vendas[vendaAnterior.representante] || 0) + it.quantidade;
-                });
-            } else {
-                const produto = estoque.produtos.find(p => p.id === vendaAnterior.produtoId);
-                if (produto) produto.vendas[vendaAnterior.representante] = (produto.vendas[vendaAnterior.representante] || 0) + (vendaAnterior.quantidade || 0);
+        const cancelarCallback = () => {
+            // re-aplica venda anterior caso o usuário cancele
+            if (isEditing && vendaAnterior) {
+                if (Array.isArray(vendaAnterior.items) && vendaAnterior.items.length > 0) {
+                    vendaAnterior.items.forEach(it => {
+                        const produto = estoque.produtos.find(p => p.id === it.produtoId);
+                        if (produto) produto.vendas[vendaAnterior.representante] = (produto.vendas[vendaAnterior.representante] || 0) + it.quantidade;
+                    });
+                } else {
+                    const produto = estoque.produtos.find(p => p.id === vendaAnterior.produtoId);
+                    if (produto) produto.vendas[vendaAnterior.representante] = (produto.vendas[vendaAnterior.representante] || 0) + (vendaAnterior.quantidade || 0);
+                }
+                vendaEditandoId = null;
             }
-            vendaEditandoId = null;
-        }
+        };
 
-        mostrarNotificacao('Estoque insuficiente:\n' + falta.join('\n'), 'error');
+        mostrarConfirmacaoEstoque(msg, () => {
+            finalizarSalvamentoVendaDetalhada({ contrato, loja, representante, observacoes, itens, totalQtd, totalValor, isEditing, vendaAnterior, vendaAnteriorSnapshot, vendaEditandoIdLocal: vendaEditandoId });
+        }, cancelarCallback);
+
         return;
     }
 
-    // Aplicar novos valores ao estoque
-    itens.forEach(it => {
-        const produto = estoque.produtos.find(p => p.id === it.produtoId);
-        produto.vendas[representante] = (produto.vendas[representante] || 0) + it.quantidade;
-    });
-
-    if (isEditing && vendaAnterior) {
-        // Atualizar o registro existente
-        const idx = estoque.registroVendas.findIndex(v => v.id === vendaEditandoId);
-        if (idx !== -1) {
-            estoque.registroVendas[idx].contrato = contrato;
-            estoque.registroVendas[idx].loja = loja;
-            estoque.registroVendas[idx].representante = representante;
-            estoque.registroVendas[idx].items = itens;
-            estoque.registroVendas[idx].quantidadeTotal = totalQtd;
-            estoque.registroVendas[idx].valorTotal = totalValor;
-            estoque.registroVendas[idx].observacoes = observacoes;
-            // usar data informada pelo usuário, se presente; caso contrário, registrar timestamp atual
-            const dataInput = document.getElementById('dataVenda') ? document.getElementById('dataVenda').value : '';
-            if (dataInput && dataInput !== '') {
-                try { estoque.registroVendas[idx].data = new Date(dataInput + 'T00:00:00Z').toISOString(); } catch (e) { estoque.registroVendas[idx].data = new Date().toISOString(); }
-            } else {
-                estoque.registroVendas[idx].data = new Date().toISOString();
-            }
-            try {
-                registrarAuditoriaVenda(
-                    'edicao',
-                    vendaAnteriorSnapshot,
-                    JSON.parse(JSON.stringify(estoque.registroVendas[idx])),
-                    `Contrato ${contrato} atualizado (${totalQtd} itens / ${formatarMoedaValor(totalValor)})`
-                );
-            } catch (e) {}
-        }
-        vendaEditandoId = null;
-
-        salvarDados();
-        renderizarTabela();
-        renderizarDashboard();
-        renderizarRegistroVendas();
-        fecharModal('modalVendaDetalhada');
-
-        mostrarNotificacao(`Venda atualizada: Contrato ${contrato} - ${totalQtd} itens - ${formatarMoedaValor(totalValor)}`, 'success');
-        return;
-    }
-
-    // Criar registro de venda com múltiplos itens (novo)
-    const novaVenda = {
-        id: Date.now(),
-        contrato: contrato,
-        loja: loja,
-        representante: representante,
-        items: itens,
-        quantidadeTotal: totalQtd,
-        valorTotal: totalValor,
-        observacoes: observacoes,
-        // usar data informada pelo usuário (YYYY-MM-DD) convertida para ISO, ou timestamp atual
-        data: (function(){ const di = document.getElementById('dataVenda') ? document.getElementById('dataVenda').value : ''; if (di && di !== '') { try { return new Date(di + 'T00:00:00Z').toISOString(); } catch(e){} } return new Date().toISOString(); })()
-    };
-
-    estoque.registroVendas.push(novaVenda);
-
-    try {
-        registrarAuditoriaVenda(
-            'criacao',
-            null,
-            JSON.parse(JSON.stringify(novaVenda)),
-            `Contrato ${contrato} criado (${totalQtd} itens / ${formatarMoedaValor(totalValor)})`
-        );
-    } catch (e) {}
-
-    salvarDados();
-    renderizarTabela();
-    renderizarDashboard();
-    renderizarRegistroVendas();
-    fecharModal('modalVendaDetalhada');
-
-    mostrarNotificacao(`Venda registrada: Contrato ${contrato} - ${totalQtd} itens - ${formatarMoedaValor(totalValor)}`, 'success');
+    // Se válido, finalizar imediatamente
+    finalizarSalvamentoVendaDetalhada({ contrato, loja, representante, observacoes, itens, totalQtd, totalValor, isEditing, vendaAnterior, vendaAnteriorSnapshot, vendaEditandoIdLocal: vendaEditandoId });
 }
 
 function renderizarRegistroVendas() {
@@ -5473,34 +5521,41 @@ function salvarDistribuicao(event) {
 function salvarVenda(event) {
     if (!requireAdminOrNotify()) return;
     event.preventDefault();
-    
     const produtoId = parseInt(document.getElementById('produtoVenda').value);
     const vendedor = document.getElementById('vendedorVenda').value;
     const quantidade = parseInt(document.getElementById('quantidadeVenda').value);
-    
+
     const produto = estoque.produtos.find(p => p.id === produtoId);
-    
     if (!produto) {
         mostrarNotificacao('Produto não encontrado!', 'error');
         return;
     }
-    
-    const disp = produto.distribuicao[vendedor] || 0;
-    const vendido = produto.vendas[vendedor] || 0;
-    const saldo = disp - vendido;
-    
-    if (quantidade > saldo) {
-        mostrarNotificacao(`Estoque insuficiente! ${vendedor} possui apenas ${saldo} unidades disponíveis.`, 'error');
+
+    // Usar a validação compartilhada
+    const itens = [{ produtoId: produtoId, produtoNome: produto.nome, quantidade }];
+    const validacao = typeof validarEstoqueParaVenda === 'function' ? validarEstoqueParaVenda(vendedor, itens) : { valido: true };
+    if (!validacao.valido) {
+        let msg = '⚠️ Estoque insuficiente para ' + vendedor + ':\n\n';
+        validacao.erros.forEach(e => { msg += `• ${e.produto}: solicitado ${e.solicitado}, disponível ${e.disponivel}\n`; });
+        msg += '\nDeseja registrar mesmo assim?';
+
+        mostrarConfirmacaoEstoque(msg, () => {
+            produto.vendas[vendedor] = (produto.vendas[vendedor] || 0) + quantidade;
+            salvarDados();
+            renderizarTabela();
+            renderizarDashboard();
+            fecharModal('modalVenda');
+            mostrarNotificacao(`Venda registrada: ${quantidade}x "${produto.nome}"`, 'success');
+        });
         return;
     }
-    
+
+    // Sem problemas de estoque — registra normalmente
     produto.vendas[vendedor] = (produto.vendas[vendedor] || 0) + quantidade;
-    
     salvarDados();
     renderizarTabela();
     renderizarDashboard();
     fecharModal('modalVenda');
-    
     mostrarNotificacao(`Venda registrada: ${quantidade}x "${produto.nome}"`, 'success');
 }
 

@@ -1872,7 +1872,31 @@
         </div>
     </div>
 
-    <script src="app.js"></script>
+        <!-- Modal confirmação de estoque (exibe quando falta estoque antes de registrar venda) -->
+        <div id="modalConfirmacaoEstoque" class="modal">
+            <div class="modal-content" style="max-width:500px">
+                <div class="modal-header" style="background: linear-gradient(135deg,#b45309,#d97706)">
+                    <h2><span>⚠️</span> Estoque Insuficiente</h2>
+                    <span class="close" onclick="fecharModal('modalConfirmacaoEstoque')">&times;</span>
+                </div>
+                <div class="modal-body">
+                    <pre id="msgConfirmacaoEstoque"
+                             style="font-family:var(--font-primary); white-space:pre-wrap; 
+                                            font-size:0.9rem; color:var(--text-primary); padding:8px 0">
+                    </pre>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-outline" onclick="fecharModal('modalConfirmacaoEstoque')">
+                        Cancelar
+                    </button>
+                    <button class="btn btn-warning" id="btnConfirmarVendaSemEstoque">
+                        ⚠️ Registrar mesmo assim
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <script src="app.js"></script>
     <script>
     (function matchSubtitleWidth(){
         const logoText = document.querySelector('.logo-text');
