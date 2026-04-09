@@ -440,104 +440,170 @@
             </div>
         </div>
 
-        <!-- ========================================
-             ABA: PRECIFICAÇÃO
-             ======================================== -->
-        <div class="tab-content" id="tab-precificacao">
-            <div class="content-area">
-                <div class="section-header">
-                    <h2 class="section-title">Precificação de Produtos</h2>
-                    <div class="header-actions">
-                        <button class="btn btn-outline btn-sm" onclick="abrirModalICMS()">
-                            📋 Tabela de ICMS
-                        </button>
-                        <button class="btn btn-outline btn-sm" onclick="abrirSimuladorICMS()">
-                            🧮 Simulador por Estado
-                        </button>
-                        <button class="btn btn-outline btn-sm" onclick="exportarPrecificacaoExcel()">
-                            📊 Exportar Excel
-                        </button>
-                        <button class="btn btn-outline btn-sm" onclick="imprimirRelatorioAba('precificacao')">
-                            🖨️ Imprimir
-                        </button>
-                    </div>
-                </div>
+                <!-- ========================================
+                         ABA: PRECIFICAÇÃO (com sub-abas)
+                         ======================================== -->
+                <div class="tab-content" id="tab-precificacao">
+                        <div class="content-area">
+                                <div class="section-header">
+                                        <h2 class="section-title">Precificação de Produtos</h2>
+                                        <div class="header-actions">
+                                                <button class="btn btn-outline btn-sm" onclick="abrirModalICMS()">
+                                                        📋 Tabela de ICMS
+                                                </button>
+                                                <button class="btn btn-outline btn-sm" onclick="abrirSimuladorICMS()">
+                                                        🧮 Simulador por Estado
+                                                </button>
+                                                <button class="btn btn-outline btn-sm" onclick="exportarPrecificacaoExcel()">
+                                                        📊 Exportar Excel
+                                                </button>
+                                                <button class="btn btn-outline btn-sm" onclick="imprimirRelatorioAba('precificacao')">
+                                                        🖨️ Imprimir
+                                                </button>
+                                        </div>
+                                </div>
 
-                <div style="background:#fff; border:1px solid #e2e8f0; border-radius:10px;
-                            padding:16px 20px; margin-bottom:20px">
-                    <div style="font-size:0.8rem; font-weight:600; color:#64748b;
-                                text-transform:uppercase; letter-spacing:0.5px; margin-bottom:12px">
-                        Parâmetros Globais (padrão para produtos sem valor específico)
-                    </div>
-                    <div style="display:grid;
-                                grid-template-columns:repeat(auto-fit,minmax(150px,1fr));
-                                gap:12px">
-                        <div class="form-group" style="margin:0">
-                            <label style="font-size:0.8rem">Taxa Padrão (diretoria)</label>
-                            <input type="number" id="taxaPadrao" value="1" step="0.01" min="0"
-                                   style="width:100%;padding:7px 10px;border:1px solid #e2e8f0;
-                                          border-radius:6px;font-size:0.9rem"
-                                   oninput="recalcularTodosProdutos()">
-                        </div>
-                        <div class="form-group" style="margin:0">
-                            <label style="font-size:0.8rem">ROI Padrão</label>
-                            <input type="number" id="roiPadrao" value="1" step="0.01" min="0"
-                                   style="width:100%;padding:7px 10px;border:1px solid #e2e8f0;
-                                          border-radius:6px;font-size:0.9rem"
-                                   oninput="recalcularTodosProdutos()">
-                        </div>
-                        <div class="form-group" style="margin:0">
-                            <label style="font-size:0.8rem">Comissão Padrão (%)</label>
-                            <input type="number" id="comissaoPadrao" value="5" step="0.1" min="0"
-                                   style="width:100%;padding:7px 10px;border:1px solid #e2e8f0;
-                                          border-radius:6px;font-size:0.9rem"
-                                   oninput="recalcularTodosProdutos()">
-                        </div>
-                        <div class="form-group" style="margin:0">
-                            <label style="font-size:0.8rem">PIS Padrão (%)</label>
-                            <input type="number" id="pisPadrao" value="1.65" step="0.01" min="0"
-                                   style="width:100%;padding:7px 10px;border:1px solid #e2e8f0;
-                                          border-radius:6px;font-size:0.9rem"
-                                   oninput="recalcularTodosProdutos()">
-                        </div>
-                        <div class="form-group" style="margin:0">
-                            <label style="font-size:0.8rem">COFINS Padrão (%)</label>
-                            <input type="number" id="cofinsPadrao" value="7.6" step="0.01" min="0"
-                                   style="width:100%;padding:7px 10px;border:1px solid #e2e8f0;
-                                          border-radius:6px;font-size:0.9rem"
-                                   oninput="recalcularTodosProdutos()">
-                        </div>
-                    </div>
-                </div>
+                                <div class="precif-subnav" style="display:flex; gap:0; margin-bottom:20px; border-bottom:2px solid #e2e8f0;">
+                                    <button class="precif-subtab-btn active" onclick="trocarSubabaPrecif('produtos')" id="sbtn-produtos" style="padding:10px 20px; border:none; background:transparent; font-size:0.9rem; font-weight:600; color:#1e3a5f; border-bottom:2px solid #1e3a5f; margin-bottom:-2px; cursor:pointer">📦 Produtos</button>
+                                    <button class="precif-subtab-btn" onclick="trocarSubabaPrecif('federais')" id="sbtn-federais" style="padding:10px 20px; border:none; background:transparent; font-size:0.9rem; font-weight:600; color:#64748b; border-bottom:2px solid transparent; margin-bottom:-2px; cursor:pointer">📋 Impostos Federais</button>
+                                    <button class="precif-subtab-btn" onclick="trocarSubabaPrecif('icms')" id="sbtn-icms" style="padding:10px 20px; border:none; background:transparent; font-size:0.9rem; font-weight:600; color:#64748b; border-bottom:2px solid transparent; margin-bottom:-2px; cursor:pointer">🗺️ ICMS por Estado</button>
+                                </div>
 
-                <div class="table-container">
-                    <div class="table-wrapper">
-                        <table class="dashboard-table" id="tabelaPrecificacao">
-                            <thead>
-                                <tr>
-                                    <th style="text-align:left;padding-left:15px;min-width:220px">Produto</th>
-                                    <th style="min-width:110px">Categoria</th>
-                                    <th style="min-width:100px">CI (R$)</th>
-                                    <th style="min-width:70px">Taxa</th>
-                                    <th style="min-width:70px">ROI</th>
-                                    <th style="min-width:100px">Valor Base</th>
-                                    <th style="min-width:70px">PIS %</th>
-                                    <th style="min-width:70px">COFINS %</th>
-                                    <th style="min-width:80px">ICMS % base</th>
-                                    <th style="min-width:70px">IPI %</th>
-                                    <th style="min-width:110px">c/ Impostos</th>
-                                    <th style="min-width:70px">Comissão %</th>
-                                    <th style="min-width:110px">Comissão R$</th>
-                                    <th style="min-width:120px;background:#fffbf0">Preço Final</th>
-                                    <th style="min-width:50px">Ações</th>
-                                </tr>
-                            </thead>
-                            <tbody id="tabelaPrecificacaoBody"></tbody>
-                        </table>
-                    </div>
+                                <!-- Sub-aba Produtos (mover conteúdo existente aqui) -->
+                                <div id="subaba-precif-produtos">
+                                    <div style="background:#fff; border:1px solid #e2e8f0; border-radius:10px; padding:16px 20px; margin-bottom:20px">
+                                            <div style="font-size:0.8rem; font-weight:600; color:#64748b; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:12px">Parâmetros Globais (padrão para produtos sem valor específico)</div>
+                                            <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px">
+                                                    <div class="form-group" style="margin:0">
+                                                            <label style="font-size:0.8rem">Taxa Padrão (diretoria)</label>
+                                                            <input type="number" id="taxaPadrao" value="1" step="0.01" min="0" style="width:100%;padding:7px 10px;border:1px solid #e2e8f0; border-radius:6px;font-size:0.9rem" oninput="recalcularTodosProdutos()">
+                                                    </div>
+                                                    <div class="form-group" style="margin:0">
+                                                            <label style="font-size:0.8rem">ROI Padrão</label>
+                                                            <input type="number" id="roiPadrao" value="1" step="0.01" min="0" style="width:100%;padding:7px 10px;border:1px solid #e2e8f0; border-radius:6px;font-size:0.9rem" oninput="recalcularTodosProdutos()">
+                                                    </div>
+                                                    <div class="form-group" style="margin:0">
+                                                            <label style="font-size:0.8rem">Comissão Padrão (%)</label>
+                                                            <input type="number" id="comissaoPadrao" value="5" step="0.1" min="0" style="width:100%;padding:7px 10px;border:1px solid #e2e8f0; border-radius:6px;font-size:0.9rem" oninput="recalcularTodosProdutos()">
+                                                    </div>
+                                                    <div class="form-group" style="margin:0">
+                                                            <label style="font-size:0.8rem">PIS Padrão (%)</label>
+                                                            <input type="number" id="pisPadrao" value="1.65" step="0.01" min="0" style="width:100%;padding:7px 10px;border:1px solid #e2e8f0; border-radius:6px;font-size:0.9rem" oninput="recalcularTodosProdutos()">
+                                                    </div>
+                                                    <div class="form-group" style="margin:0">
+                                                            <label style="font-size:0.8rem">COFINS Padrão (%)</label>
+                                                            <input type="number" id="cofinsPadrao" value="7.6" step="0.01" min="0" style="width:100%;padding:7px 10px;border:1px solid #e2e8f0; border-radius:6px;font-size:0.9rem" oninput="recalcularTodosProdutos()">
+                                                    </div>
+                                            </div>
+                                    </div>
+
+                                    <div class="table-container">
+                                            <div class="table-wrapper">
+                                                    <table class="dashboard-table" id="tabelaPrecificacao">
+                                                            <thead>
+                                                                    <tr>
+                                                                            <th style="text-align:left;padding-left:15px;min-width:220px">Produto</th>
+                                                                            <th style="min-width:110px">Categoria</th>
+                                                                            <th style="min-width:100px">CI (R$)</th>
+                                                                            <th style="min-width:70px">Taxa</th>
+                                                                            <th style="min-width:70px">ROI</th>
+                                                                            <th style="min-width:100px">Valor Base</th>
+                                                                            <th style="min-width:70px">PIS %</th>
+                                                                            <th style="min-width:70px">COFINS %</th>
+                                                                            <th style="min-width:80px">ICMS % base</th>
+                                                                            <th style="min-width:70px">IPI %</th>
+                                                                            <th style="min-width:110px">c/ Impostos</th>
+                                                                            <th style="min-width:70px">Comissão %</th>
+                                                                            <th style="min-width:110px">Comissão R$</th>
+                                                                            <th style="min-width:120px;background:#fffbf0">Preço Final</th>
+                                                                            <th style="min-width:50px">Ações</th>
+                                                                    </tr>
+                                                            </thead>
+                                                            <tbody id="tabelaPrecificacaoBody"></tbody>
+                                                    </table>
+                                            </div>
+                                    </div>
+                                </div>
+
+                                <!-- Sub-aba Impostos Federais -->
+                                <div id="subaba-precif-federais" style="display:none">
+
+                                    <div style="background:#fff8f0; border:1px solid #fed7aa; border-radius:8px; padding:12px 16px; margin-bottom:16px; font-size:0.85rem; color:#92400e">
+                                        ℹ️ Estes impostos são pré-carregados por NCM e aplicados automaticamente na precificação. Alterações aqui sobrescrevem os valores padrão para todos os produtos com esse NCM.
+                                    </div>
+
+                                    <div style="display:flex; gap:8px; margin-bottom:14px">
+                                        <button class="btn btn-primary btn-sm" onclick="adicionarNCM()">+ Novo NCM</button>
+                                        <button class="btn btn-outline btn-sm" onclick="exportarImpostosFederais()">📤 Exportar Excel</button>
+                                        <button class="btn btn-outline btn-sm" onclick="importarImpostosFederais()">📥 Importar Excel</button>
+                                        <input type="file" id="inputImportarFederais" accept=".xlsx,.xls,.csv" style="display:none" onchange="importarImpostosFederaisArquivo(event)">
+                                    </div>
+
+                                    <div class="table-container">
+                                        <div class="table-wrapper">
+                                            <table class="dashboard-table" id="tabelaImpostosFederais">
+                                                <thead>
+                                                    <tr>
+                                                        <th style="text-align:left; padding-left:15px; min-width:130px">NCM</th>
+                                                        <th style="text-align:left; min-width:220px">Descrição</th>
+                                                        <th style="min-width:80px">PIS (%)</th>
+                                                        <th style="min-width:80px">COFINS (%)</th>
+                                                        <th style="min-width:80px">IPI (%)</th>
+                                                        <th style="min-width:80px">Produtos vinculados</th>
+                                                        <th style="min-width:80px">Ações</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody id="tabelaImpostosFederaisBody"></tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Sub-aba ICMS por Estado -->
+                                <div id="subaba-precif-icms" style="display:none">
+
+                                    <div style="display:flex; gap:10px; margin-bottom:16px; align-items:center; flex-wrap:wrap">
+                                        <div class="form-group" style="margin:0">
+                                            <label style="font-size:0.8rem; color:#64748b">Filtrar por NCM</label>
+                                            <select id="filtroICMS_NCM" onchange="renderizarICMSPorEstado()" style="padding:7px 10px; border:1px solid #e2e8f0; border-radius:6px; font-size:0.85rem">
+                                                <option value="">Todos</option>
+                                            </select>
+                                        </div>
+                                        <div class="form-group" style="margin:0">
+                                            <label style="font-size:0.8rem; color:#64748b">Tipo de Pessoa</label>
+                                            <select id="filtroICMS_Tipo" onchange="renderizarICMSPorEstado()" style="padding:7px 10px; border:1px solid #e2e8f0; border-radius:6px; font-size:0.85rem">
+                                                <option value="PJ">PJ — Lojista</option>
+                                                <option value="PF">PF — Pessoa Física</option>
+                                            </select>
+                                        </div>
+                                        <div style="margin-left:auto; display:flex; gap:8px">
+                                            <button class="btn btn-outline btn-sm" onclick="exportarICMSEstados()">📤 Exportar Excel</button>
+                                            <button class="btn btn-outline btn-sm" onclick="importarICMSEstados()">📥 Importar Excel</button>
+                                            <input type="file" id="inputImportarICMSEstados" accept=".xlsx,.xls,.csv" style="display:none" onchange="importarICMSEstadosArquivo(event)">
+                                        </div>
+                                    </div>
+
+                                    <div style="background:#f0f9ff; border:1px solid #bae6fd; border-radius:8px; padding:12px 16px; margin-bottom:16px; font-size:0.85rem; color:#0369a1">
+                                        ℹ️ Clique em qualquer célula de alíquota para editar. As alterações são salvas automaticamente.
+                                    </div>
+
+                                    <!-- Matrix table: rows = NCM, cols = States -->
+                                    <div class="table-container">
+                                        <div class="table-wrapper">
+                                            <table class="dashboard-table" id="tabelaICMSEstados" style="font-size:0.8rem">
+                                                <thead>
+                                                    <tr id="icmsEstadosHeader">
+                                                        <!-- Built by JS: NCM | Descrição | AC | AL | AM | ... -->
+                                                    </tr>
+                                                </thead>
+                                                <tbody id="tabelaICMSEstadosBody"></tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                </div>
+
+                        </div>
                 </div>
-            </div>
-        </div>
 
         <!-- ========================================
              ABA: DISTRIBUIÇÃO
@@ -2099,6 +2165,7 @@
                     <table class="dashboard-table" id="tabelaICMSModal">
                         <thead>
                             <tr>
+                                <th>NCM</th>
                                 <th>Estado</th>
                                 <th>Tipo Pessoa</th>
                                 <th>Categoria Produto</th>

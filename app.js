@@ -65,6 +65,109 @@ const CATEGORIAS_PRODUTO = [
 
 let categoriaPorProduto = {};
 
+// ===== NCM / Predefinições fiscais =====
+const NCM_PRODUTOS = {
+    "9301.90.00": "FUZIL DE ALTA PRECISÃO IMBEL 308 AGLC",
+    "9305.91.00": "PEÇAS",
+    "9302.00.00": "PISTOLA",
+    "9305.10.00": "CARREGADOR",
+    "8211.10.00": "FACA",
+    "8201.40.00": "MACHADINHA"
+};
+
+const NCM_POR_CATEGORIA = {
+    "FUZIL":      "9301.90.00",
+    "PEÇAS":      "9305.91.00",
+    "PISTOLA":    "9302.00.00",
+    "REVÓLVER":   "9302.00.00",
+    "CARABINA":   "9302.00.00",
+    "CARREGADOR": "9305.10.00",
+    "FACA":       "8211.10.00",
+    "MACHADINHA": "8201.40.00"
+};
+
+const IMPOSTOS_FEDERAIS_POR_NCM = {
+    "9301.90.00": { pis: 1.65, cofins: 7.60, ipi: 55.00 },
+    "9305.91.00": { pis: 1.65, cofins: 7.60, ipi:  0.00 },
+    "9302.00.00": { pis: 1.65, cofins: 7.60, ipi: 55.00 },
+    "9305.10.00": { pis: 1.65, cofins: 7.60, ipi: 29.25 },
+    "8211.10.00": { pis: 1.65, cofins: 7.60, ipi:  7.80 },
+    "8201.40.00": { pis: 1.65, cofins: 7.60, ipi:  0.00 }
+};
+
+const ICMS_PJ_POR_NCM = {
+    "9301.90.00": {
+        AC:7, AL:7, AP:7, AM:7, BA:7, CE:7, DF:7, ES:7, GO:7,
+        MA:7, MS:7, PA:7, PB:7, PR:12, PE:7, PI:7, RJ:12,
+        RN:7, RS:12, RO:7, RR:7, SC:12, SP:12, SE:7, TO:7, MG:12
+    },
+    "9305.91.00": {
+        AC:7, AL:7, AP:7, AM:7, BA:7, CE:7, DF:7, ES:7, GO:7,
+        MA:7, MS:7, PA:7, PB:7, PR:12, PE:7, PI:7, RJ:12,
+        RN:7, RS:12, RO:7, RR:7, SC:12, SP:12, SE:7, TO:7, MG:12
+    },
+    "9302.00.00": {
+        AC:7, AL:7, AP:7, AM:7, BA:7, CE:7, DF:7, ES:7, GO:7,
+        MA:7, MS:7, PA:7, PB:7, PR:12, PE:7, PI:7, RJ:12,
+        RN:7, RS:12, RO:7, RR:7, SC:12, SP:12, SE:7, TO:7, MG:12
+    },
+    "9305.10.00": {
+        AC:7, AL:7, AP:7, AM:7, BA:7, CE:7, DF:7, ES:7, GO:7,
+        MA:7, MS:7, PA:7, PB:7, PR:12, PE:7, PI:7, RJ:12,
+        RN:7, RS:12, RO:7, RR:7, SC:12, SP:12, SE:7, TO:7, MG:12
+    },
+    "8211.10.00": {
+        AC:7, AL:7, AP:7, AM:7, BA:7, CE:7, DF:7, ES:7, GO:7,
+        MA:7, MS:7, PA:7, PB:7, PR:12, PE:7, PI:7, RJ:12,
+        RN:7, RS:12, RO:7, RR:7, SC:12, SP:12, SE:7, TO:7, MG:12
+    },
+    "8201.40.00": {
+        AC:7, AL:7, AP:7, AM:7, BA:7, CE:7, DF:7, ES:7, GO:7,
+        MA:7, MS:7, PA:7, PB:7, PR:12, PE:7, PI:7, RJ:12,
+        RN:7, RS:12, RO:7, RR:7, SC:12, SP:12, SE:7, TO:7, MG:12
+    }
+};
+
+const ICMS_PF_POR_NCM = {
+    "9301.90.00": {
+        AC:25, AL:29, AP:29, AM:25, BA:38, CE:28, DF:25, ES:25, GO:25,
+        MA:30.5, MT:35, MS:25, PA:30, PB:25, PR:25, PE:27, PI:33,
+        RJ:37, RN:25, RS:25, RO:25, RR:25, SC:25, SP:25, SE:28,
+        TO:27, MG:25
+    },
+    "9305.91.00": {
+        AC:19, AL:29, AP:29, AM:20, BA:20.5, CE:20, DF:20, ES:25, GO:25,
+        MA:23, MT:35, MS:25, PA:30, PB:20, PR:25, PE:27, PI:22.5,
+        RJ:37, RN:20, RS:25, RO:25, RR:25, SC:25, SP:25, SE:28,
+        TO:20, MG:18
+    },
+    "9302.00.00": {
+        AC:25, AL:29, AP:29, AM:25, BA:38, CE:28, DF:25, ES:25, GO:25,
+        MA:30.5, MT:35, MS:25, PA:30, PB:25, PR:25, PE:27, PI:33,
+        RJ:37, RN:25, RS:25, RO:25, RR:25, SC:25, SP:25, SE:28,
+        TO:27, MG:25
+    },
+    "9305.10.00": {
+        AC:19, AL:29, AP:29, AM:20, BA:20.5, CE:20, DF:20, ES:25, GO:25,
+        MA:23, MT:35, MS:25, PA:30, PB:20, PR:25, PE:27, PI:22.5,
+        RJ:37, RN:20, RS:25, RO:25, RR:25, SC:25, SP:25, SE:28,
+        TO:20, MG:18
+    },
+    "8211.10.00": {
+        AC:19, AL:19, AP:18, AM:20, BA:20.5, CE:20, DF:20, ES:17, GO:19,
+        MA:23, MT:17, MS:17, PA:19, PB:20, PR:19.5, PE:20.5, PI:22.5,
+        RJ:20, RN:20, RS:17, RO:19.5, RR:20, SC:17, SP:18, SE:19,
+        TO:20, MG:18
+    },
+    "8201.40.00": {
+        AC:19, AL:19, AP:18, AM:20, BA:20.5, CE:20, DF:20, ES:17, GO:19,
+        MA:23, MT:17, MS:17, PA:19, PB:20, PR:19.5, PE:20.5, PI:22.5,
+        RJ:20, RN:20, RS:17, RO:19.5, RR:20, SC:17, SP:18, SE:19,
+        TO:20, MG:18
+    }
+};
+
+
 let abaAtiva = 'estoque';
 
 // Configuração de alertas (persistida separadamente)
@@ -400,6 +503,10 @@ const dadosIniciais = [
 
 async function inicializar() {
     carregarDados();
+    try { inicializarImpostosPreDefinidos(); } catch (e) { console.warn('Inicialização de impostos predefinidos falhou:', e); }
+
+    try { inicializarImpostosEditaveis(); } catch (e) {}
+    try { inicializarICMSEditavel(); } catch (e) {}
 
     // Sync automático com cloud ocorre após autenticação (onAuthStateChanged)
 
@@ -534,6 +641,10 @@ function salvarDados() {
     estoque.tabelaAliquotas = tabelaAliquotas;
     estoque.tabelaICMS = tabelaICMS;
     estoque.categoriaPorProduto = categoriaPorProduto;
+    // Persistir tabelas de impostos editáveis
+    try { estoque.impostosEditaveis = impostosEditaveis || {}; } catch (e) {}
+    try { estoque.icmsEditavelPJ = icmsEditavelPJ || {}; } catch (e) {}
+    try { estoque.icmsEditavelPF = icmsEditavelPF || {}; } catch (e) {}
     // marca hora local de atualização para comparação com o remoto
     try { estoque._localUpdatedAt = new Date().toISOString(); } catch (e) {}
     localStorage.setItem('estoqueArmasV2', JSON.stringify(estoque));
@@ -559,6 +670,9 @@ async function salvarNoCloud() {
             tabelaAliquotas,
             tabelaICMS,
             categoriaPorProduto,
+            impostosEditaveis: impostosEditaveis || {},
+            icmsEditavelPJ: icmsEditavelPJ || {},
+            icmsEditavelPF: icmsEditavelPF || {},
             updatedAt: firebase.firestore.FieldValue.serverTimestamp()
         });
         // ler o documento para obter o updatedAt do servidor
@@ -660,6 +774,8 @@ async function carregarDoCloud({confirmOverwrite=true} = {}) {
             ? data.categoriaPorProduto
             : (estoque.categoriaPorProduto || {});
 
+        try { inicializarImpostosPreDefinidos(); } catch (e) { console.warn('Inicializar impostos predefinidos após cloud falhou:', e); }
+
         salvarDados();
         renderizarTabela();
         renderizarDashboard();
@@ -725,6 +841,13 @@ async function carregarDoCloudAuto() {
             categoriaPorProduto = (data.categoriaPorProduto && typeof data.categoriaPorProduto === 'object')
                 ? data.categoriaPorProduto
                 : (estoque.categoriaPorProduto || {});
+
+            // Restaurar tabelas de impostos editáveis quando disponíveis
+            impostosEditaveis = (data.impostosEditaveis && typeof data.impostosEditaveis === 'object') ? data.impostosEditaveis : (estoque.impostosEditaveis || {});
+            icmsEditavelPJ    = (data.icmsEditavelPJ && typeof data.icmsEditavelPJ === 'object') ? data.icmsEditavelPJ : (estoque.icmsEditavelPJ || {});
+            icmsEditavelPF    = (data.icmsEditavelPF && typeof data.icmsEditavelPF === 'object') ? data.icmsEditavelPF : (estoque.icmsEditavelPF || {});
+            try { inicializarImpostosEditaveis(); } catch (e) {}
+            try { inicializarICMSEditavel(); } catch (e) {}
 
             salvarDados();
             renderizarTabela();
@@ -1103,6 +1226,7 @@ function trocarAba(aba) {
     } else if (aba === 'controleimbel') {
         trocarSubAbaControleImbel('estoque');
     } else if (aba === 'precificacao') {
+        try { trocarSubabaPrecif('produtos'); } catch (e) {}
         renderizarPrecificacao();
     }
 }
@@ -7078,7 +7202,10 @@ function exportarSistema() {
             precificacao,
             tabelaAliquotas,
             tabelaICMS,
-            categoriaPorProduto
+            categoriaPorProduto,
+            impostosEditaveis: impostosEditaveis || {},
+            icmsEditavelPJ: icmsEditavelPJ || {},
+            icmsEditavelPF: icmsEditavelPF || {}
         };
         const dataStr = JSON.stringify(payload, null, 2);
         const blob = new Blob([dataStr], { type: 'application/json' });
@@ -7143,6 +7270,13 @@ function importarSistema(event) {
             categoriaPorProduto = (obj.categoriaPorProduto && typeof obj.categoriaPorProduto === 'object')
                 ? obj.categoriaPorProduto
                 : (estoque.categoriaPorProduto || {});
+
+            // Restaurar tabelas de impostos editáveis do arquivo importado
+            impostosEditaveis = obj.impostosEditaveis || {};
+            icmsEditavelPJ = obj.icmsEditavelPJ || {};
+            icmsEditavelPF = obj.icmsEditavelPF || {};
+            try { inicializarImpostosEditaveis(); } catch (e) {}
+            try { inicializarICMSEditavel(); } catch (e) {}
 
             salvarDados();
 
@@ -7479,6 +7613,10 @@ function limparTodosDados() {
     tabelaAliquotas = {};
     tabelaICMS = [];
     categoriaPorProduto = {};
+    // Limpar tabelas de impostos editáveis
+    impostosEditaveis = {};
+    icmsEditavelPJ = {};
+    icmsEditavelPF = {};
     
     salvarDados();
     renderizarTabela();
@@ -8380,11 +8518,106 @@ function _fmtMoeda(v) {
     return Number(v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
-function buscarAliquotaICMS(estado, tipoPessoa, nomeProduto) {
-    const categoria = categoriaPorProduto[nomeProduto] || 'Outro';
+function detectarNCM(nomeProduto) {
+    if (!nomeProduto) return null;
+    const nomeUpper = nomeProduto.toString().toUpperCase();
+    for (const [keyword, ncm] of Object.entries(NCM_POR_CATEGORIA)) {
+        if (nomeUpper.includes(keyword)) return ncm;
+    }
+    return null;
+}
 
+function inicializarImpostosPreDefinidos() {
+    try {
+        // 1. Detectar NCM por nome e preencher tabelaAliquotas com impostos federais quando ausentes
+        (estoque.produtos || []).forEach(produto => {
+            const nomeUpper = (produto.nome || '').toString().toUpperCase();
+            let ncmDetectado = null;
+            for (const [keyword, ncm] of Object.entries(NCM_POR_CATEGORIA)) {
+                if (nomeUpper.includes(keyword)) { ncmDetectado = ncm; break; }
+            }
+            if (!ncmDetectado) return;
+            produto.ncm = produto.ncm || ncmDetectado;
+
+            if (!tabelaAliquotas[produto.nome]) tabelaAliquotas[produto.nome] = {};
+            const aliq = tabelaAliquotas[produto.nome];
+            const fed = IMPOSTOS_FEDERAIS_POR_NCM[ncmDetectado];
+            if (fed) {
+                if (!aliq.pis) aliq.pis = fed.pis;
+                if (!aliq.cofins) aliq.cofins = fed.cofins;
+                if (!aliq.ipi) aliq.ipi = fed.ipi;
+            }
+        });
+
+        // 2. Preencher tabelaICMS com regras predefinidas por NCM/UF/PF-PJ
+        const regraExiste = (ncm, estado, tipoPessoa) =>
+            tabelaICMS.some(r => String(r.ncm || '').toUpperCase() === String(ncm || '').toUpperCase()
+                && String(r.estado).toUpperCase() === String(estado).toUpperCase()
+                && String(r.tipoPessoa).toUpperCase() === String(tipoPessoa).toUpperCase()
+            );
+
+        const ESTADOS = [
+            'AC','AL','AP','AM','BA','CE','DF','ES','GO',
+            'MA','MT','MS','PA','PB','PR','PE','PI',
+            'RJ','RN','RS','RO','RR','SC','SP','SE','TO','MG'
+        ];
+
+        Object.entries(ICMS_PJ_POR_NCM).forEach(([ncm, estadoMap]) => {
+            ESTADOS.forEach(uf => {
+                if (estadoMap[uf] !== undefined && !regraExiste(ncm, uf, 'PJ')) {
+                    tabelaICMS.push({
+                        id: `predef_${ncm}_${uf}_PJ`,
+                        ncm,
+                        estado: uf,
+                        tipoPessoa: 'PJ',
+                        categoriaProduto: 'Todos',
+                        aliquota: estadoMap[uf]
+                    });
+                }
+            });
+        });
+
+        Object.entries(ICMS_PF_POR_NCM).forEach(([ncm, estadoMap]) => {
+            ESTADOS.forEach(uf => {
+                if (estadoMap[uf] !== undefined && !regraExiste(ncm, uf, 'PF')) {
+                    tabelaICMS.push({
+                        id: `predef_${ncm}_${uf}_PF`,
+                        ncm,
+                        estado: uf,
+                        tipoPessoa: 'PF',
+                        categoriaProduto: 'Todos',
+                        aliquota: estadoMap[uf]
+                    });
+                }
+            });
+        });
+
+        // Persistir mudanças mínimas localmente
+        salvarDados();
+    } catch (e) {
+        console.warn('inicializarImpostosPreDefinidos falhou:', e);
+    }
+}
+
+function buscarAliquotaICMS(estado, tipoPessoa, nomeProduto) {
+    // tentar obter produto e seu NCM
+    const produto = (estoque.produtos || []).find(p => p.nome === nomeProduto);
+    const ncm = produto?.ncm || detectarNCM(nomeProduto);
+
+    // 1) tentar tabela predefinida por NCM (PJ/PF)
+    if (ncm) {
+        const tabela = (tipoPessoa === 'PF') ? ICMS_PF_POR_NCM : ICMS_PJ_POR_NCM;
+        if (tabela[ncm] && tabela[ncm][estado] !== undefined) {
+            return tabela[ncm][estado];
+        }
+    }
+
+    // 2) regras usuário (tabelaICMS) com scoring incluindo NCM
+    const categoria = categoriaPorProduto[nomeProduto] || 'Outro';
     const score = (rule) => {
         let s = 0;
+        if (rule.ncm && ncm && rule.ncm === ncm) s += 8;
+        else if (rule.ncm && rule.ncm !== 'Todos') return -1;
         if (rule.estado === estado) s += 4;
         else if (rule.estado !== 'Todos') return -1;
         if (rule.tipoPessoa === tipoPessoa) s += 2;
@@ -8400,6 +8633,8 @@ function buscarAliquotaICMS(estado, tipoPessoa, nomeProduto) {
         .sort((a, b) => b.score - a.score)[0];
 
     if (match) return match.rule.aliquota;
+
+    // fallback: icmsBase na tabelaAliquotas do produto
     return parseFloat(tabelaAliquotas[nomeProduto]?.icmsBase) || 0;
 }
 
@@ -8485,7 +8720,7 @@ function renderizarPrecificacao() {
         const nome = produto.nome;
         const nomeId = _nomeProdutoId(nome);
         const nomeJs = _escapeJsString(nome);
-
+        const ncm = produto.ncm || detectarNCM(produto.nome) || '—';
         if (!precificacao[nome]) {
             precificacao[nome] = { ci: 0, taxa: null, roi: null, comissao: null, precoFinalManual: null };
         }
@@ -8506,7 +8741,7 @@ function renderizarPrecificacao() {
         const pfBorder = result?.isManual ? '#f59e0b' : '#22c55e';
 
         return `<tr data-produto="${_escapeHtml(nome)}">
-            <td style="text-align:left;padding-left:15px;font-weight:500;position:sticky;left:0;background:#fff;z-index:1">${_escapeHtml(nome)}</td>
+            <td style="text-align:left;padding-left:15px;font-weight:500;position:sticky;left:0;background:#fff;z-index:1">${_escapeHtml(nome)}<span style="font-size:0.7rem;color:#64748b;background:#f1f5f9;padding:1px 6px;border-radius:4px;margin-left:6px">${_escapeHtml(ncm)}</span></td>
             <td>
                 <select id="cat_${nomeId}" onchange="salvarCategoriaProduto('${nomeJs}', this.value)" style="width:120px;padding:6px 8px;border:1px solid #e2e8f0;border-radius:6px;font-size:0.85rem">
                     ${opcoesCategoria}
@@ -8656,6 +8891,229 @@ function resetarPrecoManual(nomeProduto) {
     salvarDados();
 }
 
+// ── SUB-TAB NAVIGATION FOR PRECIFICAÇÃO ─────────────────────────
+function trocarSubabaPrecif(subaba) {
+    ['produtos','federais','icms'].forEach(s => {
+        const el = document.getElementById('subaba-precif-' + s);
+        if (el) el.style.display = (s === subaba) ? 'block' : 'none';
+        const btn = document.getElementById('sbtn-' + s);
+        if (btn) {
+            btn.style.color = (s === subaba) ? '#1e3a5f' : '#64748b';
+            btn.style.borderBottomColor = (s === subaba) ? '#1e3a5f' : 'transparent';
+        }
+    });
+    if (subaba === 'federais') renderizarImpostosFederais();
+    if (subaba === 'icms') renderizarICMSPorEstado();
+}
+
+// ── FEDERAL TAXES EDITING (mutable, persisted) ──────────────────
+let impostosEditaveis = {};
+
+function inicializarImpostosEditaveis() {
+    const defaults = {
+        "9301.90.00": { descricao: "Fuzil de assalto IMBEL", pis:1.65, cofins:7.60, ipi:55.00 },
+        "9305.91.00": { descricao: "Partes de armas de guerra 93.01", pis:1.65, cofins:7.60, ipi:0.00 },
+        "9302.00.00": { descricao: "Revólveres e pistolas", pis:1.65, cofins:7.60, ipi:55.00 },
+        "9305.10.00": { descricao: "Partes de revólveres ou pistolas", pis:1.65, cofins:7.60, ipi:29.25 },
+        "8211.10.00": { descricao: "Faca", pis:1.65, cofins:7.60, ipi:7.80 },
+        "8201.40.00": { descricao: "Machadinha", pis:1.65, cofins:7.60, ipi:0.00 }
+    };
+    Object.entries(defaults).forEach(([ncm, vals]) => {
+        if (!impostosEditaveis[ncm]) impostosEditaveis[ncm] = { ...vals };
+    });
+}
+
+function renderizarImpostosFederais() {
+    inicializarImpostosEditaveis();
+    const tbody = document.getElementById('tabelaImpostosFederaisBody');
+    if (!tbody) return;
+    const produtos = estoque.produtos || [];
+    const entries = Object.entries(impostosEditaveis);
+    tbody.innerHTML = entries.map(([ncm, imp]) => {
+        const vinculados = produtos.filter(p => (p.ncm || detectarNCM(p.nome)) === ncm).length;
+        const idSafe = ncm.replace(/\./g,'_');
+        return `
+            <tr id="row-fed-${idSafe}">
+                <td style="text-align:left; padding-left:15px; font-weight:600; font-family:monospace; color:#1e3a5f">${ncm}</td>
+                <td style="text-align:left">
+                    <input type="text" value="${(imp.descricao||'')}" onchange="editarImpostoFederal('${ncm}','descricao',this.value)" style="width:100%; border:1px solid transparent; border-radius:4px; padding:4px 6px; font-size:0.85rem; background:transparent" onfocus="this.style.borderColor='#1e3a5f'" onblur="this.style.borderColor='transparent'">
+                </td>
+                <td>
+                    <input type="number" step="0.01" min="0" max="100" value="${imp.pis}" onchange="editarImpostoFederal('${ncm}','pis',this.value)" style="width:70px; border:1px solid #e2e8f0; border-radius:4px; padding:4px 6px; text-align:center; font-size:0.85rem">
+                </td>
+                <td>
+                    <input type="number" step="0.01" min="0" max="100" value="${imp.cofins}" onchange="editarImpostoFederal('${ncm}','cofins',this.value)" style="width:70px; border:1px solid #e2e8f0; border-radius:4px; padding:4px 6px; text-align:center; font-size:0.85rem">
+                </td>
+                <td>
+                    <input type="number" step="0.01" min="0" max="100" value="${imp.ipi}" onchange="editarImpostoFederal('${ncm}','ipi',this.value)" style="width:70px; border:1px solid #e2e8f0; border-radius:4px; padding:4px 6px; text-align:center; font-size:0.85rem">
+                </td>
+                <td style="text-align:center">
+                    <span style="background:#e0f2fe; color:#0369a1; font-size:0.75rem; font-weight:600; padding:2px 8px; border-radius:20px">${vinculados} produto(s)</span>
+                </td>
+                <td style="text-align:center">
+                    <button onclick="excluirNCM('${ncm}')" style="background:none; border:none; cursor:pointer; color:#dc2626; font-size:1rem" title="Excluir NCM">🗑️</button>
+                </td>
+            </tr>
+        `;
+    }).join('');
+}
+
+function editarImpostoFederal(ncm, campo, valor) {
+    if (!impostosEditaveis[ncm]) return;
+    impostosEditaveis[ncm][campo] = campo === 'descricao' ? String(valor) : (parseFloat(valor) || 0);
+    // Propagate to tabelaAliquotas for all products with this NCM
+    const produtos = estoque.produtos || [];
+    produtos.forEach(p => {
+        if ((p.ncm || detectarNCM(p.nome)) === ncm) {
+            if (!tabelaAliquotas[p.nome]) tabelaAliquotas[p.nome] = {};
+            if (campo !== 'descricao') tabelaAliquotas[p.nome][campo] = impostosEditaveis[ncm][campo];
+        }
+    });
+    salvarDados();
+}
+
+function adicionarNCM() {
+    const ncm = prompt('Digite o código NCM (ex: 9302.00.00):');
+    if (!ncm || ncm.trim() === '') return;
+    const ncmLimpo = ncm.trim();
+    if (impostosEditaveis[ncmLimpo]) { alert('NCM já existe.'); return; }
+    impostosEditaveis[ncmLimpo] = { descricao: 'Novo NCM', pis:1.65, cofins:7.60, ipi:0 };
+    renderizarImpostosFederais();
+    salvarDados();
+}
+
+function excluirNCM(ncm) {
+    const produtos = estoque.produtos || [];
+    const vinculados = produtos.filter(p => (p.ncm || detectarNCM(p.nome)) === ncm).length;
+    const msg = vinculados > 0 ? `Este NCM está vinculado a ${vinculados} produto(s). Deseja excluir mesmo assim?` : `Excluir NCM ${ncm}?`;
+    if (!confirm(msg)) return;
+    delete impostosEditaveis[ncm];
+    renderizarImpostosFederais();
+    salvarDados();
+}
+
+function exportarImpostosFederais() {
+    const rows = Object.entries(impostosEditaveis).map(([ncm, imp]) => ({ 'NCM': ncm, 'Descrição': imp.descricao, 'PIS (%)': imp.pis, 'COFINS (%)': imp.cofins, 'IPI (%)': imp.ipi }));
+    const ws = XLSX.utils.json_to_sheet(rows);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Impostos Federais');
+    XLSX.writeFile(wb, 'impostos_federais.xlsx');
+}
+
+function importarImpostosFederais() { document.getElementById('inputImportarFederais').click(); }
+
+function importarImpostosFederaisArquivo(event) {
+    const file = event.target.files[0]; if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        const wb = XLSX.read(e.target.result, { type: 'binary' });
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        const rows = XLSX.utils.sheet_to_json(ws);
+        let importados = 0, atualizados = 0;
+        rows.forEach(row => {
+            const ncm = (row['NCM'] || row['ncm'] || '').toString().trim();
+            if (!ncm) return;
+            const novo = { descricao: row['Descrição'] || row['Descricao'] || row['descricao'] || '', pis: parseFloat(row['PIS (%)'] || row['PIS'] || 0), cofins: parseFloat(row['COFINS (%)'] || row['COFINS'] || 0), ipi: parseFloat(row['IPI (%)'] || row['IPI'] || 0) };
+            if (impostosEditaveis[ncm]) atualizados++; else importados++;
+            impostosEditaveis[ncm] = novo;
+        });
+        renderizarImpostosFederais();
+        alert(`✅ ${importados} NCMs importados, ${atualizados} atualizados.`);
+        event.target.value = '';
+        salvarDados();
+    };
+    reader.readAsBinaryString(file);
+}
+
+// ── ICMS BY STATE MATRIX (editable) ────────────────────────────
+let icmsEditavelPJ = {};
+let icmsEditavelPF = {};
+const ESTADOS_LISTA = [...ESTADOS_BR];
+
+function inicializarICMSEditavel() {
+    Object.entries(ICMS_PJ_POR_NCM).forEach(([ncm, mapa]) => { if (!icmsEditavelPJ[ncm]) icmsEditavelPJ[ncm] = { ...mapa }; });
+    Object.entries(ICMS_PF_POR_NCM).forEach(([ncm, mapa]) => { if (!icmsEditavelPF[ncm]) icmsEditavelPF[ncm] = { ...mapa }; });
+}
+
+function renderizarICMSPorEstado() {
+    inicializarICMSEditavel();
+    inicializarImpostosEditaveis();
+    const tipo = document.getElementById('filtroICMS_Tipo')?.value || 'PJ';
+    const filtroNCM = document.getElementById('filtroICMS_NCM')?.value || '';
+    const tabela = tipo === 'PF' ? icmsEditavelPF : icmsEditavelPJ;
+    const selectNCM = document.getElementById('filtroICMS_NCM');
+    if (selectNCM) {
+        const ncms = Object.keys(impostosEditaveis);
+        selectNCM.innerHTML = '<option value="">Todos os NCMs</option>' + ncms.map(ncm => `<option value="${ncm}" ${ncm===filtroNCM?'selected':''}>${ncm} — ${impostosEditaveis[ncm]?.descricao || ''}</option>`).join('');
+    }
+    const ncmsParaExibir = filtroNCM ? [filtroNCM] : Object.keys(tabela);
+    document.getElementById('icmsEstadosHeader').innerHTML = `
+        <th style="text-align:left; padding-left:10px; min-width:120px; position:sticky; left:0; background:#1e3a5f; z-index:2">NCM</th>
+        <th style="text-align:left; min-width:180px; position:sticky; left:120px; background:#1e3a5f; z-index:2">Descrição</th>
+        ${ESTADOS_LISTA.map(uf => `<th style="min-width:52px; text-align:center">${uf}</th>`).join('')}
+    `;
+    document.getElementById('tabelaICMSEstadosBody').innerHTML = ncmsParaExibir.map(ncm => {
+        const mapa = tabela[ncm] || {};
+        const desc = impostosEditaveis[ncm]?.descricao || ncm;
+        return `
+            <tr>
+                <td style="text-align:left; padding-left:10px; font-weight:600; font-family:monospace; color:#1e3a5f; font-size:0.78rem; position:sticky; left:0; background:#fff; z-index:1; border-right:1px solid #e2e8f0">${ncm}</td>
+                <td style="text-align:left; font-size:0.82rem; color:#475569; position:sticky; left:120px; background:#fff; z-index:1; border-right:2px solid #e2e8f0; max-width:180px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap" title="${desc}">${desc}</td>
+                ${ESTADOS_LISTA.map(uf => {
+                    const val = mapa[uf] !== undefined ? mapa[uf] : '';
+                    return `<td style="padding:2px 3px; text-align:center"><input type="number" step="0.5" min="0" max="100" value="${val}" placeholder="—" title="${ncm} / ${uf} / ${tipo}: ${val}%" onchange="editarICMSEstado('${ncm}','${uf}','${tipo}',this.value)" style="width:46px; border:1px solid #e2e8f0; border-radius:4px; padding:3px 2px; text-align:center; font-size:0.8rem; background:${val===''?'#f8fafc':'#fff'}"></td>`;
+                }).join('')}
+            </tr>
+        `;
+    }).join('');
+}
+
+function editarICMSEstado(ncm, estado, tipoPessoa, valor) {
+    const tabela = tipoPessoa === 'PF' ? icmsEditavelPF : icmsEditavelPJ;
+    if (!tabela[ncm]) tabela[ncm] = {};
+    tabela[ncm][estado] = parseFloat(valor) || 0;
+    const idRegra = `predef_${ncm}_${estado}_${tipoPessoa}`;
+    const idx = tabelaICMS.findIndex(r => r.id === idRegra);
+    if (idx >= 0) {
+        tabelaICMS[idx].aliquota = parseFloat(valor) || 0;
+    } else {
+        tabelaICMS.push({ id: idRegra, ncm, estado, tipoPessoa, categoriaProduto: 'Todos', aliquota: parseFloat(valor) || 0 });
+    }
+    salvarDados();
+}
+
+function exportarICMSEstados() {
+    const tipo = document.getElementById('filtroICMS_Tipo')?.value || 'PJ';
+    const tabela = tipo === 'PF' ? icmsEditavelPF : icmsEditavelPJ;
+    const rows = Object.entries(tabela).map(([ncm, mapa]) => {
+        const row = { 'NCM': ncm, 'Descrição': impostosEditaveis[ncm]?.descricao || '', 'Tipo': tipo };
+        ESTADOS_LISTA.forEach(uf => { row[uf] = mapa[uf] ?? ''; });
+        return row;
+    });
+    const ws = XLSX.utils.json_to_sheet(rows);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, `ICMS_${tipo}`);
+    XLSX.writeFile(wb, `icms_${tipo.toLowerCase()}_${new Date().toISOString().split('T')[0]}.xlsx`);
+}
+
+function importarICMSEstados() { document.getElementById('inputImportarICMSEstados').click(); }
+
+function importarICMSEstadosArquivo(event) {
+    const file = event.target.files[0]; if (!file) return; const reader = new FileReader();
+    reader.onload = (e) => {
+        const wb = XLSX.read(e.target.result, { type: 'binary' });
+        const ws = wb.Sheets[wb.SheetNames[0]]; const rows = XLSX.utils.sheet_to_json(ws);
+        let count = 0; rows.forEach(row => {
+            const ncm = (row['NCM'] || '').toString().trim(); const tipo = (row['Tipo'] || 'PJ').toString().trim().toUpperCase();
+            if (!ncm) return; const tabela = tipo === 'PF' ? icmsEditavelPF : icmsEditavelPJ; if (!tabela[ncm]) tabela[ncm] = {};
+            ESTADOS_LISTA.forEach(uf => { if (row[uf] !== undefined && row[uf] !== '') { tabela[ncm][uf] = parseFloat(row[uf]) || 0; editarICMSEstado(ncm, uf, tipo, tabela[ncm][uf]); } });
+            count++;
+        });
+        renderizarICMSPorEstado(); alert(`✅ ${count} linha(s) de ICMS importadas.`); event.target.value = ''; salvarDados();
+    };
+    reader.readAsBinaryString(file);
+}
+
 function recalcularTodosProdutos() {
     const produtos = estoque.produtos || [];
     produtos.forEach(produto => {
@@ -8692,6 +9150,7 @@ function renderizarTabelaICMS() {
 
     tbody.innerHTML = regrasOrdenadas.map(rule => `
         <tr id="icms_row_${_escapeHtml(rule.id)}">
+            <td>${_escapeHtml(rule.ncm || '—')}</td>
             <td>${_escapeHtml(rule.estado)}</td>
             <td>${_escapeHtml(rule.tipoPessoa)}</td>
             <td>${_escapeHtml(rule.categoriaProduto)}</td>
@@ -8711,35 +9170,41 @@ function adicionarRegraICMS() {
 
     const opcoesEstado = ['Todos', ...ESTADOS_BR].map(e => `<option value="${e}">${e}</option>`).join('');
     const opcoesCategoria = ['Todos', ...CATEGORIAS_PRODUTO].map(c => `<option value="${c}">${c}</option>`).join('');
+        const opcoesNCM = ['','9301.90.00','9305.91.00','9302.00.00','9305.10.00','8211.10.00','8201.40.00']
+            .map(n => n === '' ? `<option value="">Todos</option>` : `<option value="${n}">${n}</option>`).join('');
 
     const html = `
-      <tr id="novaRegraRow">
-        <td>
-          <select id="nr_estado">${opcoesEstado}</select>
-        </td>
-        <td>
-          <select id="nr_tipoPessoa">
-            <option value="Todos">Todos</option>
-            <option value="PJ">PJ</option>
-            <option value="PF">PF</option>
-          </select>
-        </td>
-        <td>
-          <select id="nr_categoria">${opcoesCategoria}</select>
-        </td>
-        <td>
-          <input type="number" id="nr_aliquota" step="0.01" min="0" placeholder="12" style="width:70px">
-        </td>
-        <td>
-          <button onclick="confirmarNovaRegraICMS()" style="color:#16a34a;font-size:1.1rem;background:none;border:none;cursor:pointer">✓</button>
-          <button onclick="cancelarNovaRegraICMS()" style="color:#dc2626;font-size:1.1rem;background:none;border:none;cursor:pointer">✗</button>
-        </td>
-      </tr>`;
+            <tr id="novaRegraRow">
+                <td>
+                    <select id="nr_ncm">${opcoesNCM}</select>
+                </td>
+                <td>
+                    <select id="nr_estado">${opcoesEstado}</select>
+                </td>
+                <td>
+                    <select id="nr_tipoPessoa">
+                        <option value="Todos">Todos</option>
+                        <option value="PJ">PJ</option>
+                        <option value="PF">PF</option>
+                    </select>
+                </td>
+                <td>
+                    <select id="nr_categoria">${opcoesCategoria}</select>
+                </td>
+                <td>
+                    <input type="number" id="nr_aliquota" step="0.01" min="0" placeholder="12" style="width:70px">
+                </td>
+                <td>
+                    <button onclick="confirmarNovaRegraICMS()" style="color:#16a34a;font-size:1.1rem;background:none;border:none;cursor:pointer">✓</button>
+                    <button onclick="cancelarNovaRegraICMS()" style="color:#dc2626;font-size:1.1rem;background:none;border:none;cursor:pointer">✗</button>
+                </td>
+            </tr>`;
 
     tbody.insertAdjacentHTML('afterbegin', html);
 }
 
 function confirmarNovaRegraICMS() {
+    const ncm = (document.getElementById('nr_ncm')?.value || '').trim() || 'Todos';
     const estado = document.getElementById('nr_estado')?.value || 'Todos';
     const tipoPessoa = document.getElementById('nr_tipoPessoa')?.value || 'Todos';
     const categoria = document.getElementById('nr_categoria')?.value || 'Todos';
@@ -8752,6 +9217,7 @@ function confirmarNovaRegraICMS() {
 
     tabelaICMS.push({
         id: Date.now().toString(),
+        ncm,
         estado,
         tipoPessoa,
         categoriaProduto: categoria,
@@ -8773,6 +9239,8 @@ function editarRegraICMS(id) {
     const row = document.getElementById(`icms_row_${id}`);
     if (!row) return;
 
+    const opcoesNCM = ['','9301.90.00','9305.91.00','9302.00.00','9305.10.00','8211.10.00','8201.40.00']
+        .map(n => n === '' ? `<option value="">Todos</option>` : `<option value="${n}" ${rule.ncm === n ? 'selected' : ''}>${n}</option>`).join('');
     const opcoesEstado = ['Todos', ...ESTADOS_BR]
         .map(e => `<option value="${e}" ${e === rule.estado ? 'selected' : ''}>${e}</option>`)
         .join('');
@@ -8781,6 +9249,7 @@ function editarRegraICMS(id) {
         .join('');
 
     row.innerHTML = `
+        <td><select id="er_ncm_${id}">${opcoesNCM}</select></td>
         <td><select id="er_estado_${id}">${opcoesEstado}</select></td>
         <td>
             <select id="er_tipoPessoa_${id}">
@@ -8799,6 +9268,7 @@ function editarRegraICMS(id) {
 }
 
 function atualizarRegraICMS(id) {
+    const ncm = (document.getElementById(`er_ncm_${id}`)?.value || '').trim() || 'Todos';
     const estado = document.getElementById(`er_estado_${id}`)?.value || 'Todos';
     const tipoPessoa = document.getElementById(`er_tipoPessoa_${id}`)?.value || 'Todos';
     const categoria = document.getElementById(`er_categoria_${id}`)?.value || 'Todos';
@@ -8814,6 +9284,7 @@ function atualizarRegraICMS(id) {
 
     tabelaICMS[idx] = {
         ...tabelaICMS[idx],
+        ncm,
         estado,
         tipoPessoa,
         categoriaProduto: categoria,
@@ -8838,6 +9309,7 @@ function exportarTabelaICMS() {
         return;
     }
     const dados = tabelaICMS.map(r => ({
+        'NCM': r.ncm || '',
         'Estado': r.estado,
         'Tipo Pessoa': r.tipoPessoa,
         'Categoria Produto': r.categoriaProduto,
@@ -8887,6 +9359,7 @@ function importarTabelaICMSArquivo(event) {
                     normalized[_normalizarCabecalho(k)] = row[k];
                 });
 
+                const ncm = String(normalized.ncm || '').trim() || '';
                 const estado = String(normalized.estado || 'Todos').trim() || 'Todos';
                 const tipoPessoa = String(normalized.tipopessoa || 'Todos').trim() || 'Todos';
                 const categoria = String(normalized.categoriaproduto || 'Todos').trim() || 'Todos';
@@ -8898,6 +9371,7 @@ function importarTabelaICMSArquivo(event) {
                     String(r.estado).toUpperCase() === estado.toUpperCase()
                     && String(r.tipoPessoa).toUpperCase() === tipoPessoa.toUpperCase()
                     && String(r.categoriaProduto).toUpperCase() === categoria.toUpperCase()
+                    && (String(r.ncm || '').toUpperCase() === String(ncm || '').toUpperCase())
                 );
 
                 if (idxExistente >= 0) {
@@ -8906,6 +9380,7 @@ function importarTabelaICMSArquivo(event) {
                 } else {
                     tabelaICMS.push({
                         id: `${Date.now()}_${index}`,
+                        ncm: ncm || 'Todos',
                         estado,
                         tipoPessoa,
                         categoriaProduto: categoria,
