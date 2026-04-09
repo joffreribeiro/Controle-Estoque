@@ -81,6 +81,43 @@ function calcularImbelDisponivel(produto) {
     return saldoConsol - distribExcl;
 }
 
+// Calcula estoque disponível na IMBEL baseado exclusivamente em registros
+function calcularEstoqueIMBEL(nomeProduto) {
+    if (!nomeProduto) return 0;
+    const produtos = estoque.produtos || [];
+    const produto = produtos.find(p => {
+        try {
+            if (!p || !p.nome) return false;
+            return p.nome.toString().toUpperCase() === nomeProduto.toString().toUpperCase();
+        } catch (e) { return false; }
+    });
+    if (!produto) return 0;
+
+    const estoqueTotal = Number(produto.estoqueConsolidado || produto.estoqueTotal || produto.estoque || 0);
+
+    const totalDistribuido = (estoque.registroDistribuicao || []).reduce((sum, d) => {
+        try {
+            const match = (Number(d.produtoId) === Number(produto.id)) || ((d.produtoNome || '').toString().toUpperCase() === produto.nome.toString().toUpperCase());
+            if (!match) return sum;
+            const rep = (d.representante || '').toString().toUpperCase();
+            if (rep === 'IMBEL') return sum; // não descontar distribuições para IMBEL
+            return sum + (Number(d.quantidade) || 0);
+        } catch (e) { return sum; }
+    }, 0);
+
+    const totalDevolvido = (estoque.registroDevolucoes || []).reduce((sum, d) => {
+        try {
+            const match = (Number(d.produtoId) === Number(produto.id)) || ((d.produtoNome || '').toString().toUpperCase() === produto.nome.toString().toUpperCase());
+            if (!match) return sum;
+            const destino = (d.destino || '').toString().toUpperCase();
+            if (destino === 'IMBEL') return sum + (Number(d.quantidade) || 0);
+        } catch (e) {}
+        return sum;
+    }, 0);
+
+    return estoqueTotal - totalDistribuido + totalDevolvido;
+}
+
 // Reconstrói o objeto `produto.distribuicao` a partir dos registros de distribuição e devolução
 function reconstruirDistribuicaoAPartirDeRegistros() {
     if (!Array.isArray(estoque.produtos)) return;
@@ -6127,7 +6164,7 @@ function salvarNovaDistribuicao(event) {
         return;
     }
 
-    // Validar estoque IMBEL para cada produto agregado
+    // Validar estoque IMBEL para cada produto agregado usando registros como fonte de verdade
     const insuficientes = [];
     solicitadoMap.forEach((totalSolicitado, produtoId) => {
         const produto = estoque.produtos.find(p => p.id === produtoId);
@@ -6135,7 +6172,7 @@ function salvarNovaDistribuicao(event) {
             insuficientes.push({ produtoId, nome: '(produto não encontrado)', disponivel: 0, solicitado: totalSolicitado });
             return;
         }
-        const disponivel = calcularImbelDisponivel(produto);
+        const disponivel = calcularEstoqueIMBEL(produto.nome);
         if (totalSolicitado > disponivel) {
             insuficientes.push({ produtoId, nome: produto.nome, disponivel, solicitado: totalSolicitado });
         }
@@ -6154,8 +6191,7 @@ function salvarNovaDistribuicao(event) {
         const produto = estoque.produtos.find(p => p.id === item.produtoId);
         if (!produto) return;
 
-        // Atualizar estoques: alocar para o representante (IMBEL é calculado dinamicamente)
-        produto.distribuicao[representante] = (produto.distribuicao[representante] || 0) + item.quantidade;
+        // Não mutamos `produto.distribuicao` diretamente aqui; persistimos o registro.
 
         // Criar registro individual para cada item
         const novaDistribuicao = {
@@ -6170,7 +6206,8 @@ function salvarNovaDistribuicao(event) {
         estoque.registroDistribuicao.push(novaDistribuicao);
         registrosCriados.push(novaDistribuicao);
     });
-
+    // Reconstruir agregados a partir dos registros e salvar
+    try { reconstruirDistribuicaoAPartirDeRegistros(); } catch (e) {}
     salvarDados();
     renderizarTabela();
     renderizarDashboard();
@@ -6579,21 +6616,30 @@ function salvarDistribuicao(event) {
         return;
     }
     
-    const saldoIMBEL = calcularImbelDisponivel(produto);
+    const saldoIMBEL = calcularEstoqueIMBEL(produto.nome);
     if (quantidade > saldoIMBEL) {
         mostrarNotificacao(`Estoque insuficiente na IMBEL! Saldo disponível: ${saldoIMBEL} unidades`, 'error');
         return;
     }
 
-    // Não alteramos `distribuicao.IMBEL` diretamente — IMBEL é calculado a partir do consolidado.
-    produto.distribuicao[representante] = (produto.distribuicao[representante] || 0) + quantidade;
-    
+    // Criar registro da distribuição (não mutamos mais produto.distribuicao diretamente)
+    const novaDistribuicao = {
+        id: Date.now(),
+        representante: representante,
+        produtoId: produto.id,
+        produtoNome: produto.nome,
+        quantidade: quantidade,
+        data: new Date().toISOString().split('T')[0]
+    };
+    estoque.registroDistribuicao.push(novaDistribuicao);
+
+    try { reconstruirDistribuicaoAPartirDeRegistros(); } catch (e) {}
     salvarDados();
     renderizarTabela();
     renderizarDashboard();
     try { verificarAlertasEstoque(); } catch(e) {}
     fecharModal('modalDistribuicao');
-    
+
     mostrarNotificacao(`${quantidade} unidades distribuídas para ${representante}!`, 'success');
 }
 
