@@ -123,6 +123,8 @@ try {
 
 // ID da venda que está sendo editada (null quando criando nova)
 let vendaEditandoId = null;
+// ID do produto que está sendo editado no modal de produto (null quando criando novo)
+let produtoEditandoId = null;
 
 // Dados iniciais com PREÇOS baseados na planilha - SEM dados de distribuição/vendas (zerados)
 const dadosIniciais = [
@@ -996,7 +998,7 @@ function renderizarTabela() {
         const consolidadoVenda = totalVendasProduto;
         const consolidadoSaldo = consolidadoDisp - consolidadoVenda;
 
-        tr.innerHTML = `<td class="produto-nome col-produto" title="${produto.nome}">${produtoHtml}</td>` + tr.innerHTML;
+        tr.innerHTML = `<td class="produto-nome col-produto" title="${produto.nome}" onclick="abrirModalEditarProduto(${produtoId})" style="cursor:pointer">${produtoHtml}</td>` + tr.innerHTML;
 
         const saldoGeralClass = consolidadoSaldo > 0 ? 'saldo-positivo' : 'negativo';
         tr.innerHTML += `
@@ -4656,8 +4658,34 @@ function converterMoedaParaNumero(valor) {
 
 function abrirModalProduto() {
     if (!requireAdminOrNotify()) return;
+    // Abrir em modo de criar novo produto
+    produtoEditandoId = null;
     document.getElementById('modalProduto').style.display = 'flex';
     document.getElementById('formProduto').reset();
+    // Restaurar título e botão padrão
+    const header = document.querySelector('#modalProduto .modal-header h2');
+    if (header) header.innerHTML = '<span>+</span> Adicionar Novo Produto';
+    const submitBtn = document.querySelector('#modalProduto .modal-footer button[type="submit"]');
+    if (submitBtn) submitBtn.textContent = 'Salvar Produto';
+}
+
+function abrirModalEditarProduto(produtoId) {
+    if (!requireAdminOrNotify()) return;
+    const produto = estoque.produtos.find(p => p.id === Number(produtoId));
+    if (!produto) {
+        mostrarNotificacao('Produto não encontrado!', 'error');
+        return;
+    }
+    produtoEditandoId = produto.id;
+    document.getElementById('modalProduto').style.display = 'flex';
+    document.getElementById('formProduto').reset();
+    document.getElementById('nomeProduto').value = produto.nome || '';
+    document.getElementById('estoqueTotal').value = Number(produto.estoqueConsolidado || 0);
+    // Ajustar título e botão para modo edição
+    const header = document.querySelector('#modalProduto .modal-header h2');
+    if (header) header.innerHTML = '<span>✎</span> Editar Produto';
+    const submitBtn = document.querySelector('#modalProduto .modal-footer button[type="submit"]');
+    if (submitBtn) submitBtn.textContent = 'Salvar Alterações';
 }
 
 document.addEventListener('keydown', function(event) {
@@ -4927,6 +4955,16 @@ function fecharModal(modalId) {
         const modal = document.getElementById(modalId);
         if (modal) modal.style.display = 'none';
     } catch (e) { /* ignore */ }
+    // Se o modal fechado for o de produto, restaurar estado de edição padrão
+    try {
+        if (modalId === 'modalProduto') {
+            produtoEditandoId = null;
+            const header = document.querySelector('#modalProduto .modal-header h2');
+            if (header) header.innerHTML = '<span>+</span> Adicionar Novo Produto';
+            const submitBtn = document.querySelector('#modalProduto .modal-footer button[type="submit"]');
+            if (submitBtn) submitBtn.textContent = 'Salvar Produto';
+        }
+    } catch (e) {}
     // Sempre tentar restaurar z-index do header fixo quando um modal fechar
 }
 
@@ -6343,12 +6381,43 @@ function salvarProduto(event) {
     
     const nome = document.getElementById('nomeProduto').value.trim().toUpperCase();
     const estoqueTotal = parseInt(document.getElementById('estoqueTotal').value);
-    
+    // Se estamos editando um produto existente
+    if (produtoEditandoId !== null) {
+        const idx = estoque.produtos.findIndex(p => p.id === produtoEditandoId);
+        if (idx === -1) {
+            mostrarNotificacao('Produto não encontrado para edição.', 'error');
+            produtoEditandoId = null;
+            fecharModal('modalProduto');
+            return;
+        }
+        // Verificar duplicidade de nome em outro produto
+        if (estoque.produtos.some(p => p.nome === nome && p.id !== produtoEditandoId)) {
+            mostrarNotificacao('Outro produto com este nome já existe!', 'error');
+            return;
+        }
+
+        const produto = estoque.produtos[idx];
+        produto.nome = nome;
+        produto.estoqueConsolidado = Number(estoqueTotal) || 0;
+        produto.distribuicao = produto.distribuicao || { KOLTE: 0, ISA: 0, LC: 0, ADES: 0, FL: 0, IMBEL: 0 };
+        produto.vendas = produto.vendas || { KOLTE: 0, ISA: 0, LC: 0, ADES: 0, FL: 0, IMBEL: 0 };
+
+        atualizarSelectsProdutos();
+        salvarDados();
+        renderizarTabela();
+        renderizarDashboard();
+        fecharModal('modalProduto');
+        mostrarNotificacao(`Produto "${nome}" atualizado com sucesso!`, 'success');
+        produtoEditandoId = null;
+        return;
+    }
+
+    // Criar novo produto
     if (estoque.produtos.some(p => p.nome === nome)) {
         mostrarNotificacao('Este produto já existe no sistema!', 'error');
         return;
     }
-    
+
     const novoProduto = {
         id: Date.now(),
         nome: nome,
@@ -6356,7 +6425,7 @@ function salvarProduto(event) {
         distribuicao: { KOLTE: 0, ISA: 0, LC: 0, ADES: 0, FL: 0, IMBEL: 0 },
         vendas: { KOLTE: 0, ISA: 0, LC: 0, ADES: 0, FL: 0, IMBEL: 0 }
     };
-    
+
     estoque.produtos.push(novoProduto);
     // Atualizar selects imediatamente para refletir o novo produto em qualquer modal aberto
     atualizarSelectsProdutos();
@@ -6364,7 +6433,7 @@ function salvarProduto(event) {
     renderizarTabela();
     renderizarDashboard();
     fecharModal('modalProduto');
-    
+
     mostrarNotificacao(`Produto "${nome}" adicionado com sucesso!`, 'success');
 }
 
