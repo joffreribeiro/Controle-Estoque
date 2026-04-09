@@ -807,7 +807,8 @@ header {
     display: flex;
     align-items: center;
     justify-content: center;
-    z-index: 1200;
+    /* Deve ficar acima da sidebar (sidebar z-index:2000) */
+    z-index: 3100;
 }
 .modal[aria-hidden="true"] { display: none; }
 .modal-backdrop {
@@ -823,7 +824,8 @@ header {
     border-radius: 14px;
     box-shadow: 0 12px 30px rgba(14,30,60,0.2);
     padding: 26px 28px;
-    z-index: 1210;
+    /* Garantir que o conteúdo do modal esteja acima da sidebar */
+    z-index: 3110;
     overflow: hidden;
 }
 .modal-close {
@@ -1290,7 +1292,8 @@ tr.total-row:hover {
 .modal {
     display: none;
     position: fixed;
-    z-index: 1000;
+    /* Deve ficar acima da sidebar (sidebar z-index:2000) */
+    z-index: 3100;
     left: 0;
     top: 0;
     width: 100%;
