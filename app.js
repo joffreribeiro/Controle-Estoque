@@ -22,6 +22,34 @@ let estoque = {
 // Configuração de alertas (persistida separadamente)
 let configAlertas = { limite: 5, ativo: true };
 
+// Helper: cálculo de estoque/vendas/distribuições
+function obterTotalVendasProduto(produto) {
+    if (!produto || !produto.vendas) return 0;
+    return Object.keys(produto.vendas).reduce((s, k) => s + (Number(produto.vendas[k]) || 0), 0);
+}
+
+function obterDistribuicaoTotalExcluindoImbel(produto) {
+    if (!produto || !produto.distribuicao) return 0;
+    return Object.keys(produto.distribuicao).reduce((s, k) => {
+        if ((k || '').toUpperCase() === 'IMBEL') return s;
+        return s + (Number(produto.distribuicao[k]) || 0);
+    }, 0);
+}
+
+function calcularSaldoConsolidado(produto) {
+    if (!produto) return 0;
+    const estoqueConc = Number(produto.estoqueConsolidado || 0);
+    const vendas = obterTotalVendasProduto(produto);
+    return estoqueConc - vendas;
+}
+
+function calcularImbelDisponivel(produto) {
+    if (!produto) return 0;
+    const saldoConsol = calcularSaldoConsolidado(produto);
+    const distribExcl = obterDistribuicaoTotalExcluindoImbel(produto);
+    return saldoConsol - distribExcl;
+}
+
 // =============================
 // Firebase (inicialização e helpers)
 // =============================
@@ -241,6 +269,22 @@ function carregarDados() {
             const cfg = localStorage.getItem('configAlertas');
             if (cfg) configAlertas = JSON.parse(cfg);
         } catch (e) { console.warn('Erro ao carregar configAlertas:', e); }
+        // Migrar produtos antigos para nova propriedade `estoqueConsolidado` quando necessário
+        try {
+            if (Array.isArray(estoque.produtos)) {
+                estoque.produtos.forEach(p => {
+                    if (typeof p.estoqueConsolidado === 'undefined' || p.estoqueConsolidado === null) {
+                        // fallback: somar todas as chaves de distribuição armazenadas
+                        try {
+                            const totalDisp = Object.keys(p.distribuicao || {}).reduce((s, k) => s + (Number(p.distribuicao[k]) || 0), 0);
+                            p.estoqueConsolidado = totalDisp;
+                        } catch (inner) { p.estoqueConsolidado = 0; }
+                    }
+                    // padronizar: manter distribuições por representantes; zerar/ignorar IMBEL armazenado (IMBEL será calculado dinamicamente a partir do consolidado)
+                    try { if (!p.distribuicao) p.distribuicao = {}; p.distribuicao.IMBEL = 0; } catch (e) {}
+                });
+            }
+        } catch (e) { console.warn('Migração estoqueConsolidado falhou:', e); }
         if (estoque.precificacao && typeof estoque.precificacao === 'object') {
             precificacao = estoque.precificacao;
         }
@@ -826,17 +870,18 @@ function renderizarTabela() {
         const tr = document.createElement('tr');
         tr.dataset.id = produto.id;
         let produtoHtml = produto.nome;
-
-        let geralDisp = 0;
+        // Disponibilidade consolidada e disponibilidade IMBEL calculada
+        const produtoConsolidado = Number(produto.estoqueConsolidado) || 0;
+        const imbelDisp = calcularImbelDisponivel(produto);
+        let geralDisp = produtoConsolidado; // Consolidado exibido vem do cadastro
         let geralVenda = 0;
         let allSaldoZero = true;
 
         estoque.representantes.forEach(rep => {
-            const disp = produto.distribuicao[rep] || 0;
+            const isImbel = (rep || '').toString().toUpperCase() === 'IMBEL';
+            const disp = isImbel ? imbelDisp : (produto.distribuicao[rep] || 0);
             const venda = produto.vendas[rep] || 0;
             const saldo = disp - venda;
-
-            geralDisp += disp;
             geralVenda += venda;
 
             totais[rep].disp += disp;
@@ -865,14 +910,14 @@ function renderizarTabela() {
 
         tr.innerHTML = `<td class="produto-nome col-produto" title="${produto.nome}">${produtoHtml}</td>` + tr.innerHTML;
 
-        const geralSaldo = geralDisp - geralVenda;
-        totais.GERAL.disp += geralDisp;
+        const geralSaldo = (produtoConsolidado) - geralVenda;
+        totais.GERAL.disp += produtoConsolidado;
         totais.GERAL.venda += geralVenda;
         totais.GERAL.saldo += geralSaldo;
         const saldoGeralClass = geralSaldo > 0 ? 'saldo-positivo' : 'saldo-zero';
 
         tr.innerHTML += `
-            <td class="geral-disp numeric-cell">${formatarNumero(geralDisp)}</td>
+            <td class="geral-disp numeric-cell">${formatarNumero(produtoConsolidado)}</td>
             <td class="geral-venda numeric-cell">${formatarNumero(geralVenda)}</td>
             <td class="geral-saldo numeric-cell ${saldoGeralClass}">${formatarNumero(geralSaldo)}</td>
         `;
@@ -4375,7 +4420,7 @@ function mostrarEstoqueAtual() {
     const produto = estoque.produtos.find(p => p.id === produtoId);
     
     if (produto) {
-        const estoqueIMBEL = (produto.distribuicao.IMBEL || 0) - (produto.vendas.IMBEL || 0);
+        const estoqueIMBEL = calcularImbelDisponivel(produto);
         document.getElementById('estoqueAtualIMBEL').value = `${estoqueIMBEL} unidades`;
     } else {
         document.getElementById('estoqueAtualIMBEL').value = '-';
@@ -4398,7 +4443,8 @@ function salvarEntradaEstoque(event) {
     }
     
     // Adicionar ao estoque da IMBEL
-    produto.distribuicao.IMBEL = (produto.distribuicao.IMBEL || 0) + quantidade;
+    // Agora adicionamos ao `estoqueConsolidado` (cadastro do total disponível)
+    produto.estoqueConsolidado = (Number(produto.estoqueConsolidado) || 0) + quantidade;
     
     salvarDados();
     renderizarTabela();
@@ -4634,8 +4680,9 @@ function validarEstoqueParaVenda(representante, itens) {
             erros.push({ produto: it.produtoNome || ('ID:' + (it.produtoId || '')), solicitado: it.quantidade || 0, disponivel: 0 });
             return;
         }
-        const disp = (produto.distribuicao && produto.distribuicao[representante]) ? produto.distribuicao[representante] : 0;
-        const vendido = (produto.vendas && produto.vendas[representante]) ? produto.vendas[representante] : 0;
+        const isImbelRep = (representante || '').toString().toUpperCase() === 'IMBEL';
+        const disp = isImbelRep ? calcularImbelDisponivel(produto) : ((produto.distribuicao && produto.distribuicao[representante]) ? produto.distribuicao[representante] : 0);
+        const vendido = isImbelRep ? 0 : ((produto.vendas && produto.vendas[representante]) ? produto.vendas[representante] : 0);
         const saldo = disp - vendido;
         if ((it.quantidade || 0) > saldo) {
             erros.push({ produto: produto.nome, solicitado: it.quantidade || 0, disponivel: saldo });
@@ -5407,7 +5454,7 @@ function salvarNovaDistribuicao(event) {
             insuficientes.push({ produtoId, nome: '(produto não encontrado)', disponivel: 0, solicitado: totalSolicitado });
             return;
         }
-        const disponivel = (produto.distribuicao.IMBEL || 0) - (produto.vendas.IMBEL || 0);
+        const disponivel = calcularImbelDisponivel(produto);
         if (totalSolicitado > disponivel) {
             insuficientes.push({ produtoId, nome: produto.nome, disponivel, solicitado: totalSolicitado });
         }
@@ -5426,8 +5473,7 @@ function salvarNovaDistribuicao(event) {
         const produto = estoque.produtos.find(p => p.id === item.produtoId);
         if (!produto) return;
 
-        // Atualizar estoques
-        produto.distribuicao.IMBEL = (produto.distribuicao.IMBEL || 0) - item.quantidade;
+        // Atualizar estoques: alocar para o representante (IMBEL é calculado dinamicamente)
         produto.distribuicao[representante] = (produto.distribuicao[representante] || 0) + item.quantidade;
 
         // Criar registro individual para cada item
@@ -5551,7 +5597,8 @@ function excluirDistribuicao(distId) {
     const produto = estoque.produtos.find(p => p.id === dist.produtoId);
     if (produto) {
         produto.distribuicao[dist.representante] = Math.max(0, (produto.distribuicao[dist.representante] || 0) - dist.quantidade);
-        produto.distribuicao.IMBEL = (produto.distribuicao.IMBEL || 0) + dist.quantidade;
+        // Em novo modelo, devolução retorna ao saldo consolidado
+        produto.estoqueConsolidado = (Number(produto.estoqueConsolidado) || 0) + dist.quantidade;
     }
     
     // Remover do registro
@@ -5580,8 +5627,14 @@ function excluirDevolucao(devId) {
     // Reverter a devolução: subtrair do destino e recolocar no representante de origem
     const produto = estoque.produtos.find(p => p.id === dev.produtoId);
     if (produto) {
-        produto.distribuicao[dev.destino] = Math.max(0, (produto.distribuicao[dev.destino] || 0) - dev.quantidade);
-        produto.distribuicao[dev.origem] = (produto.distribuicao[dev.origem] || 0) + dev.quantidade;
+        if ((dev.destino || '').toUpperCase() === 'IMBEL') {
+            // Se a devolução foi para o consolidado (IMBEL), reduzir o consolidado
+            produto.estoqueConsolidado = Math.max(0, (Number(produto.estoqueConsolidado) || 0) - dev.quantidade);
+            produto.distribuicao[dev.origem] = (produto.distribuicao[dev.origem] || 0) + dev.quantidade;
+        } else {
+            produto.distribuicao[dev.destino] = Math.max(0, (produto.distribuicao[dev.destino] || 0) - dev.quantidade);
+            produto.distribuicao[dev.origem] = (produto.distribuicao[dev.origem] || 0) + dev.quantidade;
+        }
     }
 
     // Remover registro de devolução
@@ -5713,8 +5766,8 @@ function importarDistribuicao(event) {
                     }
                 }
                 
-                // Verificar estoque disponível na IMBEL
-                const estoqueIMBEL = (produto.distribuicao.IMBEL || 0) - (produto.vendas.IMBEL || 0);
+                // Verificar estoque disponível na IMBEL usando o novo modelo
+                const estoqueIMBEL = calcularImbelDisponivel(produto);
                 if (quantidade > estoqueIMBEL) {
                     erros.push(`Linha ${i + 1}: estoque insuficiente na IMBEL para ${produto.nome} (disponível: ${estoqueIMBEL})`);
                     continue;
@@ -5731,8 +5784,7 @@ function importarDistribuicao(event) {
                     observacoes: observacoes
                 };
                 
-                // Retirar da IMBEL e adicionar ao representante
-                produto.distribuicao.IMBEL = (produto.distribuicao.IMBEL || 0) - quantidade;
+                // Alocar para o representante (IMBEL é derivado do consolidado)
                 produto.distribuicao[representante] = (produto.distribuicao[representante] || 0) + quantidade;
                 
                 // Adicionar ao registro
@@ -5785,7 +5837,8 @@ function salvarProduto(event) {
     const novoProduto = {
         id: Date.now(),
         nome: nome,
-        distribuicao: { KOLTE: 0, ISA: 0, LC: 0, ADES: 0, FL: 0, IMBEL: estoqueTotal },
+        estoqueConsolidado: Number(estoqueTotal) || 0,
+        distribuicao: { KOLTE: 0, ISA: 0, LC: 0, ADES: 0, FL: 0, IMBEL: 0 },
         vendas: { KOLTE: 0, ISA: 0, LC: 0, ADES: 0, FL: 0, IMBEL: 0 }
     };
     
@@ -5815,14 +5868,13 @@ function salvarDistribuicao(event) {
         return;
     }
     
-    const saldoIMBEL = produto.distribuicao.IMBEL - produto.vendas.IMBEL;
-    
+    const saldoIMBEL = calcularImbelDisponivel(produto);
     if (quantidade > saldoIMBEL) {
         mostrarNotificacao(`Estoque insuficiente na IMBEL! Saldo disponível: ${saldoIMBEL} unidades`, 'error');
         return;
     }
-    
-    produto.distribuicao.IMBEL -= quantidade;
+
+    // Não alteramos `distribuicao.IMBEL` diretamente — IMBEL é calculado a partir do consolidado.
     produto.distribuicao[representante] = (produto.distribuicao[representante] || 0) + quantidade;
     
     salvarDados();
@@ -5941,8 +5993,12 @@ function salvarDevolucao(event) {
         produto.distribuicao[representante] = (produto.distribuicao[representante] || 0) - item.quantidade;
         if (produto.distribuicao[representante] < 0) produto.distribuicao[representante] = 0;
 
-        // Garantir chave de destino
-        produto.distribuicao[destino] = (produto.distribuicao[destino] || 0) + item.quantidade;
+        // Garantir chave de destino: se destino for IMBEL, incrementar o consolidado
+        if ((destino || '').toString().toUpperCase() === 'IMBEL') {
+            produto.estoqueConsolidado = (Number(produto.estoqueConsolidado) || 0) + item.quantidade;
+        } else {
+            produto.distribuicao[destino] = (produto.distribuicao[destino] || 0) + item.quantidade;
+        }
 
         // Registrar devolução
         try {
@@ -6128,17 +6184,8 @@ function exportarEstoqueCompleto() {
     
     // Dados
     estoque.produtos.forEach(produto => {
-        // Calcular quantidade total em estoque (saldo de todos os representantes + IMBEL)
-        let totalEstoque = 0;
-        estoque.representantes.forEach(rep => {
-            const disp = produto.distribuicao[rep] || 0;
-            const venda = produto.vendas[rep] || 0;
-            if (rep === 'IMBEL') {
-                totalEstoque += disp; // IMBEL é estoque direto
-            } else {
-                totalEstoque += (disp - venda); // Saldo = Disp - Venda
-            }
-        });
+        // Quantidade total em estoque baseada no saldo consolidado cadastrado
+        const totalEstoque = Number(produto.estoqueConsolidado) || 0;
         
         csv += `${produto.nome}${sep}${totalEstoque}\n`;
     });
@@ -6303,7 +6350,8 @@ function importarEstoque(event) {
                 const qtdCol = (colunas.length >= 3) ? colunas[2] : colunas[1];
                 if (qtdCol !== undefined) {
                     const quantidade = parseInt(qtdCol) || 0;
-                    produto.distribuicao.IMBEL = quantidade;
+                    // Atualizar o saldo consolidado (campo de cadastro)
+                    produto.estoqueConsolidado = quantidade;
                 }
                 
                 produtosAtualizados++;
