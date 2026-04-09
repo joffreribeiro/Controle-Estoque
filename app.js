@@ -8643,12 +8643,16 @@ function calcularPreco(nomeProduto, estado = null, tipoPessoa = null) {
     const aliq = tabelaAliquotas[nomeProduto] || {};
 
     const ci = parseFloat(prec.ci) || 0;
-    const taxa = parseFloat(prec.taxa)
-        || parseFloat(document.getElementById('taxaPadrao')?.value)
-        || 1;
-    const roi = parseFloat(prec.roi)
-        || parseFloat(document.getElementById('roiPadrao')?.value)
-        || 1;
+    // `taxa` and `roi` are provided as percentages (e.g. 1 = 1%).
+    // Read stored value or fallback to defaults, then convert to multipliers below.
+    let taxaPct = (prec.taxa !== null && prec.taxa !== undefined && prec.taxa !== '')
+        ? parseFloat(prec.taxa)
+        : parseFloat(document.getElementById('taxaPadrao')?.value);
+    if (!Number.isFinite(taxaPct)) taxaPct = 1;
+    let roiPct = (prec.roi !== null && prec.roi !== undefined && prec.roi !== '')
+        ? parseFloat(prec.roi)
+        : parseFloat(document.getElementById('roiPadrao')?.value);
+    if (!Number.isFinite(roiPct)) roiPct = 1;
     const comissao = parseFloat(prec.comissao)
         || parseFloat(document.getElementById('comissaoPadrao')?.value)
         || 5;
@@ -8667,7 +8671,10 @@ function calcularPreco(nomeProduto, estado = null, tipoPessoa = null) {
     if (ci === 0) return null;
 
     // Step 1
-    const valorBase = ci * taxa * roi;
+    // Convert percent values to multiplicative factors and apply sequentially
+    const taxaFactor = 1 + (Number(taxaPct) / 100);
+    const roiFactor = 1 + (Number(roiPct) / 100);
+    const valorBase = ci * taxaFactor * roiFactor;
 
     // Step 2
     const icmsR = valorBase * icms / 100;
@@ -8686,7 +8693,7 @@ function calcularPreco(nomeProduto, estado = null, tipoPessoa = null) {
         : valorTotal + comissaoR;
 
     return {
-        ci, taxa, roi,
+        ci, taxa: taxaPct, roi: roiPct,
         valorBase,
         icms, icmsR,
         pis, pisR,
