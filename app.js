@@ -1102,6 +1102,151 @@ function imprimirInventario() {
     win.document.close();
 }
 
+function gerarPdfProposta(propostaId) {
+    try {
+        const proposta = (propostas || []).find(p => String(p.id) === String(propostaId));
+        if (!proposta) { mostrarNotificacao('Proposta não encontrada.', 'error'); return; }
+
+        if (!window.jspdf || !window.jspdf.jsPDF) {
+            mostrarNotificacao('jsPDF não está disponível.', 'error');
+            return;
+        }
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+
+        // HEADER
+        doc.setFillColor(30, 58, 95);
+        doc.rect(0, 0, 210, 35, 'F');
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(16);
+        doc.setTextColor(255, 255, 255);
+        doc.text('FÁBRICA DE ITAJUBÁ', 15, 15);
+        doc.setFontSize(9);
+        doc.setFont('helvetica', 'normal');
+        doc.text('Controle de Estoque — Material Bélico', 15, 22);
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(14);
+        doc.setTextColor(201, 162, 39);
+        doc.text('PROPOSTA ' + (proposta.numero || ''), 195, 15, { align: 'right' });
+        doc.setFontSize(9);
+        doc.setTextColor(200, 200, 200);
+        doc.text('Data: ' + (proposta.data ? new Date(proposta.data).toLocaleDateString('pt-BR') : ''), 195, 22, { align: 'right' });
+        doc.text('Validade: ' + (proposta.dataExpiracao ? new Date(proposta.dataExpiracao).toLocaleDateString('pt-BR') : ''), 195, 28, { align: 'right' });
+
+        // CLIENT INFO
+        let y = 45;
+        doc.setFillColor(248, 250, 252);
+        doc.rect(10, y - 5, 190, 28, 'F');
+        doc.setDrawColor(226, 232, 240);
+        doc.rect(10, y - 5, 190, 28, 'S');
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(8);
+        doc.setTextColor(100, 116, 139);
+        doc.text('CLIENTE', 15, y);
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(12);
+        doc.setTextColor(30, 41, 59);
+        doc.text(proposta.cliente || '-', 15, y + 7);
+
+        const clienteObj = (clientes || []).find(c => (c.nome || '').toLowerCase() === (proposta.cliente || '').toLowerCase());
+        if (clienteObj) {
+            doc.setFont('helvetica', 'normal');
+            doc.setFontSize(9);
+            doc.setTextColor(71, 85, 105);
+            if (clienteObj.cnpj) doc.text('CNPJ: ' + clienteObj.cnpj, 15, y + 13);
+            if (clienteObj.contato) doc.text('Contato: ' + clienteObj.contato, 100, y + 13);
+            if (clienteObj.telefone) doc.text('Tel: ' + clienteObj.telefone, 15, y + 19);
+            if (clienteObj.email) doc.text('E-mail: ' + clienteObj.email, 100, y + 19);
+        }
+
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(8);
+        doc.setTextColor(100, 116, 139);
+        doc.text('REPRESENTANTE', 160, y);
+        doc.setFontSize(10);
+        doc.setTextColor(30, 41, 59);
+        doc.text(proposta.representante || '-', 160, y + 7);
+
+        // ITENS
+        y += 35;
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(10);
+        doc.setTextColor(30, 58, 95);
+        doc.text('ITENS DA PROPOSTA', 15, y);
+        y += 5;
+
+        const tableData = (proposta.itens || []).map((item, idx) => {
+            const nome = item.produtoNome || item.produto || '';
+            const quantidade = Number(item.quantidade || 0);
+            const valorUnit = Number(item.valorUnitario || item.valor || item.valorUnit || 0);
+            const total = quantidade * valorUnit;
+            return [
+                idx + 1,
+                nome,
+                quantidade,
+                'R$ ' + valorUnit.toLocaleString('pt-BR', { minimumFractionDigits: 2 }),
+                'R$ ' + total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })
+            ];
+        });
+
+        doc.autoTable({
+            startY: y,
+            head: [['#', 'Produto', 'Qtd', 'Valor Unit.', 'Total']],
+            body: tableData,
+            styles: { fontSize: 9, cellPadding: 4 },
+            headStyles: { fillColor: [30, 58, 95], textColor: [255, 255, 255], fontStyle: 'bold' },
+            columnStyles: { 0: { cellWidth: 12, halign: 'center' }, 1: { cellWidth: 90 }, 2: { cellWidth: 20, halign: 'center' }, 3: { cellWidth: 35, halign: 'right' }, 4: { cellWidth: 35, halign: 'right' } },
+            alternateRowStyles: { fillColor: [248, 250, 252] },
+            margin: { left: 10, right: 10 }
+        });
+
+        const finalY = (doc.lastAutoTable && doc.lastAutoTable.finalY) ? doc.lastAutoTable.finalY + 8 : y + 60;
+        doc.setFillColor(30, 58, 95);
+        doc.rect(130, finalY, 70, 14, 'F');
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(9);
+        doc.setTextColor(201, 162, 39);
+        doc.text('VALOR TOTAL', 135, finalY + 5);
+        doc.setFontSize(12);
+        doc.setTextColor(255, 255, 255);
+        doc.text('R$ ' + Number(proposta.valorTotal || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 }), 195, finalY + 10, { align: 'right' });
+
+        // OBS
+        if (proposta.observacoes) {
+            const obsY = finalY + 22;
+            doc.setFillColor(255, 251, 240);
+            doc.setDrawColor(201, 162, 39);
+            doc.rect(10, obsY - 4, 190, 20, 'FD');
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(8);
+            doc.setTextColor(100, 116, 139);
+            doc.text('CONDIÇÕES COMERCIAIS', 15, obsY + 1);
+            doc.setFont('helvetica', 'normal');
+            doc.setFontSize(9);
+            doc.setTextColor(30, 41, 59);
+            const lines = doc.splitTextToSize(proposta.observacoes, 180);
+            doc.text(lines, 15, obsY + 7);
+        }
+
+        // FOOTER
+        const pageHeight = doc.internal.pageSize.height;
+        doc.setFillColor(30, 58, 95);
+        doc.rect(0, pageHeight - 15, 210, 15, 'F');
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(8);
+        doc.setTextColor(200, 200, 200);
+        doc.text('Fábrica de Itajubá — Gestão de Material Bélico', 15, pageHeight - 6);
+        doc.text('Proposta válida até ' + (proposta.dataExpiracao ? new Date(proposta.dataExpiracao).toLocaleDateString('pt-BR') : ''), 195, pageHeight - 6, { align: 'right' });
+
+        const safeName = (proposta.cliente || 'cliente').replace(/[^a-z0-9]/gi, '_');
+        doc.save('Proposta_' + (proposta.numero || '') + '_' + safeName + '.pdf');
+
+    } catch (err) {
+        console.error('Erro gerarPdfProposta:', err);
+        mostrarNotificacao('Erro ao gerar PDF da proposta.', 'error');
+    }
+}
+
 // Imprimir exatamente o preview atual em `#relatoriosPreview`
 function imprimirRelatorioPreview() {
     const preview = document.getElementById('relatoriosPreview');
@@ -7622,6 +7767,7 @@ function renderizarPropostas(filtro, statusFiltro) {
             <td><span style="background:${statusConf.bg}; color:#fff; padding:2px 10px; border-radius:12px; font-size:0.8rem;">${statusConf.label}</span></td>
             <td style="font-weight:600">${contratoDisplay}</td>
             <td>
+                <button class="btn btn-outline btn-sm" title="Gerar PDF" onclick="gerarPdfProposta('${p.id}')">📄 PDF</button>
                 <button class="btn btn-outline btn-sm" data-admin="true" onclick="abrirModalProposta('${p.id}')" title="Editar">✏️</button>
                 ${podeConverter ? `<button class="btn btn-success btn-sm" data-admin="true" onclick="converterPropostaEmVenda('${p.id}')" title="Converter em Venda" style="font-size:0.78rem;">🔄</button>` : ''}
                 <button class="btn btn-outline btn-sm" data-admin="true" onclick="excluirProposta('${p.id}')" title="Excluir" style="color:#ef4444">🗑️</button>
