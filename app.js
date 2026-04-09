@@ -8355,6 +8355,13 @@ function salvarCliente(event) {
     estoque.clientes = clientes;
     salvarDados();
     salvarNoCloud().catch(e => console.error('Auto-save clientes falhou:', e));
+    // Se a sub-aba de precificação por cliente estiver aberta, atualizar o dropdown
+    try {
+        const sub = document.getElementById('subaba-precif-porcliente');
+        if (sub && sub.style.display === 'block') {
+            popularSelectClientesPrecif();
+        }
+    } catch (e) {}
 }
 
 function excluirCliente(id) {
@@ -8900,17 +8907,248 @@ function resetarPrecoManual(nomeProduto) {
 
 // ── SUB-TAB NAVIGATION FOR PRECIFICAÇÃO ─────────────────────────
 function trocarSubabaPrecif(subaba) {
-    ['produtos','federais','icms'].forEach(s => {
-        const el = document.getElementById('subaba-precif-' + s);
-        if (el) el.style.display = (s === subaba) ? 'block' : 'none';
-        const btn = document.getElementById('sbtn-' + s);
-        if (btn) {
-            btn.style.color = (s === subaba) ? '#1e3a5f' : '#64748b';
-            btn.style.borderBottomColor = (s === subaba) ? '#1e3a5f' : 'transparent';
+        ['produtos','federais','icms','porcliente'].forEach(s => {
+                const el = document.getElementById('subaba-precif-' + s);
+                if (el) el.style.display = (s === subaba) ? 'block' : 'none';
+                const btn = document.getElementById('sbtn-' + s);
+                if (btn) {
+                        btn.style.color = (s === subaba) ? '#1e3a5f' : '#64748b';
+                        btn.style.borderBottomColor = (s === subaba) ? '#1e3a5f' : 'transparent';
+                }
+        });
+        if (subaba === 'federais') renderizarImpostosFederais();
+        if (subaba === 'icms') renderizarICMSPorEstado();
+        if (subaba === 'porcliente') {
+                // preparar dropdown e estado inicial da sub-aba
+                try {
+                        popularSelectClientesPrecif();
+                } catch (e) {}
+                const res = document.getElementById('precifClienteResultado');
+                const empty = document.getElementById('precifClienteEmpty');
+                const banner = document.getElementById('precifClienteBanner');
+                if (res) res.style.display = 'none';
+                if (empty) empty.style.display = 'block';
+                if (banner) banner.style.display = 'none';
         }
-    });
-    if (subaba === 'federais') renderizarImpostosFederais();
-    if (subaba === 'icms') renderizarICMSPorEstado();
+}
+
+// ── Precificação por Cliente: utilitários e calculadora (em tempo real, não persiste dados) ──
+function popularSelectClientesPrecif() {
+        const select = document.getElementById('precifClienteSelect');
+        if (!select) return;
+        const list = (clientes || []).slice().sort((a,b) => (a.nome||'').localeCompare(b.nome||''));
+        select.innerHTML = '<option value="">Selecione um cliente...</option>' + list.map(c => {
+                const tipo = c.tipoPessoa || (((c.cnpj||'').replace(/\D/g,'')).length === 14 ? 'PJ' : 'PF');
+                return `<option value="${c.id}">${_escapeHtml(c.nome||'-')} — ${_escapeHtml(c.uf||'??')} (${tipo})</option>`;
+        }).join('');
+
+        // Atualizar labels de padrão
+        const taxaPad = document.getElementById('taxaPadrao')?.value || '—';
+        const roiPad  = document.getElementById('roiPadrao')?.value  || '—';
+        const comPad  = document.getElementById('comissaoPadrao')?.value || '—';
+        const elTaxa = document.getElementById('precifTaxaPadraoLabel'); if (elTaxa) elTaxa.textContent = taxaPad;
+        const elROI  = document.getElementById('precifROIPadraoLabel'); if (elROI) elROI.textContent = roiPad;
+        const elCom  = document.getElementById('precifComissaoPadraoLabel'); if (elCom) elCom.textContent = comPad;
+}
+
+function selecionarClientePrecif() {
+        const select = document.getElementById('precifClienteSelect');
+        if (!select) return;
+        const clienteId = select.value;
+        const cliente = (clientes || []).find(c => String(c.id) === String(clienteId));
+        if (!cliente) {
+                const banner = document.getElementById('precifClienteBanner'); if (banner) banner.style.display = 'none';
+                const resultado = document.getElementById('precifClienteResultado'); if (resultado) resultado.style.display = 'none';
+                const empty = document.getElementById('precifClienteEmpty'); if (empty) empty.style.display = 'block';
+                return;
+        }
+
+        const uf = (cliente.uf || cliente.estado || '').toUpperCase().trim();
+        const cnpjLimpo = (cliente.cnpj || '').replace(/\D/g,'');
+        const tipoPessoa = cliente.tipoPessoa || (cnpjLimpo.length === 14 ? 'PJ' : 'PF');
+
+        const ufEl = document.getElementById('precifClienteUF'); if (ufEl) ufEl.value = uf || '—';
+        const tipoEl = document.getElementById('precifClienteTipo'); if (tipoEl) tipoEl.value = tipoPessoa;
+
+        const banner = document.getElementById('precifClienteBanner');
+        if (banner) banner.style.display = 'flex';
+        const name = document.getElementById('precifBannerNome'); if (name) name.textContent = cliente.nome || '—';
+        const doc = document.getElementById('precifBannerDoc'); if (doc) doc.textContent = cliente.cnpj || cliente.cpf || '—';
+        const ufB = document.getElementById('precifBannerUF'); if (ufB) ufB.textContent = uf || '—';
+        const tipoB = document.getElementById('precifBannerTipo'); if (tipoB) tipoB.textContent = tipoPessoa;
+        const contato = document.getElementById('precifBannerContato'); if (contato) contato.textContent = cliente.contato || cliente.email || '—';
+
+        calcularPrecificacaoPorCliente();
+}
+
+function calcularPrecificacaoPorCliente() {
+        const select = document.getElementById('precifClienteSelect');
+        const clienteId = select?.value;
+        const cliente = (clientes || []).find(c => String(c.id) === String(clienteId));
+        if (!cliente) {
+                const resultado = document.getElementById('precifClienteResultado'); if (resultado) resultado.style.display = 'none';
+                const empty = document.getElementById('precifClienteEmpty'); if (empty) empty.style.display = 'block';
+                const banner = document.getElementById('precifClienteBanner'); if (banner) banner.style.display = 'none';
+                return;
+        }
+
+        const uf = (cliente.uf || cliente.estado || '').toUpperCase().trim();
+        const cnpjLimpo = (cliente.cnpj || '').replace(/\D/g,'');
+        const tipoPessoa = cliente.tipoPessoa || (cnpjLimpo.length === 14 ? 'PJ' : 'PF');
+
+        document.getElementById('precifClienteUF').value = uf || '—';
+        document.getElementById('precifClienteTipo').value = tipoPessoa;
+
+        const taxaOverride = parseFloat(document.getElementById('precifTaxaOverride')?.value);
+        const roiOverride = parseFloat(document.getElementById('precifROIOverride')?.value);
+        const comOverride = parseFloat(document.getElementById('precifComissaoOverride')?.value);
+
+        const taxaGlobal = parseFloat(document.getElementById('taxaPadrao')?.value) || 20;
+        const roiGlobal = parseFloat(document.getElementById('roiPadrao')?.value) || 30;
+        const comGlobal = parseFloat(document.getElementById('comissaoPadrao')?.value) || 5;
+
+        const taxaFinal = !isNaN(taxaOverride) ? taxaOverride : taxaGlobal;
+        const roiFinal  = !isNaN(roiOverride)  ? roiOverride  : roiGlobal;
+        const comFinal  = !isNaN(comOverride)  ? comOverride  : comGlobal;
+
+        const produtos = estoque.produtos || [];
+        const fmt = v => 'R$ ' + _fmtMoeda(v);
+        const pct = v => (Number.isFinite(Number(v)) ? Number(v).toFixed(2) : '0.00') + '%';
+        const corMargem = m => m >= 30 ? '#16a34a' : m >= 15 ? '#d97706' : '#dc2626';
+
+        let totalFaturamento = 0;
+        let produtosSemCI = 0;
+        let produtosCalculados = 0;
+
+        const rows = produtos.map(produto => {
+                const prec = precificacao[produto.nome] || {};
+                const aliq = tabelaAliquotas[produto.nome] || {};
+                const ncm = produto.ncm || detectarNCM(produto.nome) || '—';
+
+                const ci = parseFloat(prec.ci) || 0;
+                if (ci === 0) {
+                        produtosSemCI++;
+                        return `
+                <tr style="opacity:0.45">
+                    <td style="text-align:left; padding-left:15px; font-weight:500; position:sticky; left:0; background:#fff; z-index:1">${_escapeHtml(produto.nome)}<span style="font-size:0.7rem; color:#94a3b8; margin-left:6px">sem CI</span></td>
+                    <td colspan="13" style="text-align:center; color:#94a3b8; font-size:0.85rem">CI não configurado — acesse a aba Produtos para definir</td>
+                </tr>
+            `;
+                }
+
+                const fedImpostos = impostosEditaveis[ncm] || {};
+                const pis = parseFloat(aliq.pis ?? fedImpostos.pis ?? document.getElementById('pisPadrao')?.value) || 1.65;
+                const cofins = parseFloat(aliq.cofins ?? fedImpostos.cofins ?? document.getElementById('cofinsPadrao')?.value) || 7.6;
+                const ipi = parseFloat(aliq.ipi ?? fedImpostos.ipi ?? 0) || 0;
+
+                const icms = uf ? buscarAliquotaICMS(uf, tipoPessoa, produto.nome) : (parseFloat(aliq.icmsBase) || 0);
+
+                const taxaProd = (prec.taxa !== null && prec.taxa !== undefined && prec.taxa !== '') ? parseFloat(prec.taxa) : taxaFinal;
+                const roiProd = (prec.roi !== null && prec.roi !== undefined && prec.roi !== '') ? parseFloat(prec.roi) : roiFinal;
+                const comissaoProd = (prec.comissao !== null && prec.comissao !== undefined && prec.comissao !== '') ? parseFloat(prec.comissao) : comFinal;
+
+                const valorBase = ci * (1 + taxaProd/100) * (1 + roiProd/100);
+                const icmsR = valorBase * icms / 100;
+                const pisR = valorBase * pis / 100;
+                const cofinsR = valorBase * cofins / 100;
+                const valorImpostos = valorBase + icmsR + pisR + cofinsR;
+                const ipiR = valorImpostos * ipi / 100;
+                const valorTotal = valorImpostos + ipiR;
+                const comissaoR = valorBase * comissaoProd / 100;
+                const precoFinal = valorTotal + comissaoR;
+
+                const margem = precoFinal > 0 ? ((precoFinal - ci) / precoFinal) * 100 : 0;
+
+                totalFaturamento += precoFinal;
+                produtosCalculados++;
+
+                const icmsBg = tipoPessoa === 'PF' ? '#fef2f2' : '#f0fdf4';
+                const icmsColor = tipoPessoa === 'PF' ? '#dc2626' : '#16a34a';
+
+                return `
+            <tr>
+                <td style="text-align:left; padding-left:15px; font-weight:500; position:sticky; left:0; background:#fff; z-index:1; border-right:1px solid #e2e8f0">${_escapeHtml(produto.nome)}</td>
+                <td style="font-family:monospace; font-size:0.75rem; color:#64748b; text-align:center">${_escapeHtml(ncm)}</td>
+                <td style="font-weight:600; color:#1e3a5f">${fmt(ci)}</td>
+                <td style="text-align:center; color:#475569">${pct(taxaProd)}</td>
+                <td style="text-align:center; color:#475569">${pct(roiProd)}</td>
+                <td style="font-weight:600; color:#1e3a5f">${fmt(valorBase)}</td>
+                <td style="text-align:center; color:#dc2626; font-size:0.85rem">${pct(pis)}</td>
+                <td style="text-align:center; color:#dc2626; font-size:0.85rem">${pct(cofins)}</td>
+                <td style="text-align:center; font-weight:700; background:${icmsBg}; color:${icmsColor}">${pct(icms)}<div style="font-size:0.65rem; font-weight:400; color:#94a3b8">${uf} / ${tipoPessoa}</div></td>
+                <td style="text-align:center; color:#dc2626; font-size:0.85rem">${pct(ipi)}</td>
+                <td style="font-weight:600; color:#475569">${fmt(valorImpostos)}</td>
+                <td style="text-align:center; color:#d97706; font-size:0.85rem">${fmt(comissaoR)}</td>
+                <td style="font-weight:800; color:#c9a227; background:#fffbf0; font-size:1rem">${fmt(precoFinal)}</td>
+                <td style="font-weight:700; color:${corMargem(margem)}">${margem.toFixed(1)}%</td>
+            </tr>
+        `;
+        });
+
+        document.getElementById('tabelaPrecifClienteBody').innerHTML = rows.join('');
+
+        document.getElementById('precifClienteSummary').innerHTML = `
+        <div>
+            <div style="font-size:0.75rem; color:#64748b; text-transform:uppercase; letter-spacing:0.5px">Produtos calculados</div>
+            <div style="font-size:1.2rem; font-weight:700; color:#1e3a5f">${produtosCalculados}</div>
+        </div>
+        <div>
+            <div style="font-size:0.75rem; color:#64748b; text-transform:uppercase; letter-spacing:0.5px">Sem CI definido</div>
+            <div style="font-size:1.2rem; font-weight:700; color:#94a3b8">${produtosSemCI}</div>
+        </div>
+        <div>
+            <div style="font-size:0.75rem; color:#64748b; text-transform:uppercase; letter-spacing:0.5px">ICMS aplicado</div>
+            <div style="font-size:1rem; font-weight:700; color:${tipoPessoa==='PF'?'#dc2626':'#16a34a'}">${uf} / ${tipoPessoa}</div>
+        </div>
+        <div style="margin-left:auto; text-align:right">
+            <div style="font-size:0.75rem; color:#64748b; text-transform:uppercase; letter-spacing:0.5px">Total da tabela</div>
+            <div style="font-size:1.3rem; font-weight:800; color:#16a34a">${fmt(totalFaturamento)}</div>
+        </div>
+    `;
+
+        document.getElementById('precifClienteResultado').style.display = 'block';
+        document.getElementById('precifClienteEmpty').style.display = 'none';
+}
+
+function exportarPrecifCliente() {
+        const select = document.getElementById('precifClienteSelect');
+        const clienteId = select?.value;
+        const cliente = (clientes || []).find(c => String(c.id) === String(clienteId));
+        if (!cliente) { alert('Selecione um cliente antes de exportar.'); return; }
+
+        const rows = [];
+        const cabecalho = ['Produto','NCM','CI (R$)','Taxa %','ROI %','Valor Base','PIS %','COFINS %','ICMS % (UF/Tipo)','IPI %','c/ Impostos','Comissão R$','Preço Final','Margem%'];
+        rows.push([`Cliente: ${cliente.nome}`, `UF: ${cliente.uf || cliente.estado || '—'}`, `Tipo: ${cliente.tipoPessoa || (((cliente.cnpj||'').replace(/\D/g,'')).length===14?'PJ':'PF')}`]);
+        rows.push([]);
+        rows.push(cabecalho);
+
+        // Ler linhas da tabela DOM (para preservar a ordem e valores formatados)
+        const trs = Array.from(document.querySelectorAll('#tabelaPrecifClienteBody tr'));
+        trs.forEach(tr => {
+                const cols = Array.from(tr.querySelectorAll('td'));
+                if (!cols || cols.length < 6) return; // linha de aviso
+                const produto = cols[0]?.textContent?.trim() || '';
+                const ncm = cols[1]?.textContent?.trim() || '';
+                const ci = cols[2]?.textContent?.trim() || '';
+                const taxa = cols[3]?.textContent?.trim() || '';
+                const roi = cols[4]?.textContent?.trim() || '';
+                const vbase = cols[5]?.textContent?.trim() || '';
+                const pis = cols[6]?.textContent?.trim() || '';
+                const cof = cols[7]?.textContent?.trim() || '';
+                const icms = cols[8]?.textContent?.trim() || '';
+                const ipi = cols[9]?.textContent?.trim() || '';
+                const vimp = cols[10]?.textContent?.trim() || '';
+                const vcom = cols[11]?.textContent?.trim() || '';
+                const vfinal = cols[12]?.textContent?.trim() || '';
+                const margem = cols[13]?.textContent?.trim() || '';
+                rows.push([produto,ncm,ci,taxa,roi,vbase,pis,cof,icms,ipi,vimp,vcom,vfinal,margem]);
+        });
+
+        const ws = XLSX.utils.aoa_to_sheet(rows);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, 'Preços Cliente');
+        const nomeArquivo = `precos_${(cliente.nome||'cliente').replace(/[^a-z0-9\-]/gi,'_')}_${(cliente.uf||'XX')}_${(cliente.tipoPessoa||'PF')}_${new Date().toISOString().slice(0,10)}.xlsx`;
+        XLSX.writeFile(wb, nomeArquivo);
 }
 
 // ── FEDERAL TAXES EDITING (mutable, persisted) ──────────────────
