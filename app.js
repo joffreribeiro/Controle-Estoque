@@ -10,6 +10,7 @@ let estoque = {
     registroVendas: [],
     registroDistribuicao: [],
     registroDevolucoes: [],
+    registroEntradas: [],
     controleEnvio: {},
     auditoriaVendas: [],
     fechamentosComissoes: [],
@@ -24,12 +25,42 @@ let configAlertas = { limite: 5, ativo: true };
 
 // Helper: cálculo de estoque/vendas/distribuições
 function obterTotalVendasProduto(produto) {
-    if (!produto || !produto.vendas) return 0;
+    if (!produto) return 0;
+    // Preferir registros detalhados quando existirem (fonte de verdade)
+    if (Array.isArray(estoque.registroVendas) && estoque.registroVendas.length > 0) {
+        return estoque.registroVendas.reduce((sum, v) => {
+            if (Array.isArray(v.items) && v.items.length) {
+                return sum + v.items.reduce((s, it) => {
+                    if (Number(it.produtoId) === Number(produto.id) || (it.produto === produto.nome) || (it.produtoNome === produto.nome)) return s + (Number(it.quantidade) || 0);
+                    return s;
+                }, 0);
+            }
+            if (Number(v.produtoId) === Number(produto.id) || v.produtoNome === produto.nome) return sum + (Number(v.quantidade) || 0);
+            return sum;
+        }, 0);
+    }
+    // Fallback para agregado em produto.vendas quando não há registros
+    if (!produto.vendas) return 0;
     return Object.keys(produto.vendas).reduce((s, k) => s + (Number(produto.vendas[k]) || 0), 0);
 }
 
 function obterDistribuicaoTotalExcluindoImbel(produto) {
-    if (!produto || !produto.distribuicao) return 0;
+    if (!produto) return 0;
+    // Preferir registroDistribuicao como fonte de verdade quando disponível
+    if (Array.isArray(estoque.registroDistribuicao) && estoque.registroDistribuicao.length > 0) {
+        return estoque.registroDistribuicao.reduce((s, d) => {
+            try {
+                if (Number(d.produtoId) === Number(produto.id) || (d.produtoNome && d.produtoNome === produto.nome)) {
+                    const rep = (d.representante || '').toString().toUpperCase();
+                    if (rep === 'IMBEL') return s;
+                    return s + (Number(d.quantidade) || 0);
+                }
+            } catch (e) {}
+            return s;
+        }, 0);
+    }
+    // Fallback para o objeto produto.distribuicao (legado)
+    if (!produto.distribuicao) return 0;
     return Object.keys(produto.distribuicao).reduce((s, k) => {
         if ((k || '').toUpperCase() === 'IMBEL') return s;
         return s + (Number(produto.distribuicao[k]) || 0);
@@ -49,6 +80,83 @@ function calcularImbelDisponivel(produto) {
     const distribExcl = obterDistribuicaoTotalExcluindoImbel(produto);
     return saldoConsol - distribExcl;
 }
+
+// Reconstrói o objeto `produto.distribuicao` a partir dos registros de distribuição e devolução
+function reconstruirDistribuicaoAPartirDeRegistros() {
+    if (!Array.isArray(estoque.produtos)) return;
+    // Inicializar chaves
+    estoque.produtos.forEach(p => {
+        try {
+            if (!p.distribuicao) p.distribuicao = {};
+            (estoque.representantes || []).forEach(r => { p.distribuicao[r] = 0; });
+            // manter IMBEL sempre 0 (é derivado)
+            p.distribuicao.IMBEL = 0;
+        } catch (e) {}
+    });
+
+    // Somar todas as distribuições
+    (estoque.registroDistribuicao || []).forEach(d => {
+        try {
+            const prod = estoque.produtos.find(p => Number(p.id) === Number(d.produtoId) || (d.produtoNome && p.nome === d.produtoNome));
+            if (!prod) return;
+            const rep = (d.representante || '').toString().toUpperCase();
+            if (!rep) return;
+            prod.distribuicao[rep] = (prod.distribuicao[rep] || 0) + (Number(d.quantidade) || 0);
+        } catch (e) {}
+    });
+
+    // Aplicar devoluções: subtrair do origem, somar para destino quando não for IMBEL
+    (estoque.registroDevolucoes || []).forEach(dev => {
+        try {
+            const prod = estoque.produtos.find(p => Number(p.id) === Number(dev.produtoId) || (dev.produtoNome && p.nome === dev.produtoNome));
+            if (!prod) return;
+            const origem = (dev.origem || '').toString().toUpperCase();
+            const destino = (dev.destino || '').toString().toUpperCase();
+            prod.distribuicao[origem] = Math.max(0, (prod.distribuicao[origem] || 0) - (Number(dev.quantidade) || 0));
+            if (destino && destino !== 'IMBEL') {
+                prod.distribuicao[destino] = (prod.distribuicao[destino] || 0) + (Number(dev.quantidade) || 0);
+            }
+        } catch (e) {}
+    });
+}
+
+// Função de diagnóstico disponível no console para inspecionar um produto rapidamente
+function diagnosticarProduto(produtoId) {
+    try {
+        const p = estoque.produtos.find(x => Number(x.id) === Number(produtoId) || String(x.id) === String(produtoId));
+        if (!p) { console.warn('Produto não encontrado:', produtoId); return null; }
+        const estoqueConsolidado = Number(p.estoqueConsolidado) || 0;
+        const totalDistribuido = (estoque.registroDistribuicao || []).reduce((s, d) => {
+            try {
+                if (Number(d.produtoId) === Number(p.id) || (d.produtoNome && d.produtoNome === p.nome)) return s + (Number(d.quantidade) || 0);
+            } catch (e) {}
+            return s;
+        }, 0);
+        const totalDevolvidoParaImbel = (estoque.registroDevolucoes || []).reduce((s, d) => {
+            try {
+                if ((Number(d.produtoId) === Number(p.id) || (d.produtoNome && d.produtoNome === p.nome)) && ((d.destino || '').toString().toUpperCase() === 'IMBEL')) return s + (Number(d.quantidade) || 0);
+            } catch (e) {}
+            return s;
+        }, 0);
+        const totalVendas = obterTotalVendasProduto(p);
+        const imbelDisponivel = estoqueConsolidado - totalDistribuido + totalDevolvidoParaImbel;
+        const distribuicaoPorRep = {};
+        (estoque.representantes || []).forEach(r => { distribuicaoPorRep[r] = p.distribuicao ? (p.distribuicao[r] || 0) : 0; });
+        const result = { produtoId: p.id, nome: p.nome, estoqueConsolidado, totalDistribuido, totalDevolvidoParaImbel, totalVendas, imbelDisponivel, distribuicaoPorRep };
+        console.log('Diagnóstico do produto:', result);
+        return result;
+    } catch (e) { console.error('Erro no diagnóstico:', e); return null; }
+}
+window.diagnosticarProduto = diagnosticarProduto;
+
+// Atalho por nome (útil para console): `diagnosticarProdutoPorNome("NOME DO PRODUTO")`
+function diagnosticarProdutoPorNome(nome) {
+    if (!nome) return null;
+    const p = (estoque.produtos || []).find(x => (x.nome || '').toString().toUpperCase() === nome.toString().toUpperCase());
+    if (!p) { console.warn('Produto não encontrado por nome:', nome); return null; }
+    return diagnosticarProduto(p.id);
+}
+window.diagnosticarProdutoPorNome = diagnosticarProdutoPorNome;
 
 // =============================
 // Firebase (inicialização e helpers)
@@ -248,6 +356,10 @@ function carregarDados() {
         if (!estoque.registroDevolucoes) {
             estoque.registroDevolucoes = [];
         }
+        // Garantir que registroEntradas existe (novidade)
+        if (!estoque.registroEntradas) {
+            estoque.registroEntradas = [];
+        }
         // Garantir que controleEnvio existe
         if (!estoque.controleEnvio) {
             estoque.controleEnvio = {};
@@ -290,6 +402,8 @@ function carregarDados() {
         if (estoque.precificacao && typeof estoque.precificacao === 'object') {
             precificacao = estoque.precificacao;
         }
+        // Reconstruir distribuições por produto a partir dos registros (corrige inconsistências legadas)
+        try { reconstruirDistribuicaoAPartirDeRegistros(); } catch (e) { /* ignore */ }
     } else {
         estoque.produtos = dadosIniciais.map((item, index) => ({
             id: index + 1,
@@ -301,6 +415,7 @@ function carregarDados() {
         estoque.registroVendas = [];
         estoque.registroDistribuicao = [];
         estoque.registroDevolucoes = [];
+        estoque.registroEntradas = [];
         estoque.controleEnvio = {};
         estoque.auditoriaVendas = [];
         estoque.fechamentosComissoes = [];
@@ -4998,6 +5113,19 @@ function salvarEntradaEstoque(event) {
     // Adicionar ao estoque da IMBEL
     // Agora adicionamos ao `estoqueConsolidado` (cadastro do total disponível)
     produto.estoqueConsolidado = (Number(produto.estoqueConsolidado) || 0) + quantidade;
+
+    // Registrar entrada histórica para permitir edição/auditoria futura
+    try {
+        if (!Array.isArray(estoque.registroEntradas)) estoque.registroEntradas = [];
+        estoque.registroEntradas.push({
+            id: Date.now() + Math.floor(Math.random() * 1000),
+            produtoId: produto.id,
+            produtoNome: produto.nome,
+            quantidade: quantidade,
+            data: (new Date()).toISOString().split('T')[0],
+            observacoes: observacao
+        });
+    } catch (e) { /* ignore registro failure */ }
     
     salvarDados();
     renderizarTabela();
@@ -6150,8 +6278,7 @@ function excluirDistribuicao(distId) {
     const produto = estoque.produtos.find(p => p.id === dist.produtoId);
     if (produto) {
         produto.distribuicao[dist.representante] = Math.max(0, (produto.distribuicao[dist.representante] || 0) - dist.quantidade);
-        // Em novo modelo, devolução retorna ao saldo consolidado
-        produto.estoqueConsolidado = (Number(produto.estoqueConsolidado) || 0) + dist.quantidade;
+        // Nota: não alterar `estoqueConsolidado` aqui — o consolidado é cadastro.
     }
     
     // Remover do registro
