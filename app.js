@@ -13,7 +13,9 @@ let estoque = {
     controleEnvio: {},
     auditoriaVendas: [],
     fechamentosComissoes: [],
-    clientes: []
+    clientes: [],
+    precificacao: {},
+    precificacaoConfig: null
 };
 
 // =============================
@@ -183,6 +185,7 @@ async function inicializar() {
     renderizarClientes();
     atualizarKPIsClientes();
     atualizarDatalistClientes();
+    renderizarPrecificacao();
     atualizarSelectsProdutos();
     atualizarSelectsRelatorios();
     atualizarEstatisticas();
@@ -223,6 +226,9 @@ function carregarDados() {
             estoque.clientes = [];
         }
         clientes = estoque.clientes;
+        if (estoque.precificacao && typeof estoque.precificacao === 'object') {
+            precificacao = estoque.precificacao;
+        }
     } else {
         estoque.produtos = dadosIniciais.map((item, index) => ({
             id: index + 1,
@@ -239,6 +245,9 @@ function carregarDados() {
         estoque.fechamentosComissoes = [];
         estoque.clientes = [];
         clientes = estoque.clientes;
+        estoque.precificacao = {};
+        estoque.precificacaoConfig = null;
+        precificacao = estoque.precificacao;
         salvarDados();
     }
 }
@@ -348,6 +357,8 @@ async function carregarDoCloud({confirmOverwrite=true} = {}) {
         if (!Array.isArray(estoque.fechamentosComissoes)) estoque.fechamentosComissoes = [];
         if (!Array.isArray(estoque.clientes)) estoque.clientes = [];
         clientes = estoque.clientes;
+        if (estoque.precificacao && typeof estoque.precificacao === 'object') precificacao = estoque.precificacao;
+        else { estoque.precificacao = {}; precificacao = estoque.precificacao; }
         salvarDados();
         renderizarTabela();
         renderizarDashboard();
@@ -357,6 +368,7 @@ async function carregarDoCloud({confirmOverwrite=true} = {}) {
         renderizarClientes();
         atualizarKPIsClientes();
         atualizarDatalistClientes();
+        renderizarPrecificacao();
         atualizarSelectsProdutos();
         atualizarSelectsRelatorios();
         console.log('Dados carregados do Firestore com sucesso.');
@@ -393,6 +405,8 @@ async function carregarDoCloudAuto() {
             if (!Array.isArray(estoque.fechamentosComissoes)) estoque.fechamentosComissoes = [];
             if (!Array.isArray(estoque.clientes)) estoque.clientes = [];
             clientes = estoque.clientes;
+            if (estoque.precificacao && typeof estoque.precificacao === 'object') precificacao = estoque.precificacao;
+            else { estoque.precificacao = {}; precificacao = estoque.precificacao; }
             salvarDados();
             renderizarTabela();
             renderizarDashboard();
@@ -402,6 +416,7 @@ async function carregarDoCloudAuto() {
             renderizarClientes();
             atualizarKPIsClientes();
             atualizarDatalistClientes();
+            renderizarPrecificacao();
             atualizarSelectsProdutos();
             atualizarSelectsRelatorios();
             console.log('Dados carregados automaticamente do Firestore (remoto mais recente).');
@@ -2057,6 +2072,9 @@ function imprimirRelatorioAba(tabId) {
                 break;
             case 'clientes':
                 imprimirClientes();
+                break;
+            case 'precificacao':
+                imprimirPrecificacao();
                 break;
             default:
                 alert('Não há relatório configurado para esta aba.');
@@ -4210,7 +4228,7 @@ function adicionarItemVendaRow(preProdutoId = '', preQuantidade = 1, preValor = 
         }
 
         row.innerHTML = `
-            <select class="item-produto" onchange="atualizarItemRow(this)">${opcoesHtml}</select>
+            <select class="item-produto" onchange="autoPreencherPrecoProduto(this); atualizarItemRow(this)">${opcoesHtml}</select>
             <input type="number" class="item-quantidade" min="1" value="${preQuantidade}" style="width:90px" onchange="atualizarItemRow(this)" />
             <input type="text" class="item-valor" placeholder="Valor unit. (obrigatório)" style="width:140px" oninput="formatarMoeda(this); atualizarItemRow(this)" />
             <div class="item-subtotal" style="min-width:120px">-</div>
@@ -5738,6 +5756,8 @@ function importarSistema(event) {
             estoque = obj;
             if (!Array.isArray(estoque.clientes)) estoque.clientes = [];
             clientes = estoque.clientes;
+            if (estoque.precificacao && typeof estoque.precificacao === 'object') precificacao = estoque.precificacao;
+            else { estoque.precificacao = {}; precificacao = estoque.precificacao; }
             salvarDados();
 
             // Re-renderizar tudo
@@ -5748,6 +5768,7 @@ function importarSistema(event) {
             renderizarClientes();
             atualizarKPIsClientes();
             atualizarDatalistClientes();
+            renderizarPrecificacao();
             atualizarSelectsProdutos();
             atualizarEstatisticas();
 
@@ -6061,6 +6082,9 @@ function limparTodosDados() {
     estoque.controleEnvio = {};
     estoque.clientes = [];
     clientes = estoque.clientes;
+    estoque.precificacao = {};
+    estoque.precificacaoConfig = null;
+    precificacao = estoque.precificacao;
     
     salvarDados();
     renderizarTabela();
@@ -6071,6 +6095,7 @@ function limparTodosDados() {
     renderizarClientes();
     atualizarKPIsClientes();
     atualizarDatalistClientes();
+    renderizarPrecificacao();
     atualizarSelectsProdutos();
     atualizarEstatisticas();
     
@@ -6842,6 +6867,294 @@ function imprimirClientes() {
         <style>body{font-family:Inter,Arial,sans-serif;padding:20px}table{border-collapse:collapse;width:100%}th,td{border:1px solid #ddd;padding:6px 8px;font-size:12px}th{background:#f5f5f5;font-weight:600}.col-acoes{display:none}</style>
         <script>window.onload=function(){ setTimeout(function(){ window.print(); },200); }<\/script>
     </head><body><h2>Cadastro de Clientes</h2>${html}</body></html>`);
+    win.document.close();
+}
+
+// ========================================
+// MÓDULO DE PRECIFICAÇÃO
+// ========================================
+
+let precificacao = {};
+
+function _getPrecGlobals() {
+    const frete = parseFloat(document.getElementById('freteMedio')?.value) || 0;
+    const pctImpostos = (parseFloat(document.getElementById('impostosPct')?.value) || 0) / 100;
+    const pctComissao = (parseFloat(document.getElementById('comissaoPct')?.value) || 0) / 100;
+    const margemPadrao = (parseFloat(document.getElementById('margemPadrao')?.value) || 35) / 100;
+    return { frete, pctImpostos, pctComissao, margemPadrao };
+}
+
+function _calcPrecProduto(nome, globals) {
+    const entry = precificacao[nome] || {};
+    const custo = entry.custo ?? 0;
+    const g = globals || _getPrecGlobals();
+
+    const custoFrete = g.frete;
+    const valorImpostos = custo * g.pctImpostos;
+    const valorComissao = custo * g.pctComissao;
+    const custoTotal = custo + custoFrete + valorImpostos + valorComissao;
+
+    const margem = entry.margemCustom != null ? entry.margemCustom / 100 : g.margemPadrao;
+    const margemSafe = margem >= 1 ? 0.99 : margem;
+    const precoSugerido = margemSafe > 0 ? custoTotal / (1 - margemSafe) : custoTotal;
+
+    const precoFinal = entry.precoFinal != null ? entry.precoFinal : precoSugerido;
+    const lucroUnitario = precoFinal - custoTotal;
+    const margemReal = precoFinal > 0 ? (lucroUnitario / precoFinal) * 100 : 0;
+
+    return { custo, custoFrete, valorImpostos, valorComissao, custoTotal, margem: margem * 100, precoSugerido, precoFinal, lucroUnitario, margemReal };
+}
+
+function renderizarPrecificacao() {
+    const tbody = document.getElementById('tabelaPrecificacaoBody');
+    if (!tbody) return;
+
+    const produtos = estoque.produtos || [];
+    if (produtos.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="11" style="text-align:center;padding:24px;color:var(--text-secondary)">Nenhum produto cadastrado.</td></tr>';
+        return;
+    }
+
+    // Restaurar globals do estoque se salvos
+    if (estoque.precificacaoConfig) {
+        const cfg = estoque.precificacaoConfig;
+        const mpEl = document.getElementById('margemPadrao');
+        const frEl = document.getElementById('freteMedio');
+        const imEl = document.getElementById('impostosPct');
+        const coEl = document.getElementById('comissaoPct');
+        if (mpEl && cfg.margemPadrao != null) mpEl.value = cfg.margemPadrao;
+        if (frEl && cfg.freteMedio != null) frEl.value = cfg.freteMedio;
+        if (imEl && cfg.impostosPct != null) imEl.value = cfg.impostosPct;
+        if (coEl && cfg.comissaoPct != null) coEl.value = cfg.comissaoPct;
+    }
+
+    const globals = _getPrecGlobals();
+
+    tbody.innerHTML = produtos.map(p => {
+        const nome = p.nome;
+        // Inicializar entry se não existir, usando preco do produto como custo padrão
+        if (!precificacao[nome]) {
+            precificacao[nome] = { custo: p.preco || 0, margemCustom: null, precoFinal: null };
+        }
+
+        const c = _calcPrecProduto(nome, globals);
+        const nomeEsc = nome.replace(/'/g, "\\'");
+
+        const isOverridden = precificacao[nome].precoFinal != null;
+        const pfBorder = isOverridden ? 'border:2px solid #f59e0b' : 'border:2px solid #22c55e';
+
+        let margemRealColor = '#22c55e';
+        if (c.margemReal < 10) margemRealColor = '#ef4444';
+        else if (c.margemReal < 20) margemRealColor = '#f59e0b';
+
+        const lucroColor = c.lucroUnitario >= 0 ? '#22c55e' : '#ef4444';
+
+        const margemCustomVal = precificacao[nome].margemCustom != null ? precificacao[nome].margemCustom : '';
+
+        return `<tr data-prec-produto="${nomeEsc}">
+            <td style="text-align:left;padding-left:16px;font-weight:500">${nome}</td>
+            <td><input type="number" value="${c.custo.toFixed(2)}" min="0" step="0.01" style="width:110px;padding:4px 6px;border:1px solid #e2e8f0;border-radius:4px;text-align:right" onchange="onPrecInput(this,'custo','${nomeEsc}')"></td>
+            <td style="text-align:right">${formatarMoedaValor(c.custoFrete)}</td>
+            <td style="text-align:right">${formatarMoedaValor(c.valorImpostos)}</td>
+            <td style="text-align:right">${formatarMoedaValor(c.valorComissao)}</td>
+            <td style="text-align:right;font-weight:700;color:#1e3a5f">${formatarMoedaValor(c.custoTotal)}</td>
+            <td><input type="number" value="${margemCustomVal}" placeholder="${(globals.margemPadrao*100).toFixed(1)}" min="0" max="99.9" step="0.1" style="width:80px;padding:4px 6px;border:1px solid #e2e8f0;border-radius:4px;text-align:right" onchange="onPrecInput(this,'margem','${nomeEsc}')"></td>
+            <td style="text-align:right;font-style:italic;color:#64748b">${formatarMoedaValor(c.precoSugerido)}</td>
+            <td><input type="number" value="${c.precoFinal.toFixed(2)}" min="0" step="0.01" style="width:120px;padding:4px 6px;${pfBorder};border-radius:4px;text-align:right" onchange="onPrecInput(this,'preco','${nomeEsc}')"></td>
+            <td style="text-align:right;font-weight:600;color:${lucroColor}">${formatarMoedaValor(c.lucroUnitario)}</td>
+            <td style="text-align:right;font-weight:600;color:${margemRealColor}">${c.margemReal.toFixed(1)}%</td>
+        </tr>`;
+    }).join('');
+}
+
+function onPrecInput(el, tipo, nomeProduto) {
+    const entry = precificacao[nomeProduto] || { custo: 0, margemCustom: null, precoFinal: null };
+    precificacao[nomeProduto] = entry;
+
+    if (tipo === 'custo') {
+        entry.custo = parseFloat(el.value) || 0;
+    } else if (tipo === 'margem') {
+        const val = el.value.trim();
+        entry.margemCustom = val !== '' ? parseFloat(val) : null;
+    } else if (tipo === 'preco') {
+        const val = parseFloat(el.value);
+        const globals = _getPrecGlobals();
+        const calc = _calcPrecProduto(nomeProduto, globals);
+        // Se o valor informado é igual ao sugerido, remover override
+        if (Math.abs(val - calc.precoSugerido) < 0.01) {
+            entry.precoFinal = null;
+        } else {
+            entry.precoFinal = val;
+        }
+    }
+
+    atualizarPrecoProduto(nomeProduto);
+}
+
+function atualizarPrecoProduto(nomeProduto) {
+    const globals = _getPrecGlobals();
+    const c = _calcPrecProduto(nomeProduto, globals);
+    const nomeEsc = nomeProduto.replace(/'/g, "\\'");
+
+    const row = document.querySelector(`tr[data-prec-produto="${nomeEsc}"]`);
+    if (!row) return;
+
+    const cells = row.querySelectorAll('td');
+    // cells: 0=nome, 1=custo(input), 2=frete, 3=impostos, 4=comissao, 5=custoTotal,
+    //        6=margem(input), 7=precoSugerido, 8=precoFinal(input), 9=lucro, 10=margemReal
+
+    cells[2].textContent = formatarMoedaValor(c.custoFrete);
+    cells[3].textContent = formatarMoedaValor(c.valorImpostos);
+    cells[4].textContent = formatarMoedaValor(c.valorComissao);
+    cells[5].textContent = formatarMoedaValor(c.custoTotal);
+    cells[5].style.fontWeight = '700';
+    cells[5].style.color = '#1e3a5f';
+
+    cells[7].textContent = formatarMoedaValor(c.precoSugerido);
+
+    const pfInput = cells[8].querySelector('input');
+    if (pfInput) {
+        pfInput.value = c.precoFinal.toFixed(2);
+        const isOverridden = precificacao[nomeProduto]?.precoFinal != null;
+        pfInput.style.border = isOverridden ? '2px solid #f59e0b' : '2px solid #22c55e';
+    }
+
+    const lucroColor = c.lucroUnitario >= 0 ? '#22c55e' : '#ef4444';
+    cells[9].textContent = formatarMoedaValor(c.lucroUnitario);
+    cells[9].style.color = lucroColor;
+    cells[9].style.fontWeight = '600';
+
+    let margemRealColor = '#22c55e';
+    if (c.margemReal < 10) margemRealColor = '#ef4444';
+    else if (c.margemReal < 20) margemRealColor = '#f59e0b';
+    cells[10].textContent = c.margemReal.toFixed(1) + '%';
+    cells[10].style.color = margemRealColor;
+    cells[10].style.fontWeight = '600';
+
+    // Persist
+    estoque.precificacao = precificacao;
+    _salvarPrecConfig();
+
+    sincronizarPrecoNasVendas(nomeProduto);
+}
+
+function _salvarPrecConfig() {
+    estoque.precificacaoConfig = {
+        margemPadrao: parseFloat(document.getElementById('margemPadrao')?.value) || 35,
+        freteMedio: parseFloat(document.getElementById('freteMedio')?.value) || 0,
+        impostosPct: parseFloat(document.getElementById('impostosPct')?.value) || 0,
+        comissaoPct: parseFloat(document.getElementById('comissaoPct')?.value) || 5
+    };
+    estoque.precificacao = precificacao;
+    salvarDados();
+}
+
+function recalcularTodos() {
+    const produtos = estoque.produtos || [];
+    produtos.forEach(p => atualizarPrecoProduto(p.nome));
+}
+
+function aplicarMargemGlobal() {
+    const produtos = estoque.produtos || [];
+    produtos.forEach(p => {
+        const entry = precificacao[p.nome];
+        if (!entry || entry.margemCustom == null) {
+            atualizarPrecoProduto(p.nome);
+        }
+    });
+    _salvarPrecConfig();
+}
+
+function sincronizarPrecoNasVendas(nomeProduto) {
+    // Auto-fill valor unitário quando produto é selecionado em modal de venda
+    const container = document.getElementById('itensVendaContainer');
+    if (!container) return;
+    const rows = container.querySelectorAll('.item-venda-row');
+    rows.forEach(row => {
+        const select = row.querySelector('.item-produto');
+        if (!select) return;
+        const produtoId = parseInt(select.value);
+        const produto = (estoque.produtos || []).find(p => p.id === produtoId);
+        if (produto && produto.nome === nomeProduto) {
+            const valorInput = row.querySelector('.item-valor');
+            if (valorInput && (!valorInput.value || valorInput.value.trim() === '')) {
+                const entry = precificacao[nomeProduto];
+                if (entry) {
+                    const calc = _calcPrecProduto(nomeProduto);
+                    valorInput.value = formatarMoedaValor(calc.precoFinal).replace('R$', '').trim();
+                }
+            }
+        }
+    });
+}
+
+function autoPreencherPrecoProduto(selectEl) {
+    const row = selectEl.closest('.item-venda-row');
+    if (!row) return;
+    const valorInput = row.querySelector('.item-valor');
+    if (!valorInput) return;
+    // Only auto-fill if valor is empty
+    if (valorInput.value && valorInput.value.trim() !== '') return;
+    const produtoId = parseInt(selectEl.value);
+    const produto = (estoque.produtos || []).find(p => p.id === produtoId);
+    if (produto && precificacao[produto.nome]) {
+        const calc = _calcPrecProduto(produto.nome);
+        if (calc.precoFinal > 0) {
+            valorInput.value = calc.precoFinal.toFixed(2).replace('.', ',');
+        }
+    }
+}
+
+function exportarPrecificacaoExcel() {
+    try {
+        if (typeof XLSX === 'undefined') {
+            mostrarNotificacao('Biblioteca XLSX não encontrada.', 'error');
+            return;
+        }
+        const produtos = estoque.produtos || [];
+        const globals = _getPrecGlobals();
+        const dados = produtos.map(p => {
+            if (!precificacao[p.nome]) {
+                precificacao[p.nome] = { custo: p.preco || 0, margemCustom: null, precoFinal: null };
+            }
+            const c = _calcPrecProduto(p.nome, globals);
+            return {
+                'Produto': p.nome,
+                'Custo (R$)': c.custo,
+                'Frete (R$)': c.custoFrete,
+                'Impostos (R$)': c.valorImpostos,
+                'Comissão (R$)': c.valorComissao,
+                'Custo Total (R$)': c.custoTotal,
+                'Margem (%)': c.margem,
+                'Preço Sugerido (R$)': c.precoSugerido,
+                'Preço Final (R$)': c.precoFinal,
+                'Lucro Unit. (R$)': c.lucroUnitario,
+                'Margem Real (%)': c.margemReal
+            };
+        });
+
+        const ws = XLSX.utils.json_to_sheet(dados);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, 'Precificação');
+        const dataAtual = new Date().toISOString().split('T')[0];
+        XLSX.writeFile(wb, `precificacao_${dataAtual}.xlsx`);
+        mostrarNotificacao('Precificação exportada com sucesso!', 'success');
+    } catch (e) {
+        console.error('Erro ao exportar precificação:', e);
+        mostrarNotificacao('Erro ao exportar precificação.', 'error');
+    }
+}
+
+function imprimirPrecificacao() {
+    const tabEl = document.getElementById('tab-precificacao');
+    if (!tabEl) return;
+    const html = tabEl.querySelector('.table-container')?.innerHTML || '';
+    const win = window.open('', '_blank');
+    if (!win) { mostrarNotificacao('Pop-up bloqueado pelo navegador.', 'error'); return; }
+    win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Precificação</title>
+        <style>body{font-family:Inter,Arial,sans-serif;padding:20px}table{border-collapse:collapse;width:100%}th,td{border:1px solid #ddd;padding:6px 8px;font-size:11px}th{background:#f5f5f5;font-weight:600}input{border:none;background:transparent;text-align:right;font-size:11px}</style>
+        <script>window.onload=function(){ setTimeout(function(){ window.print(); },200); }<\/script>
+    </head><body><h2>Precificação de Produtos</h2>${html}</body></html>`);
     win.document.close();
 }
 
