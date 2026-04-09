@@ -66,9 +66,13 @@
 
                 <div class="nav-group">
                     <div class="nav-group-label">Comercial</div>
+                    <button class="nav-item" data-tab="precificacao" onclick="trocarAba('precificacao')"><span>💰</span><span class="nav-text">Precificação</span></button>
+                </div>
+
+                <div class="nav-group">
+                    <div class="nav-group-label">Relacionamento</div>
                     <button class="nav-item" data-tab="clientes" onclick="trocarAba('clientes')"><span>👥</span><span class="nav-text">Clientes</span></button>
                     <button class="nav-item" data-tab="propostas" onclick="trocarAba('propostas')"><span>📋</span><span class="nav-text">Propostas</span></button>
-                    <button class="nav-item" data-tab="precificacao" onclick="trocarAba('precificacao')"><span>💰</span><span class="nav-text">Precificação</span></button>
                 </div>
 
                 <div class="nav-group">
@@ -444,34 +448,64 @@
                 <div class="section-header">
                     <h2 class="section-title">Precificação de Produtos</h2>
                     <div class="header-actions">
-                        <button class="btn btn-outline btn-sm" onclick="imprimirRelatorioAba('precificacao')">
-                            <span class="btn-icon">🖨️</span> Imprimir
+                        <button class="btn btn-outline btn-sm" onclick="abrirModalICMS()">
+                            📋 Tabela de ICMS
                         </button>
-                        <button class="btn btn-outline btn-sm" data-admin="true" onclick="exportarPrecificacaoExcel()">
-                            <span class="btn-icon">📊</span> Exportar Excel
+                        <button class="btn btn-outline btn-sm" onclick="abrirSimuladorICMS()">
+                            🧮 Simulador por Estado
+                        </button>
+                        <button class="btn btn-outline btn-sm" onclick="exportarPrecificacaoExcel()">
+                            📊 Exportar Excel
+                        </button>
+                        <button class="btn btn-outline btn-sm" onclick="imprimirRelatorioAba('precificacao')">
+                            🖨️ Imprimir
                         </button>
                     </div>
                 </div>
 
-                <!-- Painel de configuração global de margens -->
-                <div class="config-card" style="margin-bottom:20px; padding:20px; background:#fff; border-radius:10px; border:1px solid #e2e8f0;">
-                    <h3 style="font-size:0.95rem; margin-bottom:14px; color:#1e3a5f;">⚙️ Configuração Global de Margens</h3>
-                    <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:12px;">
+                <div style="background:#fff; border:1px solid #e2e8f0; border-radius:10px;
+                            padding:16px 20px; margin-bottom:20px">
+                    <div style="font-size:0.8rem; font-weight:600; color:#64748b;
+                                text-transform:uppercase; letter-spacing:0.5px; margin-bottom:12px">
+                        Parâmetros Globais (padrão para produtos sem valor específico)
+                    </div>
+                    <div style="display:grid;
+                                grid-template-columns:repeat(auto-fit,minmax(150px,1fr));
+                                gap:12px">
                         <div class="form-group" style="margin:0">
-                            <label>Margem Padrão (%)</label>
-                            <input type="number" id="margemPadrao" value="35" min="0" max="999" step="0.1" oninput="aplicarMargemGlobal()" style="width:100%; padding:8px; border:1px solid #e2e8f0; border-radius:6px;">
+                            <label style="font-size:0.8rem">Taxa Padrão (diretoria)</label>
+                            <input type="number" id="taxaPadrao" value="1" step="0.01" min="0"
+                                   style="width:100%;padding:7px 10px;border:1px solid #e2e8f0;
+                                          border-radius:6px;font-size:0.9rem"
+                                   oninput="recalcularTodosProdutos()">
                         </div>
                         <div class="form-group" style="margin:0">
-                            <label>Frete Médio (R$)</label>
-                            <input type="number" id="freteMedio" value="0" min="0" step="0.01" oninput="recalcularTodos()" style="width:100%; padding:8px; border:1px solid #e2e8f0; border-radius:6px;">
+                            <label style="font-size:0.8rem">ROI Padrão</label>
+                            <input type="number" id="roiPadrao" value="1" step="0.01" min="0"
+                                   style="width:100%;padding:7px 10px;border:1px solid #e2e8f0;
+                                          border-radius:6px;font-size:0.9rem"
+                                   oninput="recalcularTodosProdutos()">
                         </div>
                         <div class="form-group" style="margin:0">
-                            <label>Impostos / Taxas (%)</label>
-                            <input type="number" id="impostosPct" value="0" min="0" max="100" step="0.1" oninput="recalcularTodos()" style="width:100%; padding:8px; border:1px solid #e2e8f0; border-radius:6px;">
+                            <label style="font-size:0.8rem">Comissão Padrão (%)</label>
+                            <input type="number" id="comissaoPadrao" value="5" step="0.1" min="0"
+                                   style="width:100%;padding:7px 10px;border:1px solid #e2e8f0;
+                                          border-radius:6px;font-size:0.9rem"
+                                   oninput="recalcularTodosProdutos()">
                         </div>
                         <div class="form-group" style="margin:0">
-                            <label>Comissão Representante (%)</label>
-                            <input type="number" id="comissaoPct" value="5" min="0" max="100" step="0.1" oninput="recalcularTodos()" style="width:100%; padding:8px; border:1px solid #e2e8f0; border-radius:6px;">
+                            <label style="font-size:0.8rem">PIS Padrão (%)</label>
+                            <input type="number" id="pisPadrao" value="1.65" step="0.01" min="0"
+                                   style="width:100%;padding:7px 10px;border:1px solid #e2e8f0;
+                                          border-radius:6px;font-size:0.9rem"
+                                   oninput="recalcularTodosProdutos()">
+                        </div>
+                        <div class="form-group" style="margin:0">
+                            <label style="font-size:0.8rem">COFINS Padrão (%)</label>
+                            <input type="number" id="cofinsPadrao" value="7.6" step="0.01" min="0"
+                                   style="width:100%;padding:7px 10px;border:1px solid #e2e8f0;
+                                          border-radius:6px;font-size:0.9rem"
+                                   oninput="recalcularTodosProdutos()">
                         </div>
                     </div>
                 </div>
@@ -481,17 +515,21 @@
                         <table class="dashboard-table" id="tabelaPrecificacao">
                             <thead>
                                 <tr>
-                                    <th style="text-align:left; padding-left:16px;">Produto</th>
-                                    <th>Custo (R$)</th>
-                                    <th>Frete (R$)</th>
-                                    <th>Impostos</th>
-                                    <th>Comissão</th>
-                                    <th>Custo Total</th>
-                                    <th>Margem (%)</th>
-                                    <th>Preço Sugerido</th>
-                                    <th>Preço Final</th>
-                                    <th>Lucro Unit.</th>
-                                    <th>Margem Real</th>
+                                    <th style="text-align:left;padding-left:15px;min-width:220px">Produto</th>
+                                    <th style="min-width:110px">Categoria</th>
+                                    <th style="min-width:100px">CI (R$)</th>
+                                    <th style="min-width:70px">Taxa</th>
+                                    <th style="min-width:70px">ROI</th>
+                                    <th style="min-width:100px">Valor Base</th>
+                                    <th style="min-width:70px">PIS %</th>
+                                    <th style="min-width:70px">COFINS %</th>
+                                    <th style="min-width:80px">ICMS % base</th>
+                                    <th style="min-width:70px">IPI %</th>
+                                    <th style="min-width:110px">c/ Impostos</th>
+                                    <th style="min-width:70px">Comissão %</th>
+                                    <th style="min-width:110px">Comissão R$</th>
+                                    <th style="min-width:120px;background:#fffbf0">Preço Final</th>
+                                    <th style="min-width:50px">Ações</th>
                                 </tr>
                             </thead>
                             <tbody id="tabelaPrecificacaoBody"></tbody>
@@ -2030,6 +2068,139 @@
                     <button type="submit" class="btn btn-primary">📤 Salvar Proposta</button>
                 </div>
             </form>
+        </div>
+    </div>
+
+    <div id="modalICMS" class="modal">
+        <div class="modal-content modal-lg">
+            <div class="modal-header">
+                <h2><span>📋</span> Tabela de ICMS por Estado / Tipo / Categoria</h2>
+                <span class="close" onclick="fecharModal('modalICMS')">&times;</span>
+            </div>
+            <div class="modal-body" style="padding:16px">
+                <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;
+                            align-items:center">
+                    <button class="btn btn-primary btn-sm" onclick="adicionarRegraICMS()">
+                        + Nova Regra
+                    </button>
+                    <button class="btn btn-outline btn-sm" onclick="importarTabelaICMS()">
+                        📥 Importar Excel
+                    </button>
+                    <input type="file" id="inputImportarICMS" accept=".xlsx,.xls,.csv"
+                           style="display:none" onchange="importarTabelaICMSArquivo(event)">
+                    <button class="btn btn-outline btn-sm" onclick="exportarTabelaICMS()">
+                        📤 Exportar Excel
+                    </button>
+                    <span style="font-size:0.8rem;color:#64748b;margin-left:4px">
+                        ℹ️ Regra mais específica tem prioridade. Use "Todos" como coringa.
+                    </span>
+                </div>
+                <div class="table-wrapper">
+                    <table class="dashboard-table" id="tabelaICMSModal">
+                        <thead>
+                            <tr>
+                                <th>Estado</th>
+                                <th>Tipo Pessoa</th>
+                                <th>Categoria Produto</th>
+                                <th>Alíquota ICMS (%)</th>
+                                <th style="width:80px">Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tabelaICMSBody"></tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline" onclick="fecharModal('modalICMS')">
+                    Fechar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="modalSimuladorICMS" class="modal">
+        <div class="modal-content modal-lg">
+            <div class="modal-header">
+                <h2><span>🧮</span> Simulador de Preço por Estado</h2>
+                <span class="close" onclick="fecharModal('modalSimuladorICMS')">&times;</span>
+            </div>
+            <div class="modal-body" style="padding:16px">
+                <div style="display:grid;grid-template-columns:1fr 1fr 1fr;
+                            gap:12px;margin-bottom:20px">
+                    <div class="form-group" style="margin:0">
+                        <label>Produto</label>
+                        <select id="simProduto" onchange="rodarSimulador()"
+                                style="width:100%;padding:8px;border:1px solid #e2e8f0;
+                                       border-radius:6px;font-size:0.9rem">
+                            <option value="">Selecione...</option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="margin:0">
+                        <label>Estado do Comprador</label>
+                        <select id="simEstado" onchange="rodarSimulador()"
+                                style="width:100%;padding:8px;border:1px solid #e2e8f0;
+                                       border-radius:6px;font-size:0.9rem">
+                            <option value="">Selecione...</option>
+                            <option>AC</option><option>AL</option><option>AM</option>
+                            <option>AP</option><option>BA</option><option>CE</option>
+                            <option>DF</option><option>ES</option><option>GO</option>
+                            <option>MA</option><option>MG</option><option>MS</option>
+                            <option>MT</option><option>PA</option><option>PB</option>
+                            <option>PE</option><option>PI</option><option>PR</option>
+                            <option>RJ</option><option>RN</option><option>RO</option>
+                            <option>RR</option><option>RS</option><option>SC</option>
+                            <option>SE</option><option>SP</option><option>TO</option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="margin:0">
+                        <label>Tipo de Pessoa</label>
+                        <select id="simTipoPessoa" onchange="rodarSimulador()"
+                                style="width:100%;padding:8px;border:1px solid #e2e8f0;
+                                       border-radius:6px;font-size:0.9rem">
+                            <option value="PJ">Pessoa Jurídica (PJ)</option>
+                            <option value="PF">Pessoa Física (PF)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div id="simResultado" style="display:none">
+                    <div style="background:#f8fafc;border-radius:10px;padding:20px;
+                                border:1px solid #e2e8f0">
+                        <div style="font-size:0.8rem;font-weight:600;color:#64748b;
+                                    text-transform:uppercase;letter-spacing:0.5px;
+                                    margin-bottom:14px">
+                            Detalhamento do Preço
+                        </div>
+                        <table style="width:100%;font-size:0.9rem;border-collapse:collapse">
+                            <thead>
+                                <tr>
+                                    <th style="text-align:left;padding:4px 0;color:#94a3b8;
+                                             font-weight:500;font-size:0.8rem">Componente</th>
+                                    <th style="text-align:center;padding:4px 0;color:#94a3b8;
+                                             font-weight:500;font-size:0.8rem">%</th>
+                                    <th style="text-align:right;padding:4px 0;color:#94a3b8;
+                                             font-weight:500;font-size:0.8rem">Valor (R$)</th>
+                                </tr>
+                            </thead>
+                            <tbody id="simDetalhamento"></tbody>
+                        </table>
+                        <div style="border-top:2px solid #1e3a5f;margin-top:16px;
+                                    padding-top:14px;display:flex;justify-content:space-between;
+                                    align-items:center">
+                            <span style="font-weight:700;color:#1e3a5f;font-size:1rem">
+                                Preço Final
+                            </span>
+                            <span style="font-weight:800;color:#16a34a;font-size:1.4rem"
+                                  id="simPrecoFinal">
+                                R$ 0,00
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline" onclick="fecharModal('modalSimuladorICMS')">Fechar</button>
+            </div>
         </div>
     </div>
 

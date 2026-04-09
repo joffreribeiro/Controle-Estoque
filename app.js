@@ -20,6 +20,53 @@ let estoque = {
     precificacaoConfig: null
 };
 
+let tabelaAliquotas = {};
+/*
+Shape:
+{
+    "CARABINA IA2 5,56": {
+        pis: 1.65,
+        cofins: 7.60,
+        ipi: 0,
+        icmsBase: 12
+    }
+}
+*/
+
+let tabelaICMS = [];
+/*
+Shape per rule:
+{
+    id: "rule_001",
+    estado: "SP",
+    tipoPessoa: "PJ",
+    categoriaProduto: "Arma Curta",
+    aliquota: 12
+}
+*/
+
+let precificacao = {};
+/*
+Shape per product:
+{
+    "CARABINA IA2 5,56": {
+        ci: 0,
+        taxa: 1,
+        roi: 1,
+        comissao: 5,
+        precoFinalManual: null
+    }
+}
+*/
+
+const CATEGORIAS_PRODUTO = [
+        'Arma Curta', 'Arma Longa', 'Acessório', 'Faca', 'Munição', 'Outro'
+];
+
+let categoriaPorProduto = {};
+
+let abaAtiva = 'estoque';
+
 // Configuração de alertas (persistida separadamente)
 let configAlertas = { limite: 5, ativo: true };
 
@@ -438,7 +485,17 @@ function carregarDados() {
         } catch (e) { console.warn('Migração estoqueConsolidado falhou:', e); }
         if (estoque.precificacao && typeof estoque.precificacao === 'object') {
             precificacao = estoque.precificacao;
+        } else {
+            precificacao = {};
+            estoque.precificacao = precificacao;
         }
+        tabelaAliquotas = (estoque.tabelaAliquotas && typeof estoque.tabelaAliquotas === 'object')
+            ? estoque.tabelaAliquotas
+            : {};
+        tabelaICMS = Array.isArray(estoque.tabelaICMS) ? estoque.tabelaICMS : [];
+        categoriaPorProduto = (estoque.categoriaPorProduto && typeof estoque.categoriaPorProduto === 'object')
+            ? estoque.categoriaPorProduto
+            : {};
         // Reconstruir distribuições por produto a partir dos registros (corrige inconsistências legadas)
         try { reconstruirDistribuicaoAPartirDeRegistros(); } catch (e) { /* ignore */ }
     } else {
@@ -461,11 +518,22 @@ function carregarDados() {
         estoque.precificacao = {};
         estoque.precificacaoConfig = null;
         precificacao = estoque.precificacao;
+        tabelaAliquotas = {};
+        tabelaICMS = [];
+        categoriaPorProduto = {};
+        estoque.tabelaAliquotas = tabelaAliquotas;
+        estoque.tabelaICMS = tabelaICMS;
+        estoque.categoriaPorProduto = categoriaPorProduto;
         salvarDados();
     }
 }
 
 function salvarDados() {
+    // Sincroniza os objetos de precificação no estado persistido
+    estoque.precificacao = precificacao;
+    estoque.tabelaAliquotas = tabelaAliquotas;
+    estoque.tabelaICMS = tabelaICMS;
+    estoque.categoriaPorProduto = categoriaPorProduto;
     // marca hora local de atualização para comparação com o remoto
     try { estoque._localUpdatedAt = new Date().toISOString(); } catch (e) {}
     localStorage.setItem('estoqueArmasV2', JSON.stringify(estoque));
@@ -487,6 +555,10 @@ async function salvarNoCloud() {
         const docRef = window.firestoreDB.collection('app_data').doc('latest');
         await docRef.set({
             estado: estoque,
+            precificacao,
+            tabelaAliquotas,
+            tabelaICMS,
+            categoriaPorProduto,
             updatedAt: firebase.firestore.FieldValue.serverTimestamp()
         });
         // ler o documento para obter o updatedAt do servidor
@@ -574,6 +646,20 @@ async function carregarDoCloud({confirmOverwrite=true} = {}) {
         propostas = estoque.propostas;
         if (estoque.precificacao && typeof estoque.precificacao === 'object') precificacao = estoque.precificacao;
         else { estoque.precificacao = {}; precificacao = estoque.precificacao; }
+
+        precificacao = (data.precificacao && typeof data.precificacao === 'object')
+            ? data.precificacao
+            : (estoque.precificacao || {});
+        tabelaAliquotas = (data.tabelaAliquotas && typeof data.tabelaAliquotas === 'object')
+            ? data.tabelaAliquotas
+            : (estoque.tabelaAliquotas || {});
+        tabelaICMS = Array.isArray(data.tabelaICMS)
+            ? data.tabelaICMS
+            : (Array.isArray(estoque.tabelaICMS) ? estoque.tabelaICMS : []);
+        categoriaPorProduto = (data.categoriaPorProduto && typeof data.categoriaPorProduto === 'object')
+            ? data.categoriaPorProduto
+            : (estoque.categoriaPorProduto || {});
+
         salvarDados();
         renderizarTabela();
         renderizarDashboard();
@@ -585,7 +671,7 @@ async function carregarDoCloud({confirmOverwrite=true} = {}) {
         atualizarDatalistClientes();
         renderizarPropostas();
         atualizarKPIsPropostas();
-        renderizarPrecificacao();
+        if (abaAtiva === 'precificacao') renderizarPrecificacao();
         atualizarSelectsProdutos();
         atualizarSelectsRelatorios();
         console.log('Dados carregados do Firestore com sucesso.');
@@ -626,6 +712,20 @@ async function carregarDoCloudAuto() {
             propostas = estoque.propostas;
             if (estoque.precificacao && typeof estoque.precificacao === 'object') precificacao = estoque.precificacao;
             else { estoque.precificacao = {}; precificacao = estoque.precificacao; }
+
+            precificacao = (data.precificacao && typeof data.precificacao === 'object')
+                ? data.precificacao
+                : (estoque.precificacao || {});
+            tabelaAliquotas = (data.tabelaAliquotas && typeof data.tabelaAliquotas === 'object')
+                ? data.tabelaAliquotas
+                : (estoque.tabelaAliquotas || {});
+            tabelaICMS = Array.isArray(data.tabelaICMS)
+                ? data.tabelaICMS
+                : (Array.isArray(estoque.tabelaICMS) ? estoque.tabelaICMS : []);
+            categoriaPorProduto = (data.categoriaPorProduto && typeof data.categoriaPorProduto === 'object')
+                ? data.categoriaPorProduto
+                : (estoque.categoriaPorProduto || {});
+
             salvarDados();
             renderizarTabela();
             renderizarDashboard();
@@ -637,7 +737,7 @@ async function carregarDoCloudAuto() {
             atualizarDatalistClientes();
             renderizarPropostas();
             atualizarKPIsPropostas();
-            renderizarPrecificacao();
+            if (abaAtiva === 'precificacao') renderizarPrecificacao();
             atualizarSelectsProdutos();
             atualizarSelectsRelatorios();
             console.log('Dados carregados automaticamente do Firestore (remoto mais recente).');
@@ -965,6 +1065,7 @@ function obterAuditoriaPorContrato(contrato) {
 // ========================================
 
 function trocarAba(aba) {
+    abaAtiva = aba;
     // Atualizar botões de navegação (sidebar e fallback antigo)
     document.querySelectorAll('.sidebar .nav-item, .tabs-navigation .tab-btn').forEach(btn => {
         btn.classList.remove('active');
@@ -1001,6 +1102,8 @@ function trocarAba(aba) {
         renderizarControleEnvio();
     } else if (aba === 'controleimbel') {
         trocarSubAbaControleImbel('estoque');
+    } else if (aba === 'precificacao') {
+        renderizarPrecificacao();
     }
 }
 
@@ -6970,7 +7073,14 @@ function exportarEstoqueCompleto() {
 
 function exportarSistema() {
     try {
-        const dataStr = JSON.stringify(estoque, null, 2);
+        const payload = {
+            ...estoque,
+            precificacao,
+            tabelaAliquotas,
+            tabelaICMS,
+            categoriaPorProduto
+        };
+        const dataStr = JSON.stringify(payload, null, 2);
         const blob = new Blob([dataStr], { type: 'application/json' });
         const link = document.createElement('a');
         const url = URL.createObjectURL(blob);
@@ -7020,6 +7130,20 @@ function importarSistema(event) {
             propostas = estoque.propostas;
             if (estoque.precificacao && typeof estoque.precificacao === 'object') precificacao = estoque.precificacao;
             else { estoque.precificacao = {}; precificacao = estoque.precificacao; }
+
+            precificacao = (obj.precificacao && typeof obj.precificacao === 'object')
+                ? obj.precificacao
+                : (estoque.precificacao || {});
+            tabelaAliquotas = (obj.tabelaAliquotas && typeof obj.tabelaAliquotas === 'object')
+                ? obj.tabelaAliquotas
+                : (estoque.tabelaAliquotas || {});
+            tabelaICMS = Array.isArray(obj.tabelaICMS)
+                ? obj.tabelaICMS
+                : (Array.isArray(estoque.tabelaICMS) ? estoque.tabelaICMS : []);
+            categoriaPorProduto = (obj.categoriaPorProduto && typeof obj.categoriaPorProduto === 'object')
+                ? obj.categoriaPorProduto
+                : (estoque.categoriaPorProduto || {});
+
             salvarDados();
 
             // Re-renderizar tudo
@@ -7352,6 +7476,9 @@ function limparTodosDados() {
     estoque.precificacao = {};
     estoque.precificacaoConfig = null;
     precificacao = estoque.precificacao;
+    tabelaAliquotas = {};
+    tabelaICMS = [];
+    categoriaPorProduto = {};
     
     salvarDados();
     renderizarTabela();
@@ -8227,35 +8354,115 @@ function imprimirClientes() {
 // MÓDULO DE PRECIFICAÇÃO
 // ========================================
 
-let precificacao = {};
+const ESTADOS_BR = [
+    'AC', 'AL', 'AM', 'AP', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA', 'MG', 'MS', 'MT',
+    'PA', 'PB', 'PE', 'PI', 'PR', 'RJ', 'RN', 'RO', 'RR', 'RS', 'SC', 'SE', 'SP', 'TO'
+];
 
-function _getPrecGlobals() {
-    const frete = parseFloat(document.getElementById('freteMedio')?.value) || 0;
-    const pctImpostos = (parseFloat(document.getElementById('impostosPct')?.value) || 0) / 100;
-    const pctComissao = (parseFloat(document.getElementById('comissaoPct')?.value) || 0) / 100;
-    const margemPadrao = (parseFloat(document.getElementById('margemPadrao')?.value) || 35) / 100;
-    return { frete, pctImpostos, pctComissao, margemPadrao };
+function _nomeProdutoId(nome) {
+    return String(nome || '').replace(/[^a-zA-Z0-9]/g, '_');
 }
 
-function _calcPrecProduto(nome, globals) {
-    const entry = precificacao[nome] || {};
-    const custo = entry.custo ?? 0;
-    const g = globals || _getPrecGlobals();
+function _escapeHtml(texto) {
+    return String(texto || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
 
-    const custoFrete = g.frete;
-    const valorImpostos = custo * g.pctImpostos;
-    const valorComissao = custo * g.pctComissao;
-    const custoTotal = custo + custoFrete + valorImpostos + valorComissao;
+function _escapeJsString(texto) {
+    return String(texto || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+}
 
-    const margem = entry.margemCustom != null ? entry.margemCustom / 100 : g.margemPadrao;
-    const margemSafe = margem >= 1 ? 0.99 : margem;
-    const precoSugerido = margemSafe > 0 ? custoTotal / (1 - margemSafe) : custoTotal;
+function _fmtMoeda(v) {
+    return Number(v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
 
-    const precoFinal = entry.precoFinal != null ? entry.precoFinal : precoSugerido;
-    const lucroUnitario = precoFinal - custoTotal;
-    const margemReal = precoFinal > 0 ? (lucroUnitario / precoFinal) * 100 : 0;
+function buscarAliquotaICMS(estado, tipoPessoa, nomeProduto) {
+    const categoria = categoriaPorProduto[nomeProduto] || 'Outro';
 
-    return { custo, custoFrete, valorImpostos, valorComissao, custoTotal, margem: margem * 100, precoSugerido, precoFinal, lucroUnitario, margemReal };
+    const score = (rule) => {
+        let s = 0;
+        if (rule.estado === estado) s += 4;
+        else if (rule.estado !== 'Todos') return -1;
+        if (rule.tipoPessoa === tipoPessoa) s += 2;
+        else if (rule.tipoPessoa !== 'Todos') return -1;
+        if (rule.categoriaProduto === categoria) s += 1;
+        else if (rule.categoriaProduto !== 'Todos') return -1;
+        return s;
+    };
+
+    const match = tabelaICMS
+        .map(r => ({ rule: r, score: score(r) }))
+        .filter(x => x.score >= 0)
+        .sort((a, b) => b.score - a.score)[0];
+
+    if (match) return match.rule.aliquota;
+    return parseFloat(tabelaAliquotas[nomeProduto]?.icmsBase) || 0;
+}
+
+function calcularPreco(nomeProduto, estado = null, tipoPessoa = null) {
+    const prec = precificacao[nomeProduto] || {};
+    const aliq = tabelaAliquotas[nomeProduto] || {};
+
+    const ci = parseFloat(prec.ci) || 0;
+    const taxa = parseFloat(prec.taxa)
+        || parseFloat(document.getElementById('taxaPadrao')?.value)
+        || 1;
+    const roi = parseFloat(prec.roi)
+        || parseFloat(document.getElementById('roiPadrao')?.value)
+        || 1;
+    const comissao = parseFloat(prec.comissao)
+        || parseFloat(document.getElementById('comissaoPadrao')?.value)
+        || 5;
+    const pis = parseFloat(aliq.pis)
+        || parseFloat(document.getElementById('pisPadrao')?.value)
+        || 0;
+    const cofins = parseFloat(aliq.cofins)
+        || parseFloat(document.getElementById('cofinsPadrao')?.value)
+        || 0;
+    const ipi = parseFloat(aliq.ipi) || 0;
+
+    const icms = (estado && tipoPessoa)
+        ? buscarAliquotaICMS(estado, tipoPessoa, nomeProduto)
+        : (parseFloat(aliq.icmsBase) || 0);
+
+    if (ci === 0) return null;
+
+    // Step 1
+    const valorBase = ci * taxa * roi;
+
+    // Step 2
+    const icmsR = valorBase * icms / 100;
+    const pisR = valorBase * pis / 100;
+    const cofinsR = valorBase * cofins / 100;
+    const valorImpostos = valorBase + icmsR + pisR + cofinsR;
+
+    // Step 3
+    const ipiR = valorImpostos * ipi / 100;
+    const valorTotal = valorImpostos + ipiR;
+
+    // Step 4
+    const comissaoR = valorBase * comissao / 100;
+    const precoFinal = (prec.precoFinalManual !== null && prec.precoFinalManual !== undefined && prec.precoFinalManual !== '')
+        ? parseFloat(prec.precoFinalManual)
+        : valorTotal + comissaoR;
+
+    return {
+        ci, taxa, roi,
+        valorBase,
+        icms, icmsR,
+        pis, pisR,
+        cofins, cofinsR,
+        valorImpostos,
+        ipi, ipiR,
+        valorTotal,
+        comissao, comissaoR,
+        precoFinal,
+        isManual: !!(prec.precoFinalManual !== null && prec.precoFinalManual !== undefined && prec.precoFinalManual !== '')
+    };
 }
 
 function renderizarPrecificacao() {
@@ -8264,162 +8471,532 @@ function renderizarPrecificacao() {
 
     const produtos = estoque.produtos || [];
     if (produtos.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="11" style="text-align:center;padding:24px;color:var(--text-secondary)">Nenhum produto cadastrado.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="15" style="text-align:center;padding:24px;color:#64748b">Nenhum produto cadastrado.</td></tr>';
         return;
     }
 
-    // Restaurar globals do estoque se salvos
-    if (estoque.precificacaoConfig) {
-        const cfg = estoque.precificacaoConfig;
-        const mpEl = document.getElementById('margemPadrao');
-        const frEl = document.getElementById('freteMedio');
-        const imEl = document.getElementById('impostosPct');
-        const coEl = document.getElementById('comissaoPct');
-        if (mpEl && cfg.margemPadrao != null) mpEl.value = cfg.margemPadrao;
-        if (frEl && cfg.freteMedio != null) frEl.value = cfg.freteMedio;
-        if (imEl && cfg.impostosPct != null) imEl.value = cfg.impostosPct;
-        if (coEl && cfg.comissaoPct != null) coEl.value = cfg.comissaoPct;
-    }
+    const taxaPadrao = document.getElementById('taxaPadrao')?.value || '1';
+    const roiPadrao = document.getElementById('roiPadrao')?.value || '1';
+    const pisPadrao = document.getElementById('pisPadrao')?.value || '1.65';
+    const cofinsPadrao = document.getElementById('cofinsPadrao')?.value || '7.6';
+    const comissaoPadrao = document.getElementById('comissaoPadrao')?.value || '5';
 
-    const globals = _getPrecGlobals();
+    tbody.innerHTML = produtos.map((produto) => {
+        const nome = produto.nome;
+        const nomeId = _nomeProdutoId(nome);
+        const nomeJs = _escapeJsString(nome);
 
-    tbody.innerHTML = produtos.map(p => {
-        const nome = p.nome;
-        // Inicializar entry se não existir, usando preco do produto como custo padrão
         if (!precificacao[nome]) {
-            precificacao[nome] = { custo: p.preco || 0, margemCustom: null, precoFinal: null };
+            precificacao[nome] = { ci: 0, taxa: null, roi: null, comissao: null, precoFinalManual: null };
+        }
+        if (!tabelaAliquotas[nome]) {
+            tabelaAliquotas[nome] = { pis: null, cofins: null, ipi: null, icmsBase: null };
+        }
+        if (!categoriaPorProduto[nome]) {
+            categoriaPorProduto[nome] = 'Outro';
         }
 
-        const c = _calcPrecProduto(nome, globals);
-        const nomeEsc = nome.replace(/'/g, "\\'");
+        const prec = precificacao[nome];
+        const aliq = tabelaAliquotas[nome];
+        const result = calcularPreco(nome);
+        const categoriaAtual = categoriaPorProduto[nome] || 'Outro';
+        const opcoesCategoria = CATEGORIAS_PRODUTO
+            .map(c => `<option value="${c}" ${c === categoriaAtual ? 'selected' : ''}>${c}</option>`)
+            .join('');
+        const pfBorder = result?.isManual ? '#f59e0b' : '#22c55e';
 
-        const isOverridden = precificacao[nome].precoFinal != null;
-        const pfBorder = isOverridden ? 'border:2px solid #f59e0b' : 'border:2px solid #22c55e';
-
-        let margemRealColor = '#22c55e';
-        if (c.margemReal < 10) margemRealColor = '#ef4444';
-        else if (c.margemReal < 20) margemRealColor = '#f59e0b';
-
-        const lucroColor = c.lucroUnitario >= 0 ? '#22c55e' : '#ef4444';
-
-        const margemCustomVal = precificacao[nome].margemCustom != null ? precificacao[nome].margemCustom : '';
-
-        return `<tr data-prec-produto="${nomeEsc}">
-            <td style="text-align:left;padding-left:16px;font-weight:500">${nome}</td>
-            <td><input type="number" value="${c.custo.toFixed(2)}" min="0" step="0.01" style="width:110px;padding:4px 6px;border:1px solid #e2e8f0;border-radius:4px;text-align:right" onchange="onPrecInput(this,'custo','${nomeEsc}')"></td>
-            <td style="text-align:right">${formatarMoedaValor(c.custoFrete)}</td>
-            <td style="text-align:right">${formatarMoedaValor(c.valorImpostos)}</td>
-            <td style="text-align:right">${formatarMoedaValor(c.valorComissao)}</td>
-            <td style="text-align:right;font-weight:700;color:#1e3a5f">${formatarMoedaValor(c.custoTotal)}</td>
-            <td><input type="number" value="${margemCustomVal}" placeholder="${(globals.margemPadrao*100).toFixed(1)}" min="0" max="99.9" step="0.1" style="width:80px;padding:4px 6px;border:1px solid #e2e8f0;border-radius:4px;text-align:right" onchange="onPrecInput(this,'margem','${nomeEsc}')"></td>
-            <td style="text-align:right;font-style:italic;color:#64748b">${formatarMoedaValor(c.precoSugerido)}</td>
-            <td><input type="number" value="${c.precoFinal.toFixed(2)}" min="0" step="0.01" style="width:120px;padding:4px 6px;${pfBorder};border-radius:4px;text-align:right" onchange="onPrecInput(this,'preco','${nomeEsc}')"></td>
-            <td style="text-align:right;font-weight:600;color:${lucroColor}">${formatarMoedaValor(c.lucroUnitario)}</td>
-            <td style="text-align:right;font-weight:600;color:${margemRealColor}">${c.margemReal.toFixed(1)}%</td>
+        return `<tr data-produto="${_escapeHtml(nome)}">
+            <td style="text-align:left;padding-left:15px;font-weight:500;position:sticky;left:0;background:#fff;z-index:1">${_escapeHtml(nome)}</td>
+            <td>
+                <select id="cat_${nomeId}" onchange="salvarCategoriaProduto('${nomeJs}', this.value)" style="width:120px;padding:6px 8px;border:1px solid #e2e8f0;border-radius:6px;font-size:0.85rem">
+                    ${opcoesCategoria}
+                </select>
+            </td>
+            <td><input type="number" id="ci_${nomeId}" step="0.01" min="0" value="${prec.ci || ''}" placeholder="0,00" oninput="atualizarLinhaPrecificacao('${nomeJs}')" style="width:95px;padding:6px 8px;border:1px solid #e2e8f0;border-radius:6px"></td>
+            <td><input type="number" id="taxa_${nomeId}" step="0.01" min="0" value="${prec.taxa || ''}" placeholder="${taxaPadrao}" oninput="atualizarLinhaPrecificacao('${nomeJs}')" style="width:70px;padding:6px 8px;border:1px solid #e2e8f0;border-radius:6px"></td>
+            <td><input type="number" id="roi_${nomeId}" step="0.01" min="0" value="${prec.roi || ''}" placeholder="${roiPadrao}" oninput="atualizarLinhaPrecificacao('${nomeJs}')" style="width:70px;padding:6px 8px;border:1px solid #e2e8f0;border-radius:6px"></td>
+            <td><span id="vbase_${nomeId}">${result ? _fmtMoeda(result.valorBase) : '-'}</span></td>
+            <td><input type="number" id="pis_${nomeId}" step="0.01" min="0" value="${aliq.pis || ''}" placeholder="${pisPadrao}" oninput="atualizarLinhaPrecificacao('${nomeJs}')" style="width:72px;padding:6px 8px;border:1px solid #e2e8f0;border-radius:6px"></td>
+            <td><input type="number" id="cofins_${nomeId}" step="0.01" min="0" value="${aliq.cofins || ''}" placeholder="${cofinsPadrao}" oninput="atualizarLinhaPrecificacao('${nomeJs}')" style="width:72px;padding:6px 8px;border:1px solid #e2e8f0;border-radius:6px"></td>
+            <td><input type="number" id="icms_${nomeId}" step="0.01" min="0" value="${aliq.icmsBase || ''}" placeholder="12" title="ICMS padrão quando nenhuma regra da tabela de ICMS se aplicar" oninput="atualizarLinhaPrecificacao('${nomeJs}')" style="width:78px;padding:6px 8px;border:1px solid #e2e8f0;border-radius:6px"></td>
+            <td><input type="number" id="ipi_${nomeId}" step="0.01" min="0" value="${aliq.ipi || ''}" placeholder="0" oninput="atualizarLinhaPrecificacao('${nomeJs}')" style="width:72px;padding:6px 8px;border:1px solid #e2e8f0;border-radius:6px"></td>
+            <td><span id="vimp_${nomeId}">${result ? _fmtMoeda(result.valorImpostos) : '-'}</span></td>
+            <td><input type="number" id="comissao_${nomeId}" step="0.1" min="0" value="${prec.comissao || ''}" placeholder="${comissaoPadrao}" oninput="atualizarLinhaPrecificacao('${nomeJs}')" style="width:72px;padding:6px 8px;border:1px solid #e2e8f0;border-radius:6px"></td>
+            <td><span id="vcom_${nomeId}" style="color:#d97706;font-weight:600">${result ? _fmtMoeda(result.comissaoR) : '-'}</span></td>
+            <td style="background:#fffbf0">
+                <div style="display:flex;gap:6px;align-items:center;justify-content:center">
+                    <input type="number" step="0.01" min="0" id="vpf_${nomeId}" value="${result ? Number(result.precoFinal).toFixed(2) : ''}" oninput="salvarPrecoFinalManual('${nomeJs}', this.value)" style="width:110px;padding:6px 8px;border:2px solid ${pfBorder};border-radius:6px">
+                    <button onclick="resetarPrecoManual('${nomeJs}')" title="Usar preço calculado" style="border:none;background:#f1f5f9;color:#475569;border-radius:6px;cursor:pointer;width:26px;height:26px;line-height:1">↺</button>
+                </div>
+            </td>
+            <td style="font-size:0.75rem;color:#64748b">${result?.isManual ? 'Manual' : 'Auto'}</td>
         </tr>`;
     }).join('');
-}
 
-function onPrecInput(el, tipo, nomeProduto) {
-    const entry = precificacao[nomeProduto] || { custo: 0, margemCustom: null, precoFinal: null };
-    precificacao[nomeProduto] = entry;
-
-    if (tipo === 'custo') {
-        entry.custo = parseFloat(el.value) || 0;
-    } else if (tipo === 'margem') {
-        const val = el.value.trim();
-        entry.margemCustom = val !== '' ? parseFloat(val) : null;
-    } else if (tipo === 'preco') {
-        const val = parseFloat(el.value);
-        const globals = _getPrecGlobals();
-        const calc = _calcPrecProduto(nomeProduto, globals);
-        // Se o valor informado é igual ao sugerido, remover override
-        if (Math.abs(val - calc.precoSugerido) < 0.01) {
-            entry.precoFinal = null;
-        } else {
-            entry.precoFinal = val;
-        }
-    }
-
-    atualizarPrecoProduto(nomeProduto);
-}
-
-function atualizarPrecoProduto(nomeProduto) {
-    const globals = _getPrecGlobals();
-    const c = _calcPrecProduto(nomeProduto, globals);
-    const nomeEsc = nomeProduto.replace(/'/g, "\\'");
-
-    const row = document.querySelector(`tr[data-prec-produto="${nomeEsc}"]`);
-    if (!row) return;
-
-    const cells = row.querySelectorAll('td');
-    // cells: 0=nome, 1=custo(input), 2=frete, 3=impostos, 4=comissao, 5=custoTotal,
-    //        6=margem(input), 7=precoSugerido, 8=precoFinal(input), 9=lucro, 10=margemReal
-
-    cells[2].textContent = formatarMoedaValor(c.custoFrete);
-    cells[3].textContent = formatarMoedaValor(c.valorImpostos);
-    cells[4].textContent = formatarMoedaValor(c.valorComissao);
-    cells[5].textContent = formatarMoedaValor(c.custoTotal);
-    cells[5].style.fontWeight = '700';
-    cells[5].style.color = '#1e3a5f';
-
-    cells[7].textContent = formatarMoedaValor(c.precoSugerido);
-
-    const pfInput = cells[8].querySelector('input');
-    if (pfInput) {
-        pfInput.value = c.precoFinal.toFixed(2);
-        const isOverridden = precificacao[nomeProduto]?.precoFinal != null;
-        pfInput.style.border = isOverridden ? '2px solid #f59e0b' : '2px solid #22c55e';
-    }
-
-    const lucroColor = c.lucroUnitario >= 0 ? '#22c55e' : '#ef4444';
-    cells[9].textContent = formatarMoedaValor(c.lucroUnitario);
-    cells[9].style.color = lucroColor;
-    cells[9].style.fontWeight = '600';
-
-    let margemRealColor = '#22c55e';
-    if (c.margemReal < 10) margemRealColor = '#ef4444';
-    else if (c.margemReal < 20) margemRealColor = '#f59e0b';
-    cells[10].textContent = c.margemReal.toFixed(1) + '%';
-    cells[10].style.color = margemRealColor;
-    cells[10].style.fontWeight = '600';
-
-    // Persist
-    estoque.precificacao = precificacao;
-    _salvarPrecConfig();
-
-    sincronizarPrecoNasVendas(nomeProduto);
-}
-
-function _salvarPrecConfig() {
-    estoque.precificacaoConfig = {
-        margemPadrao: parseFloat(document.getElementById('margemPadrao')?.value) || 35,
-        freteMedio: parseFloat(document.getElementById('freteMedio')?.value) || 0,
-        impostosPct: parseFloat(document.getElementById('impostosPct')?.value) || 0,
-        comissaoPct: parseFloat(document.getElementById('comissaoPct')?.value) || 5
-    };
-    estoque.precificacao = precificacao;
     salvarDados();
 }
 
-function recalcularTodos() {
+function atualizarLinhaPrecificacao(nomeProduto) {
+    const nomeId = _nomeProdutoId(nomeProduto);
+    const ciEl = document.getElementById(`ci_${nomeId}`);
+    const taxaEl = document.getElementById(`taxa_${nomeId}`);
+    const roiEl = document.getElementById(`roi_${nomeId}`);
+    const pisEl = document.getElementById(`pis_${nomeId}`);
+    const cofinsEl = document.getElementById(`cofins_${nomeId}`);
+    const icmsEl = document.getElementById(`icms_${nomeId}`);
+    const ipiEl = document.getElementById(`ipi_${nomeId}`);
+    const comissaoEl = document.getElementById(`comissao_${nomeId}`);
+
+    if (!precificacao[nomeProduto]) precificacao[nomeProduto] = { ci: 0, taxa: null, roi: null, comissao: null, precoFinalManual: null };
+    if (!tabelaAliquotas[nomeProduto]) tabelaAliquotas[nomeProduto] = { pis: null, cofins: null, ipi: null, icmsBase: null };
+
+    const ciRaw = ciEl?.value ?? '';
+    const taxaRaw = taxaEl?.value ?? '';
+    const roiRaw = roiEl?.value ?? '';
+    const pisRaw = pisEl?.value ?? '';
+    const cofinsRaw = cofinsEl?.value ?? '';
+    const icmsRaw = icmsEl?.value ?? '';
+    const ipiRaw = ipiEl?.value ?? '';
+    const comissaoRaw = comissaoEl?.value ?? '';
+
+    const taxaDefault = parseFloat(document.getElementById('taxaPadrao')?.value) || 1;
+    const roiDefault = parseFloat(document.getElementById('roiPadrao')?.value) || 1;
+    const pisDefault = parseFloat(document.getElementById('pisPadrao')?.value) || 0;
+    const cofinsDefault = parseFloat(document.getElementById('cofinsPadrao')?.value) || 0;
+    const comissaoDefault = parseFloat(document.getElementById('comissaoPadrao')?.value) || 5;
+
+    precificacao[nomeProduto].ci = parseFloat(ciRaw) || 0;
+    precificacao[nomeProduto].taxa = taxaRaw === '' ? null : (parseFloat(taxaRaw) || taxaDefault);
+    precificacao[nomeProduto].roi = roiRaw === '' ? null : (parseFloat(roiRaw) || roiDefault);
+    precificacao[nomeProduto].comissao = comissaoRaw === '' ? null : (parseFloat(comissaoRaw) || comissaoDefault);
+
+    tabelaAliquotas[nomeProduto].pis = pisRaw === '' ? null : (parseFloat(pisRaw) || pisDefault);
+    tabelaAliquotas[nomeProduto].cofins = cofinsRaw === '' ? null : (parseFloat(cofinsRaw) || cofinsDefault);
+    tabelaAliquotas[nomeProduto].icmsBase = icmsRaw === '' ? null : (parseFloat(icmsRaw) || 0);
+    tabelaAliquotas[nomeProduto].ipi = ipiRaw === '' ? null : (parseFloat(ipiRaw) || 0);
+
+    const r = calcularPreco(nomeProduto);
+
+    const vbaseEl = document.getElementById(`vbase_${nomeId}`);
+    const vimpEl = document.getElementById(`vimp_${nomeId}`);
+    const vcomEl = document.getElementById(`vcom_${nomeId}`);
+    const vpfEl = document.getElementById(`vpf_${nomeId}`);
+
+    if (!r) {
+        if (vbaseEl) vbaseEl.textContent = '-';
+        if (vimpEl) vimpEl.textContent = '-';
+        if (vcomEl) vcomEl.textContent = '-';
+        if (vpfEl && !(precificacao[nomeProduto].precoFinalManual !== null && precificacao[nomeProduto].precoFinalManual !== undefined && precificacao[nomeProduto].precoFinalManual !== '')) {
+            vpfEl.value = '';
+        }
+        if (vpfEl) vpfEl.style.border = '2px solid #22c55e';
+        salvarDados();
+        return;
+    }
+
+    if (vbaseEl) vbaseEl.textContent = _fmtMoeda(r.valorBase);
+    if (vimpEl) vimpEl.textContent = _fmtMoeda(r.valorImpostos);
+    if (vcomEl) vcomEl.textContent = _fmtMoeda(r.comissaoR);
+
+    const isManual = !!(precificacao[nomeProduto].precoFinalManual !== null && precificacao[nomeProduto].precoFinalManual !== undefined && precificacao[nomeProduto].precoFinalManual !== '');
+    if (vpfEl && !isManual) {
+        vpfEl.value = Number(r.precoFinal).toFixed(2);
+    }
+    if (vpfEl) {
+        vpfEl.style.border = isManual ? '2px solid #f59e0b' : '2px solid #22c55e';
+    }
+
+    salvarDados();
+}
+
+function salvarCategoriaProduto(nomeProduto, categoria) {
+    categoriaPorProduto[nomeProduto] = categoria;
+    salvarDados();
+}
+
+function salvarPrecoFinalManual(nomeProduto, valor) {
+    if (!precificacao[nomeProduto]) {
+        precificacao[nomeProduto] = { ci: 0, taxa: null, roi: null, comissao: null, precoFinalManual: null };
+    }
+
+    const manual = parseFloat(valor);
+    if (!Number.isFinite(manual)) {
+        precificacao[nomeProduto].precoFinalManual = null;
+        atualizarLinhaPrecificacao(nomeProduto);
+        return;
+    }
+
+    const backup = precificacao[nomeProduto].precoFinalManual;
+    precificacao[nomeProduto].precoFinalManual = null;
+    const calculado = calcularPreco(nomeProduto);
+    const precoAuto = calculado ? Number(calculado.precoFinal) : 0;
+    const vpf = document.getElementById(`vpf_${_nomeProdutoId(nomeProduto)}`);
+
+    if (Math.abs(manual - precoAuto) > 0.01) {
+        precificacao[nomeProduto].precoFinalManual = manual;
+        if (vpf) vpf.style.border = '2px solid #f59e0b';
+    } else {
+        precificacao[nomeProduto].precoFinalManual = null;
+        if (vpf) vpf.style.border = '2px solid #22c55e';
+    }
+
+    if (backup !== precificacao[nomeProduto].precoFinalManual) {
+        salvarDados();
+    }
+}
+
+function resetarPrecoManual(nomeProduto) {
+    if (!precificacao[nomeProduto]) {
+        precificacao[nomeProduto] = { ci: 0, taxa: null, roi: null, comissao: null, precoFinalManual: null };
+    }
+    precificacao[nomeProduto].precoFinalManual = null;
+    atualizarLinhaPrecificacao(nomeProduto);
+    const vpf = document.getElementById(`vpf_${_nomeProdutoId(nomeProduto)}`);
+    if (vpf) vpf.style.border = '2px solid #22c55e';
+    salvarDados();
+}
+
+function recalcularTodosProdutos() {
     const produtos = estoque.produtos || [];
-    produtos.forEach(p => atualizarPrecoProduto(p.nome));
+    produtos.forEach(produto => {
+        atualizarLinhaPrecificacao(produto.nome);
+    });
+}
+
+function recalcularTodos() {
+    recalcularTodosProdutos();
 }
 
 function aplicarMargemGlobal() {
-    const produtos = estoque.produtos || [];
-    produtos.forEach(p => {
-        const entry = precificacao[p.nome];
-        if (!entry || entry.margemCustom == null) {
-            atualizarPrecoProduto(p.nome);
-        }
+    recalcularTodosProdutos();
+}
+
+function _ordenarTodosNoFim(a, b) {
+    if (a === b) return 0;
+    if (a === 'Todos') return 1;
+    if (b === 'Todos') return -1;
+    return String(a).localeCompare(String(b), 'pt-BR');
+}
+
+function renderizarTabelaICMS() {
+    const tbody = document.getElementById('tabelaICMSBody');
+    if (!tbody) return;
+
+    const regrasOrdenadas = [...tabelaICMS].sort((a, b) => {
+        const e = _ordenarTodosNoFim(a.estado, b.estado);
+        if (e !== 0) return e;
+        const t = _ordenarTodosNoFim(a.tipoPessoa, b.tipoPessoa);
+        if (t !== 0) return t;
+        return _ordenarTodosNoFim(a.categoriaProduto, b.categoriaProduto);
     });
-    _salvarPrecConfig();
+
+    tbody.innerHTML = regrasOrdenadas.map(rule => `
+        <tr id="icms_row_${_escapeHtml(rule.id)}">
+            <td>${_escapeHtml(rule.estado)}</td>
+            <td>${_escapeHtml(rule.tipoPessoa)}</td>
+            <td>${_escapeHtml(rule.categoriaProduto)}</td>
+            <td>${Number(rule.aliquota || 0).toFixed(2)}%</td>
+            <td>
+                <button onclick="editarRegraICMS('${_escapeJsString(rule.id)}')" style="border:none;background:none;cursor:pointer">✏️</button>
+                <button onclick="excluirRegraICMS('${_escapeJsString(rule.id)}')" style="border:none;background:none;cursor:pointer">🗑️</button>
+            </td>
+        </tr>
+    `).join('');
+}
+
+function adicionarRegraICMS() {
+    const tbody = document.getElementById('tabelaICMSBody');
+    if (!tbody) return;
+    if (document.getElementById('novaRegraRow')) return;
+
+    const opcoesEstado = ['Todos', ...ESTADOS_BR].map(e => `<option value="${e}">${e}</option>`).join('');
+    const opcoesCategoria = ['Todos', ...CATEGORIAS_PRODUTO].map(c => `<option value="${c}">${c}</option>`).join('');
+
+    const html = `
+      <tr id="novaRegraRow">
+        <td>
+          <select id="nr_estado">${opcoesEstado}</select>
+        </td>
+        <td>
+          <select id="nr_tipoPessoa">
+            <option value="Todos">Todos</option>
+            <option value="PJ">PJ</option>
+            <option value="PF">PF</option>
+          </select>
+        </td>
+        <td>
+          <select id="nr_categoria">${opcoesCategoria}</select>
+        </td>
+        <td>
+          <input type="number" id="nr_aliquota" step="0.01" min="0" placeholder="12" style="width:70px">
+        </td>
+        <td>
+          <button onclick="confirmarNovaRegraICMS()" style="color:#16a34a;font-size:1.1rem;background:none;border:none;cursor:pointer">✓</button>
+          <button onclick="cancelarNovaRegraICMS()" style="color:#dc2626;font-size:1.1rem;background:none;border:none;cursor:pointer">✗</button>
+        </td>
+      </tr>`;
+
+    tbody.insertAdjacentHTML('afterbegin', html);
+}
+
+function confirmarNovaRegraICMS() {
+    const estado = document.getElementById('nr_estado')?.value || 'Todos';
+    const tipoPessoa = document.getElementById('nr_tipoPessoa')?.value || 'Todos';
+    const categoria = document.getElementById('nr_categoria')?.value || 'Todos';
+    const aliquota = parseFloat(document.getElementById('nr_aliquota')?.value);
+
+    if (!Number.isFinite(aliquota) || aliquota < 0) {
+        alert('Informe uma alíquota válida (>= 0).');
+        return;
+    }
+
+    tabelaICMS.push({
+        id: Date.now().toString(),
+        estado,
+        tipoPessoa,
+        categoriaProduto: categoria,
+        aliquota
+    });
+
+    renderizarTabelaICMS();
+    salvarDados();
+}
+
+function cancelarNovaRegraICMS() {
+    const row = document.getElementById('novaRegraRow');
+    if (row) row.remove();
+}
+
+function editarRegraICMS(id) {
+    const rule = tabelaICMS.find(r => String(r.id) === String(id));
+    if (!rule) return;
+    const row = document.getElementById(`icms_row_${id}`);
+    if (!row) return;
+
+    const opcoesEstado = ['Todos', ...ESTADOS_BR]
+        .map(e => `<option value="${e}" ${e === rule.estado ? 'selected' : ''}>${e}</option>`)
+        .join('');
+    const opcoesCategoria = ['Todos', ...CATEGORIAS_PRODUTO]
+        .map(c => `<option value="${c}" ${c === rule.categoriaProduto ? 'selected' : ''}>${c}</option>`)
+        .join('');
+
+    row.innerHTML = `
+        <td><select id="er_estado_${id}">${opcoesEstado}</select></td>
+        <td>
+            <select id="er_tipoPessoa_${id}">
+                <option value="Todos" ${rule.tipoPessoa === 'Todos' ? 'selected' : ''}>Todos</option>
+                <option value="PJ" ${rule.tipoPessoa === 'PJ' ? 'selected' : ''}>PJ</option>
+                <option value="PF" ${rule.tipoPessoa === 'PF' ? 'selected' : ''}>PF</option>
+            </select>
+        </td>
+        <td><select id="er_categoria_${id}">${opcoesCategoria}</select></td>
+        <td><input type="number" id="er_aliquota_${id}" step="0.01" min="0" value="${Number(rule.aliquota || 0)}" style="width:70px"></td>
+        <td>
+            <button onclick="atualizarRegraICMS('${_escapeJsString(id)}')" style="color:#16a34a;font-size:1.1rem;background:none;border:none;cursor:pointer">✓</button>
+            <button onclick="renderizarTabelaICMS()" style="color:#dc2626;font-size:1.1rem;background:none;border:none;cursor:pointer">✗</button>
+        </td>
+    `;
+}
+
+function atualizarRegraICMS(id) {
+    const estado = document.getElementById(`er_estado_${id}`)?.value || 'Todos';
+    const tipoPessoa = document.getElementById(`er_tipoPessoa_${id}`)?.value || 'Todos';
+    const categoria = document.getElementById(`er_categoria_${id}`)?.value || 'Todos';
+    const aliquota = parseFloat(document.getElementById(`er_aliquota_${id}`)?.value);
+
+    if (!Number.isFinite(aliquota) || aliquota < 0) {
+        alert('Informe uma alíquota válida (>= 0).');
+        return;
+    }
+
+    const idx = tabelaICMS.findIndex(r => String(r.id) === String(id));
+    if (idx === -1) return;
+
+    tabelaICMS[idx] = {
+        ...tabelaICMS[idx],
+        estado,
+        tipoPessoa,
+        categoriaProduto: categoria,
+        aliquota
+    };
+
+    renderizarTabelaICMS();
+    salvarDados();
+}
+
+function excluirRegraICMS(id) {
+    if (confirm('Excluir esta regra de ICMS?')) {
+        tabelaICMS = tabelaICMS.filter(r => String(r.id) !== String(id));
+        renderizarTabelaICMS();
+        salvarDados();
+    }
+}
+
+function exportarTabelaICMS() {
+    if (typeof XLSX === 'undefined') {
+        mostrarNotificacao('Biblioteca XLSX não encontrada.', 'error');
+        return;
+    }
+    const dados = tabelaICMS.map(r => ({
+        'Estado': r.estado,
+        'Tipo Pessoa': r.tipoPessoa,
+        'Categoria Produto': r.categoriaProduto,
+        'Aliquota ICMS (%)': r.aliquota
+    }));
+    const ws = XLSX.utils.json_to_sheet(dados);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Tabela ICMS');
+    XLSX.writeFile(wb, 'tabela_icms.xlsx');
+}
+
+function importarTabelaICMS() {
+    document.getElementById('inputImportarICMS').click();
+}
+
+function _normalizarCabecalho(txt) {
+    return String(txt || '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase()
+        .replace(/[^a-z0-9]/g, '');
+}
+
+function importarTabelaICMSArquivo(event) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    if (typeof XLSX === 'undefined') {
+        mostrarNotificacao('Biblioteca XLSX não encontrada.', 'error');
+        event.target.value = '';
+        return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        try {
+            const data = new Uint8Array(e.target.result);
+            const workbook = XLSX.read(data, { type: 'array' });
+            const sheet = workbook.Sheets[workbook.SheetNames[0]];
+            const rows = XLSX.utils.sheet_to_json(sheet, { defval: '' });
+
+            let importadas = 0;
+            let atualizadas = 0;
+
+            rows.forEach((row, index) => {
+                const normalized = {};
+                Object.keys(row).forEach(k => {
+                    normalized[_normalizarCabecalho(k)] = row[k];
+                });
+
+                const estado = String(normalized.estado || 'Todos').trim() || 'Todos';
+                const tipoPessoa = String(normalized.tipopessoa || 'Todos').trim() || 'Todos';
+                const categoria = String(normalized.categoriaproduto || 'Todos').trim() || 'Todos';
+                const aliquota = parseFloat(normalized.aliquotaicms ?? normalized.aliquotaicmspercent ?? normalized.aliquota ?? '');
+
+                if (!Number.isFinite(aliquota) || aliquota < 0) return;
+
+                const idxExistente = tabelaICMS.findIndex(r =>
+                    String(r.estado).toUpperCase() === estado.toUpperCase()
+                    && String(r.tipoPessoa).toUpperCase() === tipoPessoa.toUpperCase()
+                    && String(r.categoriaProduto).toUpperCase() === categoria.toUpperCase()
+                );
+
+                if (idxExistente >= 0) {
+                    tabelaICMS[idxExistente].aliquota = aliquota;
+                    atualizadas++;
+                } else {
+                    tabelaICMS.push({
+                        id: `${Date.now()}_${index}`,
+                        estado,
+                        tipoPessoa,
+                        categoriaProduto: categoria,
+                        aliquota
+                    });
+                    importadas++;
+                }
+            });
+
+            renderizarTabelaICMS();
+            salvarDados();
+            alert(`${importadas} regras importadas, ${atualizadas} atualizadas.`);
+        } catch (err) {
+            console.error('Erro ao importar tabela ICMS:', err);
+            mostrarNotificacao('Falha ao importar tabela de ICMS.', 'error');
+        } finally {
+            event.target.value = '';
+        }
+    };
+
+    reader.readAsArrayBuffer(file);
+}
+
+function abrirModalICMS() {
+    renderizarTabelaICMS();
+    document.getElementById('modalICMS').style.display = 'block';
+}
+
+function abrirSimuladorICMS() {
+    const select = document.getElementById('simProduto');
+    if (!select) return;
+    const produtos = estoque.produtos || [];
+
+    select.innerHTML = '<option value="">Selecione...</option>'
+      + produtos
+          .filter(p => (precificacao[p.nome]?.ci || 0) > 0)
+          .map(p => `<option value="${_escapeHtml(p.nome)}">${_escapeHtml(p.nome)}</option>`)
+          .join('');
+
+    document.getElementById('simResultado').style.display = 'none';
+    document.getElementById('modalSimuladorICMS').style.display = 'block';
+}
+
+function rodarSimulador() {
+    const nome = document.getElementById('simProduto').value;
+    const estado = document.getElementById('simEstado').value;
+    const tipoPessoa = document.getElementById('simTipoPessoa').value;
+    if (!nome || !estado) return;
+
+    const r = calcularPreco(nome, estado, tipoPessoa);
+    if (!r) {
+        document.getElementById('simResultado').style.display = 'none';
+        return;
+    }
+
+    const fmt = v => 'R$ ' + Number(v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const pct = v => Number(v || 0).toFixed(2) + '%';
+
+    const row = (label, pctTxt, valor, color = '#1e293b', bold = false) => `
+      <tr>
+        <td style="padding:6px 4px;color:#475569">${label}</td>
+        <td style="text-align:center;padding:6px 4px;color:#94a3b8;font-size:0.85rem">
+          ${pctTxt}
+        </td>
+        <td style="text-align:right;padding:6px 4px;font-weight:${bold ? 700 : 500};color:${color}">${valor}</td>
+      </tr>`;
+
+    const sep = () => `<tr><td colspan="3" style="border-top:1px solid #e2e8f0;padding:2px 0"></td></tr>`;
+
+    document.getElementById('simDetalhamento').innerHTML = `
+      ${row('Custo de Industrialização (CI)', '—', fmt(r.ci))}
+      ${row('Taxa (diretoria)', '× ' + r.taxa, '—')}
+      ${row('ROI', '× ' + r.roi, '—')}
+      ${row('Valor Base (CI × Taxa × ROI)', '—', fmt(r.valorBase), '#1e3a5f', true)}
+      ${sep()}
+      ${row('ICMS (' + estado + ' / ' + tipoPessoa + ')', pct(r.icms), fmt(r.icmsR), '#dc2626')}
+      ${row('PIS', pct(r.pis), fmt(r.pisR), '#dc2626')}
+      ${row('COFINS', pct(r.cofins), fmt(r.cofinsR), '#dc2626')}
+      ${row('Valor c/ ICMS + PIS + COFINS', '—', fmt(r.valorImpostos), '#1e3a5f', true)}
+      ${sep()}
+      ${row('IPI', pct(r.ipi), fmt(r.ipiR), '#dc2626')}
+      ${row('Valor c/ IPI (Valor Total)', '—', fmt(r.valorTotal), '#1e3a5f', true)}
+      ${sep()}
+      ${row('Comissão (% s/ Valor Base)', pct(r.comissao), fmt(r.comissaoR), '#d97706')}
+    `;
+
+    document.getElementById('simPrecoFinal').textContent = fmt(r.precoFinal);
+    document.getElementById('simResultado').style.display = 'block';
 }
 
 function sincronizarPrecoNasVendas(nomeProduto) {
-    // Auto-fill valor unitário quando produto é selecionado em modal de venda
     const container = document.getElementById('itensVendaContainer');
     if (!container) return;
     const rows = container.querySelectorAll('.item-venda-row');
@@ -8430,12 +9007,9 @@ function sincronizarPrecoNasVendas(nomeProduto) {
         const produto = (estoque.produtos || []).find(p => p.id === produtoId);
         if (produto && produto.nome === nomeProduto) {
             const valorInput = row.querySelector('.item-valor');
-            if (valorInput && (!valorInput.value || valorInput.value.trim() === '')) {
-                const entry = precificacao[nomeProduto];
-                if (entry) {
-                    const calc = _calcPrecProduto(nomeProduto);
-                    valorInput.value = formatarMoedaValor(calc.precoFinal).replace('R$', '').trim();
-                }
+            const calc = calcularPreco(nomeProduto);
+            if (valorInput && calc && (!valorInput.value || valorInput.value.trim() === '')) {
+                valorInput.value = Number(calc.precoFinal).toFixed(2).replace('.', ',');
             }
         }
     });
@@ -8446,15 +9020,15 @@ function autoPreencherPrecoProduto(selectEl) {
     if (!row) return;
     const valorInput = row.querySelector('.item-valor');
     if (!valorInput) return;
-    // Only auto-fill if valor is empty
     if (valorInput.value && valorInput.value.trim() !== '') return;
+
     const produtoId = parseInt(selectEl.value);
     const produto = (estoque.produtos || []).find(p => p.id === produtoId);
-    if (produto && precificacao[produto.nome]) {
-        const calc = _calcPrecProduto(produto.nome);
-        if (calc.precoFinal > 0) {
-            valorInput.value = calc.precoFinal.toFixed(2).replace('.', ',');
-        }
+    if (!produto) return;
+
+    const calc = calcularPreco(produto.nome);
+    if (calc && calc.precoFinal > 0) {
+        valorInput.value = Number(calc.precoFinal).toFixed(2).replace('.', ',');
     }
 }
 
@@ -8464,27 +9038,35 @@ function exportarPrecificacaoExcel() {
             mostrarNotificacao('Biblioteca XLSX não encontrada.', 'error');
             return;
         }
+
         const produtos = estoque.produtos || [];
-        const globals = _getPrecGlobals();
-        const dados = produtos.map(p => {
-            if (!precificacao[p.nome]) {
-                precificacao[p.nome] = { custo: p.preco || 0, margemCustom: null, precoFinal: null };
-            }
-            const c = _calcPrecProduto(p.nome, globals);
-            return {
-                'Produto': p.nome,
-                'Custo (R$)': c.custo,
-                'Frete (R$)': c.custoFrete,
-                'Impostos (R$)': c.valorImpostos,
-                'Comissão (R$)': c.valorComissao,
-                'Custo Total (R$)': c.custoTotal,
-                'Margem (%)': c.margem,
-                'Preço Sugerido (R$)': c.precoSugerido,
-                'Preço Final (R$)': c.precoFinal,
-                'Lucro Unit. (R$)': c.lucroUnitario,
-                'Margem Real (%)': c.margemReal
-            };
-        });
+        const dados = produtos
+            .map(p => {
+                const r = calcularPreco(p.nome);
+                if (!r) return null;
+                return {
+                    'Produto': p.nome,
+                    'Categoria': categoriaPorProduto[p.nome] || 'Outro',
+                    'CI': r.ci,
+                    'Taxa': r.taxa,
+                    'ROI': r.roi,
+                    'Valor Base': r.valorBase,
+                    'PIS %': r.pis,
+                    'PIS R$': r.pisR,
+                    'COFINS %': r.cofins,
+                    'COFINS R$': r.cofinsR,
+                    'ICMS % (base)': r.icms,
+                    'ICMS R$': r.icmsR,
+                    'c/ Impostos': r.valorImpostos,
+                    'IPI %': r.ipi,
+                    'IPI R$': r.ipiR,
+                    'Valor Total': r.valorTotal,
+                    'Comissão %': r.comissao,
+                    'Comissão R$': r.comissaoR,
+                    'Preço Final': r.precoFinal
+                };
+            })
+            .filter(Boolean);
 
         const ws = XLSX.utils.json_to_sheet(dados);
         const wb = XLSX.utils.book_new();
@@ -8611,10 +9193,10 @@ function autoPreencherPrecoItemProposta(selectEl) {
     if (valorInput.value && valorInput.value.trim() !== '') return;
     const produtoId = parseInt(selectEl.value);
     const produto = (estoque.produtos || []).find(p => p.id === produtoId);
-    if (produto && precificacao[produto.nome]) {
-        const calc = _calcPrecProduto(produto.nome);
-        if (calc.precoFinal > 0) {
-            valorInput.value = calc.precoFinal.toFixed(2).replace('.', ',');
+    if (produto) {
+        const calc = calcularPreco(produto.nome);
+        if (calc && calc.precoFinal > 0) {
+            valorInput.value = Number(calc.precoFinal).toFixed(2).replace('.', ',');
         }
     }
 }
