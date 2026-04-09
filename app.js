@@ -12,7 +12,8 @@ let estoque = {
     registroDevolucoes: [],
     controleEnvio: {},
     auditoriaVendas: [],
-    fechamentosComissoes: []
+    fechamentosComissoes: [],
+    clientes: []
 };
 
 // =============================
@@ -179,6 +180,9 @@ async function inicializar() {
     renderizarRegistroVendas();
     renderizarRegistroDistribuicao();
     renderizarControleEnvio();
+    renderizarClientes();
+    atualizarKPIsClientes();
+    atualizarDatalistClientes();
     atualizarSelectsProdutos();
     atualizarSelectsRelatorios();
     atualizarEstatisticas();
@@ -215,6 +219,10 @@ function carregarDados() {
         if (!Array.isArray(estoque.fechamentosComissoes)) {
             estoque.fechamentosComissoes = [];
         }
+        if (!Array.isArray(estoque.clientes)) {
+            estoque.clientes = [];
+        }
+        clientes = estoque.clientes;
     } else {
         estoque.produtos = dadosIniciais.map((item, index) => ({
             id: index + 1,
@@ -229,6 +237,8 @@ function carregarDados() {
         estoque.controleEnvio = {};
         estoque.auditoriaVendas = [];
         estoque.fechamentosComissoes = [];
+        estoque.clientes = [];
+        clientes = estoque.clientes;
         salvarDados();
     }
 }
@@ -336,12 +346,17 @@ async function carregarDoCloud({confirmOverwrite=true} = {}) {
         estoque = data.estado;
         if (!Array.isArray(estoque.auditoriaVendas)) estoque.auditoriaVendas = [];
         if (!Array.isArray(estoque.fechamentosComissoes)) estoque.fechamentosComissoes = [];
+        if (!Array.isArray(estoque.clientes)) estoque.clientes = [];
+        clientes = estoque.clientes;
         salvarDados();
         renderizarTabela();
         renderizarDashboard();
         renderizarRegistroVendas();
         renderizarRegistroDistribuicao();
         renderizarControleEnvio();
+        renderizarClientes();
+        atualizarKPIsClientes();
+        atualizarDatalistClientes();
         atualizarSelectsProdutos();
         atualizarSelectsRelatorios();
         console.log('Dados carregados do Firestore com sucesso.');
@@ -376,12 +391,17 @@ async function carregarDoCloudAuto() {
             estoque = data.estado;
             if (!Array.isArray(estoque.auditoriaVendas)) estoque.auditoriaVendas = [];
             if (!Array.isArray(estoque.fechamentosComissoes)) estoque.fechamentosComissoes = [];
+            if (!Array.isArray(estoque.clientes)) estoque.clientes = [];
+            clientes = estoque.clientes;
             salvarDados();
             renderizarTabela();
             renderizarDashboard();
             renderizarRegistroVendas();
             renderizarRegistroDistribuicao();
             renderizarControleEnvio();
+            renderizarClientes();
+            atualizarKPIsClientes();
+            atualizarDatalistClientes();
             atualizarSelectsProdutos();
             atualizarSelectsRelatorios();
             console.log('Dados carregados automaticamente do Firestore (remoto mais recente).');
@@ -2034,6 +2054,9 @@ function imprimirRelatorioAba(tabId) {
                 break;
             case 'configuracoes':
                 imprimirConfiguracoes();
+                break;
+            case 'clientes':
+                imprimirClientes();
                 break;
             default:
                 alert('Não há relatório configurado para esta aba.');
@@ -5713,6 +5736,8 @@ function importarSistema(event) {
 
             // Substitui o estado em memória e persiste
             estoque = obj;
+            if (!Array.isArray(estoque.clientes)) estoque.clientes = [];
+            clientes = estoque.clientes;
             salvarDados();
 
             // Re-renderizar tudo
@@ -5720,6 +5745,9 @@ function importarSistema(event) {
             renderizarDashboard();
             renderizarRegistroVendas();
             renderizarRegistroDistribuicao();
+            renderizarClientes();
+            atualizarKPIsClientes();
+            atualizarDatalistClientes();
             atualizarSelectsProdutos();
             atualizarEstatisticas();
 
@@ -6031,6 +6059,8 @@ function limparTodosDados() {
     estoque.registroVendas = [];
     estoque.registroDistribuicao = [];
     estoque.controleEnvio = {};
+    estoque.clientes = [];
+    clientes = estoque.clientes;
     
     salvarDados();
     renderizarTabela();
@@ -6038,6 +6068,9 @@ function limparTodosDados() {
     renderizarRegistroVendas();
     renderizarRegistroDistribuicao();
     renderizarControleEnvio();
+    renderizarClientes();
+    atualizarKPIsClientes();
+    atualizarDatalistClientes();
     atualizarSelectsProdutos();
     atualizarEstatisticas();
     
@@ -6592,6 +6625,224 @@ function renderizarGraficos() {
             }
         });
     }
+}
+
+// ========================================
+// MÓDULO DE CLIENTES
+// ========================================
+
+let clientes = [];
+
+function abrirModalCliente(id = null) {
+    document.getElementById('clienteEditId').value = '';
+    document.getElementById('clienteNome').value = '';
+    document.getElementById('clienteCnpj').value = '';
+    document.getElementById('clienteEndereco').value = '';
+    document.getElementById('clienteCidade').value = '';
+    document.getElementById('clienteUf').value = '';
+    document.getElementById('clienteTelefone').value = '';
+    document.getElementById('clienteEmail').value = '';
+    document.getElementById('clienteContato').value = '';
+    document.getElementById('clienteRepresentante').value = '';
+    document.getElementById('clienteObservacoes').value = '';
+    document.getElementById('modalClienteTitulo').textContent = 'Novo Cliente';
+
+    if (id) {
+        const cliente = clientes.find(c => c.id === id);
+        if (cliente) {
+            document.getElementById('clienteEditId').value = cliente.id;
+            document.getElementById('clienteNome').value = cliente.nome || '';
+            document.getElementById('clienteCnpj').value = cliente.cnpj || '';
+            document.getElementById('clienteEndereco').value = cliente.endereco || '';
+            document.getElementById('clienteCidade').value = cliente.cidade || '';
+            document.getElementById('clienteUf').value = cliente.uf || '';
+            document.getElementById('clienteTelefone').value = cliente.telefone || '';
+            document.getElementById('clienteEmail').value = cliente.email || '';
+            document.getElementById('clienteContato').value = cliente.contato || '';
+            document.getElementById('clienteRepresentante').value = cliente.representante || '';
+            document.getElementById('clienteObservacoes').value = cliente.observacoes || '';
+            document.getElementById('modalClienteTitulo').textContent = 'Editar Cliente';
+        }
+    }
+
+    document.getElementById('modalCliente').style.display = 'block';
+}
+
+function fecharModalCliente() {
+    fecharModal('modalCliente');
+}
+
+function salvarCliente(event) {
+    event.preventDefault();
+
+    const editId = document.getElementById('clienteEditId').value;
+    const dados = {
+        nome: document.getElementById('clienteNome').value.trim(),
+        cnpj: document.getElementById('clienteCnpj').value.trim(),
+        endereco: document.getElementById('clienteEndereco').value.trim(),
+        cidade: document.getElementById('clienteCidade').value.trim(),
+        uf: document.getElementById('clienteUf').value.trim().toUpperCase(),
+        telefone: document.getElementById('clienteTelefone').value.trim(),
+        email: document.getElementById('clienteEmail').value.trim(),
+        contato: document.getElementById('clienteContato').value.trim(),
+        representante: document.getElementById('clienteRepresentante').value,
+        observacoes: document.getElementById('clienteObservacoes').value.trim()
+    };
+
+    if (editId) {
+        const idx = clientes.findIndex(c => c.id === editId);
+        if (idx !== -1) {
+            clientes[idx] = { ...clientes[idx], ...dados };
+            registrarHistorico('edição', `Cliente editado: ${dados.nome}`);
+        }
+    } else {
+        const novo = {
+            id: Date.now().toString(),
+            ...dados,
+            dataCadastro: new Date().toISOString()
+        };
+        clientes.push(novo);
+        registrarHistorico('cadastro', `Cliente cadastrado: ${dados.nome}`);
+    }
+
+    renderizarClientes();
+    fecharModal('modalCliente');
+    atualizarKPIsClientes();
+    atualizarDatalistClientes();
+    estoque.clientes = clientes;
+    salvarDados();
+    salvarNoCloud().catch(e => console.error('Auto-save clientes falhou:', e));
+}
+
+function excluirCliente(id) {
+    const cliente = clientes.find(c => c.id === id);
+    if (!cliente) return;
+    if (!confirm(`Deseja excluir este cliente?\n${cliente.nome}`)) return;
+    clientes = clientes.filter(c => c.id !== id);
+    estoque.clientes = clientes;
+    registrarHistorico('exclusão', `Cliente excluído: ${cliente.nome}`);
+    renderizarClientes();
+    atualizarKPIsClientes();
+    atualizarDatalistClientes();
+    salvarDados();
+    salvarNoCloud().catch(e => console.error('Auto-save clientes falhou:', e));
+}
+
+function renderizarClientes(filtro = '') {
+    const tbody = document.getElementById('tabelaClientesBody');
+    if (!tbody) return;
+
+    const filtroLower = (filtro || '').toLowerCase();
+    const lista = clientes.filter(c => {
+        if (!filtroLower) return true;
+        return (c.nome || '').toLowerCase().includes(filtroLower) ||
+               (c.cnpj || '').toLowerCase().includes(filtroLower) ||
+               (c.cidade || '').toLowerCase().includes(filtroLower) ||
+               (c.representante || '').toLowerCase().includes(filtroLower);
+    });
+
+    if (lista.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:24px;color:var(--text-secondary)">Nenhum cliente encontrado.</td></tr>';
+        return;
+    }
+
+    const vendas = estoque.registroVendas || [];
+
+    tbody.innerHTML = lista.map(c => {
+        const repClass = (c.representante || '').toLowerCase();
+        const repBadge = c.representante
+            ? `<span class="badge-rep ${repClass}">${c.representante}</span>`
+            : '-';
+
+        // Contar vendas que referenciam este cliente pelo nome
+        const totalCompras = vendas.filter(v =>
+            (v.loja || '').toLowerCase() === (c.nome || '').toLowerCase()
+        ).length;
+
+        const cidadeUf = [c.cidade, c.uf].filter(Boolean).join(' / ');
+
+        return `<tr>
+            <td>${c.nome || '-'}</td>
+            <td>${c.cnpj || '-'}</td>
+            <td>${cidadeUf || '-'}</td>
+            <td>${c.telefone || '-'}</td>
+            <td>${c.email || '-'}</td>
+            <td>${c.contato || '-'}</td>
+            <td>${repBadge}</td>
+            <td style="text-align:center">${totalCompras}</td>
+            <td class="col-acoes">
+                <button class="btn-action btn-edit" data-admin="true" onclick="abrirModalCliente('${c.id}')" title="Editar cliente">✎</button>
+                <button class="btn-action btn-delete" data-admin="true" onclick="excluirCliente('${c.id}')" title="Excluir cliente">🗑</button>
+            </td>
+        </tr>`;
+    }).join('');
+
+    atualizarDatalistClientes();
+}
+
+function filtrarClientes(valor) {
+    renderizarClientes(valor);
+}
+
+function atualizarKPIsClientes() {
+    const totalEl = document.getElementById('kpiTotalClientes');
+    const ativosEl = document.getElementById('kpiClientesAtivos');
+    const ticketEl = document.getElementById('kpiTicketMedio');
+
+    if (totalEl) totalEl.textContent = clientes.length;
+
+    const vendas = estoque.registroVendas || [];
+
+    // Clientes com compras e totais por cliente
+    let clientesComCompras = 0;
+    let somaTotal = 0;
+
+    clientes.forEach(c => {
+        const vendasCliente = vendas.filter(v =>
+            (v.loja || '').toLowerCase() === (c.nome || '').toLowerCase()
+        );
+        if (vendasCliente.length > 0) {
+            clientesComCompras++;
+            vendasCliente.forEach(v => {
+                if (Array.isArray(v.items)) {
+                    v.items.forEach(it => { somaTotal += Number(it.valorTotal || 0); });
+                } else {
+                    somaTotal += Number(v.valorTotal || 0);
+                }
+            });
+        }
+    });
+
+    if (ativosEl) ativosEl.textContent = clientesComCompras;
+    if (ticketEl) {
+        const ticketMedio = clientesComCompras > 0 ? somaTotal / clientesComCompras : 0;
+        ticketEl.textContent = formatarMoedaValor(ticketMedio);
+    }
+}
+
+function getClienteNomes() {
+    return clientes.map(c => c.nome);
+}
+
+function atualizarDatalistClientes() {
+    const datalist = document.getElementById('clientesDatalist');
+    if (!datalist) return;
+    datalist.innerHTML = clientes.map(c =>
+        `<option value="${(c.nome || '').replace(/"/g, '&quot;')}">`
+    ).join('');
+}
+
+function imprimirClientes() {
+    const tabEl = document.getElementById('tab-clientes');
+    if (!tabEl) return;
+    const html = tabEl.querySelector('.table-container')?.innerHTML || '';
+    const win = window.open('', '_blank');
+    if (!win) { mostrarNotificacao('Pop-up bloqueado pelo navegador.', 'error'); return; }
+    win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Clientes</title>
+        <style>body{font-family:Inter,Arial,sans-serif;padding:20px}table{border-collapse:collapse;width:100%}th,td{border:1px solid #ddd;padding:6px 8px;font-size:12px}th{background:#f5f5f5;font-weight:600}.col-acoes{display:none}</style>
+        <script>window.onload=function(){ setTimeout(function(){ window.print(); },200); }<\/script>
+    </head><body><h2>Cadastro de Clientes</h2>${html}</body></html>`);
+    win.document.close();
 }
 
 // ========================================
