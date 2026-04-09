@@ -858,70 +858,160 @@ function renderizarTabela() {
     const tbody = document.getElementById('corpoTabela');
     if (!tbody) return;
     tbody.innerHTML = '';
-
     const totais = { GERAL: { disp: 0, venda: 0, saldo: 0 } };
-    estoque.representantes.forEach(rep => {
-        totais[rep] = { disp: 0, venda: 0, saldo: 0 };
-    });
+    estoque.representantes.forEach(rep => { totais[rep] = { disp: 0, venda: 0, saldo: 0 }; });
 
-    // Ordenar produtos alfabeticamente por nome para exibição
+    // Ordem de exibição: usa a lista de representantes do objeto `estoque`
     const produtosOrdenados = [...estoque.produtos].sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
-    let saldoZeroProdutos = 0;
+    let countConsolidadoZeradoOuNegativo = 0;
+
     produtosOrdenados.forEach(produto => {
         const tr = document.createElement('tr');
         tr.dataset.id = produto.id;
         let produtoHtml = produto.nome;
-        // Disponibilidade consolidada e disponibilidade IMBEL calculada
-        const produtoConsolidado = Number(produto.estoqueConsolidado) || 0;
-        const imbelDisp = calcularImbelDisponivel(produto);
-        let geralDisp = produtoConsolidado; // Consolidado exibido vem do cadastro
-        let geralVenda = 0;
-        let allSaldoZero = true;
 
+        const produtoId = produto.id;
+        const estoqueTotal = Number(
+            (produto.estoqueConsolidado ?? produto.estoqueTotal ?? produto.estoque ?? produto.qtdTotal ?? produto.estoqueInicial) || 0
+        ); // fonte de verdade (compatível com vários nomes)
+
+        // === STEP 2: distribuições por representante (agregar do registro)
+        const distPorRep = {};
+        (estoque.registroDistribuicao || []).forEach(d => {
+            try {
+                if (Number(d.produtoId) === Number(produtoId) || (d.produtoNome && d.produtoNome === produto.nome)) {
+                    const r = (d.representante || '').toString().toUpperCase();
+                    distPorRep[r] = (distPorRep[r] || 0) + (Number(d.quantidade) || 0);
+                }
+            } catch (e) {}
+        });
+        const totalDistribuido = Object.values(distPorRep).reduce((s, v) => s + v, 0);
+
+        // === STEP 3: devoluções por representante (origem da devolução)
+        const devPorRep = {};
+        let totalDevolvidoParaImbel = 0;
+        (estoque.registroDevolucoes || []).forEach(d => {
+            try {
+                if (Number(d.produtoId) === Number(produtoId) || (d.produtoNome && d.produtoNome === produto.nome)) {
+                    const origem = (d.origem || d.representante || '').toString().toUpperCase();
+                    const destino = (d.destino || '').toString().toUpperCase();
+                    devPorRep[origem] = (devPorRep[origem] || 0) + (Number(d.quantidade) || 0);
+                    if (destino === 'IMBEL') totalDevolvidoParaImbel += (Number(d.quantidade) || 0);
+                }
+            } catch (e) {}
+        });
+        const totalDevolvido = Object.values(devPorRep).reduce((s, v) => s + v, 0);
+
+        // === STEP 4: vendas por representante - preferir o agregado em produto.vendas
+        const vendasPorRep = {};
+        let agregadoTemValores = false;
+        if (produto.vendas && typeof produto.vendas === 'object') {
+            Object.keys(produto.vendas).forEach(k => {
+                const val = Number(produto.vendas[k]) || 0;
+                if (val !== 0) agregadoTemValores = true;
+                vendasPorRep[(k||'').toString().toUpperCase()] = val;
+            });
+        }
+        // Se o agregado estiver zerado (produto.vendas não confiável), popular a partir de registroVendas
+        if (!agregadoTemValores) {
+            (estoque.registroVendas || []).forEach(v => {
+                try {
+                    const rep = (v.representante || '').toString().toUpperCase();
+                    if (Array.isArray(v.items) && v.items.length) {
+                        v.items.forEach(it => {
+                            if (Number(it.produtoId) === Number(produtoId) || (it.produto === produto.nome) || (it.produtoNome === produto.nome)) {
+                                vendasPorRep[rep] = (vendasPorRep[rep] || 0) + (Number(it.quantidade) || 0);
+                            }
+                        });
+                    } else {
+                        if (Number(v.produtoId) === Number(produtoId) || (v.produtoNome === produto.nome)) {
+                            vendasPorRep[rep] = (vendasPorRep[rep] || 0) + (Number(v.quantidade) || 0);
+                        }
+                    }
+                } catch (e) {}
+            });
+        }
+
+        // total vendas do produto (em todos os reps)
+        const totalVendasProduto = Object.values(vendasPorRep).reduce((s, v) => s + v, 0);
+
+        // === STEP 5: montar colunas por representante (KOLTE, ISA, LC, ADES, FL) e IMBEL
         estoque.representantes.forEach(rep => {
-            const isImbel = (rep || '').toString().toUpperCase() === 'IMBEL';
-            const disp = isImbel ? imbelDisp : (produto.distribuicao[rep] || 0);
-            const venda = produto.vendas[rep] || 0;
-            const saldo = disp - venda;
-            geralVenda += venda;
+            const repKey = (rep || '').toString().toUpperCase();
+            let disp = 0, venda = 0, saldo = 0;
+            if (repKey === 'IMBEL') {
+                // IMBEL calculado a partir do consolidado segundo regra definida
+                const imbelDisp = estoqueTotal - totalDistribuido + totalDevolvidoParaImbel;
+                const imbelVenda = vendasPorRep['IMBEL'] || 0;
+                const imbelSaldo = imbelDisp - imbelVenda;
+                disp = imbelDisp; venda = imbelVenda; saldo = imbelSaldo;
+            } else {
+                const dist = distPorRep[repKey] || 0;
+                const dev = devPorRep[repKey] || 0;
+                disp = dist - dev; // enviado ao rep menos o que ele devolveu
+                venda = vendasPorRep[repKey] || 0;
+                saldo = disp - venda;
+            }
 
-            totais[rep].disp += disp;
-            totais[rep].venda += venda;
-            totais[rep].saldo += saldo;
-            allSaldoZero = allSaldoZero && saldo === 0;
+            // Determinar se há movimento para este rep (usado para mostrar '-')
+            const repTeveMovimento = (Number(distPorRep[repKey] || 0) !== 0) || (Number(devPorRep[repKey] || 0) !== 0) || (Number(vendasPorRep[repKey] || 0) !== 0);
 
-            const vendaClass = venda > 0 ? 'venda-positiva' : '';
-            let saldoClass = '';
-            if (saldo > 0) saldoClass = 'saldo-positivo';
-            else if (saldo === 0) saldoClass = 'saldo-zero';
-            else saldoClass = 'negativo saldo-zero';
+            // Formatação de células e classes conforme regras
+            const dispText = (repKey === 'IMBEL' && estoqueTotal === 0) ? '-' : (repTeveMovimento || repKey === 'IMBEL' ? formatarNumero(disp) : '-');
+            const vendaText = repTeveMovimento || (repKey === 'IMBEL' && (vendasPorRep['IMBEL']||0) > 0) ? formatarNumero(venda) : '-';
+            let saldoText = '-';
+            if (repKey === 'IMBEL' && estoqueTotal === 0) {
+                saldoText = '-';
+            } else if (!repTeveMovimento && repKey !== 'IMBEL') {
+                saldoText = '-';
+            } else {
+                saldoText = formatarNumero(saldo);
+            }
+
+            const vendaClass = (Number(venda) > 0) ? 'cell-venda' : 'cell-zero';
+            // saldo sempre usa 'cell-saldo' e adiciona modificadores
+            let saldoClass = 'cell-saldo';
+            if (Number(saldo) > 0) saldoClass += ' saldo-positivo';
+            else if (Number(saldo) === 0) {
+                const dispVal = Number(disp) || 0;
+                saldoClass += (dispVal > 0) ? ' negativo' : ' saldo-zero';
+            } else { // negativo
+                saldoClass += ' negativo';
+            }
 
             tr.innerHTML += `
-                <td class="cell-disp numeric-cell ${disp === 0 ? 'cell-zero' : ''}">${formatarNumero(disp)}</td>
-                <td class="cell-venda numeric-cell ${venda === 0 ? 'cell-zero' : ''} ${vendaClass}">${formatarNumero(venda)}</td>
-                <td class="cell-saldo numeric-cell ${saldoClass} ${saldo === 0 ? 'cell-zero' : ''}">${formatarNumero(saldo)}</td>
+                <td class="cell-disp numeric-cell ${(!isFinite(disp) || disp === 0) ? 'cell-zero' : ''}">${dispText}</td>
+                <td class="cell-venda numeric-cell ${venda === 0 ? 'cell-zero' : ''} ${vendaClass}">${vendaText}</td>
+                <td class="cell-saldo numeric-cell ${saldoClass} ${saldo === 0 ? 'cell-zero' : ''}">${saldoText}</td>
             `;
+
+            // Atualizar totais por rep
+            totais[repKey].disp += Number(disp) || 0;
+            totais[repKey].venda += Number(venda) || 0;
+            totais[repKey].saldo += Number(saldo) || 0;
         });
 
-        if (allSaldoZero) {
-            saldoZeroProdutos += 1;
-            tr.classList.add('row-saldo-zero-all');
-            produtoHtml += '<span class="badge-repor">⚠ Repor</span>';
-        }
+        // === STEP 7: CONSOLIDADO (sempre exibir número)
+        const consolidadoDisp = estoqueTotal;
+        const consolidadoVenda = totalVendasProduto;
+        const consolidadoSaldo = consolidadoDisp - consolidadoVenda;
 
         tr.innerHTML = `<td class="produto-nome col-produto" title="${produto.nome}">${produtoHtml}</td>` + tr.innerHTML;
 
-        const geralSaldo = (produtoConsolidado) - geralVenda;
-        totais.GERAL.disp += produtoConsolidado;
-        totais.GERAL.venda += geralVenda;
-        totais.GERAL.saldo += geralSaldo;
-        const saldoGeralClass = geralSaldo > 0 ? 'saldo-positivo' : 'saldo-zero';
-
+        const saldoGeralClass = consolidadoSaldo > 0 ? 'saldo-positivo' : 'negativo';
         tr.innerHTML += `
-            <td class="geral-disp numeric-cell">${formatarNumero(produtoConsolidado)}</td>
-            <td class="geral-venda numeric-cell">${formatarNumero(geralVenda)}</td>
-            <td class="geral-saldo numeric-cell ${saldoGeralClass}">${formatarNumero(geralSaldo)}</td>
+            <td class="geral-disp numeric-cell">${formatarNumero(consolidadoDisp)}</td>
+            <td class="geral-venda numeric-cell ${consolidadoVenda > 0 ? 'venda-positiva' : ''}">${formatarNumero(consolidadoVenda)}</td>
+            <td class="geral-saldo numeric-cell ${saldoGeralClass}">${formatarNumero(consolidadoSaldo)}</td>
         `;
+
+        // Flag produto com consolidado zerado ou negativo (para KPI)
+        if (consolidadoSaldo <= 0) countConsolidadoZeradoOuNegativo += 1;
+
+        // Atualizar totais gerais
+        totais.GERAL.disp += consolidadoDisp;
+        totais.GERAL.venda += consolidadoVenda;
+        totais.GERAL.saldo += consolidadoSaldo;
 
         tbody.appendChild(tr);
     });
@@ -932,17 +1022,17 @@ function renderizarTabela() {
     trTotal.innerHTML = `<td class="produto-nome col-produto"><strong>TOTAL GERAL</strong></td>`;
 
     estoque.representantes.forEach(rep => {
-        const saldoRep = totais[rep].saldo;
-        const saldoRepClass = saldoRep > 0 ? 'saldo-positivo' : 'saldo-zero';
+        const repKey = (rep || '').toString().toUpperCase();
+        const saldoRep = totais[repKey].saldo;
+        const saldoRepClass = saldoRep > 0 ? 'saldo-positivo' : 'negativo';
         trTotal.innerHTML += `
-            <td class="cell-disp numeric-cell"><strong>${formatarNumero(totais[rep].disp)}</strong></td>
-            <td class="cell-venda numeric-cell ${totais[rep].venda > 0 ? 'venda-positiva' : ''}"><strong>${formatarNumero(totais[rep].venda)}</strong></td>
-            <td class="cell-saldo numeric-cell ${saldoRepClass}"><strong>${formatarNumero(totais[rep].saldo)}</strong></td>
+            <td class="cell-disp numeric-cell"><strong>${formatarNumero(totais[repKey].disp)}</strong></td>
+            <td class="cell-venda numeric-cell ${totais[repKey].venda > 0 ? 'venda-positiva' : ''}"><strong>${formatarNumero(totais[repKey].venda)}</strong></td>
+            <td class="cell-saldo numeric-cell ${saldoRepClass}"><strong>${formatarNumero(totais[repKey].saldo)}</strong></td>
         `;
     });
 
-    const saldoGeralTotalClass = totais.GERAL.saldo > 0 ? 'saldo-positivo' : 'saldo-zero';
-
+    const saldoGeralTotalClass = totais.GERAL.saldo > 0 ? 'saldo-positivo' : 'negativo';
     trTotal.innerHTML += `
         <td class="geral-disp numeric-cell"><strong>${formatarNumero(totais.GERAL.disp)}</strong></td>
         <td class="geral-venda numeric-cell"><strong>${formatarNumero(totais.GERAL.venda)}</strong></td>
@@ -954,8 +1044,21 @@ function renderizarTabela() {
     // KPIs da aba estoque
     const kpiTotalVendidoEl = document.getElementById('kpiTotalVendido');
     const kpiSaldoZeroEl = document.getElementById('kpiSaldoZero');
-    if (kpiTotalVendidoEl) kpiTotalVendidoEl.textContent = `${totais.GERAL.venda.toLocaleString('pt-BR')} un.`;
-    if (kpiSaldoZeroEl) kpiSaldoZeroEl.textContent = `${saldoZeroProdutos.toLocaleString('pt-BR')} produtos`;
+    // Calcular total vendido com fallback: prefer registroVendas, se vazio usar produto.vendas agregado
+    let totalUnidadesVendidas = 0;
+    if (Array.isArray(estoque.registroVendas) && estoque.registroVendas.length > 0) {
+        totalUnidadesVendidas = estoque.registroVendas.reduce((sum, v) => {
+            if (Array.isArray(v.items)) return sum + v.items.reduce((s, i) => s + (Number(i.quantidade) || 0), 0);
+            return sum + (Number(v.quantidade) || 0);
+        }, 0);
+    } else {
+        totalUnidadesVendidas = (estoque.produtos || []).reduce((sumP, p) => {
+            if (p.vendas && typeof p.vendas === 'object') return sumP + Object.values(p.vendas).reduce((s, vv) => s + (Number(vv) || 0), 0);
+            return sumP;
+        }, 0);
+    }
+    if (kpiTotalVendidoEl) kpiTotalVendidoEl.textContent = `${totalUnidadesVendidas.toLocaleString('pt-BR')} un.`;
+    if (kpiSaldoZeroEl) kpiSaldoZeroEl.textContent = `${countConsolidadoZeradoOuNegativo.toLocaleString('pt-BR')} produtos`;
 
     // Ajustar posição sticky da segunda linha do header
     ajustarStickyHeader();
