@@ -842,6 +842,7 @@ function trocarAba(aba) {
         atualizarSelectDistribuicaoProduto();
     } else if (aba === 'relatorios') {
         prepararRelatorioInventario();
+        try { gerarRelatorioRentabilidade(); } catch(e) {}
     } else if (aba === 'controleenvio') {
         renderizarControleEnvio();
     } else if (aba === 'controleimbel') {
@@ -1153,6 +1154,404 @@ function imprimirInventario() {
         </html>
     `);
     win.document.close();
+}
+
+// ==============================
+// RELATÓRIO DE RENTABILIDADE
+// ==============================
+function gerarRelatorioRentabilidade() {
+    try {
+        const periodo = document.getElementById('filtroRentabilidadePeriodo')?.value || 'todos';
+        const hoje = new Date();
+        const vendas = Array.isArray(estoque.registroVendas) ? estoque.registroVendas : (estoque.registroVendas || []);
+
+        const vendasFiltradas = (vendas || []).filter(v => {
+            if (!v || !v.data) return periodo === 'todos';
+            const dataVenda = new Date(v.data);
+            if (isNaN(dataVenda)) return periodo === 'todos';
+            if (periodo === 'todos') return true;
+            if (periodo === 'mes') return dataVenda.getMonth() === hoje.getMonth() && dataVenda.getFullYear() === hoje.getFullYear();
+            if (periodo === 'trimestre') {
+                const trimAtual = Math.floor(hoje.getMonth() / 3);
+                return Math.floor(dataVenda.getMonth() / 3) === trimAtual && dataVenda.getFullYear() === hoje.getFullYear();
+            }
+            if (periodo === 'ano') return dataVenda.getFullYear() === hoje.getFullYear();
+            return true;
+        });
+
+        // 2. Agregar por produto
+        const porProduto = {};
+        vendasFiltradas.forEach(venda => {
+            const itens = Array.isArray(venda.items) && venda.items.length ? venda.items : (venda.itemsLegacy ? venda.itemsLegacy : []);
+            if (!Array.isArray(itens) || itens.length === 0) {
+                // Suporta formato legado com campos diretos
+                const nome = venda.produtoNome || venda.produto || '';
+                const qtd = Number(venda.quantidade) || 0;
+                const valorUnit = Number(venda.valorUnitario || venda.valorUnit || (venda.valorTotal && qtd ? (venda.valorTotal / qtd) : 0)) || 0;
+                if (!porProduto[nome]) porProduto[nome] = { qtd: 0, receita: 0 };
+                porProduto[nome].qtd += qtd;
+                porProduto[nome].receita += qtd * valorUnit;
+                return;
+            }
+            itens.forEach(item => {
+                let nome = item.produtoNome || item.produto || '';
+                if (!nome && item.produtoId) {
+                    const p = (estoque.produtos || []).find(pp => String(pp.id) === String(item.produtoId));
+                    nome = p ? p.nome : String(item.produtoId);
+                }
+                const qtd = Number(item.quantidade) || 0;
+                const valorUnit = Number(item.valorUnitario || item.valorUnit || (item.valorTotal && qtd ? (item.valorTotal / qtd) : 0)) || 0;
+                if (!porProduto[nome]) porProduto[nome] = { qtd: 0, receita: 0 };
+                porProduto[nome].qtd += qtd;
+                porProduto[nome].receita += qtd * valorUnit;
+            });
+        });
+
+        // 3. Enriquecer com custo da `precificacao`
+        let totalReceita = 0, totalCusto = 0;
+        const rows = Object.entries(porProduto).map(([nome, dados]) => {
+            const prec = (typeof precificacao === 'object' && precificacao) ? (precificacao[nome] || {}) : {};
+            const custoUnit = Number(prec.custoTotal || prec.custo_unitario || prec.custo || 0) || 0;
+            const custoTotalProd = custoUnit * dados.qtd;
+            const lucro = dados.receita - custoTotalProd;
+            const margem = dados.receita > 0 ? (lucro / dados.receita) * 100 : 0;
+            totalReceita += dados.receita;
+            totalCusto += custoTotalProd;
+            return { nome, qtd: dados.qtd, receita: dados.receita, custoUnit, custoTotal: custoTotalProd, lucro, margem };
+        }).sort((a, b) => b.lucro - a.lucro);
+
+        // 4. Montar linhas da tabela por produto
+        const corMargem = m => m >= 20 ? '#16a34a' : m >= 10 ? '#d97706' : '#dc2626';
+        const emojiRank = i => ['🥇','🥈','🥉'][i] || (i + 1);
+        const tbodyProd = document.getElementById('tabelaRentabilidadeBody');
+        if (tbodyProd) {
+            tbodyProd.innerHTML = rows.map((r, i) => `
+                <tr>
+                  <td style="text-align:left; padding-left:15px; font-weight:500">${r.nome}</td>
+                  <td>${r.qtd}</td>
+                  <td style="color:#16a34a; font-weight:600">R$ ${r.receita.toLocaleString('pt-BR',{minimumFractionDigits:2})}</td>
+                  <td>${r.custoUnit > 0 ? 'R$ ' + r.custoUnit.toLocaleString('pt-BR',{minimumFractionDigits:2}) : '<span style="color:#94a3b8">Sem custo</span>'}</td>
+                  <td>${r.custoTotal > 0 ? 'R$ ' + r.custoTotal.toLocaleString('pt-BR',{minimumFractionDigits:2}) : '—'}</td>
+                  <td style="font-weight:600; color:${r.lucro >= 0 ? '#16a34a' : '#dc2626'}">R$ ${r.lucro.toLocaleString('pt-BR',{minimumFractionDigits:2})}</td>
+                  <td style="font-weight:700; color:${corMargem(r.margem)}">${r.margem.toFixed(1)}%</td>
+                  <td style="text-align:center; font-size:1.1rem">${emojiRank(i)}</td>
+                </tr>
+            `).join('');
+        }
+
+        // 5. Agregar por representante
+        const porRep = {};
+        (vendasFiltradas || []).forEach(v => {
+            const rep = (v.representante || 'IMBEL').toString().toUpperCase();
+            if (!porRep[rep]) porRep[rep] = { qtd: 0, receita: 0, custo: 0 };
+            const itens = Array.isArray(v.items) && v.items.length ? v.items : (v.itemsLegacy ? v.itemsLegacy : []);
+            if (!Array.isArray(itens) || itens.length === 0) {
+                const nome = v.produtoNome || v.produto || '';
+                const qtd = Number(v.quantidade) || 0;
+                const valorUnit = Number(v.valorUnitario || v.valorUnit || (v.valorTotal && qtd ? (v.valorTotal / qtd) : 0)) || 0;
+                const prec = (precificacao && precificacao[nome]) ? precificacao[nome] : {};
+                porRep[rep].qtd += qtd;
+                porRep[rep].receita += qtd * valorUnit;
+                porRep[rep].custo += (Number(prec.custoTotal) || 0) * qtd;
+            } else {
+                itens.forEach(item => {
+                    let nome = item.produtoNome || item.produto || '';
+                    if (!nome && item.produtoId) {
+                        const p = (estoque.produtos || []).find(pp => String(pp.id) === String(item.produtoId));
+                        nome = p ? p.nome : String(item.produtoId);
+                    }
+                    const qtd = Number(item.quantidade) || 0;
+                    const valorUnit = Number(item.valorUnitario || item.valorUnit || (item.valorTotal && qtd ? (item.valorTotal / qtd) : 0)) || 0;
+                    const prec = (precificacao && precificacao[nome]) ? precificacao[nome] : {};
+                    porRep[rep].qtd += qtd;
+                    porRep[rep].receita += qtd * valorUnit;
+                    porRep[rep].custo += (Number(prec.custoTotal) || 0) * qtd;
+                });
+            }
+        });
+
+        const repColors = { KOLTE:'#3d5a80', ISA:'#5c4d7d', LC:'#2d6a4f', ADES:'#9c4a1a', FL:'#7b2d26', IMBEL:'#1e3a5f' };
+        const tbodyRep = document.getElementById('tabelaRentabilidadeRepBody');
+        if (tbodyRep) {
+            tbodyRep.innerHTML = Object.entries(porRep).map(([rep, d]) => {
+                const lucro = d.receita - d.custo;
+                const margem = d.receita > 0 ? (lucro / d.receita) * 100 : 0;
+                const cor = repColors[rep] || '#1e3a5f';
+                return `
+                    <tr>
+                      <td><span class="badge-rep" style="background:${cor}20; color:${cor}; font-weight:700; padding:3px 10px; border-radius:20px">${rep}</span></td>
+                      <td>${d.qtd}</td>
+                      <td style="color:#16a34a; font-weight:600">R$ ${d.receita.toLocaleString('pt-BR',{minimumFractionDigits:2})}</td>
+                      <td>${d.custo > 0 ? 'R$ ' + d.custo.toLocaleString('pt-BR',{minimumFractionDigits:2}) : '—'}</td>
+                      <td style="font-weight:600; color:${lucro>=0?'#16a34a':'#dc2626'}">R$ ${lucro.toLocaleString('pt-BR',{minimumFractionDigits:2})}</td>
+                      <td style="font-weight:700; color:${corMargem(margem)}">${margem.toFixed(1)}%</td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        // 6. Atualizar KPIs
+        const lucroTotal = totalReceita - totalCusto;
+        const margemTotal = totalReceita > 0 ? (lucroTotal / totalReceita) * 100 : 0;
+        const fmt = v => 'R$ ' + v.toLocaleString('pt-BR',{minimumFractionDigits:2});
+        if (document.getElementById('rentFaturamento')) document.getElementById('rentFaturamento').textContent = fmt(totalReceita);
+        if (document.getElementById('rentCusto')) document.getElementById('rentCusto').textContent = fmt(totalCusto);
+        if (document.getElementById('rentLucro')) { document.getElementById('rentLucro').textContent = fmt(lucroTotal); document.getElementById('rentLucro').style.color = lucroTotal >= 0 ? '#16a34a' : '#dc2626'; }
+        if (document.getElementById('rentMargem')) document.getElementById('rentMargem').textContent = margemTotal.toFixed(1) + '%';
+    } catch (e) {
+        console.error('Erro gerando relatório de rentabilidade:', e);
+    }
+}
+
+function exportarRentabilidadeExcel() {
+    try {
+        const rows = [];
+        const body = document.getElementById('tabelaRentabilidadeBody');
+        if (body) {
+            Array.from(body.querySelectorAll('tr')).forEach(tr => {
+                const cols = Array.from(tr.children).map(td => td.textContent.trim().replace(/\s+/g, ' '));
+                rows.push(cols.join(';'));
+            });
+        }
+        let csv = 'Produto;Qtd Vendida;Receita Total;Custo Unit.;Custo Total;Lucro Bruto;Margem %;Ranking\n';
+        csv += rows.join('\n');
+        const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `rentabilidade_${new Date().toISOString().slice(0,10)}.csv`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+    } catch (e) {
+        console.error('Erro exportando rentabilidade:', e);
+        mostrarNotificacao('Erro ao exportar relatório.', 'error');
+    }
+}
+
+function imprimirRentabilidade() {
+    try {
+        gerarRelatorioRentabilidade();
+        const prodHtml = document.getElementById('tabelaRentabilidade') ? document.getElementById('tabelaRentabilidade').outerHTML : '';
+        const repHtml = document.getElementById('tabelaRentabilidadeRep') ? document.getElementById('tabelaRentabilidadeRep').outerHTML : '';
+        const dataAgora = new Date().toLocaleString('pt-BR');
+        const win = window.open('', '_blank', 'width=1000,height=800');
+        if (!win) { alert('Permita popups para imprimir.'); return; }
+        win.document.write(`
+            <!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>Relatório de Rentabilidade</title>
+            <link rel="stylesheet" href="styles.css"><style>body{font-family:Arial,Helvetica,sans-serif;padding:12px;color:#222}table{width:100%;border-collapse:collapse}th,td{border:1px solid #ddd;padding:6px}</style></head><body>
+            <h1>Relatório de Rentabilidade</h1>
+            <div style="margin-bottom:8px;font-size:13px;color:#222"><strong>Gerado em:</strong> ${dataAgora}</div>
+            ${prodHtml}
+            <div style="height:18px"></div>
+            ${repHtml}
+            <script>window.onload=function(){setTimeout(()=>window.print(),200);};</script>
+            </body></html>
+        `);
+        win.document.close();
+    } catch (e) {
+        console.error('Erro imprimindo rentabilidade:', e);
+    }
+}
+
+// ==============================
+// RELATÓRIO DE RENTABILIDADE
+// ==============================
+function gerarRelatorioRentabilidade() {
+    try {
+        const periodo = document.getElementById('filtroRentabilidadePeriodo')?.value || 'todos';
+        const hoje = new Date();
+        const vendas = Array.isArray(estoque.registroVendas) ? estoque.registroVendas : (estoque.registroVendas || []);
+
+        const vendasFiltradas = (vendas || []).filter(v => {
+            if (!v || !v.data) return periodo === 'todos';
+            const dataVenda = new Date(v.data);
+            if (isNaN(dataVenda)) return periodo === 'todos';
+            if (periodo === 'todos') return true;
+            if (periodo === 'mes') return dataVenda.getMonth() === hoje.getMonth() && dataVenda.getFullYear() === hoje.getFullYear();
+            if (periodo === 'trimestre') {
+                const trimAtual = Math.floor(hoje.getMonth() / 3);
+                return Math.floor(dataVenda.getMonth() / 3) === trimAtual && dataVenda.getFullYear() === hoje.getFullYear();
+            }
+            if (periodo === 'ano') return dataVenda.getFullYear() === hoje.getFullYear();
+            return true;
+        });
+
+        // 2. Agregar por produto
+        const porProduto = {};
+        vendasFiltradas.forEach(venda => {
+            const itens = Array.isArray(venda.items) && venda.items.length ? venda.items : (venda.itemsLegacy ? venda.itemsLegacy : []);
+            if (!Array.isArray(itens) || itens.length === 0) {
+                // Suporta formato legado com campos diretos
+                const nome = venda.produtoNome || venda.produto || '';
+                const qtd = Number(venda.quantidade) || 0;
+                const valorUnit = Number(venda.valorUnitario || venda.valorUnit || (venda.valorTotal && qtd ? (venda.valorTotal / qtd) : 0)) || 0;
+                if (!porProduto[nome]) porProduto[nome] = { qtd: 0, receita: 0 };
+                porProduto[nome].qtd += qtd;
+                porProduto[nome].receita += qtd * valorUnit;
+                return;
+            }
+            itens.forEach(item => {
+                let nome = item.produtoNome || item.produto || '';
+                if (!nome && item.produtoId) {
+                    const p = (estoque.produtos || []).find(pp => String(pp.id) === String(item.produtoId));
+                    nome = p ? p.nome : String(item.produtoId);
+                }
+                const qtd = Number(item.quantidade) || 0;
+                const valorUnit = Number(item.valorUnitario || item.valorUnit || (item.valorTotal && qtd ? (item.valorTotal / qtd) : 0)) || 0;
+                if (!porProduto[nome]) porProduto[nome] = { qtd: 0, receita: 0 };
+                porProduto[nome].qtd += qtd;
+                porProduto[nome].receita += qtd * valorUnit;
+            });
+        });
+
+        // 3. Enriquecer com custo da `precificacao`
+        let totalReceita = 0, totalCusto = 0;
+        const rows = Object.entries(porProduto).map(([nome, dados]) => {
+            const prec = (typeof precificacao === 'object' && precificacao) ? (precificacao[nome] || {}) : {};
+            const custoUnit = Number(prec.custoTotal || prec.custo_unitario || prec.custo || 0) || 0;
+            const custoTotalProd = custoUnit * dados.qtd;
+            const lucro = dados.receita - custoTotalProd;
+            const margem = dados.receita > 0 ? (lucro / dados.receita) * 100 : 0;
+            totalReceita += dados.receita;
+            totalCusto += custoTotalProd;
+            return { nome, qtd: dados.qtd, receita: dados.receita, custoUnit, custoTotal: custoTotalProd, lucro, margem };
+        }).sort((a, b) => b.lucro - a.lucro);
+
+        // 4. Montar linhas da tabela por produto
+        const corMargem = m => m >= 20 ? '#16a34a' : m >= 10 ? '#d97706' : '#dc2626';
+        const emojiRank = i => ['🥇','🥈','🥉'][i] || (i + 1);
+        const tbodyProd = document.getElementById('tabelaRentabilidadeBody');
+        if (tbodyProd) {
+            tbodyProd.innerHTML = rows.map((r, i) => `
+                <tr>
+                  <td style="text-align:left; padding-left:15px; font-weight:500">${r.nome}</td>
+                  <td>${r.qtd}</td>
+                  <td style="color:#16a34a; font-weight:600">R$ ${r.receita.toLocaleString('pt-BR',{minimumFractionDigits:2})}</td>
+                  <td>${r.custoUnit > 0 ? 'R$ ' + r.custoUnit.toLocaleString('pt-BR',{minimumFractionDigits:2}) : '<span style="color:#94a3b8">Sem custo</span>'}</td>
+                  <td>${r.custoTotal > 0 ? 'R$ ' + r.custoTotal.toLocaleString('pt-BR',{minimumFractionDigits:2}) : '—'}</td>
+                  <td style="font-weight:600; color:${r.lucro >= 0 ? '#16a34a' : '#dc2626'}">R$ ${r.lucro.toLocaleString('pt-BR',{minimumFractionDigits:2})}</td>
+                  <td style="font-weight:700; color:${corMargem(r.margem)}">${r.margem.toFixed(1)}%</td>
+                  <td style="text-align:center; font-size:1.1rem">${emojiRank(i)}</td>
+                </tr>
+            `).join('');
+        }
+
+        // 5. Agregar por representante
+        const porRep = {};
+        (vendasFiltradas || []).forEach(v => {
+            const rep = (v.representante || 'IMBEL').toString().toUpperCase();
+            if (!porRep[rep]) porRep[rep] = { qtd: 0, receita: 0, custo: 0 };
+            const itens = Array.isArray(v.items) && v.items.length ? v.items : (v.itemsLegacy ? v.itemsLegacy : []);
+            if (!Array.isArray(itens) || itens.length === 0) {
+                const nome = v.produtoNome || v.produto || '';
+                const qtd = Number(v.quantidade) || 0;
+                const valorUnit = Number(v.valorUnitario || v.valorUnit || (v.valorTotal && qtd ? (v.valorTotal / qtd) : 0)) || 0;
+                const prec = (precificacao && precificacao[nome]) ? precificacao[nome] : {};
+                porRep[rep].qtd += qtd;
+                porRep[rep].receita += qtd * valorUnit;
+                porRep[rep].custo += (Number(prec.custoTotal) || 0) * qtd;
+            } else {
+                itens.forEach(item => {
+                    let nome = item.produtoNome || item.produto || '';
+                    if (!nome && item.produtoId) {
+                        const p = (estoque.produtos || []).find(pp => String(pp.id) === String(item.produtoId));
+                        nome = p ? p.nome : String(item.produtoId);
+                    }
+                    const qtd = Number(item.quantidade) || 0;
+                    const valorUnit = Number(item.valorUnitario || item.valorUnit || (item.valorTotal && qtd ? (item.valorTotal / qtd) : 0)) || 0;
+                    const prec = (precificacao && precificacao[nome]) ? precificacao[nome] : {};
+                    porRep[rep].qtd += qtd;
+                    porRep[rep].receita += qtd * valorUnit;
+                    porRep[rep].custo += (Number(prec.custoTotal) || 0) * qtd;
+                });
+            }
+        });
+
+        const repColors = { KOLTE:'#3d5a80', ISA:'#5c4d7d', LC:'#2d6a4f', ADES:'#9c4a1a', FL:'#7b2d26', IMBEL:'#1e3a5f' };
+        const tbodyRep = document.getElementById('tabelaRentabilidadeRepBody');
+        if (tbodyRep) {
+            tbodyRep.innerHTML = Object.entries(porRep).map(([rep, d]) => {
+                const lucro = d.receita - d.custo;
+                const margem = d.receita > 0 ? (lucro / d.receita) * 100 : 0;
+                const cor = repColors[rep] || '#1e3a5f';
+                return `
+                    <tr>
+                      <td><span class="badge-rep" style="background:${cor}20; color:${cor}; font-weight:700; padding:3px 10px; border-radius:20px">${rep}</span></td>
+                      <td>${d.qtd}</td>
+                      <td style="color:#16a34a; font-weight:600">R$ ${d.receita.toLocaleString('pt-BR',{minimumFractionDigits:2})}</td>
+                      <td>${d.custo > 0 ? 'R$ ' + d.custo.toLocaleString('pt-BR',{minimumFractionDigits:2}) : '—'}</td>
+                      <td style="font-weight:600; color:${lucro>=0?'#16a34a':'#dc2626'}">R$ ${lucro.toLocaleString('pt-BR',{minimumFractionDigits:2})}</td>
+                      <td style="font-weight:700; color:${corMargem(margem)}">${margem.toFixed(1)}%</td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        // 6. Atualizar KPIs
+        const lucroTotal = totalReceita - totalCusto;
+        const margemTotal = totalReceita > 0 ? (lucroTotal / totalReceita) * 100 : 0;
+        const fmt = v => 'R$ ' + v.toLocaleString('pt-BR',{minimumFractionDigits:2});
+        if (document.getElementById('rentFaturamento')) document.getElementById('rentFaturamento').textContent = fmt(totalReceita);
+        if (document.getElementById('rentCusto')) document.getElementById('rentCusto').textContent = fmt(totalCusto);
+        if (document.getElementById('rentLucro')) { document.getElementById('rentLucro').textContent = fmt(lucroTotal); document.getElementById('rentLucro').style.color = lucroTotal >= 0 ? '#16a34a' : '#dc2626'; }
+        if (document.getElementById('rentMargem')) document.getElementById('rentMargem').textContent = margemTotal.toFixed(1) + '%';
+    } catch (e) {
+        console.error('Erro gerando relatório de rentabilidade:', e);
+    }
+}
+
+function exportarRentabilidadeExcel() {
+    try {
+        const rows = [];
+        const body = document.getElementById('tabelaRentabilidadeBody');
+        if (body) {
+            Array.from(body.querySelectorAll('tr')).forEach(tr => {
+                const cols = Array.from(tr.children).map(td => td.textContent.trim().replace(/\s+/g, ' '));
+                rows.push(cols.join(';'));
+            });
+        }
+        let csv = 'Produto;Qtd Vendida;Receita Total;Custo Unit.;Custo Total;Lucro Bruto;Margem %;Ranking\n';
+        csv += rows.join('\n');
+        const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `rentabilidade_${new Date().toISOString().slice(0,10)}.csv`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+    } catch (e) {
+        console.error('Erro exportando rentabilidade:', e);
+        mostrarNotificacao('Erro ao exportar relatório.', 'error');
+    }
+}
+
+function imprimirRentabilidade() {
+    try {
+        gerarRelatorioRentabilidade();
+        const prodHtml = document.getElementById('tabelaRentabilidade') ? document.getElementById('tabelaRentabilidade').outerHTML : '';
+        const repHtml = document.getElementById('tabelaRentabilidadeRep') ? document.getElementById('tabelaRentabilidadeRep').outerHTML : '';
+        const dataAgora = new Date().toLocaleString('pt-BR');
+        const win = window.open('', '_blank', 'width=1000,height=800');
+        if (!win) { alert('Permita popups para imprimir.'); return; }
+        win.document.write(`
+            <!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>Relatório de Rentabilidade</title>
+            <link rel="stylesheet" href="styles.css"><style>body{font-family:Arial,Helvetica,sans-serif;padding:12px;color:#222}table{width:100%;border-collapse:collapse}th,td{border:1px solid #ddd;padding:6px}</style></head><body>
+            <h1>Relatório de Rentabilidade</h1>
+            <div style="margin-bottom:8px;font-size:13px;color:#222"><strong>Gerado em:</strong> ${dataAgora}</div>
+            ${prodHtml}
+            <div style="height:18px"></div>
+            ${repHtml}
+            <script>window.onload=function(){setTimeout(()=>window.print(),200);};</script>
+            </body></html>
+        `);
+        win.document.close();
+    } catch (e) {
+        console.error('Erro imprimindo rentabilidade:', e);
+    }
 }
 
 function gerarPdfProposta(propostaId) {
