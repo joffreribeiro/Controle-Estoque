@@ -524,60 +524,11 @@
                                 </div>
 
                                 <div class="precif-subnav" style="display:flex; gap:0; margin-bottom:20px; border-bottom:2px solid #e2e8f0;">
-                                    <button class="precif-subtab-btn active" onclick="trocarSubabaPrecif('produtos')" id="sbtn-produtos" style="padding:10px 20px; border:none; background:transparent; font-size:0.9rem; font-weight:600; color:#1e3a5f; border-bottom:2px solid #1e3a5f; margin-bottom:-2px; cursor:pointer">📦 Produtos</button>
-                                    <button class="precif-subtab-btn" onclick="trocarSubabaPrecif('federais')" id="sbtn-federais" style="padding:10px 20px; border:none; background:transparent; font-size:0.9rem; font-weight:600; color:#64748b; border-bottom:2px solid transparent; margin-bottom:-2px; cursor:pointer">📋 Impostos Federais</button>
+                                    <button class="precif-subtab-btn" onclick="trocarSubabaPrecif('federais')" id="sbtn-federais" style="padding:10px 20px; border:none; background:transparent; font-size:0.9rem; font-weight:600; color:#1e3a5f; border-bottom:2px solid #1e3a5f; margin-bottom:-2px; cursor:pointer">📋 Impostos Federais</button>
                                     <button class="precif-subtab-btn" onclick="trocarSubabaPrecif('icms')" id="sbtn-icms" style="padding:10px 20px; border:none; background:transparent; font-size:0.9rem; font-weight:600; color:#64748b; border-bottom:2px solid transparent; margin-bottom:-2px; cursor:pointer">🗺️ ICMS por Estado</button>
                                     <button class="precif-subtab-btn" onclick="trocarSubabaPrecif('porcliente')" id="sbtn-porcliente" style="padding:10px 20px; border:none; background:transparent; font-size:0.9rem; font-weight:600; color:#64748b; border-bottom:2px solid transparent; margin-bottom:-2px; cursor:pointer">👤 Por Cliente</button>
                                     <button class="precif-subtab-btn" onclick="trocarSubabaPrecif('comparativo')" id="sbtn-comparativo" style="padding:10px 20px;border:none;background:transparent; font-size:0.9rem;font-weight:600;color:#64748b; border-bottom:2px solid transparent;margin-bottom:-2px; cursor:pointer">⚖️ Comparativo</button>
                                     <button class="precif-subtab-btn" onclick="trocarSubabaPrecif('rastreabilidade')" id="sbtn-rastreabilidade" style="padding:10px 20px;border:none;background:transparent; font-size:0.9rem;font-weight:600;color:#64748b; border-bottom:2px solid transparent;margin-bottom:-2px; cursor:pointer">🔗 Rastreabilidade</button>
-                                </div>
-
-                                <!-- Sub-aba Produtos (mover conteúdo existente aqui) -->
-                                <div id="subaba-precif-produtos">
-                                    <div style="background:#fff; border:1px solid #e2e8f0; border-radius:10px; padding:16px 20px; margin-bottom:20px">
-                                    <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:16px">
-                                        <div>
-                                        <div style="font-size:0.8rem; font-weight:600; color:#64748b; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:4px">Cadastro de CI por Produto</div>
-                                        <div style="font-size:0.85rem; color:#94a3b8">Defina o custo de industrialização e a categoria base de cada item.</div>
-                                        </div>
-                                        <div style="display:flex; gap:8px; flex-wrap:wrap">
-                                        <button class="btn btn-outline btn-sm" onclick="exportarCIExcel()">📤 Exportar Excel</button>
-                                        <button class="btn btn-outline btn-sm" onclick="importarCIExcel()">📥 Importar Excel</button>
-                                        <input type="file" id="inputImportarCI" accept=".xlsx,.xls,.csv" style="display:none" onchange="importarCIExcelArquivo(event)">
-                                        </div>
-                                    </div>
-
-                                    <div class="table-container">
-                                            <div class="table-wrapper">
-                                                    <table class="dashboard-table" id="tabelaPrecificacao">
-                                                            <thead>
-                                                                    <tr>
-                                                        <th style="text-align:left; padding-left:15px; min-width:250px; position:sticky; left:0; background:#1e3a5f; z-index:2">Produto</th>
-                                                        <th style="min-width:130px; text-align:center">NCM</th>
-                                                        <th style="min-width:130px; text-align:center">Categoria</th>
-                                                        <th style="min-width:160px; text-align:center">CI — Custo de Industrialização (R$)</th>
-                                                        <th style="min-width:110px;text-align:center">
-                                                            Margem Mín. (%)
-                                                            <div style="font-size:0.65rem;font-weight:400;color:rgba(255,255,255,0.7)">
-                                                                alerta abaixo deste valor
-                                                            </div>
-                                                        </th>
-                                                        <th style="min-width:110px;text-align:center">
-                                                            Desc. Máx. (%)
-                                                            <div style="font-size:0.65rem;font-weight:400;color:rgba(255,255,255,0.7)">
-                                                                aprovação acima deste
-                                                            </div>
-                                                        </th>
-                                                        <th style="min-width:100px; text-align:center">Última atualização</th>
-                                                                    </tr>
-                                                            </thead>
-                                                            <tbody id="tabelaPrecificacaoBody"></tbody>
-                                                    </table>
-                                            </div>
-                                    </div>
-
-                                    <div id="precificacaoResumoCI" style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:12px 16px; margin-top:14px; display:flex; gap:18px; flex-wrap:wrap; align-items:center"></div>
-                                </div>
                                 </div>
 
                                 <!-- Sub-aba Impostos Federais -->

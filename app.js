@@ -1410,7 +1410,7 @@ function trocarAba(aba) {
     } else if (aba === 'controleimbel') {
         try { trocarSubAbaControleImbel('estoque'); } catch (e) {}
     } else if (aba === 'precificacao') {
-        try { trocarSubabaPrecif('produtos'); } catch (e) {}
+        try { trocarSubabaPrecif('federais'); } catch (e) {}
         try { renderizarPrecificacao(); } catch (e) {}
     } else if (aba === 'clientes') {
         try { renderizarClientes(); } catch (e) {}
@@ -9161,7 +9161,7 @@ function renderizarPrecificacao() {
                     <td style="text-align:center">
                         <div style="display:flex; align-items:center; justify-content:center; gap:6px">
                             <span style="color:#64748b; font-size:0.9rem">R$</span>
-                            <input type="number" step="0.01" min="0" id="ci_${nomeId}" value="${ci}" placeholder="0,00" onchange="salvarCI('${nomeJs}', this.value)" style="width:120px; border:1px solid ${temCI ? '#22c55e' : '#e2e8f0'}; border-radius:6px; padding:6px 8px; text-align:right; font-size:0.9rem; font-weight:${temCI ? '600' : '400'}; color:${temCI ? '#16a34a' : '#1e293b'}">
+                            <input type="number" step="0.01" min="0" id="ci_${nomeId}" value="${ci}" placeholder="0,00" onchange="(typeof salvarCI === 'function') && salvarCI('${nomeJs}', this.value)" style="width:120px; border:1px solid ${temCI ? '#22c55e' : '#e2e8f0'}; border-radius:6px; padding:6px 8px; text-align:right; font-size:0.9rem; font-weight:${temCI ? '600' : '400'}; color:${temCI ? '#16a34a' : '#1e293b'}">
                         </div>
                     </td>
                     <td style="text-align:center">
@@ -9198,29 +9198,7 @@ function atualizarResumoPrecificacaoCI(produtos = estoque.produtos || []) {
     `;
 }
 
-function salvarCI(nomeProduto, valor) {
-    if (!precificacao[nomeProduto]) precificacao[nomeProduto] = {};
-    precificacao[nomeProduto].ci = parseFloat(valor) || 0;
-    precificacao[nomeProduto].ciAtualizadoEm = new Date().toISOString();
-
-    const nomeId = _nomeProdutoId(nomeProduto);
-    const input = document.getElementById('ci_' + nomeId);
-    if (input) {
-        const temCI = parseFloat(valor) > 0;
-        input.style.borderColor = temCI ? '#22c55e' : '#e2e8f0';
-    }
-
-    const ultimaAttEl = document.getElementById('ci_att_' + nomeId);
-    if (ultimaAttEl) {
-        ultimaAttEl.textContent = new Date(precificacao[nomeProduto].ciAtualizadoEm).toLocaleDateString('pt-BR');
-    }
-
-    atualizarResumoPrecificacaoCI();
-    try {
-        estoque.precificacao = precificacao;
-        localStorage.setItem('estoqueArmasV2', JSON.stringify(estoque));
-    } catch (e) {}
-}
+// Função de salvamento de CI removida: gestão de CI passa a ser feita pelo Cadastro de Produtos (modal `salvarProduto`).
 
 function salvarMargemMinima(nomeProduto, valor) {
     if (!precificacao[nomeProduto]) precificacao[nomeProduto] = {};
@@ -11352,92 +11330,25 @@ function autoPreencherPrecoProduto(selectEl) {
 }
 
 function exportarPrecificacaoExcel() {
-    exportarCIExcel();
-}
-
-function exportarCIExcel() {
     try {
-        if (typeof XLSX === 'undefined') {
-            mostrarNotificacao('Biblioteca XLSX não encontrada.', 'error');
-            return;
-        }
+        const federaisEl = document.getElementById('subaba-precif-federais');
+        const icmsEl = document.getElementById('subaba-precif-icms');
+        const porclienteEl = document.getElementById('subaba-precif-porcliente');
+        const comparativoEl = document.getElementById('subaba-precif-comparativo');
+        const rastreabilidadeEl = document.getElementById('subaba-precif-rastreabilidade');
 
-        const dados = (estoque.produtos || []).map(produto => ({
-            'Produto': produto.nome,
-            'NCM': produto.ncm || detectarNCM(produto.nome) || '',
-            'Categoria': categoriaPorProduto[produto.nome] || '',
-            'CI (R$)': precificacao[produto.nome]?.ci || 0,
-            'Última atualização': precificacao[produto.nome]?.ciAtualizadoEm
-                ? new Date(precificacao[produto.nome].ciAtualizadoEm).toLocaleDateString('pt-BR')
-                : ''
-        }));
+        if (federaisEl && federaisEl.style.display === 'block') { exportarImpostosFederais(); return; }
+        if (icmsEl && icmsEl.style.display === 'block') { exportarICMSEstados(); return; }
+        if (porclienteEl && porclienteEl.style.display === 'block') { exportarPrecifCliente(); return; }
+        if (comparativoEl && comparativoEl.style.display === 'block') { exportarComparativo(); return; }
+        if (rastreabilidadeEl && rastreabilidadeEl.style.display === 'block') { exportarRastreabilidade(); return; }
 
-        const ws = XLSX.utils.json_to_sheet(dados);
-        const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, 'CI Produtos');
-        const dataAtual = new Date().toISOString().split('T')[0];
-        XLSX.writeFile(wb, `ci_produtos_${dataAtual}.xlsx`);
-        mostrarNotificacao('Cadastro de CI exportado com sucesso!', 'success');
+        // fallback: exportar impostos federais
+        exportarImpostosFederais();
     } catch (e) {
-        console.error('Erro ao exportar CI:', e);
-        mostrarNotificacao('Erro ao exportar o cadastro de CI.', 'error');
+        console.error('exportarPrecificacaoExcel error:', e);
+        mostrarNotificacao('Erro ao exportar precificação.', 'error');
     }
-}
-
-function importarCIExcel() {
-    const input = document.getElementById('inputImportarCI');
-    if (input) input.click();
-}
-
-function importarCIExcelArquivo(event) {
-    const file = event?.target?.files?.[0];
-    if (!file) return;
-
-    if (typeof XLSX === 'undefined') {
-        mostrarNotificacao('Biblioteca XLSX não encontrada.', 'error');
-        event.target.value = '';
-        return;
-    }
-
-    const reader = new FileReader();
-    reader.onload = (e) => {
-        try {
-            const workbook = XLSX.read(e.target.result, { type: 'binary' });
-            const sheet = workbook.Sheets[workbook.SheetNames[0]];
-            const rows = XLSX.utils.sheet_to_json(sheet, { defval: '' });
-            let atualizados = 0;
-            let naoEncontrados = 0;
-
-            rows.forEach((row) => {
-                const nome = String(row['Produto'] ?? row['produto'] ?? '').trim();
-                if (!nome) return;
-
-                const produto = (estoque.produtos || []).find(p => String(p.nome || '').trim() === nome);
-                if (!produto) {
-                    naoEncontrados++;
-                    return;
-                }
-
-                const ciRaw = row['CI (R$)'] ?? row['CI'] ?? row['ci'] ?? row['Ci (R$)'] ?? '';
-                const ci = parseFloat(String(ciRaw).replace(',', '.')) || 0;
-
-                if (!precificacao[produto.nome]) precificacao[produto.nome] = {};
-                precificacao[produto.nome].ci = ci;
-                precificacao[produto.nome].ciAtualizadoEm = new Date().toISOString();
-                atualizados++;
-            });
-
-            salvarDados();
-            renderizarPrecificacao();
-            mostrarNotificacao(`${atualizados} produtos atualizados, ${naoEncontrados} não encontrados`, atualizados > 0 ? 'success' : 'warning');
-        } catch (err) {
-            console.error('Erro ao importar CI:', err);
-            mostrarNotificacao('Falha ao importar o arquivo de CI.', 'error');
-        } finally {
-            event.target.value = '';
-        }
-    };
-    reader.readAsBinaryString(file);
 }
 
 function imprimirPrecificacao() {
