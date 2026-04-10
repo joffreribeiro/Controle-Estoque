@@ -1,0 +1,160 @@
+﻿Final depth (with proper template handling): 16
+
+Second pass final depth: 16
+
+*** DEPTH CHANGE 0 -> 1 at line 1678: function gerarRelatorioRentabilidade() {
+*** DEPTH CHANGE 1 -> 8 at line 1822: function exportarRentabilidadeExcel() {
+*** DEPTH CHANGE 8 -> 9 at line 3492: function tempoParaZerar(prodId) {
+*** DEPTH CHANGE 9 -> 11 at line 3719: function renderControleImbelEstoque() {
+*** DEPTH CHANGE 11 -> 12 at line 4044: function populateTbody() {
+*** DEPTH CHANGE 12 -> 11 at line 4309: function editarProdutoPorId(id) {
+*** DEPTH CHANGE 11 -> 14 at line 8334: function _escapeJsString(texto) {
+
+All function depths:
+  Line 186: depth=0  function obterTotalVendasProduto(produto) {
+  Line 206: depth=0  function obterDistribuicaoTotalExcluindoImbel(produto) {
+  Line 229: depth=0  function calcularSaldoConsolidado(produto) {
+  Line 236: depth=0  function calcularImbelDisponivel(produto) {
+  Line 244: depth=0  function calcularEstoqueIMBEL(nomeProduto) {
+  Line 281: depth=0  function reconstruirDistribuicaoAPartirDeRegistros() {
+  Line 320: depth=0  function diagnosticarProduto(produtoId) {
+  Line 349: depth=0  function diagnosticarProdutoPorNome(nome) {
+  Line 361: depth=0  function updateFirestoreStatus(connected, lastSyncDate, message) {
+  Line 513: depth=0  async function inicializar() {
+  Line 543: depth=0  function carregarDados() {
+  Line 649: depth=0  function salvarDados() {
+  Line 673: depth=0  async function salvarNoCloud() {
+  Line 711: depth=0  async function salvarNoCloudUI() {
+  Line 725: depth=0  async function carregarDoCloudUI() {
+  Line 741: depth=0  async function carregarDoCloud({confirmOverwrite=true} = {}) {
+  Line 821: depth=0  async function carregarDoCloudAuto() {
+  Line 906: depth=0  function scheduleCloudSaveDebounced() {
+  Line 925: depth=0  function iniciarAutoSaveCloud() {
+  Line 939: depth=0  function pararAutoSaveCloud() {
+  Line 951: depth=0  function atualizarData() {
+  Line 959: depth=0  function atualizarEstatisticas() {
+  Line 1026: depth=0  function parseDateToYYYYMMDD(input) {
+  Line 1066: depth=0  function formatDateToDDMMYYYY(input) {
+  Line 1086: depth=0  function formatCpfCnpjMask(value) {
+  Line 1104: depth=0  function formatPhoneMask(value) {
+  Line 1113: depth=0  function formatCurrencyBRLInput(value) {
+  Line 1120: depth=0  function parseCurrencyBRLToNumber(value) {
+  Line 1132: depth=0  function bindImbelMovInputMasks() {
+  Line 1159: depth=0  function normalizarContratoKey(valor) {
+  Line 1166: depth=0  function getUsuarioAtual() {
+  Line 1177: depth=0  function registrarAuditoriaVenda(acao, vendaAntes, vendaDepois, detalhes = '') {
+  Line 1198: depth=0  function obterAuditoriaPorContrato(contrato) {
+  Line 1209: depth=0  function trocarAba(aba) {
+  Line 1257: depth=0  function renderizarTabela() {
+  Line 1468: depth=0  function ajustarStickyHeader() {
+  Line 1488: depth=0  function prepararRelatorioInventario() {
+  Line 1627: depth=0  function imprimirInventario() {
+  Line 1678: depth=1  function gerarRelatorioRentabilidade() {
+  Line 1822: depth=8  function exportarRentabilidadeExcel() {
+  Line 1849: depth=8  function imprimirRentabilidade() {
+  Line 1874: depth=8  function gerarPdfProposta(propostaId) {
+  Line 2020: depth=8  function imprimirRelatorioPreview() {
+  Line 2069: depth=8  function imprimirRelatorioSelecionado() {
+  Line 2089: depth=8  function obterComissoesConsolidadas({ filtroRep = '', dataInicio = '', dataFim = '' } = {}
+  Line 2151: depth=8  function prepararRelatorioComissoes() {
+  Line 2303: depth=8  function imprimirComissoes() {
+  Line 2344: depth=8  function exportarComissoesCSV() {
+  Line 2440: depth=8  function gerarFechamentoMensalComissoes() {
+  Line 2490: depth=8  function abrirFechamentosComissoes() {
+  Line 2522: depth=8  function visualizarFechamentoComissoes(id) {
+  Line 2575: depth=8  function excluirFechamentoComissoes(id) {
+  Line 2584: depth=8  function exportarExcelCompleto() {
+  Line 2686: depth=8  function visualizarRelatorioSelecionado() {
+  Line 2695: depth=8  function imprimirTabelaSeparada(tableId, titulo, subtitulo = '', orientacao = 'landscape')
+  Line 2788: depth=8  function imprimirControleEnvio() {
+  Line 2949: depth=8  function imprimirDashboardQtdProduto() {
+  Line 2954: depth=8  function imprimirDashboardValorProduto() {
+  Line 2959: depth=8  function imprimirDashboardVendasRepresentante() {
+  Line 2965: depth=8  function imprimirRelatorioAba(tabId) {
+  Line 3016: depth=8  function imprimirDistribuicao() {
+  Line 3042: depth=8  function imprimirVendas() {
+  Line 3222: depth=8  function imprimirConfiguracoes() {
+  Line 3254: depth=8  function migrateImbelStorage() {
+  Line 3281: depth=8  function loadImbel() {
+  Line 3287: depth=8  function saveImbel(data) {
+  Line 3291: depth=8  function initControleImbel() {
+  Line 3297: depth=8  function trocarSubAbaControleImbel(sub) {
+  Line 3316: depth=8  function openImbelProdModal() {
+  Line 3321: depth=8  function closeImbelProdModal() {
+  Line 3333: depth=8  function openImbelMovModal() {
+  Line 3338: depth=8  function closeImbelMovModal() {
+  Line 3388: depth=8  function renderControleImbelDashboard() {
+  Line 3492: depth=9  function tempoParaZerar(prodId) {
+  Line 3719: depth=11  function renderControleImbelEstoque() {
+  Line 3822: depth=11  function renderControleImbelCadastro() {
+  Line 3934: depth=11  function renderControleImbelMovimentacao() {
+  Line 4044: depth=12  function populateTbody() {
+  Line 4309: depth=11  function editarProdutoPorId(id) {
+  Line 4332: depth=11  function exportarImbel() {
+  Line 4372: depth=11  function importarImbel(event) {
+  Line 4458: depth=11  function exportarImbelCadastro() {
+  Line 4477: depth=11  function importarImbelCadastro(event) {
+  Line 4521: depth=11  function exportarImbelMovimentacao() {
+  Line 4541: depth=11  function importarImbelMovimentacao(event) {
+  Line 4636: depth=11  function obterItensVendaNormalizados(venda) {
+  Line 4651: depth=11  function obterVendasDashboardFiltradas() {
+  Line 4678: depth=11  function atualizarFiltroDashboardPeriodo() {
+  Line 4695: depth=11  function renderizarDashboard() {
+  Line 4828: depth=11  function formatarNumero(num) {
+  Line 4833: depth=11  function formatarMoedaValor(valor) {
+  Line 4837: depth=11  function formatarMoeda(input) {
+  Line 4845: depth=11  function converterMoedaParaNumero(valor) {
+  Line 4854: depth=11  function abrirModalProduto() {
+  Line 4867: depth=11  function abrirModalEditarProduto(produtoId) {
+  Line 4899: depth=11  function atualizarSelectsProdutos() {
+  Line 4939: depth=11  function adicionarItemDistribuicao(produtoId = null, quantidade = 1) {
+  Line 4987: depth=11  function adicionarItemDevolucao(produtoId = null, quantidade = 1) {
+  Line 5035: depth=11  function atualizarSelectsRelatorios() {
+  Line 5066: depth=11  function atualizarSelectDistribuicaoProduto() {
+  Line 5087: depth=11  function abrirModalEntradaEstoque() {
+  Line 5105: depth=11  function abrirModalDevolucao() {
+  Line 5148: depth=11  function fecharModal(modalId) {
+  Line 5166: depth=11  function mostrarEstoqueAtual() {
+  Line 5178: depth=11  function salvarEntradaEstoque(event) {
+  Line 5223: depth=11  function abrirModalVendaDetalhada(vendaId = null, propostaId = null) {
+  Line 5317: depth=11  function construirOpcoesProdutos() {
+  Line 5326: depth=11  function adicionarItemVendaRow(preProdutoId = '', preQuantidade = 1, preValor = '') {
+  Line 5369: depth=11  function removerItemRow(btn) {
+  Line 5377: depth=11  function atualizarItemRow(el) {
+  Line 5402: depth=11  function atualizarTotalVendaDetalhada() {
+  Line 5428: depth=11  function atualizarPrecoVenda() {
+  Line 5434: depth=11  function validarEstoqueParaVenda(representante, itens) {
+  Line 5455: depth=11  function mostrarConfirmacaoEstoque(mensagem, callbackConfirmar, callbackCancelar) {
+  Line 5480: depth=11  function finalizarSalvamentoVendaDetalhada(params) {
+  Line 5557: depth=11  function salvarVendaDetalhada(event) {
+  Line 5689: depth=11  function renderizarRegistroVendas() {
+  Line 5911: depth=11  function atualizarTotaisVendas(totalQtd, totalValor) {
+  Line 5919: depth=11  function toggleContratoExpandido(contratoKey) {
+  Line 5924: depth=11  function abrirHistoricoContrato(contratoInformado = '') {
+  Line 5951: depth=11  function filtrarVendas() {
+  Line 5955: depth=11  function limparFiltrosVendas() {
+  Line 5965: depth=11  function excluirVenda(vendaId) {
+  Line 6029: depth=11  function cancelarContrato(contratoKey) {
+  Line 6074: depth=11  function exportarVendas() {
+  Line 6147: depth=11  function abrirModalNovaDistribuicao() {
+  Line 6166: depth=11  function salvarNovaDistribuicao(event) {
+  Line 6261: depth=11  function renderizarRegistroDistribuicao() {
+  Line 6325: depth=11  function atualizarTotaisDistribuicao(totalQtd) {
+  Line 6330: depth=11  function limparFiltrosDistribuicao() {
+  Line 6340: depth=11  function excluirDistribuicao(distId) {
+  Line 6371: depth=11  function excluirDevolucao(devId) {
+  Line 6407: depth=11  function exportarDistribuicao() {
+  Line 6451: depth=11  function importarDistribuicao(event) {
+  Line 6581: depth=11  function salvarProduto(event) {
+  Line 6643: depth=11  function salvarDistribuicao(event) {
+  Line 6685: depth=11  function salvarVenda(event) {
+  Line 6726: depth=11  function salvarDevolucao(event) {
+  Line 6829: depth=11  function limparFiltros() {
+  Line 6840: depth=11  function mostrarNotificacao(mensagem, tipo = 'info') {
+  Line 6905: depth=11  function exportarDados() {
+  Line 6975: depth=11  function exportarEstoqueCompleto() {
+  Line 7010: depth=11  function exportarSistema() {
+  Line 7042: depth=11  function importarSistema(event) {
+  Line 7123: depth=11  function importarEstoque(event) {
+  Line 7223: depth=11  function importarVendas(event) {
+  Line 8334: depth=14  function _escapeJsString(texto) {

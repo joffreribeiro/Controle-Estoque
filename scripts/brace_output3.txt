@@ -1,0 +1,72 @@
+﻿Found 281 function declarations at column 0
+
+*** POSSIBLE MISSING } ***
+  Function: function imprimirInventario() { (line 1627)
+  Next function: function gerarRelatorioRentabilidade() { (line 1678)
+  No "}" at indent 0 found between lines 1627 and 1678
+  Lines before next function:
+    1673:  
+    1674: 
+    1675: // ==============================
+    1676: // RELAT├ôRIO DE RENTABILIDADE
+    1677: // ==============================
+
+*** POSSIBLE MISSING } ***
+  Function: function mudarPaginaVendas(p) { _paginaVendas = p; renderizarRegistroVendas(); } (line 7883)
+  Next function: function mudarItensPaginaVendas(n) { _itensPorPaginaVendas = n; _paginaVendas =  (line 7884)
+  No "}" at indent 0 found between lines 7883 and 7884
+  Lines before next function:
+    7883: function mudarPaginaVendas(p) { _paginaVendas = p; renderizarRegistroVendas(); }
+
+*** POSSIBLE MISSING } ***
+  Function: function mudarItensPaginaVendas(n) { _itensPorPaginaVendas = n; _paginaVendas =  (line 7884)
+  Next function: function mudarPaginaDistribuicao(p) { _paginaDistribuicao = p; renderizarRegistr (line 7885)
+  No "}" at indent 0 found between lines 7884 and 7885
+  Lines before next function:
+    7884: function mudarItensPaginaVendas(n) { _itensPorPaginaVendas = n; _paginaVendas = 1; renderizarRegistroVendas(); }
+
+*** POSSIBLE MISSING } ***
+  Function: function mudarPaginaDistribuicao(p) { _paginaDistribuicao = p; renderizarRegistr (line 7885)
+  Next function: function mudarItensPaginaDistribuicao(n) { _itensPorPaginaDistribuicao = n; _pag (line 7886)
+  No "}" at indent 0 found between lines 7885 and 7886
+  Lines before next function:
+    7885: function mudarPaginaDistribuicao(p) { _paginaDistribuicao = p; renderizarRegistroDistribuicao(); }
+
+*** POSSIBLE MISSING } ***
+  Function: function mudarItensPaginaDistribuicao(n) { _itensPorPaginaDistribuicao = n; _pag (line 7886)
+  Next function: function verificarEstoqueBaixo() { (line 7894)
+  No "}" at indent 0 found between lines 7886 and 7894
+  Lines before next function:
+    7889: // NOTIFICA├ç├òES DE ESTOQUE BAIXO
+    7890: // ========================================
+    7891: 
+    7892: const LIMITE_ESTOQUE_BAIXO = 3;
+    7893: 
+
+*** POSSIBLE MISSING } ***
+  Function: function carregarVersaoPrecif(id) { (line 9353)
+  Next function: function atualizarStatusPropostaNaPrecif(clienteId) { (line 9418)
+  No "}" at indent 0 found between lines 9353 and 9418
+  Lines before next function:
+    9413:         const infoEl = document.getElementById('precifSalvoInfo'); if (infoEl) infoEl.innerHTML = `<span style="color:#16a34a; font-size:0.82rem">Usando precifica├º├úo salva v${v.versao} em ${new Date(v.dataCriacao).toLocaleString('pt-BR')}</span>`;
+    9414:         mostrarNotificacao('Precifica├º├úo carregada.', 'success');
+    9415:                 try { atualizarStatusPropostaNaPrecif(v.clienteId); } catch(e) { console.warn('Erro ao atualizar status da proposta:', e); }
+    9416: 
+    9417: 
+
+*** POSSIBLE MISSING } ***
+  Function: function importarImpostosFederais() { document.getElementById('inputImportarFede (line 9679)
+  Next function: function importarImpostosFederaisArquivo(event) { (line 9681)
+  No "}" at indent 0 found between lines 9679 and 9681
+  Lines before next function:
+    9679: function importarImpostosFederais() { document.getElementById('inputImportarFederais').click(); }
+    9680: 
+
+*** POSSIBLE MISSING } ***
+  Function: function importarICMSEstados() { document.getElementById('inputImportarICMSEstad (line 9775)
+  Next function: function importarICMSEstadosArquivo(event) { (line 9777)
+  No "}" at indent 0 found between lines 9775 and 9777
+  Lines before next function:
+    9775: function importarICMSEstados() { document.getElementById('inputImportarICMSEstados').click(); }
+    9776: 
+
