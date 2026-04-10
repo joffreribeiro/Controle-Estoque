@@ -1158,7 +1158,10 @@ function atualizarEstatisticas() {
     const totalVendasEl = document.getElementById('totalVendas');
     if (totalVendasEl) totalVendasEl.textContent = totalVendas.toLocaleString('pt-BR');
 
-    const valorTotalVendasEl = document.getElementById('valorTotalVendas');
+    const dashContainer = document.getElementById('tab-dashboard');
+    const valorTotalVendasEl = (dashContainer && dashContainer.querySelector)
+        ? (dashContainer.querySelector('#valorTotalVendas') || document.getElementById('valorTotalVendas'))
+        : document.getElementById('valorTotalVendas');
     if (valorTotalVendasEl) valorTotalVendasEl.textContent = formatarMoedaValor(valorTotalVendas);
     // Calcular total de comissões (5%) excluindo vendas da IMBEL
     let totalComissoes = 0;
@@ -1183,7 +1186,12 @@ function atualizarEstatisticas() {
             totalComissoes += (Math.round((valor * 0.05) * 100) / 100);
         });
     }
-    try { document.getElementById('totalComissoes').textContent = formatarMoedaValor(totalComissoes); } catch (e) {}
+    try {
+        const totalComissoesEl = (dashContainer && dashContainer.querySelector)
+            ? (dashContainer.querySelector('#totalComissoes') || document.getElementById('totalComissoes'))
+            : document.getElementById('totalComissoes');
+        if (totalComissoesEl) totalComissoesEl.textContent = formatarMoedaValor(totalComissoes);
+    } catch (e) {}
 }
 
 // Helper global: normaliza várias formas de data para YYYY-MM-DD
@@ -1612,9 +1620,14 @@ function renderizarTabela() {
 
     tbody.appendChild(trTotal);
 
-    // KPIs da aba estoque
-    const kpiTotalVendidoEl = document.getElementById('kpiTotalVendido');
-    const kpiSaldoZeroEl = document.getElementById('kpiSaldoZero');
+    // KPIs da aba estoque (agora renderizados no Dashboard)
+    const dashContainer = document.getElementById('tab-dashboard');
+    const kpiTotalVendidoEl = (dashContainer && dashContainer.querySelector)
+        ? (dashContainer.querySelector('#kpiTotalVendido') || document.getElementById('kpiTotalVendido'))
+        : document.getElementById('kpiTotalVendido');
+    const kpiSaldoZeroEl = (dashContainer && dashContainer.querySelector)
+        ? (dashContainer.querySelector('#kpiSaldoZero') || document.getElementById('kpiSaldoZero'))
+        : document.getElementById('kpiSaldoZero');
     // Calcular total vendido com fallback: prefer registroVendas, se vazio usar produto.vendas agregado
     let totalUnidadesVendidas = 0;
     if (Array.isArray(estoque.registroVendas) && estoque.registroVendas.length > 0) {
@@ -5610,6 +5623,17 @@ function abrirModalVendaDetalhada(vendaId = null, propostaId = null) {
     const container = document.getElementById('itensVendaContainer');
     if (!container) return;
 
+    // Garantir listener no campo cliente/loja para atualizar preços quando mudar
+    try {
+        const lojaEl = document.getElementById('lojaVenda');
+        if (lojaEl) {
+            lojaEl.oninput = function() {
+                try { preencherDadosCliente(lojaEl.value); } catch(e) {}
+                try { atualizarPrecosVendaPorCliente(); } catch(e) {}
+            };
+        }
+    } catch (e) {}
+
     // Pre-fill from proposal if propostaId provided
     if (propostaId && !vendaId) {
         const proposta = (propostas || []).find(p => p.id === propostaId || p.id === String(propostaId));
@@ -5733,6 +5757,27 @@ function adicionarItemVendaRow(preProdutoId = '', preQuantidade = 1, preValor = 
         // Preencher valores se fornecidos
         if (preProdutoId) row.querySelector('.item-produto').value = preProdutoId;
         if (preValor) row.querySelector('.item-valor').value = preValor;
+
+        // Garantir que o input de valor remova o estado "auto-preenchido" quando o usuário editar
+        try {
+            const valorInp = row.querySelector('.item-valor');
+            if (valorInp && !valorInp.dataset._listenerVal) {
+                valorInp.addEventListener('input', () => {
+                    valorInp.style.background = '';
+                    valorInp.removeAttribute('data-autofilled');
+                });
+                valorInp.dataset._listenerVal = '1';
+            }
+        } catch (e) {}
+
+        // Se já existe um cliente preenchido no modal, tentar preencher o preço salvo automaticamente
+        try {
+            const lojaEl = document.getElementById('lojaVenda');
+            if (lojaEl && lojaEl.value && (!preValor || preValor === '')) {
+                const sel = row.querySelector('.item-produto');
+                if (sel) autoPreencherPrecoProduto(sel);
+            }
+        } catch (e) {}
 
         // Atualizar visual do item
         atualizarItemRow(row.querySelector('.item-produto'));
@@ -6998,13 +7043,17 @@ function salvarProduto(event) {
         const nomeAnterior = produto.nome;
         produto.nome = nome;
         produto.estoqueConsolidado = Number(estoqueTotal) || 0;
+        produto.quantidadeInicial = Number(estoqueTotal) || 0;
         produto.ncm = ncm;
         produto.categoria = categoria;
         produto.ci = ci;
         produto.margemMinima = margemMinima;
+        produto.margemMin = margemMinima;
         produto.descontoMaximo = descontoMaximo;
+        produto.descMax = descontoMaximo;
         produto.observacoes = observacoes;
         produto.atualizadoEm = new Date().toISOString();
+        produto.dataAtualizacao = Date.now();
         produto.distribuicao = produto.distribuicao || { KOLTE: 0, ISA: 0, LC: 0, ADES: 0, FL: 0, IMBEL: 0 };
         produto.vendas = produto.vendas || { KOLTE: 0, ISA: 0, LC: 0, ADES: 0, FL: 0, IMBEL: 0 };
 
@@ -7054,14 +7103,18 @@ function salvarProduto(event) {
         id: Date.now(),
         nome: nome,
         estoqueConsolidado: Number(estoqueTotal) || 0,
+        quantidadeInicial: Number(estoqueTotal) || 0,
         ncm,
         categoria,
         ci,
         margemMinima,
+        margemMin: margemMinima,
         descontoMaximo,
+        descMax: descontoMaximo,
         observacoes,
         criadoEm: new Date().toISOString(),
         atualizadoEm: new Date().toISOString(),
+        dataAtualizacao: Date.now(),
         distribuicao: { KOLTE: 0, ISA: 0, LC: 0, ADES: 0, FL: 0, IMBEL: 0 },
         vendas: { KOLTE: 0, ISA: 0, LC: 0, ADES: 0, FL: 0, IMBEL: 0 }
     };
@@ -7070,7 +7123,9 @@ function salvarProduto(event) {
         ...(precificacao[nome] || {}),
         ci,
         margemMinima,
-        descontoMaximo
+        margemMin: margemMinima,
+        descontoMaximo,
+        descMax: descontoMaximo
     };
     if (categoria) categoriaPorProduto[nome] = categoria;
 
@@ -11323,10 +11378,62 @@ function autoPreencherPrecoProduto(selectEl) {
     const produto = (estoque.produtos || []).find(p => p.id === produtoId);
     if (!produto) return;
 
-    const calc = calcularPreco(produto.nome);
-    if (calc && calc.precoFinal > 0) {
-        valorInput.value = Number(calc.precoFinal).toFixed(2).replace('.', ',');
+    // Primeiro: tentar obter preço da precificação salva para o cliente selecionado
+    const lojaNome = (document.getElementById('lojaVenda')?.value || '').trim();
+    let precoSalvo = null;
+    try { precoSalvo = obterPrecoFinalSalvoParaClienteProduto(lojaNome, produtoId); } catch (e) { precoSalvo = null; }
+
+    if (precoSalvo !== null && !isNaN(precoSalvo) && Number(precoSalvo) > 0) {
+        valorInput.value = Number(precoSalvo).toFixed(2).replace('.', ',');
+        valorInput.style.background = '#ecfdf5';
+        valorInput.setAttribute('data-autofilled', '1');
+        return;
     }
+
+    // Se não houver precificação salva, tentar usar a última precificação calculada para este cliente (se existir)
+    try {
+        const clienteObj = (clientes || []).find(c => (c.nome||'').toLowerCase() === (lojaNome||'').toLowerCase());
+        if (clienteObj && ultimaPrecificacaoCalculada && String(ultimaPrecificacaoCalculada.clienteId) === String(clienteObj.id)) {
+            const item = (ultimaPrecificacaoCalculada.itens || []).find(it => Number(it.produtoId) === Number(produtoId) || (it.produto && it.produto.toLowerCase() === (produto.nome||'').toLowerCase()));
+            if (item && Number(item.precoFinal) > 0) {
+                valorInput.value = Number(item.precoFinal).toFixed(2).replace('.', ',');
+                valorInput.style.background = '#ecfdf5';
+                valorInput.setAttribute('data-autofilled', '1');
+                return;
+            }
+        }
+    } catch (e) {}
+
+    // Caso não haja preço salvo nem versão calculada para este cliente, manter em branco (usuário preencherá manualmente)
+}
+
+// Retorna o preço final salvo (number) para um produto em uma precificação do cliente, ou null
+function obterPrecoFinalSalvoParaClienteProduto(lojaNome, produtoId) {
+    if (!lojaNome) return null;
+    const clienteObj = (clientes || []).find(c => (c.nome||'').toLowerCase() === (lojaNome||'').toLowerCase());
+    if (!clienteObj) return null;
+    let registro = null;
+    try { registro = obterUltimaPrecificacaoCliente(clienteObj.id); } catch (e) { registro = null; }
+    if (!registro) return null;
+    const itens = registro.itens || [];
+    const item = itens.find(it => Number(it.produtoId) === Number(produtoId) || (it.produto && (it.produto.toLowerCase() === ((estoque.produtos.find(p=>p.id===produtoId)||{}).nome||'').toLowerCase())));
+    if (!item) return null;
+    return Number(item.precoFinal || item.preco || item.valorUnitario || 0) || null;
+}
+
+// Atualiza preços de todas as linhas do modal de venda de acordo com o cliente preenchido
+function atualizarPrecosVendaPorCliente() {
+    try {
+        const lojaNome = (document.getElementById('lojaVenda')?.value || '').trim();
+        if (!lojaNome) return;
+        const container = document.getElementById('itensVendaContainer');
+        if (!container) return;
+        container.querySelectorAll('.item-venda-row').forEach(row => {
+            const sel = row.querySelector('.item-produto');
+            if (!sel) return;
+            autoPreencherPrecoProduto(sel);
+        });
+    } catch (e) { console.error('atualizarPrecosVendaPorCliente erro', e); }
 }
 
 function exportarPrecificacaoExcel() {
