@@ -85,6 +85,8 @@ Shape per product:
 let precificacoesCliente = [];
 let ultimaPrecificacaoCalculada = null;
 let ultimaVersaoSalva = null;
+let exibindoPrecifSalva = false;
+let precifSalvaCarregada = null;
 // RETID + Benefícios fiscais (estado por sessão de precificação)
 let retidPorProduto = {};
 let beneficioFiscalAtivo = false;
@@ -8592,72 +8594,93 @@ function calcularPreco(nomeProduto, estado = null, tipoPessoa = null) {
 
 function renderizarPrecificacao() {
     const tbody = document.getElementById('tabelaPrecificacaoBody');
+    const resumo = document.getElementById('precificacaoResumoCI');
     if (!tbody) return;
 
     const produtos = estoque.produtos || [];
     if (produtos.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="15" style="text-align:center;padding:24px;color:#64748b">Nenhum produto cadastrado.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:24px;color:#64748b">Nenhum produto cadastrado.</td></tr>';
+        if (resumo) resumo.innerHTML = '';
         return;
     }
 
-    const taxaPadrao = document.getElementById('taxaPadrao')?.value || '1';
-    const roiPadrao = document.getElementById('roiPadrao')?.value || '1';
-    const pisPadrao = document.getElementById('pisPadrao')?.value || '1.65';
-    const cofinsPadrao = document.getElementById('cofinsPadrao')?.value || '7.6';
-    const comissaoPadrao = document.getElementById('comissaoPadrao')?.value || '5';
-
     tbody.innerHTML = produtos.map((produto) => {
-        const nome = produto.nome;
-        const nomeId = _nomeProdutoId(nome);
-        const nomeJs = _escapeJsString(nome);
+        const prec = precificacao[produto.nome] || {};
         const ncm = produto.ncm || detectarNCM(produto.nome) || '—';
-        if (!precificacao[nome]) {
-            precificacao[nome] = { ci: 0, taxa: null, roi: null, comissao: null, precoFinalManual: null };
-        }
-        if (!tabelaAliquotas[nome]) {
-            tabelaAliquotas[nome] = { pis: null, cofins: null, ipi: null, icmsBase: null };
-        }
-        if (!categoriaPorProduto[nome]) {
-            categoriaPorProduto[nome] = 'Outro';
-        }
+        const nomeId = produto.nome.replace(/[^a-zA-Z0-9]/g, '_');
+        const nomeJs = _escapeJsString(produto.nome);
+        const categoriaAtual = categoriaPorProduto[produto.nome] || '';
+        const ci = prec.ci || '';
+        const ultimaAtt = prec.ciAtualizadoEm
+            ? new Date(prec.ciAtualizadoEm).toLocaleDateString('pt-BR')
+            : '—';
+        const temCI = parseFloat(ci) > 0;
 
-        const prec = precificacao[nome];
-        const aliq = tabelaAliquotas[nome];
-        const result = calcularPreco(nome);
-        const categoriaAtual = categoriaPorProduto[nome] || 'Outro';
-        const opcoesCategoria = CATEGORIAS_PRODUTO
-            .map(c => `<option value="${c}" ${c === categoriaAtual ? 'selected' : ''}>${c}</option>`)
-            .join('');
-        const pfBorder = result?.isManual ? '#f59e0b' : '#22c55e';
-
-        return `<tr data-produto="${_escapeHtml(nome)}">
-            <td style="text-align:left;padding-left:15px;font-weight:500;position:sticky;left:0;background:#fff;z-index:1">${_escapeHtml(nome)}<span style="font-size:0.7rem;color:#64748b;background:#f1f5f9;padding:1px 6px;border-radius:4px;margin-left:6px">${_escapeHtml(ncm)}</span></td>
-            <td>
-                <select id="cat_${nomeId}" onchange="salvarCategoriaProduto('${nomeJs}', this.value)" style="width:120px;padding:6px 8px;border:1px solid #e2e8f0;border-radius:6px;font-size:0.85rem">
-                    ${opcoesCategoria}
-                </select>
-            </td>
-            <td><input type="number" id="ci_${nomeId}" step="0.01" min="0" value="${prec.ci || ''}" placeholder="0,00" oninput="atualizarLinhaPrecificacao('${nomeJs}')" style="width:95px;padding:6px 8px;border:1px solid #e2e8f0;border-radius:6px"></td>
-            <td><input type="number" id="taxa_${nomeId}" step="0.01" min="0" value="${prec.taxa || ''}" placeholder="${taxaPadrao}" oninput="atualizarLinhaPrecificacao('${nomeJs}')" style="width:70px;padding:6px 8px;border:1px solid #e2e8f0;border-radius:6px"></td>
-            <td><input type="number" id="roi_${nomeId}" step="0.01" min="0" value="${prec.roi || ''}" placeholder="${roiPadrao}" oninput="atualizarLinhaPrecificacao('${nomeJs}')" style="width:70px;padding:6px 8px;border:1px solid #e2e8f0;border-radius:6px"></td>
-            <td><span id="vbase_${nomeId}">${result ? _fmtMoeda(result.valorBase) : '-'}</span></td>
-            <td><input type="number" id="pis_${nomeId}" step="0.01" min="0" value="${aliq.pis || ''}" placeholder="${pisPadrao}" oninput="atualizarLinhaPrecificacao('${nomeJs}')" style="width:72px;padding:6px 8px;border:1px solid #e2e8f0;border-radius:6px"></td>
-            <td><input type="number" id="cofins_${nomeId}" step="0.01" min="0" value="${aliq.cofins || ''}" placeholder="${cofinsPadrao}" oninput="atualizarLinhaPrecificacao('${nomeJs}')" style="width:72px;padding:6px 8px;border:1px solid #e2e8f0;border-radius:6px"></td>
-            <td><input type="number" id="icms_${nomeId}" step="0.01" min="0" value="${aliq.icmsBase || ''}" placeholder="12" title="ICMS padrão quando nenhuma regra da tabela de ICMS se aplicar" oninput="atualizarLinhaPrecificacao('${nomeJs}')" style="width:78px;padding:6px 8px;border:1px solid #e2e8f0;border-radius:6px"></td>
-            <td><input type="number" id="ipi_${nomeId}" step="0.01" min="0" value="${aliq.ipi || ''}" placeholder="0" oninput="atualizarLinhaPrecificacao('${nomeJs}')" style="width:72px;padding:6px 8px;border:1px solid #e2e8f0;border-radius:6px"></td>
-            <td><span id="vimp_${nomeId}">${result ? _fmtMoeda(result.valorImpostos) : '-'}</span></td>
-            <td><input type="number" id="comissao_${nomeId}" step="0.1" min="0" value="${prec.comissao || ''}" placeholder="${comissaoPadrao}" oninput="atualizarLinhaPrecificacao('${nomeJs}')" style="width:72px;padding:6px 8px;border:1px solid #e2e8f0;border-radius:6px"></td>
-            <td><span id="vcom_${nomeId}" style="color:#d97706;font-weight:600">${result ? _fmtMoeda(result.comissaoR) : '-'}</span></td>
-            <td style="background:#fffbf0">
-                <div style="display:flex;gap:6px;align-items:center;justify-content:center">
-                    <input type="number" step="0.01" min="0" id="vpf_${nomeId}" value="${result ? Number(result.precoFinal).toFixed(2) : ''}" oninput="salvarPrecoFinalManual('${nomeJs}', this.value)" style="width:110px;padding:6px 8px;border:2px solid ${pfBorder};border-radius:6px">
-                    <button onclick="resetarPrecoManual('${nomeJs}')" title="Usar preço calculado" style="border:none;background:#f1f5f9;color:#475569;border-radius:6px;cursor:pointer;width:26px;height:26px;line-height:1">↺</button>
-                </div>
-            </td>
-            <td style="font-size:0.75rem;color:#64748b">${result?.isManual ? 'Manual' : 'Auto'}</td>
-        </tr>`;
+        return `
+            <tr>
+                <td style="text-align:left; padding-left:15px; font-weight:500; position:sticky; left:0; background:#fff; z-index:1; border-right:1px solid #e2e8f0">
+                    ${_escapeHtml(produto.nome)}
+                    <div style="font-size:0.72rem; font-family:monospace; color:#94a3b8; margin-top:2px">${_escapeHtml(ncm)}</div>
+                </td>
+                <td style="text-align:center">
+                    <span style="font-size:0.75rem; font-family:monospace; color:#64748b; background:#f1f5f9; padding:2px 8px; border-radius:4px">${_escapeHtml(ncm)}</span>
+                </td>
+                <td style="text-align:center">
+                    <select onchange="salvarCategoriaProduto('${nomeJs}', this.value)" style="border:1px solid #e2e8f0; border-radius:6px; padding:5px 8px; font-size:0.82rem; background:#fff; min-width:110px">
+                        <option value="">Selecione...</option>
+                        ${CATEGORIAS_PRODUTO.map(c => `<option value="${c}" ${categoriaAtual === c ? 'selected' : ''}>${c}</option>`).join('')}
+                    </select>
+                </td>
+                <td style="text-align:center">
+                    <div style="display:flex; align-items:center; justify-content:center; gap:6px">
+                        <span style="color:#64748b; font-size:0.9rem">R$</span>
+                        <input type="number" step="0.01" min="0" id="ci_${nomeId}" value="${ci}" placeholder="0,00" onchange="salvarCI('${nomeJs}', this.value)" style="width:120px; border:1px solid ${temCI ? '#22c55e' : '#e2e8f0'}; border-radius:6px; padding:6px 8px; text-align:right; font-size:0.9rem; font-weight:${temCI ? '600' : '400'}; color:${temCI ? '#16a34a' : '#1e293b'}">
+                    </div>
+                </td>
+                <td id="ci_att_${nomeId}" style="text-align:center; font-size:0.8rem; color:#94a3b8">${ultimaAtt}</td>
+            </tr>
+        `;
     }).join('');
 
+    atualizarResumoPrecificacaoCI(produtos);
+    salvarDados();
+}
+
+function atualizarResumoPrecificacaoCI(produtos = estoque.produtos || []) {
+    const resumo = document.getElementById('precificacaoResumoCI');
+    if (!resumo) return;
+
+    const total = produtos.length;
+    const comCI = produtos.filter(produto => (parseFloat(precificacao[produto.nome]?.ci) || 0) > 0).length;
+    const semCI = total - comCI;
+
+    resumo.innerHTML = `
+        <div style="font-size:0.85rem; color:#475569">Total produtos: <strong style="color:#1e3a5f">${total}</strong></div>
+        <div style="font-size:0.85rem; color:#475569">Com CI: <strong style="color:#16a34a">${comCI}</strong></div>
+        <div style="font-size:0.85rem; color:#475569">Sem CI: <strong style="color:#d97706">${semCI}</strong></div>
+    `;
+}
+
+function salvarCI(nomeProduto, valor) {
+    if (!precificacao[nomeProduto]) precificacao[nomeProduto] = {};
+    precificacao[nomeProduto].ci = parseFloat(valor) || 0;
+    precificacao[nomeProduto].ciAtualizadoEm = new Date().toISOString();
+
+    const nomeId = nomeProduto.replace(/[^a-zA-Z0-9]/g, '_');
+    const input = document.getElementById('ci_' + nomeId);
+    if (input) {
+        const temCI = parseFloat(valor) > 0;
+        input.style.borderColor = temCI ? '#22c55e' : '#e2e8f0';
+        input.style.fontWeight = temCI ? '600' : '400';
+        input.style.color = temCI ? '#16a34a' : '#1e293b';
+    }
+
+    const ultimaAttEl = document.getElementById('ci_att_' + nomeId);
+    if (ultimaAttEl) {
+        ultimaAttEl.textContent = new Date(precificacao[nomeProduto].ciAtualizadoEm).toLocaleDateString('pt-BR');
+    }
+
+    atualizarResumoPrecificacaoCI();
     salvarDados();
 }
 
@@ -8813,6 +8836,7 @@ function trocarSubabaPrecif(subaba) {
 function popularSelectClientesPrecif() {
     const select = document.getElementById('precifClienteSelect');
     if (!select) return;
+    const valorAtual = select.value;
     const list = (clientes || []).slice().sort((a,b) => (a.nome||'').localeCompare(b.nome||''));
     const optionsHtml = list.map(c => {
         const tipo = c.tipoPessoa || (((c.cnpj||'').replace(/\D/g,''))).length === 14 ? 'PJ' : 'PF';
@@ -8821,6 +8845,7 @@ function popularSelectClientesPrecif() {
         return `<option value="${c.id}">${_escapeHtml(c.nome||'-')} — ${_escapeHtml(c.uf||'??')} (${tipo})${badge}</option>`;
     }).join('');
     select.innerHTML = '<option value="">Selecione um cliente...</option>' + optionsHtml;
+    if (valorAtual) select.value = valorAtual;
 
     // Atualizar labels de padrão
     const taxaPad = document.getElementById('taxaPadrao')?.value || '—';
@@ -8831,10 +8856,120 @@ function popularSelectClientesPrecif() {
     const elCom  = document.getElementById('precifComissaoPadraoLabel'); if (elCom) elCom.textContent = comPad;
 }
 
+function obterUltimaPrecificacaoCliente(clienteId) {
+    const registros = (precificacoesCliente || []).filter(p => String(p.clienteId) === String(clienteId));
+    if (!registros.length) return null;
+    return registros.sort((a, b) => new Date(b.dataCriacao || 0) - new Date(a.dataCriacao || 0))[0];
+}
+
+function limparAvisoCI() {
+    const oldAviso = document.getElementById('avisoCI');
+    if (oldAviso) oldAviso.remove();
+}
+
+function atualizarAvisoCIDivergente(precifSalva) {
+    if (!precifSalva) {
+        limparAvisoCI();
+        return;
+    }
+
+    const alertaCI = [];
+    (precifSalva.itens || []).forEach(item => {
+        const ciAtual = parseFloat(precificacao[item.produto]?.ci) || 0;
+        const ciSalvo = parseFloat(item.ci) || 0;
+        if (ciAtual !== ciSalvo && ciSalvo > 0) {
+            alertaCI.push({
+                produto: item.produto,
+                ciSalvo,
+                ciAtual,
+                diff: ((ciAtual - ciSalvo) / ciSalvo * 100).toFixed(1)
+            });
+        }
+    });
+
+    if (alertaCI.length > 0) {
+        const avisoEl = document.createElement('div');
+        avisoEl.style.cssText = 'background:#fff8f0; border:1px solid #fed7aa; border-radius:8px; padding:10px 14px; margin-top:10px; font-size:0.82rem; color:#92400e';
+        avisoEl.innerHTML = `
+            ⚠️ <strong>${alertaCI.length} produto(s)</strong> tiveram o CI alterado desde que esta precificação foi salva:<br>
+            <ul style="margin:6px 0 0 16px; padding:0">
+                ${alertaCI.map(a => `
+                    <li>
+                        ${_escapeHtml(a.produto)}:
+                        salvo R$ ${a.ciSalvo.toFixed(2)} →
+                        atual R$ ${a.ciAtual.toFixed(2)}
+                        <span style="color:${parseFloat(a.diff) > 0 ? '#dc2626' : '#16a34a'}">
+                            (${parseFloat(a.diff) > 0 ? '+' : ''}${a.diff}%)
+                        </span>
+                    </li>
+                `).join('')}
+            </ul>
+            <div style="margin-top:8px">
+                A precificação salva usa os valores originais.
+                Para recalcular com o CI atual, clique em <strong>Calcular</strong> e salve novamente.
+            </div>
+        `;
+        const banner = document.getElementById('precifClienteBanner');
+        if (banner && banner.parentNode) {
+            limparAvisoCI();
+            avisoEl.id = 'avisoCI';
+            banner.parentNode.insertBefore(avisoEl, banner.nextSibling);
+        }
+    } else {
+        limparAvisoCI();
+    }
+}
+
+function aplicarEstadoPrecificacaoSalva(registro) {
+    if (!registro) return;
+
+    try {
+        retidPorProduto = registro.retidPorProduto || {};
+        beneficioFiscalAtivo = registro.beneficioFiscalAtivo || false;
+        beneficiosPorProduto = registro.beneficiosPorProduto || {};
+    } catch (e) {}
+
+    exibindoPrecifSalva = true;
+    precifSalvaCarregada = registro;
+    ultimaPrecificacaoCalculada = registro;
+    try { ultimaVersaoSalva = registro.versao || null; } catch (e) {}
+
+    try {
+        const cliente = (clientes || []).find(c => String(c.id) === String(registro.clienteId));
+        const select = document.getElementById('precifClienteSelect');
+        if (select) select.value = registro.clienteId || '';
+        const ufEl = document.getElementById('precifClienteUF'); if (ufEl) ufEl.value = registro.uf || '—';
+        const tipoEl = document.getElementById('precifClienteTipo'); if (tipoEl) tipoEl.value = registro.tipoPessoa || '—';
+        const banner = document.getElementById('precifClienteBanner'); if (banner) banner.style.display = 'flex';
+        const name = document.getElementById('precifBannerNome'); if (name) name.textContent = cliente?.nome || registro.clienteNome || '—';
+        const doc = document.getElementById('precifBannerDoc'); if (doc) doc.textContent = cliente?.cnpj || cliente?.cpf || '—';
+        const ufBanner = document.getElementById('precifBannerUF'); if (ufBanner) ufBanner.textContent = registro.uf || cliente?.uf || cliente?.estado || '—';
+        const tipoBanner = document.getElementById('precifBannerTipo'); if (tipoBanner) tipoBanner.textContent = registro.tipoPessoa || cliente?.tipoPessoa || '—';
+        const contato = document.getElementById('precifBannerContato'); if (contato) contato.textContent = cliente?.contato || cliente?.email || '—';
+        const taxaOverride = document.getElementById('precifTaxaOverride'); if (taxaOverride) taxaOverride.value = registro.taxa ?? '';
+        const roiOverride = document.getElementById('precifROIOverride'); if (roiOverride) roiOverride.value = registro.roi ?? '';
+        const comOverride = document.getElementById('precifComissaoOverride'); if (comOverride) comOverride.value = registro.comissao ?? '';
+        const validadeEl = document.getElementById('precifValidadeDias'); if (validadeEl) validadeEl.value = registro.validadeDias ?? 30;
+
+        const filtros = registro.filtros || {};
+        const filtroProduto = document.getElementById('precifFiltroProduto'); if (filtroProduto) filtroProduto.value = filtros.filtroProduto || '';
+        const filtroNCM = document.getElementById('precifFiltroNCM'); if (filtroNCM) filtroNCM.value = filtros.filtroNCM || '';
+        const filtroCI = document.getElementById('precifFiltroCI'); if (filtroCI) filtroCI.value = filtros.filtroCI || 'todos';
+
+        const cb = document.getElementById('precifBeneficioFiscal'); if (cb) cb.checked = !!beneficioFiscalAtivo;
+        const painel = document.getElementById('painelBeneficioFiscal'); if (painel) painel.style.display = beneficioFiscalAtivo ? 'block' : 'none';
+        if (beneficioFiscalAtivo) renderizarTabelaBeneficios();
+    } catch (e) {}
+
+    calcularPrecificacaoPorCliente();
+}
+
 function selecionarClientePrecif() {
         const select = document.getElementById('precifClienteSelect');
         if (!select) return;
     const clienteId = select.value;
+    exibindoPrecifSalva = false;
+    precifSalvaCarregada = null;
     // Resetar benefícios/RETID ao trocar de cliente
     beneficioFiscalAtivo = false;
     beneficiosPorProduto = {};
@@ -8848,6 +8983,7 @@ function selecionarClientePrecif() {
                 const banner = document.getElementById('precifClienteBanner'); if (banner) banner.style.display = 'none';
                 const resultado = document.getElementById('precifClienteResultado'); if (resultado) resultado.style.display = 'none';
                 const empty = document.getElementById('precifClienteEmpty'); if (empty) empty.style.display = 'block';
+            limparAvisoCI();
                 return;
         }
 
@@ -8866,7 +9002,7 @@ function selecionarClientePrecif() {
         const tipoB = document.getElementById('precifBannerTipo'); if (tipoB) tipoB.textContent = tipoPessoa;
         const contato = document.getElementById('precifBannerContato'); if (contato) contato.textContent = cliente.contato || cliente.email || '—';
 
-        calcularPrecificacaoPorCliente();
+        calcularPrecificacaoPorCliente({ forcarAtual: true });
 
         try { renderizarHistoricoPrecif(cliente.id); } catch (e) {}
         try { atualizarStatusPropostaNaPrecif(cliente.id); } catch (e) {}
@@ -8876,18 +9012,25 @@ function selecionarClientePrecif() {
 
         // Mostrar se existe precificação salva para este cliente
         try {
-            const precifSalva = precificacoesCliente.find(p => String(p.clienteId) === String(cliente.id));
+            const precifSalva = obterUltimaPrecificacaoCliente(cliente.id);
             const infoEl = document.getElementById('precifSalvoInfo');
             if (precifSalva && infoEl) {
                 const dt = precifSalva.dataCriacao ? new Date(precifSalva.dataCriacao).toLocaleString('pt-BR') : '';
                 infoEl.innerHTML = `<span style="color:#16a34a; font-size:0.82rem">✅ Precificação salva em ${dt}</span> <button onclick="carregarPrecificacaoSalva('${cliente.id}')" class="btn btn-outline btn-sm" style="margin-left:8px">↩ Carregar salva</button>`;
+                atualizarAvisoCIDivergente(precifSalva);
             } else {
                 const infoEl2 = document.getElementById('precifSalvoInfo'); if (infoEl2) infoEl2.innerHTML = '';
+                limparAvisoCI();
             }
         } catch (e) {}
 }
 
-function calcularPrecificacaoPorCliente() {
+function calcularPrecificacaoPorCliente(opcoes = {}) {
+    if (opcoes.forcarAtual) {
+        exibindoPrecifSalva = false;
+        precifSalvaCarregada = null;
+    }
+
     const select = document.getElementById('precifClienteSelect');
     const clienteId = select?.value;
     const cliente = (clientes || []).find(c => String(c.id) === String(clienteId));
@@ -8896,6 +9039,7 @@ function calcularPrecificacaoPorCliente() {
         const empty = document.getElementById('precifClienteEmpty'); if (empty) empty.style.display = 'block';
         const banner = document.getElementById('precifClienteBanner'); if (banner) banner.style.display = 'none';
         ultimaPrecificacaoCalculada = null;
+        limparAvisoCI();
         return;
     }
 
@@ -8951,7 +9095,10 @@ function calcularPrecificacaoPorCliente() {
             if (filtroProduto && !(produto.nome || '').toLowerCase().includes(filtroProduto)) return false;
             const pNcm = produto.ncm || detectarNCM(produto.nome) || '';
             if (filtroNCM && pNcm !== filtroNCM) return false;
-            const ci = parseFloat((precificacao[produto.nome] || {}).ci) || 0;
+            const itemSalvo = exibindoPrecifSalva && precifSalvaCarregada
+                ? (precifSalvaCarregada.itens || []).find(i => i.produto === produto.nome)
+                : null;
+            const ci = itemSalvo ? (parseFloat(itemSalvo.ci) || 0) : (parseFloat((precificacao[produto.nome] || {}).ci) || 0);
             if (filtroCI === 'comCI' && ci === 0) return false;
             if (filtroCI === 'semCI' && ci > 0) return false;
             return true;
@@ -8964,7 +9111,13 @@ function calcularPrecificacaoPorCliente() {
         const aliq = tabelaAliquotas[produto.nome] || {};
         const ncm = produto.ncm || detectarNCM(produto.nome) || '—';
 
-        const ci = parseFloat(prec.ci) || 0;
+        let ci;
+        if (exibindoPrecifSalva && precifSalvaCarregada) {
+            const itemSalvo = (precifSalvaCarregada.itens || []).find(i => i.produto === produto.nome);
+            ci = itemSalvo ? parseFloat(itemSalvo.ci) : (parseFloat(prec.ci) || 0);
+        } else {
+            ci = parseFloat(prec.ci) || 0;
+        }
         if (ci === 0) {
             produtosSemCI++;
             const nomeId = (produto.nome || '').replace(/[^a-z0-9]/gi, '_');
@@ -9010,13 +9163,16 @@ function calcularPrecificacaoPorCliente() {
         totalFaturamento += precoFinal;
         produtosCalculados++;
 
-        itensCalculados.push({ produto: produto.nome, produtoId: produto.id || null, ncm, ci, taxa: taxaProd, roi: roiProd, valorBase, pis: pisEfetivo, pisR, cofins: cofinsEfetivo, cofinsR, icms: icmsEfetivo, icmsR, ipi: ipiEfetivo, ipiR, valorImpostos, comissaoR, precoFinal, margem });
+        itensCalculados.push({ produto: produto.nome, produtoId: produto.id || null, ncm, ci, taxa: taxaProd, roi: roiProd, valorBase, pis: pisEfetivo, pisR, cofins: cofinsEfetivo, cofinsR, icms: icmsEfetivo, icmsR, ipi: ipiEfetivo, ipiR, valorImpostos, comissao: comissaoProd, comissaoR, precoFinal, margem });
 
         const icmsBg = tipoPessoa === 'PF' ? '#fef2f2' : '#f0fdf4';
         const icmsColor = tipoPessoa === 'PF' ? '#dc2626' : '#16a34a';
 
         const nomeId = (produto.nome || '').replace(/[^a-z0-9]/gi, '_');
         const safeNome = (produto.nome || '').replace(/'/g, "\\'");
+        const ciBadge = exibindoPrecifSalva
+            ? '<span style="font-size:0.65rem; background:#dbeafe; color:#1d4ed8; padding:1px 5px; border-radius:10px; margin-left:4px; font-weight:600">🔒 salvo</span>'
+            : '';
 
         // product badge
         let prodBadge = '';
@@ -9072,7 +9228,7 @@ function calcularPrecificacaoPorCliente() {
                 <td style="text-align:left; padding-left:15px; font-weight:500; position:sticky; left:0; background:#fff; z-index:1; border-right:1px solid #e2e8f0">${_escapeHtml(produto.nome)} ${prodBadge}</td>
                 ${retidCell}
                 <td style="font-family:monospace; font-size:0.75rem; color:#64748b; text-align:center">${_escapeHtml(ncm)}</td>
-                <td style="font-weight:600; color:#1e3a5f">${fmt(ci)}</td>
+                <td style="font-weight:600; color:#1e3a5f">${fmt(ci)} ${ciBadge}</td>
                 <td style="text-align:center; color:#475569">${(Number(taxaProd)).toFixed(2)}%</td>
                 <td style="text-align:center; color:#475569">${(Number(roiProd)).toFixed(2)}%</td>
                 <td style="font-weight:600; color:#1e3a5f">${fmt(valorBase)}</td>
@@ -9130,6 +9286,7 @@ function calcularPrecificacaoPorCliente() {
         itens: itensCalculados,
         totalFaturamento
     };
+    atualizarAvisoCIDivergente(exibindoPrecifSalva ? precifSalvaCarregada : obterUltimaPrecificacaoCliente(cliente.id));
     try { atualizarStatusPropostaNaPrecif(ultimaPrecificacaoCalculada.clienteId); } catch (e) {}
 }
 
@@ -9204,6 +9361,12 @@ function salvarPrecificacaoCliente() {
     registro.descricao = descricao;
     registro.status = 'ativa';
     registro.propostaId = null;
+    /*
+    IMPORTANT: itens[].ci is the CI value frozen at save time.
+    Future changes to precificacao[nome].ci do NOT affect this saved pricing.
+    To recalculate with updated CI, the user must run a new calculation
+    and save again — this will create a new version, not update the old one.
+    */
     // Snapshot de RETID e benefícios no momento do salvamento
     try { registro.retidPorProduto = JSON.parse(JSON.stringify(retidPorProduto || {})); } catch (e) { registro.retidPorProduto = {}; }
     registro.beneficioFiscalAtivo = !!beneficioFiscalAtivo;
@@ -9231,72 +9394,9 @@ function salvarPrecificacaoCliente() {
 
 function carregarPrecificacaoSalva(clienteId) {
     try {
-        const registros = (precificacoesCliente || []).filter(p => String(p.clienteId) === String(clienteId));
-        if (!registros || registros.length === 0) { mostrarNotificacao('Nenhuma precificação salva para este cliente.', 'warning'); return; }
-        const registro = registros.sort((a,b) => new Date(b.dataCriacao) - new Date(a.dataCriacao))[0];
-        // Restaurar estados de RETID / Benefícios do registro salvo
-        retidPorProduto = registro.retidPorProduto || {};
-        beneficioFiscalAtivo = registro.beneficioFiscalAtivo || false;
-        beneficiosPorProduto = registro.beneficiosPorProduto || {};
-        // Atualizar checkbox/painel
-        try {
-            const cb = document.getElementById('precifBeneficioFiscal'); if (cb) cb.checked = !!beneficioFiscalAtivo;
-            const painel = document.getElementById('painelBeneficioFiscal'); if (painel) painel.style.display = beneficioFiscalAtivo ? 'block' : 'none';
-            if (beneficioFiscalAtivo) renderizarTabelaBeneficios();
-        } catch (e) {}
-        ultimaPrecificacaoCalculada = registro;
-        try { ultimaVersaoSalva = registro.versao || null; } catch(e) {}
-        // renderizar tabela a partir do registro
-        const itens = registro.itens || [];
-        const fmt = v => 'R$ ' + _fmtMoeda(v);
-        const pct = v => (Number.isFinite(Number(v)) ? Number(v).toFixed(2) : '0.00') + '%';
-        const corMargem = m => m >= 30 ? '#16a34a' : m >= 15 ? '#d97706' : '#dc2626';
-        const rows = itens.map(it => {
-            const nomeId = (it.produto || '').replace(/[^a-z0-9]/gi, '_');
-            const retidAtivo = (registro.retidPorProduto && registro.retidPorProduto[it.produto]) || false;
-            const prodBadge = retidAtivo ? '<span style="font-size:0.68rem; background:#dbeafe; color:#1d4ed8; padding:1px 6px; border-radius:10px; margin-left:6px; font-weight:700">RETID</span>' : '';
-            const pisDisplay = (retidAtivo ? '0% (RETID)' : (Number(it.pis || 0).toFixed(2) + '%'));
-            const cofDisplay = (retidAtivo ? '0% (RETID)' : (Number(it.cofins || 0).toFixed(2) + '%'));
-            const ipiDisplay = (retidAtivo ? '0% (RETID)' : (Number(it.ipi || 0).toFixed(2) + '%'));
-            return `
-                <tr id="precif_row_${nomeId}" style="${retidAtivo ? 'border-left:3px solid #1e3a5f' : ''}">
-                    <td style="text-align:left; padding-left:15px; font-weight:500; position:sticky; left:0; background:#fff; z-index:1; border-right:1px solid #e2e8f0">${_escapeHtml(it.produto)} ${prodBadge}</td>
-                    <td style="text-align:center">
-                      <label style="display:flex; flex-direction:column; align-items:center; gap:4px; cursor:pointer">
-                        <input type="checkbox" id="retid_${nomeId}" ${retidAtivo ? 'checked' : ''} onchange="toggleRetid('${(it.produto||'').replace(/'/g,"\\'")}', this.checked)" style="width:16px; height:16px; cursor:pointer; accent-color:#1e3a5f">
-                        <span style="font-size:0.65rem; color:${retidAtivo ? '#16a34a' : '#94a3b8'}; font-weight:${retidAtivo ? '700' : '400'}">${retidAtivo ? 'Ativo' : '—'}</span>
-                      </label>
-                    </td>
-                    <td style="font-family:monospace; font-size:0.75rem; color:#64748b; text-align:center">${_escapeHtml(it.ncm || '—')}</td>
-                    <td style="font-weight:600; color:#1e3a5f">${fmt(it.ci || 0)}</td>
-                    <td style="text-align:center; color:#475569">${Number(it.taxa || 0).toFixed(2)}%</td>
-                    <td style="text-align:center; color:#475569">${Number(it.roi || 0).toFixed(2)}%</td>
-                    <td style="font-weight:600; color:#1e3a5f">${fmt(it.valorBase)}</td>
-                    <td style="text-align:center; color:#dc2626; font-size:0.85rem">${_escapeHtml(pisDisplay)}</td>
-                    <td style="text-align:center; color:#dc2626; font-size:0.85rem">${_escapeHtml(cofDisplay)}</td>
-                    <td style="text-align:center; font-weight:700; background:#f8fafc; color:#1e3a5f">${Number(it.icms || 0).toFixed(2)}%<div style="font-size:0.65rem; font-weight:400; color:#94a3b8">${registro.uf || ''} / ${registro.tipoPessoa || ''}</div></td>
-                    <td style="text-align:center; color:#dc2626; font-size:0.85rem">${_escapeHtml(ipiDisplay)}</td>
-                    <td style="font-weight:600; color:#475569">${fmt(it.valorImpostos)}</td>
-                    <td style="text-align:center; color:#d97706; font-size:0.85rem">${fmt(it.comissaoR)}</td>
-                    <td style="font-weight:800; color:#c9a227; background:#fffbf0; font-size:1rem">${fmt(it.precoFinal)}</td>
-                    <td style="font-weight:700; color:${corMargem(it.margem)}">${(it.margem||0).toFixed(1)}%</td>
-                </tr>
-            `;
-        }).join('');
-
-        const tbody = document.getElementById('tabelaPrecifClienteBody'); if (tbody) tbody.innerHTML = rows;
-        document.getElementById('precifClienteResultado').style.display = 'block';
-        document.getElementById('precifClienteEmpty').style.display = 'none';
-        document.getElementById('precifClienteSummary').innerHTML = `
-            <div>
-                <div style="font-size:0.75rem; color:#64748b; text-transform:uppercase; letter-spacing:0.5px">Produtos</div>
-                <div style="font-size:1.1rem; font-weight:700; color:#1e3a5f">${itens.length}</div>
-            </div>
-            <div style="margin-left:auto; text-align:right">
-                <div style="font-size:0.75rem; color:#64748b; text-transform:uppercase; letter-spacing:0.5px">Total da tabela</div>
-                <div style="font-size:1.3rem; font-weight:800; color:#16a34a">${fmt(registro.totalFaturamento || 0)}</div>
-            </div>
-        `;
+        const registro = obterUltimaPrecificacaoCliente(clienteId);
+        if (!registro) { mostrarNotificacao('Nenhuma precificação salva para este cliente.', 'warning'); return; }
+        aplicarEstadoPrecificacaoSalva(registro);
         const infoEl = document.getElementById('precifSalvoInfo'); if (infoEl) infoEl.innerHTML = `<span style="color:#16a34a; font-size:0.82rem">Usando precificação salva v${registro.versao} em ${new Date(registro.dataCriacao).toLocaleString('pt-BR')}</span>`;
         mostrarNotificacao('Precificação carregada.', 'success');
     } catch (e) { console.error('carregarPrecificacaoSalva', e); mostrarNotificacao('Erro ao carregar precificação salva.', 'error'); }
@@ -9450,65 +9550,9 @@ function toggleHistoricoPrecif() {
 function carregarVersaoPrecif(id) {
         const v = (precificacoesCliente || []).find(p => p.id === id);
         if (!v) return;
-        try {
-                retidPorProduto = v.retidPorProduto || {};
-                beneficiosPorProduto = v.beneficiosPorProduto || {};
-                beneficioFiscalAtivo = v.beneficioFiscalAtivo || false;
-        } catch (e) {}
-        ultimaPrecificacaoCalculada = v;
-        try { ultimaVersaoSalva = v.versao || null; } catch(e) {}
-        // Restaurar overrides visuais
-        try {
-                const cb = document.getElementById('precifBeneficioFiscal'); if (cb) cb.checked = !!beneficioFiscalAtivo;
-                const painel = document.getElementById('painelBeneficioFiscal'); if (painel) painel.style.display = beneficioFiscalAtivo ? 'block' : 'none';
-                if (beneficioFiscalAtivo) renderizarTabelaBeneficios();
-        } catch (e) {}
-        // renderizar tabela a partir do registro
-        const itens = v.itens || [];
-        const fmt = vv => 'R$ ' + _fmtMoeda(vv);
-        const corMargem = m => m >= 30 ? '#16a34a' : m >= 15 ? '#d97706' : '#dc2626';
-        const rows = itens.map(it => {
-                const nomeId = (it.produto || '').replace(/[^a-z0-9]/gi, '_');
-                const retidAtivo = (v.retidPorProduto && v.retidPorProduto[it.produto]) || false;
-                const prodBadge = retidAtivo ? '<span style="font-size:0.68rem; background:#dbeafe; color:#1d4ed8; padding:1px 6px; border-radius:10px; margin-left:6px; font-weight:700">RETID</span>' : '';
-                const pisDisplay = (retidAtivo ? '0% (RETID)' : (Number(it.pis || 0).toFixed(2) + '%'));
-                const cofDisplay = (retidAtivo ? '0% (RETID)' : (Number(it.cofins || 0).toFixed(2) + '%'));
-                const ipiDisplay = (retidAtivo ? '0% (RETID)' : (Number(it.ipi || 0).toFixed(2) + '%'));
-                return `
-                        <tr id="precif_row_${nomeId}" style="${retidAtivo ? 'border-left:3px solid #1e3a5f' : ''}">
-                                <td style="text-align:left; padding-left:15px; font-weight:500; position:sticky; left:0; background:#fff; z-index:1; border-right:1px solid #e2e8f0">${_escapeHtml(it.produto)} ${prodBadge}</td>
-                                <td style="text-align:center"><label style="display:flex; flex-direction:column; align-items:center; gap:4px; cursor:pointer"><input type="checkbox" id="retid_${nomeId}" ${retidAtivo ? 'checked' : ''} onchange="toggleRetid('${(it.produto||'').replace(/'/g,"\\'")}', this.checked)" style="width:16px; height:16px; cursor:pointer; accent-color:#1e3a5f"><span style="font-size:0.65rem; color:${retidAtivo ? '#16a34a' : '#94a3b8'}; font-weight:${retidAtivo ? '700' : '400'}">${retidAtivo ? 'Ativo' : '—'}</span></label></td>
-                                <td style="font-family:monospace; font-size:0.75rem; color:#64748b; text-align:center">${_escapeHtml(it.ncm || '—')}</td>
-                                <td style="font-weight:600; color:#1e3a5f">${fmt(it.ci || 0)}</td>
-                                <td style="text-align:center; color:#475569">${Number(it.taxa || 0).toFixed(2)}%</td>
-                                <td style="text-align:center; color:#475569">${Number(it.roi || 0).toFixed(2)}%</td>
-                                <td style="font-weight:600; color:#1e3a5f">${fmt(it.valorBase)}</td>
-                                <td style="text-align:center; color:#dc2626; font-size:0.85rem">${_escapeHtml(pisDisplay)}</td>
-                                <td style="text-align:center; color:#dc2626; font-size:0.85rem">${_escapeHtml(cofDisplay)}</td>
-                                <td style="text-align:center; font-weight:700; background:#f8fafc; color:#1e3a5f">${Number(it.icms || 0).toFixed(2)}%<div style="font-size:0.65rem; font-weight:400; color:#94a3b8">${v.uf || ''} / ${v.tipoPessoa || ''}</div></td>
-                                <td style="text-align:center; color:#dc2626; font-size:0.85rem">${_escapeHtml(ipiDisplay)}</td>
-                                <td style="font-weight:600; color:#475569">${fmt(it.valorImpostos)}</td>
-                                <td style="text-align:center; color:#d97706; font-size:0.85rem">${fmt(it.comissaoR)}</td>
-                                <td style="font-weight:800; color:#c9a227; background:#fffbf0; font-size:1rem">${fmt(it.precoFinal)}</td>
-                                <td style="font-weight:700; color:${corMargem(it.margem)}">${(it.margem||0).toFixed(1)}%</td>
-                        </tr>
-                `;
-        }).join('');
-        const tbody = document.getElementById('tabelaPrecifClienteBody'); if (tbody) tbody.innerHTML = rows;
-        document.getElementById('precifClienteResultado').style.display = 'block';
-        document.getElementById('precifClienteEmpty').style.display = 'none';
-        document.getElementById('precifClienteSummary').innerHTML = `
-                <div>
-                        <div style="font-size:0.75rem; color:#64748b; text-transform:uppercase; letter-spacing:0.5px">Produtos</div>
-                        <div style="font-size:1.1rem; font-weight:700; color:#1e3a5f">${itens.length}</div>
-                </div>
-                <div style="margin-left:auto; text-align:right">
-                        <div style="font-size:0.75rem; color:#64748b; text-transform:uppercase; letter-spacing:0.5px">Total da tabela</div>
-                        <div style="font-size:1.3rem; font-weight:800; color:#16a34a">${fmt(v.totalFaturamento || 0)}</div>
-                </div>
-        `;
-        const infoEl = document.getElementById('precifSalvoInfo'); if (infoEl) infoEl.innerHTML = `<span style="color:#16a34a; font-size:0.82rem">Usando precificação salva v${v.versao} em ${new Date(v.dataCriacao).toLocaleString('pt-BR')}</span>`;
-        mostrarNotificacao('Precificação carregada.', 'success');
+    aplicarEstadoPrecificacaoSalva(v);
+    const infoEl = document.getElementById('precifSalvoInfo'); if (infoEl) infoEl.innerHTML = `<span style="color:#16a34a; font-size:0.82rem">Usando versão v${v.versao} de ${new Date(v.dataCriacao).toLocaleString('pt-BR')}</span>`;
+    mostrarNotificacao('Versão carregada.', 'success');
                 try { atualizarStatusPropostaNaPrecif(v.clienteId); } catch(e) { console.warn('Erro ao atualizar status da proposta:', e); }
 }
 
@@ -9889,10 +9933,9 @@ function importarICMSEstadosArquivo(event) {
 }
 
 function recalcularTodosProdutos() {
-    const produtos = estoque.produtos || [];
-    produtos.forEach(produto => {
-        atualizarLinhaPrecificacao(produto.nome);
-    });
+    renderizarPrecificacao();
+    popularSelectClientesPrecif();
+    calcularPrecificacaoPorCliente({ forcarAtual: true });
 }
 
 function recalcularTodos() {
@@ -10282,51 +10325,92 @@ function autoPreencherPrecoProduto(selectEl) {
 }
 
 function exportarPrecificacaoExcel() {
+    exportarCIExcel();
+}
+
+function exportarCIExcel() {
     try {
         if (typeof XLSX === 'undefined') {
             mostrarNotificacao('Biblioteca XLSX não encontrada.', 'error');
             return;
         }
 
-        const produtos = estoque.produtos || [];
-        const dados = produtos
-            .map(p => {
-                const r = calcularPreco(p.nome);
-                if (!r) return null;
-                return {
-                    'Produto': p.nome,
-                    'Categoria': categoriaPorProduto[p.nome] || 'Outro',
-                    'CI': r.ci,
-                    'Taxa': r.taxa,
-                    'ROI': r.roi,
-                    'Valor Base': r.valorBase,
-                    'PIS %': r.pis,
-                    'PIS R$': r.pisR,
-                    'COFINS %': r.cofins,
-                    'COFINS R$': r.cofinsR,
-                    'ICMS % (base)': r.icms,
-                    'ICMS R$': r.icmsR,
-                    'c/ Impostos': r.valorImpostos,
-                    'IPI %': r.ipi,
-                    'IPI R$': r.ipiR,
-                    'Valor Total': r.valorTotal,
-                    'Comissão %': r.comissao,
-                    'Comissão R$': r.comissaoR,
-                    'Preço Final': r.precoFinal
-                };
-            })
-            .filter(Boolean);
+        const dados = (estoque.produtos || []).map(produto => ({
+            'Produto': produto.nome,
+            'NCM': produto.ncm || detectarNCM(produto.nome) || '',
+            'Categoria': categoriaPorProduto[produto.nome] || '',
+            'CI (R$)': precificacao[produto.nome]?.ci || 0,
+            'Última atualização': precificacao[produto.nome]?.ciAtualizadoEm
+                ? new Date(precificacao[produto.nome].ciAtualizadoEm).toLocaleDateString('pt-BR')
+                : ''
+        }));
 
         const ws = XLSX.utils.json_to_sheet(dados);
         const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, 'Precificação');
+        XLSX.utils.book_append_sheet(wb, ws, 'CI Produtos');
         const dataAtual = new Date().toISOString().split('T')[0];
-        XLSX.writeFile(wb, `precificacao_${dataAtual}.xlsx`);
-        mostrarNotificacao('Precificação exportada com sucesso!', 'success');
+        XLSX.writeFile(wb, `ci_produtos_${dataAtual}.xlsx`);
+        mostrarNotificacao('Cadastro de CI exportado com sucesso!', 'success');
     } catch (e) {
-        console.error('Erro ao exportar precificação:', e);
-        mostrarNotificacao('Erro ao exportar precificação.', 'error');
+        console.error('Erro ao exportar CI:', e);
+        mostrarNotificacao('Erro ao exportar o cadastro de CI.', 'error');
     }
+}
+
+function importarCIExcel() {
+    const input = document.getElementById('inputImportarCI');
+    if (input) input.click();
+}
+
+function importarCIExcelArquivo(event) {
+    const file = event?.target?.files?.[0];
+    if (!file) return;
+
+    if (typeof XLSX === 'undefined') {
+        mostrarNotificacao('Biblioteca XLSX não encontrada.', 'error');
+        event.target.value = '';
+        return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        try {
+            const workbook = XLSX.read(e.target.result, { type: 'binary' });
+            const sheet = workbook.Sheets[workbook.SheetNames[0]];
+            const rows = XLSX.utils.sheet_to_json(sheet, { defval: '' });
+            let atualizados = 0;
+            let naoEncontrados = 0;
+
+            rows.forEach((row) => {
+                const nome = String(row['Produto'] ?? row['produto'] ?? '').trim();
+                if (!nome) return;
+
+                const produto = (estoque.produtos || []).find(p => String(p.nome || '').trim() === nome);
+                if (!produto) {
+                    naoEncontrados++;
+                    return;
+                }
+
+                const ciRaw = row['CI (R$)'] ?? row['CI'] ?? row['ci'] ?? row['Ci (R$)'] ?? '';
+                const ci = parseFloat(String(ciRaw).replace(',', '.')) || 0;
+
+                if (!precificacao[produto.nome]) precificacao[produto.nome] = {};
+                precificacao[produto.nome].ci = ci;
+                precificacao[produto.nome].ciAtualizadoEm = new Date().toISOString();
+                atualizados++;
+            });
+
+            salvarDados();
+            renderizarPrecificacao();
+            mostrarNotificacao(`${atualizados} produtos atualizados, ${naoEncontrados} não encontrados`, atualizados > 0 ? 'success' : 'warning');
+        } catch (err) {
+            console.error('Erro ao importar CI:', err);
+            mostrarNotificacao('Falha ao importar o arquivo de CI.', 'error');
+        } finally {
+            event.target.value = '';
+        }
+    };
+    reader.readAsBinaryString(file);
 }
 
 function imprimirPrecificacao() {

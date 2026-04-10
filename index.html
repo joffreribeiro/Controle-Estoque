@@ -473,29 +473,16 @@
                                 <!-- Sub-aba Produtos (mover conteúdo existente aqui) -->
                                 <div id="subaba-precif-produtos">
                                     <div style="background:#fff; border:1px solid #e2e8f0; border-radius:10px; padding:16px 20px; margin-bottom:20px">
-                                            <div style="font-size:0.8rem; font-weight:600; color:#64748b; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:12px">Parâmetros Globais (padrão para produtos sem valor específico)</div>
-                                            <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px">
-                                                    <div class="form-group" style="margin:0">
-                                                            <label style="font-size:0.8rem">Taxa Padrão (diretoria)</label>
-                                                            <input type="number" id="taxaPadrao" value="1" step="0.01" min="0" style="width:100%;padding:7px 10px;border:1px solid #e2e8f0; border-radius:6px;font-size:0.9rem" oninput="recalcularTodosProdutos()">
-                                                    </div>
-                                                    <div class="form-group" style="margin:0">
-                                                            <label style="font-size:0.8rem">ROI Padrão</label>
-                                                            <input type="number" id="roiPadrao" value="1" step="0.01" min="0" style="width:100%;padding:7px 10px;border:1px solid #e2e8f0; border-radius:6px;font-size:0.9rem" oninput="recalcularTodosProdutos()">
-                                                    </div>
-                                                    <div class="form-group" style="margin:0">
-                                                            <label style="font-size:0.8rem">Comissão Padrão (%)</label>
-                                                            <input type="number" id="comissaoPadrao" value="5" step="0.1" min="0" style="width:100%;padding:7px 10px;border:1px solid #e2e8f0; border-radius:6px;font-size:0.9rem" oninput="recalcularTodosProdutos()">
-                                                    </div>
-                                                    <div class="form-group" style="margin:0">
-                                                            <label style="font-size:0.8rem">PIS Padrão (%)</label>
-                                                            <input type="number" id="pisPadrao" value="1.65" step="0.01" min="0" style="width:100%;padding:7px 10px;border:1px solid #e2e8f0; border-radius:6px;font-size:0.9rem" oninput="recalcularTodosProdutos()">
-                                                    </div>
-                                                    <div class="form-group" style="margin:0">
-                                                            <label style="font-size:0.8rem">COFINS Padrão (%)</label>
-                                                            <input type="number" id="cofinsPadrao" value="7.6" step="0.01" min="0" style="width:100%;padding:7px 10px;border:1px solid #e2e8f0; border-radius:6px;font-size:0.9rem" oninput="recalcularTodosProdutos()">
-                                                    </div>
-                                            </div>
+                                    <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:16px">
+                                        <div>
+                                        <div style="font-size:0.8rem; font-weight:600; color:#64748b; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:4px">Cadastro de CI por Produto</div>
+                                        <div style="font-size:0.85rem; color:#94a3b8">Defina o custo de industrialização e a categoria base de cada item.</div>
+                                        </div>
+                                        <div style="display:flex; gap:8px; flex-wrap:wrap">
+                                        <button class="btn btn-outline btn-sm" onclick="exportarCIExcel()">📤 Exportar Excel</button>
+                                        <button class="btn btn-outline btn-sm" onclick="importarCIExcel()">📥 Importar Excel</button>
+                                        <input type="file" id="inputImportarCI" accept=".xlsx,.xls,.csv" style="display:none" onchange="importarCIExcelArquivo(event)">
+                                        </div>
                                     </div>
 
                                     <div class="table-container">
@@ -503,27 +490,19 @@
                                                     <table class="dashboard-table" id="tabelaPrecificacao">
                                                             <thead>
                                                                     <tr>
-                                                                            <th style="text-align:left;padding-left:15px;min-width:220px">Produto</th>
-                                                                            <th style="min-width:110px">Categoria</th>
-                                                                            <th style="min-width:100px">CI (R$)</th>
-                                                                            <th style="min-width:70px">Taxa</th>
-                                                                            <th style="min-width:70px">ROI</th>
-                                                                            <th style="min-width:100px">Valor Base</th>
-                                                                            <th style="min-width:70px">PIS %</th>
-                                                                            <th style="min-width:70px">COFINS %</th>
-                                                                            <th style="min-width:80px">ICMS % base</th>
-                                                                            <th style="min-width:70px">IPI %</th>
-                                                                            <th style="min-width:110px">c/ Impostos</th>
-                                                                            <th style="min-width:70px">Comissão %</th>
-                                                                            <th style="min-width:110px">Comissão R$</th>
-                                                                            <th style="min-width:120px;background:#fffbf0">Preço Final</th>
-                                                                            <th style="min-width:50px">Ações</th>
+                                                        <th style="text-align:left; padding-left:15px; min-width:250px; position:sticky; left:0; background:#1e3a5f; z-index:2">Produto</th>
+                                                        <th style="min-width:130px; text-align:center">NCM</th>
+                                                        <th style="min-width:130px; text-align:center">Categoria</th>
+                                                        <th style="min-width:160px; text-align:center">CI — Custo de Industrialização (R$)</th>
+                                                        <th style="min-width:100px; text-align:center">Última atualização</th>
                                                                     </tr>
                                                             </thead>
                                                             <tbody id="tabelaPrecificacaoBody"></tbody>
                                                     </table>
                                             </div>
                                     </div>
+
+                                    <div id="precificacaoResumoCI" style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:12px 16px; margin-top:14px; display:flex; gap:18px; flex-wrap:wrap; align-items:center"></div>
                                 </div>
 
                                 <!-- Sub-aba Impostos Federais -->
@@ -628,10 +607,36 @@
             </div>
 
             <div style="display:flex; gap:8px">
-                <button class="btn btn-primary" onclick="calcularPrecificacaoPorCliente()" style="flex:1">🧮 Calcular</button>
+                <button class="btn btn-primary" onclick="calcularPrecificacaoPorCliente({ forcarAtual: true })" style="flex:1">🧮 Calcular</button>
                 <button class="btn btn-outline btn-sm" onclick="exportarPrecifCliente()" title="Exportar preços deste cliente">📤</button>
             </div>
 
+        </div>
+
+        <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:16px 18px; margin-top:14px">
+            <div style="font-size:0.8rem; font-weight:600; color:#64748b; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:12px">Parâmetros globais da precificação por cliente</div>
+            <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px">
+                <div class="form-group" style="margin:0">
+                    <label style="font-size:0.8rem">Taxa Padrão (diretoria)</label>
+                    <input type="number" id="taxaPadrao" value="1" step="0.01" min="0" style="width:100%;padding:7px 10px;border:1px solid #e2e8f0; border-radius:6px;font-size:0.9rem" oninput="recalcularTodosProdutos()">
+                </div>
+                <div class="form-group" style="margin:0">
+                    <label style="font-size:0.8rem">ROI Padrão</label>
+                    <input type="number" id="roiPadrao" value="1" step="0.01" min="0" style="width:100%;padding:7px 10px;border:1px solid #e2e8f0; border-radius:6px;font-size:0.9rem" oninput="recalcularTodosProdutos()">
+                </div>
+                <div class="form-group" style="margin:0">
+                    <label style="font-size:0.8rem">Comissão Padrão (%)</label>
+                    <input type="number" id="comissaoPadrao" value="5" step="0.1" min="0" style="width:100%;padding:7px 10px;border:1px solid #e2e8f0; border-radius:6px;font-size:0.9rem" oninput="recalcularTodosProdutos()">
+                </div>
+                <div class="form-group" style="margin:0">
+                    <label style="font-size:0.8rem">PIS Padrão (%)</label>
+                    <input type="number" id="pisPadrao" value="1.65" step="0.01" min="0" style="width:100%;padding:7px 10px;border:1px solid #e2e8f0; border-radius:6px;font-size:0.9rem" oninput="recalcularTodosProdutos()">
+                </div>
+                <div class="form-group" style="margin:0">
+                    <label style="font-size:0.8rem">COFINS Padrão (%)</label>
+                    <input type="number" id="cofinsPadrao" value="7.6" step="0.01" min="0" style="width:100%;padding:7px 10px;border:1px solid #e2e8f0; border-radius:6px;font-size:0.9rem" oninput="recalcularTodosProdutos()">
+                </div>
+            </div>
         </div>
 
         <!-- Global rate overrides for this calculation -->
