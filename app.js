@@ -544,21 +544,21 @@ async function inicializar() {
 
     // Sync automático com cloud ocorre após autenticação (onAuthStateChanged)
 
-    renderizarTabela();
-    renderizarDashboard();
-    renderizarRegistroVendas();
-    renderizarRegistroDistribuicao();
-    renderizarControleEnvio();
-    renderizarClientes();
-    atualizarKPIsClientes();
-    atualizarDatalistClientes();
-    renderizarPropostas();
-    atualizarKPIsPropostas();
-    renderizarPrecificacao();
-    atualizarSelectsProdutos();
-    atualizarSelectsRelatorios();
-    atualizarEstatisticas();
-    atualizarData();
+    try { renderizarTabela(); } catch (e) { console.error('renderizarTabela:', e); }
+    try { renderizarDashboard(); } catch (e) { console.error('renderizarDashboard:', e); }
+    try { renderizarRegistroVendas(); } catch (e) { console.error('renderizarRegistroVendas:', e); }
+    try { renderizarRegistroDistribuicao(); } catch (e) { console.error('renderizarRegistroDistribuicao:', e); }
+    try { renderizarControleEnvio(); } catch (e) { console.error('renderizarControleEnvio:', e); }
+    try { renderizarClientes(); } catch (e) { console.error('renderizarClientes:', e); }
+    try { atualizarKPIsClientes(); } catch (e) {}
+    try { atualizarDatalistClientes(); } catch (e) {}
+    try { renderizarPropostas(); } catch (e) { console.error('renderizarPropostas:', e); }
+    try { atualizarKPIsPropostas(); } catch (e) {}
+    try { renderizarPrecificacao(); } catch (e) { console.warn('renderizarPrecificacao falhou na inicialização:', e); }
+    try { atualizarSelectsProdutos(); } catch (e) {}
+    try { atualizarSelectsRelatorios(); } catch (e) {}
+    try { atualizarEstatisticas(); } catch (e) {}
+    try { atualizarData(); } catch (e) {}
 
     // Reativar auto-save: habilita salvamento automático (debounced + periódico)
     try { window.__AUTO_SAVE_CLOUD.enabled = true; } catch (e) {}
@@ -1298,35 +1298,29 @@ function trocarAba(aba) {
         acoesEstoque.style.display = 'none';
     }
 
-    const renderMap = {
-        dashboard: () => renderizarDashboard(),
-        vendas: () => { renderizarRegistroVendas(); },
-        distribuicao: () => {
-            try { renderizarRegistroDistribuicao(); } catch (e) { console.error('distribuicao render failed:', e); }
-            try { atualizarSelectDistribuicaoProduto(); } catch (e) {}
-        },
-        relatorios: () => {
-            try { prepararRelatorioInventario(); } catch (e) {}
-            try { gerarRelatorioRentabilidade(); } catch (e) {}
-        },
-        controleenvio: () => renderizarControleEnvio(),
-        controleimbel: () => trocarSubAbaControleImbel('estoque'),
-        precificacao: () => {
-            try { trocarSubabaPrecif('produtos'); } catch (e) {}
-            try { renderizarPrecificacao(); } catch (e) { console.error('precificacao render failed:', e); }
-        },
-        clientes: () => renderizarClientes(),
-        propostas: () => renderizarPropostas(),
-        estoque: () => renderizarTabela()
-    };
-
-    const renderFn = renderMap[aba];
-    if (renderFn) {
-        try {
-            renderFn();
-        } catch (e) {
-            console.error(`Erro ao renderizar aba "${aba}":`, e);
-        }
+    if (aba === 'dashboard') {
+        try { renderizarDashboard(); } catch (e) { console.error('dashboard:', e); }
+    } else if (aba === 'vendas') {
+        try { renderizarRegistroVendas(); } catch (e) { console.error('vendas:', e); }
+    } else if (aba === 'distribuicao') {
+        try { renderizarRegistroDistribuicao(); } catch (e) {}
+        try { atualizarSelectDistribuicaoProduto(); } catch (e) {}
+    } else if (aba === 'relatorios') {
+        try { prepararRelatorioInventario(); } catch (e) {}
+        try { gerarRelatorioRentabilidade(); } catch (e) {}
+    } else if (aba === 'controleenvio') {
+        try { renderizarControleEnvio(); } catch (e) {}
+    } else if (aba === 'controleimbel') {
+        try { trocarSubAbaControleImbel('estoque'); } catch (e) {}
+    } else if (aba === 'precificacao') {
+        try { trocarSubabaPrecif('produtos'); } catch (e) {}
+        try { renderizarPrecificacao(); } catch (e) {}
+    } else if (aba === 'clientes') {
+        try { renderizarClientes(); } catch (e) {}
+    } else if (aba === 'propostas') {
+        try { renderizarPropostas(); } catch (e) {}
+    } else if (aba === 'estoque') {
+        try { renderizarTabela(); } catch (e) {}
     }
 }
 
@@ -8647,57 +8641,61 @@ function calcularPreco(nomeProduto, estado = null, tipoPessoa = null) {
 }
 
 function renderizarPrecificacao() {
-    const tbody = document.getElementById('tabelaPrecificacaoBody');
-    const resumo = document.getElementById('precificacaoResumoCI');
-    if (!tbody) return;
+    try {
+        const tbody = document.getElementById('tabelaPrecificacaoBody');
+        const resumo = document.getElementById('precificacaoResumoCI');
+        if (!tbody) return;
 
-    const produtos = estoque.produtos || [];
-    if (produtos.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:24px;color:#64748b">Nenhum produto cadastrado.</td></tr>';
-        if (resumo) resumo.innerHTML = '';
-        return;
+        const produtos = estoque?.produtos || [];
+        if (!produtos.length) {
+            tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;color:#94a3b8;padding:20px">Nenhum produto cadastrado</td></tr>';
+            if (resumo) resumo.innerHTML = '';
+            return;
+        }
+
+        tbody.innerHTML = produtos.map((produto) => {
+            const prec = precificacao[produto.nome] || {};
+            const ncm = produto.ncm || detectarNCM(produto.nome) || '—';
+            const nomeId = produto.nome.replace(/[^a-zA-Z0-9]/g, '_');
+            const nomeJs = _escapeJsString(produto.nome);
+            const categoriaAtual = categoriaPorProduto[produto.nome] || '';
+            const ci = prec.ci || '';
+            const ultimaAtt = prec.ciAtualizadoEm
+                ? new Date(prec.ciAtualizadoEm).toLocaleDateString('pt-BR')
+                : '—';
+            const temCI = parseFloat(ci) > 0;
+
+            return `
+                <tr>
+                    <td style="text-align:left; padding-left:15px; font-weight:500; position:sticky; left:0; background:#fff; z-index:1; border-right:1px solid #e2e8f0">
+                        ${_escapeHtml(produto.nome)}
+                        <div style="font-size:0.72rem; font-family:monospace; color:#94a3b8; margin-top:2px">${_escapeHtml(ncm)}</div>
+                    </td>
+                    <td style="text-align:center">
+                        <span style="font-size:0.75rem; font-family:monospace; color:#64748b; background:#f1f5f9; padding:2px 8px; border-radius:4px">${_escapeHtml(ncm)}</span>
+                    </td>
+                    <td style="text-align:center">
+                        <select onchange="salvarCategoriaProduto('${nomeJs}', this.value)" style="border:1px solid #e2e8f0; border-radius:6px; padding:5px 8px; font-size:0.82rem; background:#fff; min-width:110px">
+                            <option value="">Selecione...</option>
+                            ${CATEGORIAS_PRODUTO.map(c => `<option value="${c}" ${categoriaAtual === c ? 'selected' : ''}>${c}</option>`).join('')}
+                        </select>
+                    </td>
+                    <td style="text-align:center">
+                        <div style="display:flex; align-items:center; justify-content:center; gap:6px">
+                            <span style="color:#64748b; font-size:0.9rem">R$</span>
+                            <input type="number" step="0.01" min="0" id="ci_${nomeId}" value="${ci}" placeholder="0,00" onchange="salvarCI('${nomeJs}', this.value)" style="width:120px; border:1px solid ${temCI ? '#22c55e' : '#e2e8f0'}; border-radius:6px; padding:6px 8px; text-align:right; font-size:0.9rem; font-weight:${temCI ? '600' : '400'}; color:${temCI ? '#16a34a' : '#1e293b'}">
+                        </div>
+                    </td>
+                    <td id="ci_att_${nomeId}" style="text-align:center; font-size:0.8rem; color:#94a3b8">${ultimaAtt}</td>
+                </tr>
+            `;
+        }).join('');
+
+        atualizarResumoPrecificacaoCI(produtos);
+        salvarDados();
+    } catch (e) {
+        console.error('renderizarPrecificacao error:', e);
     }
-
-    tbody.innerHTML = produtos.map((produto) => {
-        const prec = precificacao[produto.nome] || {};
-        const ncm = produto.ncm || detectarNCM(produto.nome) || '—';
-        const nomeId = produto.nome.replace(/[^a-zA-Z0-9]/g, '_');
-        const nomeJs = _escapeJsString(produto.nome);
-        const categoriaAtual = categoriaPorProduto[produto.nome] || '';
-        const ci = prec.ci || '';
-        const ultimaAtt = prec.ciAtualizadoEm
-            ? new Date(prec.ciAtualizadoEm).toLocaleDateString('pt-BR')
-            : '—';
-        const temCI = parseFloat(ci) > 0;
-
-        return `
-            <tr>
-                <td style="text-align:left; padding-left:15px; font-weight:500; position:sticky; left:0; background:#fff; z-index:1; border-right:1px solid #e2e8f0">
-                    ${_escapeHtml(produto.nome)}
-                    <div style="font-size:0.72rem; font-family:monospace; color:#94a3b8; margin-top:2px">${_escapeHtml(ncm)}</div>
-                </td>
-                <td style="text-align:center">
-                    <span style="font-size:0.75rem; font-family:monospace; color:#64748b; background:#f1f5f9; padding:2px 8px; border-radius:4px">${_escapeHtml(ncm)}</span>
-                </td>
-                <td style="text-align:center">
-                    <select onchange="salvarCategoriaProduto('${nomeJs}', this.value)" style="border:1px solid #e2e8f0; border-radius:6px; padding:5px 8px; font-size:0.82rem; background:#fff; min-width:110px">
-                        <option value="">Selecione...</option>
-                        ${CATEGORIAS_PRODUTO.map(c => `<option value="${c}" ${categoriaAtual === c ? 'selected' : ''}>${c}</option>`).join('')}
-                    </select>
-                </td>
-                <td style="text-align:center">
-                    <div style="display:flex; align-items:center; justify-content:center; gap:6px">
-                        <span style="color:#64748b; font-size:0.9rem">R$</span>
-                        <input type="number" step="0.01" min="0" id="ci_${nomeId}" value="${ci}" placeholder="0,00" onchange="salvarCI('${nomeJs}', this.value)" style="width:120px; border:1px solid ${temCI ? '#22c55e' : '#e2e8f0'}; border-radius:6px; padding:6px 8px; text-align:right; font-size:0.9rem; font-weight:${temCI ? '600' : '400'}; color:${temCI ? '#16a34a' : '#1e293b'}">
-                    </div>
-                </td>
-                <td id="ci_att_${nomeId}" style="text-align:center; font-size:0.8rem; color:#94a3b8">${ultimaAtt}</td>
-            </tr>
-        `;
-    }).join('');
-
-    atualizarResumoPrecificacaoCI(produtos);
-    salvarDados();
 }
 
 function atualizarResumoPrecificacaoCI(produtos = estoque.produtos || []) {
