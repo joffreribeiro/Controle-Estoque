@@ -8868,7 +8868,7 @@ function resetarPrecoManual(nomeProduto) {
 
 // ── SUB-TAB NAVIGATION FOR PRECIFICAÇÃO ─────────────────────────
 function trocarSubabaPrecif(subaba) {
-        ['produtos','federais','icms','porcliente'].forEach(s => {
+    ['produtos','federais','icms','porcliente','comparativo'].forEach(s => {
                 const el = document.getElementById('subaba-precif-' + s);
                 if (el) el.style.display = (s === subaba) ? 'block' : 'none';
                 const btn = document.getElementById('sbtn-' + s);
@@ -8879,6 +8879,10 @@ function trocarSubabaPrecif(subaba) {
         });
         if (subaba === 'federais') renderizarImpostosFederais();
         if (subaba === 'icms') renderizarICMSPorEstado();
+        if (subaba === 'comparativo') {
+            try { popularSelectsComparativo(); } catch (e) {}
+            try { calcularComparativo(); } catch (e) {}
+        }
         if (subaba === 'porcliente') {
                 // preparar dropdown e estado inicial da sub-aba
                 try {
@@ -8892,6 +8896,195 @@ function trocarSubabaPrecif(subaba) {
                 if (empty) empty.style.display = 'block';
                 if (banner) banner.style.display = 'none';
         }
+}
+
+function popularSelectsComparativo() {
+        const lista = (clientes || []).slice().sort((a, b) => (a.nome || '').localeCompare(b.nome || ''));
+        [1, 2, 3].forEach(n => {
+                const sel = document.getElementById('compCliente' + n);
+                if (!sel) return;
+                const valorAtual = sel.value;
+                sel.innerHTML = '<option value="">— não selecionado —</option>'
+                        + lista.map(c => {
+                                const cnpjLimpo = (c.cnpj || '').replace(/\D/g, '');
+                                const tipo = cnpjLimpo.length === 14 ? 'PJ' : 'PF';
+                                return `<option value="${c.id}">${_escapeHtml(c.nome || '')} (${_escapeHtml(c.uf || '??')} / ${tipo})</option>`;
+                        }).join('');
+                if (valorAtual) sel.value = valorAtual;
+        });
+}
+
+function _obterCenarioComparativo(n) {
+        const id = document.getElementById('compCliente' + n)?.value;
+        if (!id) return null;
+        const cliente = (clientes || []).find(x => String(x.id) === String(id));
+        if (!cliente) return null;
+        const uf = (cliente.uf || '').toUpperCase();
+        const cnpjLimpo = (cliente.cnpj || '').replace(/\D/g, '');
+        const tipo = cnpjLimpo.length === 14 ? 'PJ' : 'PF';
+        const taxa = parseFloat(document.getElementById('compTaxa' + n)?.value)
+                || parseFloat(document.getElementById('taxaPadrao')?.value)
+                || 20;
+        const roi = parseFloat(document.getElementById('compROI' + n)?.value)
+                || parseFloat(document.getElementById('roiPadrao')?.value)
+                || 30;
+        const comissao = parseFloat(document.getElementById('comissaoPadrao')?.value) || 5;
+        return { id, nome: cliente.nome, uf, tipo, taxa, roi, comissao };
+}
+
+function _calcularPrecoComparativo(nomeProduto, estado, tipoPessoa, taxa, roi, comissao) {
+        const prec = precificacao[nomeProduto] || {};
+        const aliq = tabelaAliquotas[nomeProduto] || {};
+        const ci = parseFloat(prec.ci) || 0;
+        if (ci === 0) return null;
+
+        const taxaPct = Number.isFinite(Number(taxa)) ? Number(taxa) : 20;
+        const roiPct = Number.isFinite(Number(roi)) ? Number(roi) : 30;
+        const comissaoPct = Number.isFinite(Number(comissao)) ? Number(comissao) : 5;
+        const pis = parseFloat(aliq.pis) || parseFloat(document.getElementById('pisPadrao')?.value) || 0;
+        const cofins = parseFloat(aliq.cofins) || parseFloat(document.getElementById('cofinsPadrao')?.value) || 0;
+        const ipi = parseFloat(aliq.ipi) || 0;
+        const icms = buscarAliquotaICMS(estado, tipoPessoa, nomeProduto);
+
+        const valorBase = ci * (1 + taxaPct / 100) * (1 + roiPct / 100);
+        const icmsR = valorBase * icms / 100;
+        const pisR = valorBase * pis / 100;
+        const cofinsR = valorBase * cofins / 100;
+        const valorImpostos = valorBase + icmsR + pisR + cofinsR;
+        const ipiR = valorImpostos * ipi / 100;
+        const valorTotal = valorImpostos + ipiR;
+        const comissaoR = valorBase * comissaoPct / 100;
+        const precoFinal = valorTotal + comissaoR;
+        const margem = precoFinal > 0 ? ((precoFinal - ci) / precoFinal) * 100 : 0;
+
+        return {
+                precoFinal,
+                margem,
+                taxa: taxaPct,
+                roi: roiPct,
+                comissao: comissaoPct
+        };
+}
+
+function calcularComparativo() {
+        const resultado = document.getElementById('compResultado');
+        const empty = document.getElementById('compEmpty');
+        const header = document.getElementById('compHeader');
+        const body = document.getElementById('compBody');
+        if (!resultado || !empty || !header || !body) return;
+
+        const fmt = v => 'R$ ' + parseFloat(v).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        const fmtPct = v => parseFloat(v).toFixed(1) + '%';
+        const corMargem = m => m >= 30 ? '#16a34a' : m >= 15 ? '#d97706' : '#dc2626';
+
+        const clientesSel = [1, 2, 3].map(_obterCenarioComparativo).filter(Boolean);
+
+        if (clientesSel.length < 2) {
+                resultado.style.display = 'none';
+                empty.style.display = 'block';
+                return;
+        }
+
+        const nCols = clientesSel.length;
+        header.innerHTML = `
+        <tr>
+            <th style="text-align:left;padding-left:15px;min-width:220px;
+                                 position:sticky;left:0;background:#1e3a5f;z-index:2">
+                Produto
+            </th>
+            ${clientesSel.map((c, i) => `
+                <th colspan="2" style="text-align:center;
+                        background:${['#1e3a5f','#2d5a8b','#3d7ab5'][i]};min-width:200px">
+                    ${_escapeHtml(c.nome)}<br>
+                    <span style="font-size:0.7rem;font-weight:400;color:rgba(255,255,255,0.75)">
+                        ${_escapeHtml(c.uf)} / ${c.tipo} | Taxa ${c.taxa}% | ROI ${c.roi}%
+                    </span>
+                </th>`).join('')}
+            <th style="min-width:90px;text-align:center">Diferença</th>
+        </tr>
+        <tr>
+            <th style="position:sticky;left:0;background:#161b22"></th>
+            ${clientesSel.map(() => `
+                <th style="font-size:0.7rem;font-weight:400;background:#161b22;color:#8b949e">
+                    Preço Final
+                </th>
+                <th style="font-size:0.7rem;font-weight:400;background:#161b22;color:#8b949e">
+                    Margem
+                </th>`).join('')}
+            <th style="background:#161b22"></th>
+        </tr>`;
+
+        const produtos = estoque.produtos || [];
+        body.innerHTML = produtos.map(produto => {
+                const precos = clientesSel.map(c => _calcularPrecoComparativo(produto.nome, c.uf, c.tipo, c.taxa, c.roi, c.comissao));
+
+                if (precos.every(r => !r)) {
+                        return `<tr style="opacity:0.4">
+                <td style="text-align:left;padding-left:15px;position:sticky;
+                                     left:0;background:#fff;z-index:1">${_escapeHtml(produto.nome)}</td>
+                <td colspan="${nCols * 2 + 1}" style="text-align:center;color:#94a3b8;
+                                                                                    font-size:0.8rem">CI não configurado</td>
+            </tr>`;
+                }
+
+                const valores = precos.map(r => r?.precoFinal || 0).filter(v => v > 0);
+                const maxP = valores.length ? Math.max(...valores) : 0;
+                const minP = valores.length ? Math.min(...valores) : 0;
+                const diff = maxP - minP;
+                const diffPct = minP > 0 ? (diff / minP * 100) : 0;
+
+                return `<tr>
+            <td style="text-align:left;padding-left:15px;font-weight:500;
+                                 position:sticky;left:0;background:#fff;z-index:1;
+                                 border-right:1px solid #e2e8f0">${_escapeHtml(produto.nome)}</td>
+            ${precos.map(r => {
+                if (!r) return '<td colspan="2" style="text-align:center;color:#94a3b8">—</td>';
+                const isMax = r.precoFinal === maxP && nCols > 1;
+                const isMin = r.precoFinal === minP && nCols > 1 && maxP !== minP;
+                return `
+                    <td style="text-align:right;padding-right:8px;font-weight:700;
+                                         color:${isMin ? '#16a34a' : isMax ? '#dc2626' : '#1e3a5f'};
+                                         background:${isMin ? '#f0fdf4' : isMax ? '#fef2f2' : 'transparent'}">
+                        ${fmt(r.precoFinal)}
+                        ${isMin ? '<span style="font-size:0.65rem">▼min</span>' : ''}
+                        ${isMax ? '<span style="font-size:0.65rem">▲max</span>' : ''}
+                    </td>
+                    <td style="text-align:center;font-size:0.82rem;font-weight:600;
+                                         color:${corMargem(r.margem)}">
+                        ${fmtPct(r.margem)}
+                    </td>`;
+            }).join('')}
+            <td style="text-align:center;font-weight:600;color:#d97706">
+                ${diff > 0 ? fmt(diff) + '<br><span style="font-size:0.72rem">(' + fmtPct(diffPct) + ')</span>' : '—'}
+            </td>
+        </tr>`;
+        }).join('');
+
+        resultado.style.display = 'block';
+        empty.style.display = 'none';
+}
+
+function exportarComparativo() {
+        const clientesSel = [1, 2, 3].map(_obterCenarioComparativo).filter(Boolean);
+        if (clientesSel.length < 2) {
+                alert('Selecione ao menos 2 clientes para exportar o comparativo.');
+                return;
+        }
+
+        const rows = (estoque.produtos || []).map(p => {
+                const row = { 'Produto': p.nome };
+                clientesSel.forEach(c => {
+                        const r = _calcularPrecoComparativo(p.nome, c.uf, c.tipo, c.taxa, c.roi, c.comissao);
+                        row[c.nome + ' - Preço'] = r?.precoFinal || '';
+                        row[c.nome + ' - Margem%'] = r?.margem?.toFixed(1) || '';
+                });
+                return row;
+        });
+
+        const ws = XLSX.utils.json_to_sheet(rows);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, 'Comparativo');
+        XLSX.writeFile(wb, 'comparativo_precos_' + new Date().toISOString().split('T')[0] + '.xlsx');
 }
 
 // ── Precificação por Cliente: utilitários e calculadora (em tempo real, não persiste dados) ──
