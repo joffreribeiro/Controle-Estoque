@@ -1670,6 +1670,7 @@ function imprimirInventario() {
         </html>
     `);
     win.document.close();
+}
  
 
 // ==============================
@@ -9413,6 +9414,7 @@ function carregarVersaoPrecif(id) {
         const infoEl = document.getElementById('precifSalvoInfo'); if (infoEl) infoEl.innerHTML = `<span style="color:#16a34a; font-size:0.82rem">Usando precificação salva v${v.versao} em ${new Date(v.dataCriacao).toLocaleString('pt-BR')}</span>`;
         mostrarNotificacao('Precificação carregada.', 'success');
                 try { atualizarStatusPropostaNaPrecif(v.clienteId); } catch(e) { console.warn('Erro ao atualizar status da proposta:', e); }
+}
 
 
 function atualizarStatusPropostaNaPrecif(clienteId) {
@@ -11387,5 +11389,3 @@ function requireAdminOrNotify() {
 
 // Forçar chamada inicial para ajustar UI caso o listener já tenha ocorrido
 try { if (firebase && firebase.auth) firebase.auth().currentUser; } catch(e) {}
-}
-}
