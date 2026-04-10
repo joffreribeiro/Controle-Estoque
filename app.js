@@ -33,6 +33,28 @@ Shape:
 }
 */
 
+function verificarExpiracaoPrecificacoes() {
+    try {
+        const agora = new Date();
+        let expiradas = 0;
+        (precificacoesCliente || []).forEach(p => {
+            if (p && p.status === 'ativa' && p.dataExpiracao) {
+                try {
+                    if (new Date(p.dataExpiracao) < agora) {
+                        p.status = 'expirada';
+                        expiradas++;
+                    }
+                } catch (e) { /* ignore parse errors */ }
+            }
+        });
+        try { estoque.precificacoesCliente = precificacoesCliente; } catch (e) {}
+        return expiradas;
+    } catch (e) {
+        console.warn('verificarExpiracaoPrecificacoes erro', e);
+        return 0;
+    }
+}
+
 let tabelaICMS = [];
 /*
 Shape per rule:
@@ -512,6 +534,7 @@ const dadosIniciais = [
 
 async function inicializar() {
     carregarDados();
+    try { verificarExpiracaoPrecificacoes(); } catch (e) {}
     try { inicializarImpostosPreDefinidos(); } catch (e) { console.warn('Inicialização de impostos predefinidos falhou:', e); }
 
     try { inicializarImpostosEditaveis(); } catch (e) {}
@@ -757,6 +780,7 @@ async function carregarDoCloud({confirmOverwrite=true} = {}) {
             precificacoesCliente = data.precificacoesCliente || [];
             estoque.precificacoesCliente = precificacoesCliente;
         } catch (e) { precificacoesCliente = []; }
+        try { verificarExpiracaoPrecificacoes(); } catch (e) {}
         if (!data || !data.estado) {
             console.warn('Documento encontrado não contém campo estado.');
             return false;
@@ -7956,17 +7980,25 @@ function verificarAlertasEstoque() {
             }
         });
 
-        // atualizar badge
+        // Precificações expirando em até 3 dias
+        const precifExpirando = (precificacoesCliente || []).filter(p => {
+            if (!p || p.status !== 'ativa' || !p.dataExpiracao) return false;
+            const dias = Math.ceil((new Date(p.dataExpiracao) - new Date()) / 86400000);
+            return dias >= 0 && dias <= 3;
+        });
+
+        // atualizar badge (produtos em alerta + precificações expirando)
         const badge = document.getElementById('badgeAlertas');
         if (badge) {
-            if (alertas.length > 0) { badge.style.display = 'inline-flex'; badge.textContent = String(alertas.length); }
+            const totalCount = alertas.length + (precifExpirando ? precifExpirando.length : 0);
+            if (totalCount > 0) { badge.style.display = 'inline-flex'; badge.textContent = String(totalCount); }
             else { badge.style.display = 'none'; }
         }
 
         // atualizar lista do painel
         const lista = document.getElementById('listaPainelAlertas');
         if (lista) {
-            if (alertas.length === 0) {
+            if (alertas.length === 0 && (!precifExpirando || precifExpirando.length === 0)) {
                 lista.innerHTML = '<div style="color:#64748b">Nenhum alerta no momento.</div>';
             } else {
                 let html = '';
@@ -7981,6 +8013,27 @@ function verificarAlertasEstoque() {
                               `</div>`;
                 });
                 lista.innerHTML = html;
+                // anexar alertas de precificações expirando/vence em até 3 dias
+                if (precifExpirando && precifExpirando.length) {
+                    precifExpirando.forEach(p => {
+                        const dias = Math.ceil((new Date(p.dataExpiracao) - new Date()) / 86400000);
+                        const urgencia = dias === 0 ? 'VENCE HOJE' : `Vence em ${dias}d`;
+                        lista.insertAdjacentHTML('beforeend', `
+                        <div style="padding:10px; margin-bottom:8px; border-radius:8px; border-left:3px solid #d97706; background:#fffbf0">
+                          <div style="font-weight:600; font-size:0.88rem; color:#1e293b">
+                            💰 Precificação expirando — ${p.clienteNome || ''}
+                          </div>
+                          <div style="font-size:0.78rem; color:#64748b; margin-top:2px">
+                            v${p.versao || 1} · ${urgencia}
+                          </div>
+                          <button onclick="trocarSubabaPrecif('porcliente')"
+                                  style="font-size:0.75rem; color:#d97706; background:none; border:none; cursor:pointer; text-decoration:underline; padding:4px 0">
+                            Ver precificação →
+                          </button>
+                        </div>
+                      `);
+                    });
+                }
             }
         }
 
@@ -8744,7 +8797,8 @@ function trocarSubabaPrecif(subaba) {
         if (subaba === 'porcliente') {
                 // preparar dropdown e estado inicial da sub-aba
                 try {
-                        popularSelectClientesPrecif();
+                try { verificarExpiracaoPrecificacoes(); } catch (e) {}
+                popularSelectClientesPrecif();
                 } catch (e) {}
                 const res = document.getElementById('precifClienteResultado');
                 const empty = document.getElementById('precifClienteEmpty');
@@ -9154,6 +9208,17 @@ function salvarPrecificacaoCliente() {
     try { registro.retidPorProduto = JSON.parse(JSON.stringify(retidPorProduto || {})); } catch (e) { registro.retidPorProduto = {}; }
     registro.beneficioFiscalAtivo = !!beneficioFiscalAtivo;
     try { registro.beneficiosPorProduto = JSON.parse(JSON.stringify(beneficiosPorProduto || {})); } catch (e) { registro.beneficiosPorProduto = {}; }
+    // validade da precificação (dias) e data de expiração
+    try {
+        const validadeDias = parseInt(document.getElementById('precifValidadeDias')?.value || 30);
+        const dataExpiracao = new Date(Date.now() + (Number.isFinite(validadeDias) ? validadeDias : 30) * 86400000).toISOString();
+        registro.validadeDias = validadeDias;
+        registro.dataExpiracao = dataExpiracao;
+    } catch (e) {
+        // se algo falhar, usar padrão de 30 dias
+        registro.validadeDias = 30;
+        registro.dataExpiracao = new Date(Date.now() + 30 * 86400000).toISOString();
+    }
     precificacoesCliente.push(registro);
     ultimaVersaoSalva = proximaVersao;
     try { estoque.precificacoesCliente = precificacoesCliente; } catch (e) {}
@@ -9238,6 +9303,19 @@ function carregarPrecificacaoSalva(clienteId) {
 }
 
 function criarPropostaDaPrecificacao() {
+    // Avisar se a precificação salva para este cliente estiver expirada
+    try {
+        const precifRef = (precificacoesCliente || []).find(p => String(p.clienteId) === String(ultimaPrecificacaoCalculada?.clienteId) && p.status === 'expirada');
+        if (precifRef) {
+            const ok = confirm(
+                '⚠️ A precificação salva está EXPIRADA.\n\n' +
+                'Deseja gerar a proposta mesmo assim com valores desatualizados?\n' +
+                '(Recomendado: recalcule antes de prosseguir)'
+            );
+            if (!ok) return;
+        }
+    } catch (e) {}
+
     if (!ultimaPrecificacaoCalculada) {
         alert('Calcule ou carregue uma precificação antes de gerar proposta.');
         return;
@@ -9304,6 +9382,39 @@ function renderizarHistoricoPrecif(clienteId) {
         const statusLabel = { ativa:'Ativa', arquivada:'Arquivada', convertida:'Convertida' };
         const listaEl = document.getElementById('listaHistoricoPrecif');
         if (!listaEl) return;
+        const rowsHtml = (versoes || []).map(v => {
+            const agora = new Date();
+            const exp = v.dataExpiracao ? new Date(v.dataExpiracao) : null;
+            const diasRestantes = exp ? Math.ceil((exp - agora) / 86400000) : null;
+            let expCell = '—';
+            if (diasRestantes !== null) {
+                if (diasRestantes < 0) {
+                    expCell = '<span style="color:#dc2626;font-weight:600">Expirada</span>';
+                } else if (diasRestantes <= 5) {
+                    expCell = `<span style="color:#d97706;font-weight:600">⚠️ ${diasRestantes}d</span>`;
+                } else {
+                    expCell = `<span style="color:#64748b;font-size:0.8rem">${exp.toLocaleDateString('pt-BR')}</span>`;
+                }
+            }
+            return `
+                        <tr>
+                            <td style="font-weight:700; color:#1e3a5f; text-align:center">v${v.versao}</td>
+                            <td>${new Date(v.dataCriacao).toLocaleDateString('pt-BR')}</td>
+                            <td style="color:#475569">${v.descricao || '<span style="color:#94a3b8">—</span>'}</td>
+                            <td style="text-align:center">${v.taxa}%</td>
+                            <td style="text-align:center">${v.roi}%</td>
+                            <td style="text-align:center">${(v.itens||[]).length}</td>
+                            <td style="text-align:center"><span style="background:${statusColor[v.status]}20; color:${statusColor[v.status]}; font-size:0.75rem; font-weight:600; padding:2px 8px; border-radius:20px">${statusLabel[v.status] || v.status}</span></td>
+                            <td style="text-align:center">${expCell}</td>
+                            <td style="text-align:center">${v.propostaId ? `<span style="color:#0ea5e9; font-size:0.75rem">${(propostas.find(p=>p.id===v.propostaId)?.numero)||'—'}</span>` : '—'}</td>
+                            <td style="text-align:center">
+                                <button onclick="carregarVersaoPrecif('${v.id}')" class="btn btn-outline btn-sm" title="Carregar esta versão">↩ Carregar</button>
+                                <button onclick="arquivarVersaoPrecif('${v.id}')" style="background:none;border:none;cursor:pointer;color:#94a3b8;font-size:0.9rem" title="Arquivar">📦</button>
+                                <button onclick="excluirVersaoPrecif('${v.id}')" style="background:none;border:none;cursor:pointer;color:#dc2626;font-size:0.9rem" title="Excluir">🗑️</button>
+                            </td>
+                        </tr>
+                    `;
+        }).join('');
         listaEl.innerHTML = `
         <div class="table-wrapper">
             <table class="dashboard-table" style="font-size:0.82rem">
@@ -9316,28 +9427,13 @@ function renderizarHistoricoPrecif(clienteId) {
                         <th>ROI</th>
                         <th>Produtos</th>
                         <th>Status</th>
+                        <th>Validade</th>
                         <th>Proposta</th>
                         <th>Ações</th>
                     </tr>
                 </thead>
                 <tbody>
-                    ${versoes.map(v => `
-                        <tr>
-                            <td style="font-weight:700; color:#1e3a5f; text-align:center">v${v.versao}</td>
-                            <td>${new Date(v.dataCriacao).toLocaleDateString('pt-BR')}</td>
-                            <td style="color:#475569">${v.descricao || '<span style="color:#94a3b8">—</span>'}</td>
-                            <td style="text-align:center">${v.taxa}%</td>
-                            <td style="text-align:center">${v.roi}%</td>
-                            <td style="text-align:center">${(v.itens||[]).length}</td>
-                            <td style="text-align:center"><span style="background:${statusColor[v.status]}20; color:${statusColor[v.status]}; font-size:0.75rem; font-weight:600; padding:2px 8px; border-radius:20px">${statusLabel[v.status] || v.status}</span></td>
-                            <td style="text-align:center">${v.propostaId ? `<span style="color:#0ea5e9; font-size:0.75rem">${(propostas.find(p=>p.id===v.propostaId)?.numero)||'—'}</span>` : '—'}</td>
-                            <td style="text-align:center">
-                                <button onclick="carregarVersaoPrecif('${v.id}')" class="btn btn-outline btn-sm" title="Carregar esta versão">↩ Carregar</button>
-                                <button onclick="arquivarVersaoPrecif('${v.id}')" style="background:none;border:none;cursor:pointer;color:#94a3b8;font-size:0.9rem" title="Arquivar">📦</button>
-                                <button onclick="excluirVersaoPrecif('${v.id}')" style="background:none;border:none;cursor:pointer;color:#dc2626;font-size:0.9rem" title="Excluir">🗑️</button>
-                            </td>
-                        </tr>
-                    `).join('')}
+                    ${rowsHtml}
                 </tbody>
             </table>
         </div>

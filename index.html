@@ -635,7 +635,7 @@
         </div>
 
         <!-- Global rate overrides for this calculation -->
-        <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-top:14px; padding-top:14px; border-top:1px solid #f1f5f9">
+        <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-top:14px; padding-top:14px; border-top:1px solid #f1f5f9">
             <div class="form-group" style="margin:0">
                 <label style="font-size:0.8rem; color:#64748b">Taxa (%) <span style="font-weight:400; color:#94a3b8">— padrão: <span id="precifTaxaPadraoLabel">—</span>%</span></label>
                 <input type="number" step="0.01" min="0" id="precifTaxaOverride" placeholder="Usar padrão" oninput="calcularPrecificacaoPorCliente()" style="width:100%; padding:7px 10px; border:1px solid #e2e8f0; border-radius:6px; font-size:0.9rem">
@@ -647,6 +647,14 @@
             <div class="form-group" style="margin:0">
                 <label style="font-size:0.8rem; color:#64748b">Comissão (%) <span style="font-weight:400; color:#94a3b8">— padrão: <span id="precifComissaoPadraoLabel">—</span>%</span></label>
                 <input type="number" step="0.01" min="0" id="precifComissaoOverride" placeholder="Usar padrão" oninput="calcularPrecificacaoPorCliente()" style="width:100%; padding:7px 10px; border:1px solid #e2e8f0; border-radius:6px; font-size:0.9rem">
+            </div>
+            <div class="form-group" style="margin:0">
+                <label style="font-size:0.8rem; color:#64748b">
+                    Validade da precificação (dias)
+                </label>
+                <input type="number" id="precifValidadeDias" value="30"
+                       min="1" max="365" step="1"
+                       style="width:100%; padding:7px 10px; border:1px solid #e2e8f0; border-radius:6px; font-size:0.9rem">
             </div>
         </div>
     </div>
