@@ -560,6 +560,23 @@ async function inicializar() {
     try { atualizarEstatisticas(); } catch (e) {}
     try { atualizarData(); } catch (e) {}
 
+    // Check proposal alerts every hour
+    if (!window.__PROPOSTA_ALERTAS_INTERVALO__) {
+        window.__PROPOSTA_ALERTAS_INTERVALO__ = setInterval(() => {
+            try { verificarAlertasEstoque(); } catch (e) {}
+        }, 60 * 60 * 1000);
+    }
+
+    // Re-check when user returns to tab
+    if (!window.__PROPOSTA_ALERTAS_VISIBILITY__) {
+        document.addEventListener('visibilitychange', () => {
+            if (!document.hidden) {
+                try { verificarAlertasEstoque(); } catch (e) {}
+            }
+        });
+        window.__PROPOSTA_ALERTAS_VISIBILITY__ = true;
+    }
+
     // Reativar auto-save: habilita salvamento automático (debounced + periódico)
     try { window.__AUTO_SAVE_CLOUD.enabled = true; } catch (e) {}
     try { iniciarAutoSaveCloud(); } catch (e) { console.warn('Falha ao iniciar auto-save:', e); }
@@ -8098,6 +8115,11 @@ function togglePainelAlertas() {
     } catch (e) { console.warn('togglePainelAlertas erro', e); }
 }
 
+function fecharPainelAlertas() {
+    const p = document.getElementById('painelAlertas');
+    if (p) p.style.display = 'none';
+}
+
 function verificarAlertasEstoque() {
     try {
         const limite = (configAlertas && typeof configAlertas.limite === 'number') ? configAlertas.limite : LIMITE_ESTOQUE_BAIXO;
@@ -8209,7 +8231,107 @@ function verificarAlertasEstoque() {
             }
         }
 
-        return totalCount;
+        const agora = new Date();
+        const alertasPropostas = [];
+        let mudouStatusProposta = false;
+
+        (propostas || []).forEach(proposta => {
+            if (!proposta.dataExpiracao) return;
+            if (!['enviada', 'rascunho'].includes(proposta.status)) return;
+
+            const exp = new Date(proposta.dataExpiracao);
+            const dias = Math.ceil((exp - agora) / 86400000);
+
+            if (dias < 0 && proposta.status === 'enviada') {
+                proposta.status = 'expirada';
+                mudouStatusProposta = true;
+                alertasPropostas.push({
+                    proposta, cor: '#94a3b8', urgencia: 'EXPIRADA', tipo: 'expirada'
+                });
+            } else if (dias >= 0 && dias <= 3) {
+                alertasPropostas.push({
+                    proposta, diasRestantes: dias,
+                    cor: dias === 0 ? '#dc2626' : '#d97706',
+                    urgencia: dias === 0 ? 'VENCE HOJE'
+                        : dias === 1 ? 'VENCE AMANHÃ'
+                        : `Vence em ${dias} dias`,
+                    tipo: 'expirando'
+                });
+            }
+        });
+
+        (propostas || []).filter(p => p.aguardandoAprovacao || p.status === 'aguardando_aprovacao')
+            .forEach(p => alertasPropostas.push({
+                proposta: p, cor: '#7c3aed', urgencia: 'AGUARD. APROVAÇÃO', tipo: 'aprovacao'
+            }));
+
+        if (mudouStatusProposta) {
+            try { estoque.propostas = propostas; } catch (e) {}
+            try { salvarDados(); } catch (e) {}
+        }
+
+        if (alertasPropostas.length > 0) {
+            const lista = document.getElementById('listaPainelAlertas');
+            if (lista) {
+                if ((lista.textContent || '').includes('Nenhum alerta no momento')) lista.innerHTML = '';
+
+                const header = document.createElement('div');
+                header.style.cssText = 'font-size:0.7rem;font-weight:700;color:#64748b;' +
+                    'text-transform:uppercase;letter-spacing:0.8px;padding:8px 0 4px;' +
+                    'margin-top:8px;border-top:1px solid #f1f5f9';
+                header.textContent = `Propostas (${alertasPropostas.length})`;
+                lista.appendChild(header);
+
+                alertasPropostas.forEach(alerta => {
+                    const p = alerta.proposta;
+                    const fmt = v => 'R$' + (v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
+                    const div = document.createElement('div');
+                    div.style.cssText = `padding:10px;margin-bottom:8px;border-radius:8px; border-left:3px solid ${alerta.cor};background:${alerta.cor}10`;
+                    div.innerHTML = `
+          <div style="display:flex;justify-content:space-between;align-items:flex-start">
+            <div style="font-weight:600;font-size:0.88rem;color:#1e293b">
+              ${alerta.tipo === 'aprovacao' ? '⏳' : '📋'} Proposta ${p.numero}
+            </div>
+            <span style="font-size:0.68rem;font-weight:700;color:${alerta.cor};
+                         background:${alerta.cor}20;padding:1px 7px;
+                         border-radius:20px;white-space:nowrap">
+              ${alerta.urgencia}
+            </span>
+          </div>
+          <div style="font-size:0.78rem;color:#64748b;margin-top:3px">
+            ${p.cliente} · ${fmt(p.valorTotal)}
+          </div>
+          ${alerta.tipo === 'aprovacao' && p.motivoAprovacao
+                            ? `<div style="font-size:0.75rem;color:#7c3aed;margin-top:3px">Motivo: ${_escapeHtml(String(p.motivoAprovacao))}</div>` : ''}
+          <button onclick="trocarAba('propostas');fecharPainelAlertas();"
+                  style="font-size:0.75rem;color:${alerta.cor};background:none;
+                         border:none;cursor:pointer;text-decoration:underline;
+                         padding:4px 0 0">
+            Ver proposta →
+          </button>`;
+                    lista.appendChild(div);
+                });
+            }
+        }
+
+        // Add proposal alerts to total badge count
+        const countSaldoZero = alertas.length;
+        const totalAlertas = totalCount;
+        const totalComPropostas = (totalAlertas || 0) + alertasPropostas.length;
+        const badge2 = document.getElementById('badgeAlertas');
+        if (badge2) {
+            badge2.textContent = totalComPropostas;
+            badge2.style.display = totalComPropostas > 0 ? 'flex' : 'none';
+        }
+        const totalMsg = document.getElementById('totalAlertasMsg');
+        if (totalMsg) {
+            const partes = [];
+            if ((countSaldoZero || 0) > 0) partes.push(`${countSaldoZero} produto(s) em estoque baixo`);
+            if (alertasPropostas.length > 0) partes.push(`${alertasPropostas.length} alerta(s) de proposta`);
+            totalMsg.textContent = partes.join(' · ') || 'Nenhum alerta';
+        }
+
+        return totalComPropostas;
     } catch (e) {
         console.warn('verificarAlertasEstoque erro', e);
         return 0;
