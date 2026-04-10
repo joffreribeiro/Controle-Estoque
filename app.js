@@ -565,10 +565,45 @@ async function inicializar() {
     try { iniciarAutoSaveCloud(); } catch (e) { console.warn('Falha ao iniciar auto-save:', e); }
 }
 
+function normalizarPrecificacoesCliente(origem) {
+    const lista = Array.isArray(origem) ? origem : [];
+    return lista.map((p, i) => {
+        const item = (p && typeof p === 'object') ? p : {};
+        return {
+            ...item,
+            versao: item.versao || (i + 1),
+            status: item.status || 'ativa',
+            propostaId: item.propostaId || null,
+            descricao: item.descricao || ''
+        };
+    });
+}
+
 function carregarDados() {
     const dadosSalvos = localStorage.getItem('estoqueArmasV2');
     if (dadosSalvos) {
-        estoque = JSON.parse(dadosSalvos);
+        try {
+            estoque = JSON.parse(dadosSalvos);
+        } catch (e) {
+            console.error('Falha ao interpretar localStorage estoqueArmasV2:', e);
+            localStorage.removeItem('estoqueArmasV2');
+            estoque = {
+                produtos: [],
+                representantes: ['KOLTE', 'ISA', 'LC', 'ADES', 'FL', 'IMBEL'],
+                registroVendas: [],
+                registroDistribuicao: [],
+                registroDevolucoes: [],
+                registroEntradas: [],
+                controleEnvio: {},
+                auditoriaVendas: [],
+                fechamentosComissoes: [],
+                clientes: [],
+                propostas: [],
+                precificacao: {},
+                precificacaoConfig: null,
+                precificacoesCliente: []
+            };
+        }
         // Garantir que registroVendas existe
         if (!estoque.registroVendas) {
             estoque.registroVendas = [];
@@ -603,6 +638,10 @@ function carregarDados() {
             estoque.propostas = [];
         }
         propostas = estoque.propostas;
+        if (!Array.isArray(estoque.precificacoesCliente)) {
+            estoque.precificacoesCliente = [];
+        }
+        estoque.precificacoesCliente = normalizarPrecificacoesCliente(estoque.precificacoesCliente);
         // Carregar configuração de alertas se presente
         try {
             const cfg = localStorage.getItem('configAlertas');
@@ -631,7 +670,8 @@ function carregarDados() {
             estoque.precificacao = precificacao;
         }
         // carregar precificações por cliente, se presente
-        try { precificacoesCliente = Array.isArray(estoque.precificacoesCliente) ? estoque.precificacoesCliente : []; } catch (e) { precificacoesCliente = []; }
+        try { precificacoesCliente = normalizarPrecificacoesCliente(estoque.precificacoesCliente); } catch (e) { precificacoesCliente = []; }
+        estoque.precificacoesCliente = precificacoesCliente;
         tabelaAliquotas = (estoque.tabelaAliquotas && typeof estoque.tabelaAliquotas === 'object')
             ? estoque.tabelaAliquotas
             : {};
@@ -664,6 +704,7 @@ function carregarDados() {
         tabelaAliquotas = {};
         tabelaICMS = [];
         categoriaPorProduto = {};
+        estoque.precificacoesCliente = [];
         estoque.tabelaAliquotas = tabelaAliquotas;
         estoque.tabelaICMS = tabelaICMS;
         estoque.categoriaPorProduto = categoriaPorProduto;
@@ -779,7 +820,7 @@ async function carregarDoCloud({confirmOverwrite=true} = {}) {
         const data = doc.data();
         // Restaurar precificações salvas por cliente (se houver)
         try {
-            precificacoesCliente = data.precificacoesCliente || [];
+            precificacoesCliente = normalizarPrecificacoesCliente(data.precificacoesCliente || []);
             estoque.precificacoesCliente = precificacoesCliente;
         } catch (e) { precificacoesCliente = []; }
         try { verificarExpiracaoPrecificacoes(); } catch (e) {}
@@ -797,6 +838,7 @@ async function carregarDoCloud({confirmOverwrite=true} = {}) {
             if (!ok) return false;
         }
         estoque = data.estado;
+        estoque.precificacoesCliente = normalizarPrecificacoesCliente(estoque.precificacoesCliente);
         if (!Array.isArray(estoque.auditoriaVendas)) estoque.auditoriaVendas = [];
         if (!Array.isArray(estoque.fechamentosComissoes)) estoque.fechamentosComissoes = [];
         if (!Array.isArray(estoque.clientes)) estoque.clientes = [];
@@ -865,6 +907,7 @@ async function carregarDoCloudAuto() {
         if (remoteUpdated && remoteUpdated > localUpdated) {
             // substituir local automaticamente
             estoque = data.estado;
+            estoque.precificacoesCliente = normalizarPrecificacoesCliente(estoque.precificacoesCliente);
             if (!Array.isArray(estoque.auditoriaVendas)) estoque.auditoriaVendas = [];
             if (!Array.isArray(estoque.fechamentosComissoes)) estoque.fechamentosComissoes = [];
             if (!Array.isArray(estoque.clientes)) estoque.clientes = [];
@@ -1254,25 +1297,36 @@ function trocarAba(aba) {
     } else {
         acoesEstoque.style.display = 'none';
     }
-    
-    // Renderizar conteúdo da aba
-    if (aba === 'dashboard') {
-        renderizarDashboard();
-    } else if (aba === 'vendas') {
-        renderizarRegistroVendas();
-    } else if (aba === 'distribuicao') {
-        renderizarRegistroDistribuicao();
-        atualizarSelectDistribuicaoProduto();
-    } else if (aba === 'relatorios') {
-        prepararRelatorioInventario();
-        try { gerarRelatorioRentabilidade(); } catch(e) {}
-    } else if (aba === 'controleenvio') {
-        renderizarControleEnvio();
-    } else if (aba === 'controleimbel') {
-        trocarSubAbaControleImbel('estoque');
-    } else if (aba === 'precificacao') {
-        try { trocarSubabaPrecif('produtos'); } catch (e) {}
-        renderizarPrecificacao();
+
+    const renderMap = {
+        dashboard: () => renderizarDashboard(),
+        vendas: () => { renderizarRegistroVendas(); },
+        distribuicao: () => {
+            try { renderizarRegistroDistribuicao(); } catch (e) { console.error('distribuicao render failed:', e); }
+            try { atualizarSelectDistribuicaoProduto(); } catch (e) {}
+        },
+        relatorios: () => {
+            try { prepararRelatorioInventario(); } catch (e) {}
+            try { gerarRelatorioRentabilidade(); } catch (e) {}
+        },
+        controleenvio: () => renderizarControleEnvio(),
+        controleimbel: () => trocarSubAbaControleImbel('estoque'),
+        precificacao: () => {
+            try { trocarSubabaPrecif('produtos'); } catch (e) {}
+            try { renderizarPrecificacao(); } catch (e) { console.error('precificacao render failed:', e); }
+        },
+        clientes: () => renderizarClientes(),
+        propostas: () => renderizarPropostas(),
+        estoque: () => renderizarTabela()
+    };
+
+    const renderFn = renderMap[aba];
+    if (renderFn) {
+        try {
+            renderFn();
+        } catch (e) {
+            console.error(`Erro ao renderizar aba "${aba}":`, e);
+        }
     }
 }
 
