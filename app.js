@@ -8658,7 +8658,7 @@ function renderizarPrecificacao() {
 
         const produtos = estoque?.produtos || [];
         if (!produtos.length) {
-            tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;color:#94a3b8;padding:20px">Nenhum produto cadastrado</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#94a3b8;padding:20px">Nenhum produto cadastrado</td></tr>';
             if (resumo) resumo.innerHTML = '';
             return;
         }
@@ -8695,6 +8695,14 @@ function renderizarPrecificacao() {
                             <span style="color:#64748b; font-size:0.9rem">R$</span>
                             <input type="number" step="0.01" min="0" id="ci_${nomeId}" value="${ci}" placeholder="0,00" onchange="salvarCI('${nomeJs}', this.value)" style="width:120px; border:1px solid ${temCI ? '#22c55e' : '#e2e8f0'}; border-radius:6px; padding:6px 8px; text-align:right; font-size:0.9rem; font-weight:${temCI ? '600' : '400'}; color:${temCI ? '#16a34a' : '#1e293b'}">
                         </div>
+                    </td>
+                    <td style="text-align:center">
+                        <input type="number" step="0.1" min="0" max="100"
+                               value="${precificacao[produto.nome]?.margemMinima ?? ''}"
+                               placeholder="—"
+                               onchange="salvarMargemMinima('${nomeJs}', this.value)"
+                               style="width:75px;border:1px solid #e2e8f0;border-radius:6px;
+                                      padding:5px 8px;text-align:center;font-size:0.85rem">
                     </td>
                     <td id="ci_att_${nomeId}" style="text-align:center; font-size:0.8rem; color:#94a3b8">${ultimaAtt}</td>
                 </tr>
@@ -8744,6 +8752,13 @@ function salvarCI(nomeProduto, valor) {
         estoque.precificacao = precificacao;
         localStorage.setItem('estoqueArmasV2', JSON.stringify(estoque));
     } catch (e) {}
+}
+
+function salvarMargemMinima(nomeProduto, valor) {
+    if (!precificacao[nomeProduto]) precificacao[nomeProduto] = {};
+    precificacao[nomeProduto].margemMinima = parseFloat(valor) || null;
+    estoque.precificacao = precificacao;
+    try { localStorage.setItem('estoqueArmasV2', JSON.stringify(estoque)); } catch (e) {}
 }
 
 function atualizarLinhaPrecificacao(nomeProduto) {
@@ -9344,6 +9359,7 @@ function calcularPrecificacaoPorCliente(opcoes = {}) {
     let totalFaturamento = 0;
     let produtosSemCI = 0;
     let produtosCalculados = 0;
+    let abaixoCount = 0;
 
     const produtosFiltrados = produtos.filter(produto => {
         try {
@@ -9414,6 +9430,9 @@ function calcularPrecificacaoPorCliente(opcoes = {}) {
         const precoFinal = valorTotal + comissaoR;
 
         const margem = precoFinal > 0 ? ((precoFinal - ci) / precoFinal) * 100 : 0;
+        const margemMinima = parseFloat(precificacao[produto.nome]?.margemMinima) || null;
+        const abaixo = margemMinima !== null && margem < margemMinima;
+        if (abaixo) abaixoCount++;
 
         totalFaturamento += precoFinal;
         produtosCalculados++;
@@ -9475,8 +9494,24 @@ function calcularPrecificacaoPorCliente(opcoes = {}) {
         else if (icmsOver) icmsCell = `<td style="text-align:center; background:#f0fdf4; color:#16a34a; font-weight:700">${Number(icmsEfetivo).toFixed(2)}%<div style="font-size:0.65rem; background:#dcfce7; color:#166534; padding:1px 5px; border-radius:10px; margin-top:2px">BENEFÍCIO</div><div style="font-size:0.65rem; font-weight:400; color:#94a3b8">${uf} / ${tipoPessoa}</div></td>`;
         else icmsCell = `<td style="text-align:center; font-weight:700; background:${icmsBg}; color:${icmsColor}">${Number(icmsEfetivo).toFixed(2)}%<div style="font-size:0.65rem; font-weight:400; color:#94a3b8">${uf} / ${tipoPessoa}</div></td>`;
 
-        // row left border if RETID active
-        const rowStyle = retidAtivo ? 'border-left:3px solid #1e3a5f' : '';
+        // row left border if margin below minimum (priority) or RETID active
+        const rowStyle = abaixo ? 'border-left:3px solid #dc2626' : (retidAtivo ? 'border-left:3px solid #1e3a5f' : '');
+        const delta = abaixo ? ((margemMinima - margem) / 100 * precoFinal) : 0;
+        const precoFinalCell = `
+            <td style="font-weight:800; color:#c9a227; background:#fffbf0; font-size:1rem">
+                ${fmt(precoFinal)}
+                ${abaixo ? `<div style="font-size:0.68rem;color:#dc2626;margin-top:2px">↑ R$ ${Math.abs(delta).toFixed(2)} abaixo do mín.</div>` : ''}
+            </td>
+        `;
+        const margemCell = abaixo
+            ? `<td style="font-weight:700;color:#dc2626;background:#fef2f2">
+                   ${margem.toFixed(1)}%
+                   <div style="font-size:0.65rem;background:#fecaca;color:#991b1b;
+                               padding:1px 5px;border-radius:10px;margin-top:2px">
+                     Mín: ${margemMinima}%
+                   </div>
+               </td>`
+            : `<td style="font-weight:700; color:${corMargem(margem)}">${margem.toFixed(1)}%</td>`;
 
         return `
             <tr id="precif_row_${nomeId}" style="${rowStyle}">
@@ -9493,8 +9528,8 @@ function calcularPrecificacaoPorCliente(opcoes = {}) {
                 ${ipiCell}
                 <td style="font-weight:600; color:#475569">${fmt(valorImpostos)}</td>
                 <td style="text-align:center; color:#d97706; font-size:0.85rem">${fmt(comissaoR)}</td>
-                <td style="font-weight:800; color:#c9a227; background:#fffbf0; font-size:1rem">${fmt(precoFinal)}</td>
-                <td style="font-weight:700; color:${corMargem(margem)}">${margem.toFixed(1)}%</td>
+                ${precoFinalCell}
+                ${margemCell}
             </tr>
         `;
     });
@@ -9505,7 +9540,7 @@ function calcularPrecificacaoPorCliente(opcoes = {}) {
     // Summary com contagem filtrada
     const totalProdutos = produtos.length;
     const filtrados = produtosFiltrados.length;
-    document.getElementById('precifClienteSummary').innerHTML = `
+    let summaryHTML = `
         <div>
             <div style="font-size:0.75rem; color:#64748b; text-transform:uppercase; letter-spacing:0.5px">Exibindo</div>
             <div style="font-size:1.1rem; font-weight:700; color:#1e3a5f">${filtrados} de ${totalProdutos}</div>
@@ -9523,6 +9558,10 @@ function calcularPrecificacaoPorCliente(opcoes = {}) {
             <div style="font-size:1.3rem; font-weight:800; color:#16a34a">${fmt(totalFaturamento)}</div>
         </div>
     `;
+    if (abaixoCount > 0) {
+        summaryHTML += `<div style="color:#dc2626;font-weight:600">⚠️ ${abaixoCount} produto(s) abaixo da margem mínima</div>`;
+    }
+    document.getElementById('precifClienteSummary').innerHTML = summaryHTML;
 
     document.getElementById('precifClienteResultado').style.display = 'block';
     document.getElementById('precifClienteEmpty').style.display = 'none';
@@ -9674,6 +9713,19 @@ function criarPropostaDaPrecificacao() {
     if (!ultimaPrecificacaoCalculada) {
         alert('Calcule ou carregue uma precificação antes de gerar proposta.');
         return;
+    }
+    const abaixoMinimo = (ultimaPrecificacaoCalculada?.itens || []).filter(item => {
+        const mm = precificacao[item.produto]?.margemMinima;
+        return mm && item.margem < mm;
+    });
+    if (abaixoMinimo.length > 0) {
+        const lista = abaixoMinimo
+            .map(i => `• ${i.produto}: ${i.margem.toFixed(1)}% (mín: ${precificacao[i.produto].margemMinima}%)`)
+            .join('\n');
+        if (!confirm(
+            `⚠️ ${abaixoMinimo.length} produto(s) abaixo da margem mínima:\n\n${lista}\n\n` +
+            `Deseja gerar a proposta mesmo assim?`
+        )) return;
     }
     const reg = ultimaPrecificacaoCalculada;
     const clienteObj = (clientes || []).find(c => String(c.id) === String(reg.clienteId));
