@@ -1662,6 +1662,7 @@ function renderizarCadastroProdutos() {
         const imbelTexto = metricaImbel.estoqueTotal === 0
             ? '-'
             : formatarNumero(metricaImbel.imbelDisp);
+        // Mesmo valor do bloco CONSOLIDADO > SALDO da aba Estoque
         const saldoConsolidado = metricaImbel.consolidadoSaldo;
         const saldoConsolidadoTexto = formatarNumero(saldoConsolidado);
         const saldoConsolidadoCor = saldoConsolidado > 0 ? '#2da44e' : '#cf222e';
@@ -1686,6 +1687,21 @@ function renderizarCadastroProdutos() {
                 <button class="btn btn-outline btn-sm" data-admin="true" onclick="abrirModalEditarProduto(${Number(produto.id)})">Editar</button>
             </td>
         `;
+
+        // Garantia defensiva: tbody deve ter o mesmo número de colunas do thead
+        const expectedCols = document.querySelectorAll('#tabelaCadastroProdutos thead th').length;
+        let actualCols = tr.querySelectorAll('td').length;
+        if (actualCols !== expectedCols) {
+            while (actualCols < expectedCols) {
+                tr.appendChild(document.createElement('td'));
+                actualCols += 1;
+            }
+            while (actualCols > expectedCols) {
+                tr.removeChild(tr.lastElementChild);
+                actualCols -= 1;
+            }
+        }
+
         tbody.appendChild(tr);
     });
 
