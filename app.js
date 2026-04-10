@@ -1649,6 +1649,10 @@ function renderizarCadastroProdutos() {
         const imbelTexto = metricaImbel.estoqueTotal === 0
             ? '-'
             : formatarNumero(metricaImbel.imbelDisp);
+        const saldoConsolidado = calcularSaldoConsolidado(produto);
+        const saldoConsolidadoTexto = formatarNumero(saldoConsolidado);
+        const saldoConsolidadoCor = saldoConsolidado > 0 ? '#2da44e' : '#cf222e';
+        const saldoConsolidadoClasse = saldoConsolidado < 0 ? 'negativo' : '';
         const atualizadoEm = produto.atualizadoEm || produto.dataAtualizacao || produto.criadoEm || '';
         const atualizadoTxt = atualizadoEm ? formatarData(atualizadoEm) : '-';
 
@@ -1663,6 +1667,7 @@ function renderizarCadastroProdutos() {
             <td>${margemMin > 0 ? margemMin.toFixed(1).replace('.', ',') : '-'}</td>
             <td>${descontoMax > 0 ? descontoMax.toFixed(1).replace('.', ',') : '-'}</td>
             <td>${imbelTexto}</td>
+            <td class="${saldoConsolidadoClasse}" style="color:${saldoConsolidadoCor}; font-weight:700; font-family:monospace;">${saldoConsolidadoTexto}</td>
             <td>${atualizadoTxt}</td>
             <td>
                 <button class="btn btn-outline btn-sm" data-admin="true" onclick="abrirModalEditarProduto(${Number(produto.id)})">Editar</button>
