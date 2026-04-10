@@ -741,11 +741,15 @@
     <div id="precifClienteResultado" style="display:none">
         <div style="display:flex; gap:10px; margin-bottom:14px; align-items:center; flex-wrap:wrap">
             <div style="font-size:0.85rem; color:#64748b" id="precifSalvoInfo"></div>
+            <div id="precifStatusProposta" style="margin-left:12px; font-size:0.85rem; display:flex; gap:8px; align-items:center"></div>
             <div style="margin-left:auto; display:flex; gap:8px">
                 <button class="btn btn-outline" onclick="exportarPrecifCliente()">📤 Exportar Excel</button>
                 <button class="btn btn-outline" onclick="salvarPrecificacaoCliente()">💾 Salvar Precificação</button>
                 <button class="btn btn-success" onclick="criarPropostaDaPrecificacao()">📋 Gerar Proposta →</button>
             </div>
+        </div>
+        <div id="painelHistoricoPrecif" style="display:none; margin-top:8px">
+            <div id="listaHistoricoPrecif"></div>
         </div>
         <div class="table-container">
             <div class="table-wrapper">

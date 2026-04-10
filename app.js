@@ -62,6 +62,7 @@ Shape per product:
 // Precificações salvas por cliente (temporário/permanente salvo em estado)
 let precificacoesCliente = [];
 let ultimaPrecificacaoCalculada = null;
+let ultimaVersaoSalva = null;
 // RETID + Benefícios fiscais (estado por sessão de precificação)
 let retidPorProduto = {};
 let beneficioFiscalAtivo = false;
@@ -8954,21 +8955,24 @@ function trocarSubabaPrecif(subaba) {
 
 // ── Precificação por Cliente: utilitários e calculadora (em tempo real, não persiste dados) ──
 function popularSelectClientesPrecif() {
-        const select = document.getElementById('precifClienteSelect');
-        if (!select) return;
-        const list = (clientes || []).slice().sort((a,b) => (a.nome||'').localeCompare(b.nome||''));
-        select.innerHTML = '<option value="">Selecione um cliente...</option>' + list.map(c => {
-                const tipo = c.tipoPessoa || (((c.cnpj||'').replace(/\D/g,'')).length === 14 ? 'PJ' : 'PF');
-                return `<option value="${c.id}">${_escapeHtml(c.nome||'-')} — ${_escapeHtml(c.uf||'??')} (${tipo})</option>`;
-        }).join('');
+    const select = document.getElementById('precifClienteSelect');
+    if (!select) return;
+    const list = (clientes || []).slice().sort((a,b) => (a.nome||'').localeCompare(b.nome||''));
+    const optionsHtml = list.map(c => {
+        const tipo = c.tipoPessoa || (((c.cnpj||'').replace(/\D/g,''))).length === 14 ? 'PJ' : 'PF';
+        const ultimaProposta = (propostas || []).filter(p => p.cliente === c.nome).sort((a,b) => new Date(b.dataCriacao||b.data||0) - new Date(a.dataCriacao||a.data||0))[0];
+        const badge = ultimaProposta ? ` [${(ultimaProposta.status||'').toUpperCase()}]` : '';
+        return `<option value="${c.id}">${_escapeHtml(c.nome||'-')} — ${_escapeHtml(c.uf||'??')} (${tipo})${badge}</option>`;
+    }).join('');
+    select.innerHTML = '<option value="">Selecione um cliente...</option>' + optionsHtml;
 
-        // Atualizar labels de padrão
-        const taxaPad = document.getElementById('taxaPadrao')?.value || '—';
-        const roiPad  = document.getElementById('roiPadrao')?.value  || '—';
-        const comPad  = document.getElementById('comissaoPadrao')?.value || '—';
-        const elTaxa = document.getElementById('precifTaxaPadraoLabel'); if (elTaxa) elTaxa.textContent = taxaPad;
-        const elROI  = document.getElementById('precifROIPadraoLabel'); if (elROI) elROI.textContent = roiPad;
-        const elCom  = document.getElementById('precifComissaoPadraoLabel'); if (elCom) elCom.textContent = comPad;
+    // Atualizar labels de padrão
+    const taxaPad = document.getElementById('taxaPadrao')?.value || '—';
+    const roiPad  = document.getElementById('roiPadrao')?.value  || '—';
+    const comPad  = document.getElementById('comissaoPadrao')?.value || '—';
+    const elTaxa = document.getElementById('precifTaxaPadraoLabel'); if (elTaxa) elTaxa.textContent = taxaPad;
+    const elROI  = document.getElementById('precifROIPadraoLabel'); if (elROI) elROI.textContent = roiPad;
+    const elCom  = document.getElementById('precifComissaoPadraoLabel'); if (elCom) elCom.textContent = comPad;
 }
 
 function selecionarClientePrecif() {
@@ -9007,6 +9011,12 @@ function selecionarClientePrecif() {
         const contato = document.getElementById('precifBannerContato'); if (contato) contato.textContent = cliente.contato || cliente.email || '—';
 
         calcularPrecificacaoPorCliente();
+
+        try { renderizarHistoricoPrecif(cliente.id); } catch (e) {}
+        try { atualizarStatusPropostaNaPrecif(cliente.id); } catch (e) {}
+
+        try { renderizarHistoricoPrecif(cliente.id); } catch (e) {}
+        try { atualizarStatusPropostaNaPrecif(cliente.id); } catch (e) {}
 
         // Mostrar se existe precificação salva para este cliente
         try {
@@ -9264,6 +9274,7 @@ function calcularPrecificacaoPorCliente() {
         itens: itensCalculados,
         totalFaturamento
     };
+    try { atualizarStatusPropostaNaPrecif(ultimaPrecificacaoCalculada.clienteId); } catch (e) {}
 }
 
 function exportarPrecifCliente() {
@@ -9323,30 +9334,39 @@ function salvarPrecificacaoCliente() {
         if (!ultimaPrecificacaoCalculada) { alert('Calcule a precificação antes de salvar.'); return; }
     }
     const cId = ultimaPrecificacaoCalculada.clienteId;
-    const existenteIndex = precificacoesCliente.findIndex(p => String(p.clienteId) === String(cId));
+    // calcular próxima versão para este cliente
+    const versoesDoCliente = (precificacoesCliente || []).filter(p => String(p.clienteId) === String(cId));
+    const proximaVersao = versoesDoCliente.length + 1;
     const registro = JSON.parse(JSON.stringify(ultimaPrecificacaoCalculada));
-    registro.id = 'pc-' + Date.now();
+    registro.id = Date.now().toString();
     registro.dataCriacao = new Date().toISOString();
+    registro.versao = proximaVersao;
+    const descricao = prompt(
+        `Versão ${proximaVersao} — adicione uma descrição opcional:\n` +
+        `(Ex: "Negociação inicial", "Após desconto", "Preços reajustados")`
+    ) || '';
+    registro.descricao = descricao;
+    registro.status = 'ativa';
+    registro.propostaId = null;
     // Snapshot de RETID e benefícios no momento do salvamento
     try { registro.retidPorProduto = JSON.parse(JSON.stringify(retidPorProduto || {})); } catch (e) { registro.retidPorProduto = {}; }
     registro.beneficioFiscalAtivo = !!beneficioFiscalAtivo;
     try { registro.beneficiosPorProduto = JSON.parse(JSON.stringify(beneficiosPorProduto || {})); } catch (e) { registro.beneficiosPorProduto = {}; }
-    if (existenteIndex >= 0) {
-        precificacoesCliente[existenteIndex] = registro;
-    } else {
-        precificacoesCliente.push(registro);
-    }
+    precificacoesCliente.push(registro);
+    ultimaVersaoSalva = proximaVersao;
     try { estoque.precificacoesCliente = precificacoesCliente; } catch (e) {}
     salvarDados();
     const infoEl = document.getElementById('precifSalvoInfo');
-    if (infoEl) infoEl.innerHTML = `<span style="color:#16a34a; font-size:0.82rem">✅ Precificação salva em ${new Date(registro.dataCriacao).toLocaleString('pt-BR')}</span> <button onclick="carregarPrecificacaoSalva('${cId}')" class="btn btn-outline btn-sm" style="margin-left:8px">↩ Carregar salva</button>`;
+    if (infoEl) infoEl.innerHTML = `<span style="color:#16a34a; font-size:0.82rem">✅ Precificação salva v${registro.versao} em ${new Date(registro.dataCriacao).toLocaleString('pt-BR')}</span> <button onclick="carregarVersaoPrecif('${registro.id}')" class="btn btn-outline btn-sm" style="margin-left:8px">↩ Carregar versão</button> <button onclick="renderizarHistoricoPrecif('${cId}')" class="btn btn-outline btn-sm" style="margin-left:8px">🕘 Histórico</button>`;
     mostrarNotificacao('Precificação salva para o cliente.', 'success');
+    try { renderizarHistoricoPrecif(cId); } catch (e) {}
 }
 
 function carregarPrecificacaoSalva(clienteId) {
     try {
-        const registro = precificacoesCliente.find(p => String(p.clienteId) === String(clienteId));
-        if (!registro) { mostrarNotificacao('Nenhuma precificação salva para este cliente.', 'warning'); return; }
+        const registros = (precificacoesCliente || []).filter(p => String(p.clienteId) === String(clienteId));
+        if (!registros || registros.length === 0) { mostrarNotificacao('Nenhuma precificação salva para este cliente.', 'warning'); return; }
+        const registro = registros.sort((a,b) => new Date(b.dataCriacao) - new Date(a.dataCriacao))[0];
         // Restaurar estados de RETID / Benefícios do registro salvo
         retidPorProduto = registro.retidPorProduto || {};
         beneficioFiscalAtivo = registro.beneficioFiscalAtivo || false;
@@ -9358,6 +9378,7 @@ function carregarPrecificacaoSalva(clienteId) {
             if (beneficioFiscalAtivo) renderizarTabelaBeneficios();
         } catch (e) {}
         ultimaPrecificacaoCalculada = registro;
+        try { ultimaVersaoSalva = registro.versao || null; } catch(e) {}
         // renderizar tabela a partir do registro
         const itens = registro.itens || [];
         const fmt = v => 'R$ ' + _fmtMoeda(v);
@@ -9409,7 +9430,7 @@ function carregarPrecificacaoSalva(clienteId) {
                 <div style="font-size:1.3rem; font-weight:800; color:#16a34a">${fmt(registro.totalFaturamento || 0)}</div>
             </div>
         `;
-        const infoEl = document.getElementById('precifSalvoInfo'); if (infoEl) infoEl.innerHTML = `<span style="color:#16a34a; font-size:0.82rem">Usando precificação salva em ${new Date(registro.dataCriacao).toLocaleString('pt-BR')}</span>`;
+        const infoEl = document.getElementById('precifSalvoInfo'); if (infoEl) infoEl.innerHTML = `<span style="color:#16a34a; font-size:0.82rem">Usando precificação salva v${registro.versao} em ${new Date(registro.dataCriacao).toLocaleString('pt-BR')}</span>`;
         mostrarNotificacao('Precificação carregada.', 'success');
     } catch (e) { console.error('carregarPrecificacaoSalva', e); mostrarNotificacao('Erro ao carregar precificação salva.', 'error'); }
 }
@@ -9451,6 +9472,19 @@ function criarPropostaDaPrecificacao() {
     atualizarKPIsPropostas();
     mostrarNotificacao('Proposta criada a partir da precificação. Abra para editar.', 'success');
     abrirModalProposta(nova.id);
+    try {
+        if (ultimaVersaoSalva) {
+            const precifAtual = (precificacoesCliente || []).find(p => String(p.clienteId) === String(reg.clienteId) && Number(p.versao) === Number(ultimaVersaoSalva));
+            if (precifAtual) {
+                precifAtual.status = 'convertida';
+                precifAtual.propostaId = nova.id;
+                try { estoque.precificacoesCliente = precificacoesCliente; } catch (e) {}
+                salvarDados();
+                try { renderizarHistoricoPrecif(reg.clienteId); } catch(e) {}
+            }
+        }
+    } catch (e) {}
+    try { atualizarStatusPropostaNaPrecif(reg.clienteId); } catch (e) {}
 }
 
 // ====== Helpers: RETID e Benefícios Fiscais ======
@@ -9481,8 +9515,8 @@ function toggleRetid(nomeProduto, ativo) {
 
 function recalcularLinhaPrecifCliente(nomeProduto) {
     try {
-        const nomeId = (nomeProduto || '').replace(/[^a-z0-9]/gi, '_');
-        const tr = document.getElementById('precif_row_' + nomeId);
+        const nomeIdKey = (nomeProduto || '').replace(/[^a-z0-9]/gi, '_');
+        const tr = document.getElementById('precif_row_' + nomeIdKey);
         if (!tr) { calcularPrecificacaoPorCliente(); return; }
         const produto = (estoque.produtos || []).find(p => p.nome === nomeProduto);
         if (!produto) { calcularPrecificacaoPorCliente(); return; }
@@ -9527,11 +9561,11 @@ function recalcularLinhaPrecifCliente(nomeProduto) {
         const margem = precoFinal > 0 ? ((precoFinal - ci) / precoFinal) * 100 : 0;
 
         // Render row HTML (reuse same patterns used no calculadora)
-        const nomeId = (produto.nome || '').replace(/[^a-z0-9]/gi, '_');
+        const nomeIdRow = (produto.nome || '').replace(/[^a-z0-9]/gi, '_');
         const retidAtivo = !!retidPorProduto[produto.nome];
         const prodBadge = retidAtivo ? '<span style="font-size:0.68rem; background:#dbeafe; color:#1d4ed8; padding:1px 6px; border-radius:10px; margin-left:6px; font-weight:700">RETID</span>' : '';
         const safeNome = (produto.nome || '').replace(/'/g, "\\'");
-        const retidCell = `<td style="text-align:center"><label style="display:flex; flex-direction:column; align-items:center; gap:4px; cursor:pointer"><input type="checkbox" id="retid_${nomeId}" ${retidAtivo ? 'checked' : ''} onchange="toggleRetid('${safeNome}', this.checked)" style="width:16px; height:16px; cursor:pointer; accent-color:#1e3a5f"><span style="font-size:0.65rem; color:${retidAtivo ? '#16a34a' : '#94a3b8'}; font-weight:${retidAtivo ? '700' : '400'}">${retidAtivo ? 'Ativo' : '—'}</span></label></td>`;
+        const retidCell = `<td style="text-align:center"><label style="display:flex; flex-direction:column; align-items:center; gap:4px; cursor:pointer"><input type="checkbox" id="retid_${nomeIdRow}" ${retidAtivo ? 'checked' : ''} onchange="toggleRetid('${safeNome}', this.checked)" style="width:16px; height:16px; cursor:pointer; accent-color:#1e3a5f"><span style="font-size:0.65rem; color:${retidAtivo ? '#16a34a' : '#94a3b8'}; font-weight:${retidAtivo ? '700' : '400'}">${retidAtivo ? 'Ativo' : '—'}</span></label></td>`;
 
         const pisCell = retidAtivo ? `<td style="text-decoration:line-through; color:#94a3b8; text-align:center; font-size:0.85rem">0% (RETID)</td>` : `<td style="text-align:center; color:#dc2626; font-size:0.85rem">${Number(pisEfetivo).toFixed(2)}%</td>`;
         const cofCell = retidAtivo ? `<td style="text-decoration:line-through; color:#94a3b8; text-align:center; font-size:0.85rem">0% (RETID)</td>` : `<td style="text-align:center; color:#dc2626; font-size:0.85rem">${Number(cofinsEfetivo).toFixed(2)}%</td>`;
@@ -9543,7 +9577,7 @@ function recalcularLinhaPrecifCliente(nomeProduto) {
         const fmt = v => 'R$ ' + _fmtMoeda(v);
         const corMargem = m => m >= 30 ? '#16a34a' : m >= 15 ? '#d97706' : '#dc2626';
 
-        const rowHtml = `\n            <tr id="precif_row_${nomeId}">\n                <td style="text-align:left; padding-left:15px; font-weight:500; position:sticky; left:0; background:#fff; z-index:1; border-right:1px solid #e2e8f0">${_escapeHtml(produto.nome)} ${prodBadge}</td>\n                ${retidCell}\n                <td style="font-family:monospace; font-size:0.75rem; color:#64748b; text-align:center">${_escapeHtml(ncm)}</td>\n                <td style="font-weight:600; color:#1e3a5f">${fmt(ci)}</td>\n                <td style="text-align:center; color:#475569">${Number(taxaProd).toFixed(2)}%</td>\n                <td style="text-align:center; color:#475569">${Number(roiProd).toFixed(2)}%</td>\n                <td style="font-weight:600; color:#1e3a5f">${fmt(valorBase)}</td>\n                ${pisCell}\n                ${cofCell}\n                ${icmsCell}\n                ${ipiCell}\n                <td style="font-weight:600; color:#475569">${fmt(valorImpostos)}</td>\n                <td style="text-align:center; color:#d97706; font-size:0.85rem">${fmt(comissaoR)}</td>\n                <td style="font-weight:800; color:#c9a227; background:#fffbf0; font-size:1rem">${fmt(precoFinal)}</td>\n                <td style="font-weight:700; color:${corMargem(margem)}">${margem.toFixed(1)}%</td>\n            </tr>\n        `;
+        const rowHtml = `\n            <tr id="precif_row_${nomeIdRow}">\n                <td style="text-align:left; padding-left:15px; font-weight:500; position:sticky; left:0; background:#fff; z-index:1; border-right:1px solid #e2e8f0">${_escapeHtml(produto.nome)} ${prodBadge}</td>\n                ${retidCell}\n                <td style="font-family:monospace; font-size:0.75rem; color:#64748b; text-align:center">${_escapeHtml(ncm)}</td>\n                <td style="font-weight:600; color:#1e3a5f">${fmt(ci)}</td>\n                <td style="text-align:center; color:#475569">${Number(taxaProd).toFixed(2)}%</td>\n                <td style="text-align:center; color:#475569">${Number(roiProd).toFixed(2)}%</td>\n                <td style="font-weight:600; color:#1e3a5f">${fmt(valorBase)}</td>\n                ${pisCell}\n                ${cofCell}\n                ${icmsCell}\n                ${ipiCell}\n                <td style="font-weight:600; color:#475569">${fmt(valorImpostos)}</td>\n                <td style="text-align:center; color:#d97706; font-size:0.85rem">${fmt(comissaoR)}</td>\n                <td style="font-weight:800; color:#c9a227; background:#fffbf0; font-size:1rem">${fmt(precoFinal)}</td>\n                <td style="font-weight:700; color:${corMargem(margem)}">${margem.toFixed(1)}%</td>\n            </tr>\n        `;
 
         tr.outerHTML = rowHtml;
     } catch (e) { console.error('recalcularLinhaPrecifCliente', e); calcularPrecificacaoPorCliente(); }
@@ -9625,6 +9659,193 @@ function limparBeneficios() {
     renderizarTabelaBeneficios();
 }
 
+// ===== Histórico de precificações por cliente =====
+function renderizarHistoricoPrecif(clienteId) {
+        const versoes = (precificacoesCliente || [])
+                .filter(p => String(p.clienteId) === String(clienteId))
+                .sort((a,b) => new Date(b.dataCriacao) - new Date(a.dataCriacao));
+        if (!versoes.length) {
+                const painel = document.getElementById('painelHistoricoPrecif'); if (painel) painel.style.display = 'none';
+                return;
+        }
+        const statusColor = { ativa:'#16a34a', arquivada:'#94a3b8', convertida:'#0ea5e9' };
+        const statusLabel = { ativa:'Ativa', arquivada:'Arquivada', convertida:'Convertida' };
+        const listaEl = document.getElementById('listaHistoricoPrecif');
+        if (!listaEl) return;
+        listaEl.innerHTML = `
+        <div class="table-wrapper">
+            <table class="dashboard-table" style="font-size:0.82rem">
+                <thead>
+                    <tr>
+                        <th>Versão</th>
+                        <th>Data</th>
+                        <th>Descrição</th>
+                        <th>Taxa</th>
+                        <th>ROI</th>
+                        <th>Produtos</th>
+                        <th>Status</th>
+                        <th>Proposta</th>
+                        <th>Ações</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${versoes.map(v => `
+                        <tr>
+                            <td style="font-weight:700; color:#1e3a5f; text-align:center">v${v.versao}</td>
+                            <td>${new Date(v.dataCriacao).toLocaleDateString('pt-BR')}</td>
+                            <td style="color:#475569">${v.descricao || '<span style="color:#94a3b8">—</span>'}</td>
+                            <td style="text-align:center">${v.taxa}%</td>
+                            <td style="text-align:center">${v.roi}%</td>
+                            <td style="text-align:center">${(v.itens||[]).length}</td>
+                            <td style="text-align:center"><span style="background:${statusColor[v.status]}20; color:${statusColor[v.status]}; font-size:0.75rem; font-weight:600; padding:2px 8px; border-radius:20px">${statusLabel[v.status] || v.status}</span></td>
+                            <td style="text-align:center">${v.propostaId ? `<span style="color:#0ea5e9; font-size:0.75rem">${(propostas.find(p=>p.id===v.propostaId)?.numero)||'—'}</span>` : '—'}</td>
+                            <td style="text-align:center">
+                                <button onclick="carregarVersaoPrecif('${v.id}')" class="btn btn-outline btn-sm" title="Carregar esta versão">↩ Carregar</button>
+                                <button onclick="arquivarVersaoPrecif('${v.id}')" style="background:none;border:none;cursor:pointer;color:#94a3b8;font-size:0.9rem" title="Arquivar">📦</button>
+                                <button onclick="excluirVersaoPrecif('${v.id}')" style="background:none;border:none;cursor:pointer;color:#dc2626;font-size:0.9rem" title="Excluir">🗑️</button>
+                            </td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+        </div>
+        `;
+        const painel = document.getElementById('painelHistoricoPrecif'); if (painel) painel.style.display = 'block';
+}
+
+function toggleHistoricoPrecif() {
+        const lista = document.getElementById('listaHistoricoPrecif');
+        if (!lista) return;
+        lista.style.display = lista.style.display === 'none' ? 'block' : 'none';
+}
+
+function carregarVersaoPrecif(id) {
+        const v = (precificacoesCliente || []).find(p => p.id === id);
+        if (!v) return;
+        try {
+                retidPorProduto = v.retidPorProduto || {};
+                beneficiosPorProduto = v.beneficiosPorProduto || {};
+                beneficioFiscalAtivo = v.beneficioFiscalAtivo || false;
+        } catch (e) {}
+        ultimaPrecificacaoCalculada = v;
+        try { ultimaVersaoSalva = v.versao || null; } catch(e) {}
+        // Restaurar overrides visuais
+        try {
+                const cb = document.getElementById('precifBeneficioFiscal'); if (cb) cb.checked = !!beneficioFiscalAtivo;
+                const painel = document.getElementById('painelBeneficioFiscal'); if (painel) painel.style.display = beneficioFiscalAtivo ? 'block' : 'none';
+                if (beneficioFiscalAtivo) renderizarTabelaBeneficios();
+        } catch (e) {}
+        // renderizar tabela a partir do registro
+        const itens = v.itens || [];
+        const fmt = vv => 'R$ ' + _fmtMoeda(vv);
+        const corMargem = m => m >= 30 ? '#16a34a' : m >= 15 ? '#d97706' : '#dc2626';
+        const rows = itens.map(it => {
+                const nomeId = (it.produto || '').replace(/[^a-z0-9]/gi, '_');
+                const retidAtivo = (v.retidPorProduto && v.retidPorProduto[it.produto]) || false;
+                const prodBadge = retidAtivo ? '<span style="font-size:0.68rem; background:#dbeafe; color:#1d4ed8; padding:1px 6px; border-radius:10px; margin-left:6px; font-weight:700">RETID</span>' : '';
+                const pisDisplay = (retidAtivo ? '0% (RETID)' : (Number(it.pis || 0).toFixed(2) + '%'));
+                const cofDisplay = (retidAtivo ? '0% (RETID)' : (Number(it.cofins || 0).toFixed(2) + '%'));
+                const ipiDisplay = (retidAtivo ? '0% (RETID)' : (Number(it.ipi || 0).toFixed(2) + '%'));
+                return `
+                        <tr id="precif_row_${nomeId}" style="${retidAtivo ? 'border-left:3px solid #1e3a5f' : ''}">
+                                <td style="text-align:left; padding-left:15px; font-weight:500; position:sticky; left:0; background:#fff; z-index:1; border-right:1px solid #e2e8f0">${_escapeHtml(it.produto)} ${prodBadge}</td>
+                                <td style="text-align:center"><label style="display:flex; flex-direction:column; align-items:center; gap:4px; cursor:pointer"><input type="checkbox" id="retid_${nomeId}" ${retidAtivo ? 'checked' : ''} onchange="toggleRetid('${(it.produto||'').replace(/'/g,"\\'")}', this.checked)" style="width:16px; height:16px; cursor:pointer; accent-color:#1e3a5f"><span style="font-size:0.65rem; color:${retidAtivo ? '#16a34a' : '#94a3b8'}; font-weight:${retidAtivo ? '700' : '400'}">${retidAtivo ? 'Ativo' : '—'}</span></label></td>
+                                <td style="font-family:monospace; font-size:0.75rem; color:#64748b; text-align:center">${_escapeHtml(it.ncm || '—')}</td>
+                                <td style="font-weight:600; color:#1e3a5f">${fmt(it.ci || 0)}</td>
+                                <td style="text-align:center; color:#475569">${Number(it.taxa || 0).toFixed(2)}%</td>
+                                <td style="text-align:center; color:#475569">${Number(it.roi || 0).toFixed(2)}%</td>
+                                <td style="font-weight:600; color:#1e3a5f">${fmt(it.valorBase)}</td>
+                                <td style="text-align:center; color:#dc2626; font-size:0.85rem">${_escapeHtml(pisDisplay)}</td>
+                                <td style="text-align:center; color:#dc2626; font-size:0.85rem">${_escapeHtml(cofDisplay)}</td>
+                                <td style="text-align:center; font-weight:700; background:#f8fafc; color:#1e3a5f">${Number(it.icms || 0).toFixed(2)}%<div style="font-size:0.65rem; font-weight:400; color:#94a3b8">${v.uf || ''} / ${v.tipoPessoa || ''}</div></td>
+                                <td style="text-align:center; color:#dc2626; font-size:0.85rem">${_escapeHtml(ipiDisplay)}</td>
+                                <td style="font-weight:600; color:#475569">${fmt(it.valorImpostos)}</td>
+                                <td style="text-align:center; color:#d97706; font-size:0.85rem">${fmt(it.comissaoR)}</td>
+                                <td style="font-weight:800; color:#c9a227; background:#fffbf0; font-size:1rem">${fmt(it.precoFinal)}</td>
+                                <td style="font-weight:700; color:${corMargem(it.margem)}">${(it.margem||0).toFixed(1)}%</td>
+                        </tr>
+                `;
+        }).join('');
+        const tbody = document.getElementById('tabelaPrecifClienteBody'); if (tbody) tbody.innerHTML = rows;
+        document.getElementById('precifClienteResultado').style.display = 'block';
+        document.getElementById('precifClienteEmpty').style.display = 'none';
+        document.getElementById('precifClienteSummary').innerHTML = `
+                <div>
+                        <div style="font-size:0.75rem; color:#64748b; text-transform:uppercase; letter-spacing:0.5px">Produtos</div>
+                        <div style="font-size:1.1rem; font-weight:700; color:#1e3a5f">${itens.length}</div>
+                </div>
+                <div style="margin-left:auto; text-align:right">
+                        <div style="font-size:0.75rem; color:#64748b; text-transform:uppercase; letter-spacing:0.5px">Total da tabela</div>
+                        <div style="font-size:1.3rem; font-weight:800; color:#16a34a">${fmt(v.totalFaturamento || 0)}</div>
+                </div>
+        `;
+        const infoEl = document.getElementById('precifSalvoInfo'); if (infoEl) infoEl.innerHTML = `<span style="color:#16a34a; font-size:0.82rem">Usando precificação salva v${v.versao} em ${new Date(v.dataCriacao).toLocaleString('pt-BR')}</span>`;
+        mostrarNotificacao('Precificação carregada.', 'success');
+                try { atualizarStatusPropostaNaPrecif(v.clienteId); } catch(e) { console.warn('Erro ao atualizar status da proposta:', e); }
+
+
+function atualizarStatusPropostaNaPrecif(clienteId) {
+        try {
+                const clienteNome = (clientes || []).find(c => String(c.id) === String(clienteId))?.nome;
+                const propostasDoCliente = (propostas || []).filter(p => p.cliente === clienteNome)
+                        .sort((a,b) => new Date((b.dataCriacao||b.data||0)) - new Date((a.dataCriacao||a.data||0)));
+                const container = document.getElementById('precifStatusProposta');
+                if (!container) return;
+                if (!propostasDoCliente || propostasDoCliente.length === 0) { container.innerHTML = ''; return; }
+                const statusColor = {
+                        rascunho:  { bg:'#f1f5f9', text:'#64748b', icon:'📝' },
+                        enviada:   { bg:'#eff6ff', text:'#1d4ed8', icon:'📤' },
+                        aceita:    { bg:'#f0fdf4', text:'#166534', icon:'✅' },
+                        recusada:  { bg:'#fef2f2', text:'#dc2626', icon:'❌' },
+                        expirada:  { bg:'#fff8f0', text:'#d97706', icon:'⏰' }
+                };
+                const ultima = propostasDoCliente[0];
+                const sc = statusColor[ultima.status] || statusColor.rascunho;
+                const dataFormatada = new Date(ultima.dataCriacao || ultima.data || new Date()).toLocaleDateString('pt-BR');
+                const valorFormatado = 'R$ ' + Number(ultima.valorTotal || 0).toLocaleString('pt-BR',{minimumFractionDigits:2});
+                container.innerHTML = `
+        <div style="background:${sc.bg}; border-radius:8px; padding:10px 14px; display:flex; align-items:center; gap:12px; flex-wrap:wrap">
+            <span style="font-size:1.1rem">${sc.icon}</span>
+            <div>
+                <div style="font-size:0.75rem; color:#64748b; text-transform:uppercase; letter-spacing:0.5px">Última proposta</div>
+                <div style="font-weight:700; color:${sc.text}; font-size:0.9rem">${ultima.numero} — ${String(ultima.status).toUpperCase()}</div>
+            </div>
+            <div>
+                <div style="font-size:0.75rem; color:#64748b">Data</div>
+                <div style="font-size:0.85rem; color:#1e293b">${dataFormatada}</div>
+            </div>
+            <div>
+                <div style="font-size:0.75rem; color:#64748b">Valor</div>
+                <div style="font-size:0.85rem; font-weight:600; color:#16a34a">${valorFormatado}</div>
+            </div>
+            ${propostasDoCliente.length > 1 ? `<div style="font-size:0.78rem; color:#64748b">+${propostasDoCliente.length-1} proposta(s) anterior(es)</div>` : ''}
+            <div style="margin-left:auto; display:flex; gap:6px">
+                <button class="btn btn-outline btn-sm" onclick="trocarAba('propostas')" title="Ver todas as propostas deste cliente">Ver propostas →</button>
+                ${ultima.status === 'aceita' ? `<button class="btn btn-success btn-sm" onclick="converterPropostaEmVenda('${ultima.id}')">📄 Gerar Contrato</button>` : ''}
+            </div>
+        </div>
+        ${propostasDoCliente.length > 1 ? `
+            <details style="margin-top:6px">
+                <summary style="font-size:0.8rem; color:#64748b; cursor:pointer; padding:4px 0">Ver histórico completo de propostas (${propostasDoCliente.length})</summary>
+                <div style="margin-top:8px; display:flex; flex-direction:column; gap:4px">
+                    ${propostasDoCliente.map(p => {
+                        const s = statusColor[p.status] || statusColor.rascunho;
+                        return `
+                            <div style="display:flex; align-items:center; gap:10px; padding:6px 10px; background:#f8fafc; border-radius:6px; font-size:0.82rem">
+                                <span>${s.icon}</span>
+                                <span style="font-weight:600; color:#1e3a5f">${p.numero}</span>
+                                <span style="color:${s.text}; font-weight:500">${p.status}</span>
+                                <span style="color:#64748b">${new Date(p.dataCriacao||p.data).toLocaleDateString('pt-BR')}</span>
+                                <span style="color:#16a34a; margin-left:auto; font-weight:600">R$ ${(p.valorTotal||0).toLocaleString('pt-BR',{minimumFractionDigits:2})}</span>
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
+            </details>
+        ` : ''}
+    `;
+        } catch (e) { console.warn('atualizarStatusPropostaNaPrecif', e); }
+}
 // ====== Helpers: RETID e Benefícios Fiscais ======
 function resolverAliquota(nomeProduto, campo, valorPadrao) {
     try {
@@ -9653,8 +9874,8 @@ function toggleRetid(nomeProduto, ativo) {
 
 function recalcularLinhaPrecifCliente(nomeProduto) {
     try {
-        const nomeId = (nomeProduto || '').replace(/[^a-z0-9]/gi, '_');
-        const tr = document.getElementById('precif_row_' + nomeId);
+        const nomeIdKey = (nomeProduto || '').replace(/[^a-z0-9]/gi, '_');
+        const tr = document.getElementById('precif_row_' + nomeIdKey);
         if (!tr) { calcularPrecificacaoPorCliente(); return; }
         const produto = (estoque.produtos || []).find(p => p.nome === nomeProduto);
         if (!produto) { calcularPrecificacaoPorCliente(); return; }
@@ -10741,6 +10962,10 @@ function converterPropostaEmVenda(propostaId) {
     renderizarDashboard();
 
     mostrarNotificacao('Proposta convertida! Contrato nº ' + nextContractNumber + ' criado.', 'success');
+    try {
+        const clienteObj = (clientes || []).find(c => c.nome === proposta.cliente);
+        if (clienteObj) atualizarStatusPropostaNaPrecif(clienteObj.id);
+    } catch (e) {}
     trocarAba('vendas');
 }
 
