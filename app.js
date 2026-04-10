@@ -823,7 +823,6 @@ async function carregarDoCloud({confirmOverwrite=true} = {}) {
             precificacoesCliente = normalizarPrecificacoesCliente(data.precificacoesCliente || []);
             estoque.precificacoesCliente = precificacoesCliente;
         } catch (e) { precificacoesCliente = []; }
-        try { verificarExpiracaoPrecificacoes(); } catch (e) {}
         if (!data || !data.estado) {
             console.warn('Documento encontrado não contém campo estado.');
             return false;
@@ -860,6 +859,7 @@ async function carregarDoCloud({confirmOverwrite=true} = {}) {
         categoriaPorProduto = (data.categoriaPorProduto && typeof data.categoriaPorProduto === 'object')
             ? data.categoriaPorProduto
             : (estoque.categoriaPorProduto || {});
+        try { verificarExpiracaoPrecificacoes(); } catch (e) {}
 
         try { inicializarImpostosPreDefinidos(); } catch (e) { console.warn('Inicializar impostos predefinidos após cloud falhou:', e); }
 
@@ -8037,12 +8037,23 @@ function verificarAlertasEstoque() {
             return dias >= 0 && dias <= 3;
         });
 
+        // Total de alertas inclui produtos + precificações expirando
+        const totalCount = alertas.length + (precifExpirando ? precifExpirando.length : 0);
+
         // atualizar badge (produtos em alerta + precificações expirando)
         const badge = document.getElementById('badgeAlertas');
         if (badge) {
-            const totalCount = alertas.length + (precifExpirando ? precifExpirando.length : 0);
             if (totalCount > 0) { badge.style.display = 'inline-flex'; badge.textContent = String(totalCount); }
             else { badge.style.display = 'none'; }
+        }
+
+        const totalAlertasMsg = document.getElementById('totalAlertasMsg');
+        if (totalAlertasMsg) {
+            if (totalCount > 0) {
+                totalAlertasMsg.textContent = `${totalCount} alerta(s) no total`;
+            } else {
+                totalAlertasMsg.textContent = 'Nenhum alerta no momento';
+            }
         }
 
         // atualizar lista do painel
@@ -8063,21 +8074,20 @@ function verificarAlertasEstoque() {
                               `</div>`;
                 });
                 lista.innerHTML = html;
-                // anexar alertas de precificações expirando/vence em até 3 dias
+                                // anexar alertas de precificações expirando/vence em até 3 dias
                 if (precifExpirando && precifExpirando.length) {
                     precifExpirando.forEach(p => {
                         const dias = Math.ceil((new Date(p.dataExpiracao) - new Date()) / 86400000);
-                        const urgencia = dias === 0 ? 'VENCE HOJE' : `Vence em ${dias}d`;
                         lista.insertAdjacentHTML('beforeend', `
-                        <div style="padding:10px; margin-bottom:8px; border-radius:8px; border-left:3px solid #d97706; background:#fffbf0">
+                                                <div style="padding:10px; margin-bottom:8px; border-radius:8px; border-left:3px solid #f59e0b; background:#fffbeb">
                           <div style="font-weight:600; font-size:0.88rem; color:#1e293b">
-                            💰 Precificação expirando — ${p.clienteNome || ''}
+                                                        ⚠️ Precificação expirando — ${p.clienteNome || ''}
                           </div>
-                          <div style="font-size:0.78rem; color:#64748b; margin-top:2px">
-                            v${p.versao || 1} · ${urgencia}
+                                                    <div style="font-size:0.78rem; color:#64748b; margin-top:3px">
+                                                        v${p.versao || 1} expira em ${dias} dia(s)
                           </div>
                           <button onclick="trocarSubabaPrecif('porcliente')"
-                                  style="font-size:0.75rem; color:#d97706; background:none; border:none; cursor:pointer; text-decoration:underline; padding:4px 0">
+                                                                    style="font-size:0.75rem; color:#f59e0b; background:none; border:none; cursor:pointer; text-decoration:underline; padding:4px 0 0">
                             Ver precificação →
                           </button>
                         </div>
@@ -8102,7 +8112,7 @@ function verificarAlertasEstoque() {
             }
         }
 
-        return alertas.length;
+        return totalCount;
     } catch (e) {
         console.warn('verificarAlertasEstoque erro', e);
         return 0;
@@ -9424,16 +9434,10 @@ function salvarPrecificacaoCliente() {
     registro.beneficioFiscalAtivo = !!beneficioFiscalAtivo;
     try { registro.beneficiosPorProduto = JSON.parse(JSON.stringify(beneficiosPorProduto || {})); } catch (e) { registro.beneficiosPorProduto = {}; }
     // validade da precificação (dias) e data de expiração
-    try {
-        const validadeDias = parseInt(document.getElementById('precifValidadeDias')?.value || 30);
-        const dataExpiracao = new Date(Date.now() + (Number.isFinite(validadeDias) ? validadeDias : 30) * 86400000).toISOString();
-        registro.validadeDias = validadeDias;
-        registro.dataExpiracao = dataExpiracao;
-    } catch (e) {
-        // se algo falhar, usar padrão de 30 dias
-        registro.validadeDias = 30;
-        registro.dataExpiracao = new Date(Date.now() + 30 * 86400000).toISOString();
-    }
+    const validadeBruta = parseInt(document.getElementById('precifValidadeDias')?.value || 30, 10);
+    const validadeDias = Number.isFinite(validadeBruta) ? Math.max(1, Math.min(365, validadeBruta)) : 30;
+    registro.validadeDias = validadeDias;
+    registro.dataExpiracao = new Date(Date.now() + validadeDias * 86400000).toISOString();
     precificacoesCliente.push(registro);
     ultimaVersaoSalva = proximaVersao;
     try { estoque.precificacoesCliente = precificacoesCliente; } catch (e) {}
@@ -9455,16 +9459,22 @@ function carregarPrecificacaoSalva(clienteId) {
 }
 
 function criarPropostaDaPrecificacao() {
-    // Avisar se a precificação salva para este cliente estiver expirada
+    // Avisar se a precificação ativa para este cliente estiver expirada
     try {
-        const precifRef = (precificacoesCliente || []).find(p => String(p.clienteId) === String(ultimaPrecificacaoCalculada?.clienteId) && p.status === 'expirada');
-        if (precifRef) {
-            const ok = confirm(
-                '⚠️ A precificação salva está EXPIRADA.\n\n' +
-                'Deseja gerar a proposta mesmo assim com valores desatualizados?\n' +
-                '(Recomendado: recalcule antes de prosseguir)'
-            );
-            if (!ok) return;
+        const precifAtiva = (precificacoesCliente || []).find(p =>
+            String(p.clienteId) === String(ultimaPrecificacaoCalculada?.clienteId) &&
+            p.status === 'ativa'
+        );
+        if (precifAtiva?.dataExpiracao) {
+            const exp = new Date(precifAtiva.dataExpiracao);
+            if (exp < new Date()) {
+                const ok = confirm(
+                    `⚠️ A precificação salva expirou em ${exp.toLocaleDateString('pt-BR')}.\n\n` +
+                    `Deseja gerar a proposta mesmo assim com valores desatualizados?\n` +
+                    `(Recomendado: cancele e recalcule)`
+                );
+                if (!ok) return;
+            }
         }
     } catch (e) {}
 
@@ -9530,22 +9540,22 @@ function renderizarHistoricoPrecif(clienteId) {
                 const painel = document.getElementById('painelHistoricoPrecif'); if (painel) painel.style.display = 'none';
                 return;
         }
-        const statusColor = { ativa:'#16a34a', arquivada:'#94a3b8', convertida:'#0ea5e9' };
-        const statusLabel = { ativa:'Ativa', arquivada:'Arquivada', convertida:'Convertida' };
+        const statusColor = { ativa:'#16a34a', arquivada:'#94a3b8', convertida:'#0ea5e9', expirada:'#dc2626' };
+        const statusLabel = { ativa:'Ativa', arquivada:'Arquivada', convertida:'Convertida', expirada:'Expirada' };
         const listaEl = document.getElementById('listaHistoricoPrecif');
         if (!listaEl) return;
         const rowsHtml = (versoes || []).map(v => {
             const agora = new Date();
             const exp = v.dataExpiracao ? new Date(v.dataExpiracao) : null;
-            const diasRestantes = exp ? Math.ceil((exp - agora) / 86400000) : null;
+            const dias = exp ? Math.ceil((exp - agora) / 86400000) : null;
             let expCell = '—';
-            if (diasRestantes !== null) {
-                if (diasRestantes < 0) {
-                    expCell = '<span style="color:#dc2626;font-weight:600">Expirada</span>';
-                } else if (diasRestantes <= 5) {
-                    expCell = `<span style="color:#d97706;font-weight:600">⚠️ ${diasRestantes}d</span>`;
+            if (exp) {
+                if (dias < 0) {
+                    expCell = `<span style="color:#dc2626;font-size:0.78rem;font-weight:600">Expirada</span>`;
+                } else if (dias <= 5) {
+                    expCell = `<span style="color:#d97706;font-size:0.78rem;font-weight:600">⚠️ ${dias}d restantes</span>`;
                 } else {
-                    expCell = `<span style="color:#64748b;font-size:0.8rem">${exp.toLocaleDateString('pt-BR')}</span>`;
+                    expCell = `<span style="color:#64748b;font-size:0.78rem">${exp.toLocaleDateString('pt-BR')} (${dias}d)</span>`;
                 }
             }
             return `
@@ -9579,7 +9589,7 @@ function renderizarHistoricoPrecif(clienteId) {
                         <th>ROI</th>
                         <th>Produtos</th>
                         <th>Status</th>
-                        <th>Validade</th>
+                        <th>Expira em</th>
                         <th>Proposta</th>
                         <th>Ações</th>
                     </tr>
