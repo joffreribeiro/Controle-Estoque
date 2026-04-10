@@ -1410,7 +1410,7 @@ function trocarAba(aba) {
     } else if (aba === 'controleimbel') {
         try { trocarSubAbaControleImbel('estoque'); } catch (e) {}
     } else if (aba === 'precificacao') {
-        try { trocarSubabaPrecif('federais'); } catch (e) {}
+        try { trocarSubabaPrecif('porcliente'); } catch (e) {}
         try { renderizarPrecificacao(); } catch (e) {}
     } else if (aba === 'clientes') {
         try { renderizarClientes(); } catch (e) {}
