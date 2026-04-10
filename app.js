@@ -358,11 +358,24 @@ function obterMetricasImbelProduto(produto) {
         });
     }
 
+    const totalVendasProduto = Object.values(vendasPorRep).reduce((s, v) => s + v, 0);
+    const consolidadoDisp = estoqueTotal;
+    const consolidadoVenda = totalVendasProduto;
+    const consolidadoSaldo = consolidadoDisp - consolidadoVenda;
+
     const imbelDisp = estoqueTotal - totalDistribuido + totalDevolvidoParaImbel;
     const imbelVenda = Number(vendasPorRep['IMBEL'] || 0);
     const imbelSaldo = imbelDisp - imbelVenda;
 
-    return { estoqueTotal, imbelDisp, imbelVenda, imbelSaldo };
+    return {
+        estoqueTotal,
+        imbelDisp,
+        imbelVenda,
+        imbelSaldo,
+        consolidadoDisp,
+        consolidadoVenda,
+        consolidadoSaldo
+    };
 }
 
 // Reconstrói o objeto `produto.distribuicao` a partir dos registros de distribuição e devolução
@@ -1550,9 +1563,9 @@ function renderizarTabela() {
         });
 
         // === STEP 7: CONSOLIDADO (sempre exibir número)
-        const consolidadoDisp = estoqueTotal;
-        const consolidadoVenda = totalVendasProduto;
-        const consolidadoSaldo = consolidadoDisp - consolidadoVenda;
+        const consolidadoDisp = metricaImbel.consolidadoDisp;
+        const consolidadoVenda = metricaImbel.consolidadoVenda;
+        const consolidadoSaldo = metricaImbel.consolidadoSaldo;
 
         tr.innerHTML = `<td class="produto-nome col-produto" title="${produto.nome}" onclick="abrirModalEditarProduto(${produtoId})" style="cursor:pointer">${produtoHtml}</td>` + tr.innerHTML;
 
@@ -1649,7 +1662,7 @@ function renderizarCadastroProdutos() {
         const imbelTexto = metricaImbel.estoqueTotal === 0
             ? '-'
             : formatarNumero(metricaImbel.imbelDisp);
-        const saldoConsolidado = calcularSaldoConsolidado(produto);
+        const saldoConsolidado = metricaImbel.consolidadoSaldo;
         const saldoConsolidadoTexto = formatarNumero(saldoConsolidado);
         const saldoConsolidadoCor = saldoConsolidado > 0 ? '#2da44e' : '#cf222e';
         const saldoConsolidadoClasse = saldoConsolidado < 0 ? 'negativo' : '';
