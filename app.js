@@ -8892,8 +8892,10 @@ function popularSelectClientesPrecif() {
     const list = (clientes || []).slice().sort((a,b) => (a.nome||'').localeCompare(b.nome||''));
     const optionsHtml = list.map(c => {
         const tipo = c.tipoPessoa || (((c.cnpj||'').replace(/\D/g,''))).length === 14 ? 'PJ' : 'PF';
-        const ultimaProposta = (propostas || []).filter(p => p.cliente === c.nome).sort((a,b) => new Date(b.dataCriacao||b.data||0) - new Date(a.dataCriacao||a.data||0))[0];
-        const badge = ultimaProposta ? ` [${(ultimaProposta.status||'').toUpperCase()}]` : '';
+        const ultima = (propostas || [])
+            .filter(p => p.cliente === c.nome)
+            .sort((a,b) => new Date(b.dataCriacao||0) - new Date(a.dataCriacao||0))[0];
+        const badge = ultima ? ` [${String(ultima.status || '').toUpperCase()}]` : '';
         return `<option value="${c.id}">${_escapeHtml(c.nome||'-')} — ${_escapeHtml(c.uf||'??')} (${tipo})${badge}</option>`;
     }).join('');
     select.innerHTML = '<option value="">Selecione um cliente...</option>' + optionsHtml;
@@ -9035,6 +9037,7 @@ function selecionarClientePrecif() {
                 const banner = document.getElementById('precifClienteBanner'); if (banner) banner.style.display = 'none';
                 const resultado = document.getElementById('precifClienteResultado'); if (resultado) resultado.style.display = 'none';
                 const empty = document.getElementById('precifClienteEmpty'); if (empty) empty.style.display = 'block';
+            try { atualizarStatusPropostaNaPrecif(''); } catch (e) {}
             limparAvisoCI();
                 return;
         }
@@ -9057,10 +9060,6 @@ function selecionarClientePrecif() {
         calcularPrecificacaoPorCliente({ forcarAtual: true });
 
         try { renderizarHistoricoPrecif(cliente.id); } catch (e) {}
-        try { atualizarStatusPropostaNaPrecif(cliente.id); } catch (e) {}
-
-        try { renderizarHistoricoPrecif(cliente.id); } catch (e) {}
-        try { atualizarStatusPropostaNaPrecif(cliente.id); } catch (e) {}
 
         // Mostrar se existe precificação salva para este cliente
         try {
@@ -9075,6 +9074,7 @@ function selecionarClientePrecif() {
                 limparAvisoCI();
             }
         } catch (e) {}
+        try { atualizarStatusPropostaNaPrecif(cliente.id); } catch (e) {}
 }
 
 function calcularPrecificacaoPorCliente(opcoes = {}) {
@@ -9612,11 +9612,12 @@ function carregarVersaoPrecif(id) {
 function atualizarStatusPropostaNaPrecif(clienteId) {
         try {
                 const clienteNome = (clientes || []).find(c => String(c.id) === String(clienteId))?.nome;
-                const propostasDoCliente = (propostas || []).filter(p => p.cliente === clienteNome)
-                        .sort((a,b) => new Date((b.dataCriacao||b.data||0)) - new Date((a.dataCriacao||a.data||0)));
+        const propostasDoCliente = (propostas || [])
+            .filter(p => p.cliente === clienteNome)
+            .sort((a,b) => new Date((b.dataCriacao||b.data||0)) - new Date((a.dataCriacao||a.data||0)));
                 const container = document.getElementById('precifStatusProposta');
                 if (!container) return;
-                if (!propostasDoCliente || propostasDoCliente.length === 0) { container.innerHTML = ''; return; }
+        if (!propostasDoCliente.length) { container.innerHTML = ''; return; }
                 const statusColor = {
                         rascunho:  { bg:'#f1f5f9', text:'#64748b', icon:'📝' },
                         enviada:   { bg:'#eff6ff', text:'#1d4ed8', icon:'📤' },
@@ -9626,42 +9627,66 @@ function atualizarStatusPropostaNaPrecif(clienteId) {
                 };
                 const ultima = propostasDoCliente[0];
                 const sc = statusColor[ultima.status] || statusColor.rascunho;
-                const dataFormatada = new Date(ultima.dataCriacao || ultima.data || new Date()).toLocaleDateString('pt-BR');
-                const valorFormatado = 'R$ ' + Number(ultima.valorTotal || 0).toLocaleString('pt-BR',{minimumFractionDigits:2});
+                const fmt = v => 'R$ ' + (v || 0).toLocaleString('pt-BR',{minimumFractionDigits:2});
                 container.innerHTML = `
-        <div style="background:${sc.bg}; border-radius:8px; padding:10px 14px; display:flex; align-items:center; gap:12px; flex-wrap:wrap">
+        <div style="background:${sc.bg};border-radius:8px;padding:10px 14px;
+                    display:flex;align-items:center;gap:12px;flex-wrap:wrap">
             <span style="font-size:1.1rem">${sc.icon}</span>
             <div>
-                <div style="font-size:0.75rem; color:#64748b; text-transform:uppercase; letter-spacing:0.5px">Última proposta</div>
-                <div style="font-weight:700; color:${sc.text}; font-size:0.9rem">${ultima.numero} — ${String(ultima.status).toUpperCase()}</div>
+                <div style="font-size:0.75rem;color:#64748b;text-transform:uppercase;
+                            letter-spacing:0.5px">Última proposta</div>
+                <div style="font-weight:700;color:${sc.text};font-size:0.9rem">
+                    ${ultima.numero} — ${String(ultima.status || '').toUpperCase()}
+                </div>
             </div>
             <div>
-                <div style="font-size:0.75rem; color:#64748b">Data</div>
-                <div style="font-size:0.85rem; color:#1e293b">${dataFormatada}</div>
+                <div style="font-size:0.75rem;color:#64748b">Data</div>
+                <div style="font-size:0.85rem;color:#1e293b">
+                    ${new Date(ultima.dataCriacao||ultima.data||new Date()).toLocaleDateString('pt-BR')}
+                </div>
             </div>
             <div>
-                <div style="font-size:0.75rem; color:#64748b">Valor</div>
-                <div style="font-size:0.85rem; font-weight:600; color:#16a34a">${valorFormatado}</div>
+                <div style="font-size:0.75rem;color:#64748b">Valor</div>
+                <div style="font-size:0.85rem;font-weight:600;color:#16a34a">
+                    ${fmt(ultima.valorTotal)}
+                </div>
             </div>
-            ${propostasDoCliente.length > 1 ? `<div style="font-size:0.78rem; color:#64748b">+${propostasDoCliente.length-1} proposta(s) anterior(es)</div>` : ''}
-            <div style="margin-left:auto; display:flex; gap:6px">
-                <button class="btn btn-outline btn-sm" onclick="trocarAba('propostas')" title="Ver todas as propostas deste cliente">Ver propostas →</button>
-                ${ultima.status === 'aceita' ? `<button class="btn btn-success btn-sm" onclick="converterPropostaEmVenda('${ultima.id}')">📄 Gerar Contrato</button>` : ''}
+            ${propostasDoCliente.length > 1
+                ? `<div style="font-size:0.78rem;color:#64748b">
+                     +${propostasDoCliente.length-1} proposta(s) anterior(es)
+                   </div>` : ''}
+            <div style="margin-left:auto;display:flex;gap:6px">
+                <button class="btn btn-outline btn-sm" onclick="trocarAba('propostas')">
+                    Ver propostas →
+                </button>
+                ${ultima.status === 'aceita'
+                    ? `<button class="btn btn-success btn-sm"
+                               onclick="converterPropostaEmVenda('${ultima.id}')">
+                         📄 Gerar Contrato
+                       </button>` : ''}
             </div>
         </div>
         ${propostasDoCliente.length > 1 ? `
             <details style="margin-top:6px">
-                <summary style="font-size:0.8rem; color:#64748b; cursor:pointer; padding:4px 0">Ver histórico completo de propostas (${propostasDoCliente.length})</summary>
-                <div style="margin-top:8px; display:flex; flex-direction:column; gap:4px">
+                <summary style="font-size:0.8rem;color:#64748b;cursor:pointer;padding:4px 0">
+                    Ver histórico completo (${propostasDoCliente.length})
+                </summary>
+                <div style="margin-top:8px;display:flex;flex-direction:column;gap:4px">
                     ${propostasDoCliente.map(p => {
                         const s = statusColor[p.status] || statusColor.rascunho;
                         return `
-                            <div style="display:flex; align-items:center; gap:10px; padding:6px 10px; background:#f8fafc; border-radius:6px; font-size:0.82rem">
+                            <div style="display:flex;align-items:center;gap:10px;
+                                        padding:6px 10px;background:#f8fafc;
+                                        border-radius:6px;font-size:0.82rem">
                                 <span>${s.icon}</span>
                                 <span style="font-weight:600; color:#1e3a5f">${p.numero}</span>
                                 <span style="color:${s.text}; font-weight:500">${p.status}</span>
-                                <span style="color:#64748b">${new Date(p.dataCriacao||p.data).toLocaleDateString('pt-BR')}</span>
-                                <span style="color:#16a34a; margin-left:auto; font-weight:600">R$ ${(p.valorTotal||0).toLocaleString('pt-BR',{minimumFractionDigits:2})}</span>
+                                <span style="color:#64748b">
+                                    ${new Date(p.dataCriacao||p.data||new Date()).toLocaleDateString('pt-BR')}
+                                </span>
+                                <span style="color:#16a34a;margin-left:auto;font-weight:600">
+                                    ${fmt(p.valorTotal)}
+                                </span>
                             </div>
                         `;
                     }).join('')}
