@@ -1946,7 +1946,7 @@ function imprimirRentabilidade() {
     }
 }
 
-function gerarPdfProposta(propostaId) {
+function gerarPdfProposta(propostaId, tipo = 'simples') {
     try {
         const proposta = (propostas || []).find(p => String(p.id) === String(propostaId));
         if (!proposta) { mostrarNotificacao('Proposta não encontrada.', 'error'); return; }
@@ -2013,38 +2013,134 @@ function gerarPdfProposta(propostaId) {
 
         // ITENS
         y += 35;
-        doc.setFont('helvetica', 'bold');
-        doc.setFontSize(10);
-        doc.setTextColor(30, 58, 95);
-        doc.text('ITENS DA PROPOSTA', 15, y);
-        y += 5;
+        let finalY = y;
+        const cliente = clienteObj;
 
-        const tableData = (proposta.itens || []).map((item, idx) => {
-            const nome = item.produtoNome || item.produto || '';
-            const quantidade = Number(item.quantidade || 0);
-            const valorUnit = Number(item.valorUnitario || item.valor || item.valorUnit || 0);
-            const total = quantidade * valorUnit;
-            return [
-                idx + 1,
-                nome,
-                quantidade,
-                'R$ ' + valorUnit.toLocaleString('pt-BR', { minimumFractionDigits: 2 }),
-                'R$ ' + total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })
-            ];
-        });
+        if (tipo === 'fiscal') {
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(10);
+            doc.setTextColor(30, 58, 95);
+            doc.text('ITENS E COMPOSIÇÃO DE PREÇO', 15, y);
+            y += 6;
 
-        doc.autoTable({
-            startY: y,
-            head: [['#', 'Produto', 'Qtd', 'Valor Unit.', 'Total']],
-            body: tableData,
-            styles: { fontSize: 9, cellPadding: 4 },
-            headStyles: { fillColor: [30, 58, 95], textColor: [255, 255, 255], fontStyle: 'bold' },
-            columnStyles: { 0: { cellWidth: 12, halign: 'center' }, 1: { cellWidth: 90 }, 2: { cellWidth: 20, halign: 'center' }, 3: { cellWidth: 35, halign: 'right' }, 4: { cellWidth: 35, halign: 'right' } },
-            alternateRowStyles: { fillColor: [248, 250, 252] },
-            margin: { left: 10, right: 10 }
-        });
+            const precifRef = (precificacoesCliente || [])
+                .filter(pc => String(pc.clienteId) === String(cliente?.id))
+                .sort((a, b) => new Date(b.dataCriacao) - new Date(a.dataCriacao))[0];
 
-        const finalY = (doc.lastAutoTable && doc.lastAutoTable.finalY) ? doc.lastAutoTable.finalY + 8 : y + 60;
+            (proposta.itens || []).forEach((item, idx) => {
+                const itemPrecif = precifRef?.itens?.find(i => i.produto === item.produto);
+                const fmt = v => 'R$ ' + parseFloat(v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                const pct = v => parseFloat(v || 0).toFixed(2) + '%';
+                const qtd = Number(item.quantidade || 0);
+                const valorUnit = Number(item.valorUnitario || item.valor || item.valorUnit || 0);
+
+                if (y > 260 && idx < (proposta.itens || []).length - 1) {
+                    doc.addPage();
+                    y = 20;
+                }
+
+                doc.setFillColor(30, 58, 95);
+                doc.rect(10, y, 190, 7, 'F');
+                doc.setFont('helvetica', 'bold');
+                doc.setFontSize(9);
+                doc.setTextColor(255, 255, 255);
+                doc.text(`${idx + 1}. ${item.produto || item.produtoNome || ''}`, 14, y + 5);
+                doc.text(`Qtd: ${qtd}`, 160, y + 5);
+                y += 10;
+
+                if (itemPrecif) {
+                    doc.autoTable({
+                        startY: y,
+                        body: [
+                            ['Custo de Industrialização (CI)', '—', fmt(itemPrecif.ci)],
+                            ['Taxa Diretoria', pct(itemPrecif.taxa), '×' + (1 + itemPrecif.taxa / 100).toFixed(4)],
+                            ['ROI', pct(itemPrecif.roi), '×' + (1 + itemPrecif.roi / 100).toFixed(4)],
+                            ['Valor Base', '—', fmt(itemPrecif.valorBase)],
+                            ['ICMS', pct(itemPrecif.icms), fmt(itemPrecif.icmsR)],
+                            ['PIS', pct(itemPrecif.pis), fmt(itemPrecif.pisR)],
+                            ['COFINS', pct(itemPrecif.cofins), fmt(itemPrecif.cofinsR)],
+                            ['c/ ICMS + PIS + COFINS', '—', fmt(itemPrecif.valorImpostos)],
+                            ['IPI', pct(itemPrecif.ipi), fmt(itemPrecif.ipiR)],
+                            ['Valor Total s/ Comissão', '—', fmt(itemPrecif.valorTotal)],
+                            ['Comissão (s/ Valor Base)', pct(itemPrecif.comissao), fmt(itemPrecif.comissaoR)],
+                            ['PREÇO UNITÁRIO FINAL', '—', fmt(valorUnit)]
+                        ],
+                        styles: { fontSize: 8, cellPadding: 2.5 },
+                        columnStyles: {
+                            0: { cellWidth: 110, textColor: [71, 85, 105] },
+                            1: { cellWidth: 25, halign: 'center', textColor: [100, 116, 139] },
+                            2: { cellWidth: 45, halign: 'right', fontStyle: 'bold', textColor: [30, 41, 59] }
+                        },
+                        didParseCell(data) {
+                            if (data.row.index === 11) {
+                                data.cell.styles.fillColor = [30, 58, 95];
+                                data.cell.styles.textColor = [201, 162, 39];
+                                data.cell.styles.fontStyle = 'bold';
+                            }
+                            if ([3, 7, 9].includes(data.row.index)) {
+                                data.cell.styles.fillColor = [240, 244, 248];
+                                data.cell.styles.fontStyle = 'bold';
+                            }
+                        },
+                        margin: { left: 10, right: 10 }
+                    });
+                    y = doc.lastAutoTable.finalY + 3;
+                    doc.setFont('helvetica', 'bold');
+                    doc.setFontSize(8);
+                    doc.setTextColor(22, 163, 74);
+                    doc.text(`Total: ${qtd} × ${fmt(valorUnit)} = ` + fmt(qtd * valorUnit), 195, y, { align: 'right' });
+                    y += 8;
+                } else {
+                    doc.autoTable({
+                        startY: y,
+                        body: [
+                            ['Produto', item.produto || item.produtoNome || ''],
+                            ['Qtd', qtd],
+                            ['Valor Unitário', fmt(valorUnit)],
+                            ['Total', fmt(qtd * valorUnit)]
+                        ],
+                        styles: { fontSize: 8 },
+                        margin: { left: 10, right: 10 }
+                    });
+                    y = doc.lastAutoTable.finalY + 4;
+                }
+            });
+            finalY = y + 2;
+        } else {
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(10);
+            doc.setTextColor(30, 58, 95);
+            doc.text('ITENS DA PROPOSTA', 15, y);
+            y += 5;
+
+            const tableData = (proposta.itens || []).map((item, idx) => {
+                const nome = item.produtoNome || item.produto || '';
+                const quantidade = Number(item.quantidade || 0);
+                const valorUnit = Number(item.valorUnitario || item.valor || item.valorUnit || 0);
+                const total = quantidade * valorUnit;
+                return [
+                    idx + 1,
+                    nome,
+                    quantidade,
+                    'R$ ' + valorUnit.toLocaleString('pt-BR', { minimumFractionDigits: 2 }),
+                    'R$ ' + total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })
+                ];
+            });
+
+            doc.autoTable({
+                startY: y,
+                head: [['#', 'Produto', 'Qtd', 'Valor Unit.', 'Total']],
+                body: tableData,
+                styles: { fontSize: 9, cellPadding: 4 },
+                headStyles: { fillColor: [30, 58, 95], textColor: [255, 255, 255], fontStyle: 'bold' },
+                columnStyles: { 0: { cellWidth: 12, halign: 'center' }, 1: { cellWidth: 90 }, 2: { cellWidth: 20, halign: 'center' }, 3: { cellWidth: 35, halign: 'right' }, 4: { cellWidth: 35, halign: 'right' } },
+                alternateRowStyles: { fillColor: [248, 250, 252] },
+                margin: { left: 10, right: 10 }
+            });
+
+            finalY = (doc.lastAutoTable && doc.lastAutoTable.finalY) ? doc.lastAutoTable.finalY + 8 : y + 60;
+        }
+
         doc.setFillColor(30, 58, 95);
         doc.rect(130, finalY, 70, 14, 'F');
         doc.setFont('helvetica', 'bold');
@@ -2083,7 +2179,8 @@ function gerarPdfProposta(propostaId) {
         doc.text('Proposta válida até ' + (proposta.dataExpiracao ? new Date(proposta.dataExpiracao).toLocaleDateString('pt-BR') : ''), 195, pageHeight - 6, { align: 'right' });
 
         const safeName = (proposta.cliente || 'cliente').replace(/[^a-z0-9]/gi, '_');
-        doc.save('Proposta_' + (proposta.numero || '') + '_' + safeName + '.pdf');
+        const sufixo = tipo === 'fiscal' ? '_fiscal' : '';
+        doc.save('Proposta_' + (proposta.numero || '') + '_' + safeName + sufixo + '.pdf');
 
     } catch (err) {
         console.error('Erro gerarPdfProposta:', err);
@@ -11115,13 +11212,41 @@ function renderizarPropostas(filtro, statusFiltro) {
             <td><span style="background:${statusConf.bg}; color:#fff; padding:2px 10px; border-radius:12px; font-size:0.8rem;">${statusConf.label}</span></td>
             <td style="font-weight:600">${contratoDisplay}</td>
             <td>
-                <button class="btn btn-outline btn-sm" title="Gerar PDF" onclick="gerarPdfProposta('${p.id}')">📄 PDF</button>
+                                <div style="position:relative;display:inline-block">
+                                    <button class="btn btn-outline btn-sm" onclick="toggleMenuPDF('${p.id}')" id="btnPDF_${p.id}">
+                                        📄 PDF ▾
+                                    </button>
+                                    <div id="menuPDF_${p.id}" style="display:none;position:absolute;right:0;top:100%;z-index:100;background:#fff;border:1px solid #e2e8f0;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,0.12);min-width:180px;padding:4px 0">
+                                        <button onclick="gerarPdfProposta('${p.id}','simples')" style="display:block;width:100%;text-align:left;padding:8px 14px;border:none;background:none;cursor:pointer;font-size:0.85rem">
+                                            📋 Proposta simples
+                                        </button>
+                                        <button onclick="gerarPdfProposta('${p.id}','fiscal')" style="display:block;width:100%;text-align:left;padding:8px 14px;border:none;background:none;cursor:pointer;font-size:0.85rem">
+                                            🧾 Com detalhamento fiscal
+                                        </button>
+                                    </div>
+                                </div>
                 <button class="btn btn-outline btn-sm" data-admin="true" onclick="abrirModalProposta('${p.id}')" title="Editar">✏️</button>
                 ${podeConverter ? `<button class="btn btn-success btn-sm" data-admin="true" onclick="converterPropostaEmVenda('${p.id}')" title="Converter em Venda" style="font-size:0.78rem;">🔄</button>` : ''}
                 <button class="btn btn-outline btn-sm" data-admin="true" onclick="excluirProposta('${p.id}')" title="Excluir" style="color:#ef4444">🗑️</button>
             </td>
         </tr>`;
     }).join('');
+}
+
+function toggleMenuPDF(id) {
+        document.querySelectorAll('[id^="menuPDF_"]').forEach(m => {
+                m.style.display = 'none';
+        });
+        const menu = document.getElementById('menuPDF_' + id);
+        if (menu) menu.style.display = 'block';
+        setTimeout(() => {
+                document.addEventListener('click', function close(e) {
+                        if (menu && !menu.contains(e.target)) {
+                                menu.style.display = 'none';
+                                document.removeEventListener('click', close);
+                        }
+                });
+        }, 0);
 }
 
 function filtrarPropostas(valor) {
