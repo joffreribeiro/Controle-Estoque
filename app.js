@@ -545,6 +545,7 @@ async function inicializar() {
     // Sync automático com cloud ocorre após autenticação (onAuthStateChanged)
 
     try { renderizarTabela(); } catch (e) { console.error('renderizarTabela:', e); }
+    try { renderizarCadastroProdutos(); } catch (e) { console.error('renderizarCadastroProdutos:', e); }
     try { renderizarDashboard(); } catch (e) { console.error('renderizarDashboard:', e); }
     try { renderizarRegistroVendas(); } catch (e) { console.error('renderizarVendas:', e); }
     try { renderizarRegistroDistribuicao(); } catch (e) { console.error('renderizarDist:', e); }
@@ -1317,6 +1318,8 @@ function trocarAba(aba) {
 
     if (aba === 'dashboard') {
         try { renderizarDashboard(); } catch (e) { console.error('dashboard:', e); }
+    } else if (aba === 'cadastro-produtos') {
+        try { renderizarCadastroProdutos(); } catch (e) { console.error('cadastro-produtos:', e); }
     } else if (aba === 'vendas') {
         try { renderizarRegistroVendas(); } catch (e) { console.error('vendas:', e); }
     } else if (aba === 'distribuicao') {
@@ -1553,6 +1556,65 @@ function renderizarTabela() {
 
     // Ajustar posição sticky da segunda linha do header
     ajustarStickyHeader();
+    try { renderizarCadastroProdutos(); } catch (e) {}
+}
+
+function renderizarCadastroProdutos() {
+    const tbody = document.getElementById('corpoCadastroProdutos');
+    const empty = document.getElementById('cadastroProdutosEmpty');
+    const tabelaWrap = document.getElementById('cadastroProdutosTabelaWrap');
+    if (!tbody || !empty || !tabelaWrap) return;
+
+    const produtos = Array.isArray(estoque.produtos) ? [...estoque.produtos] : [];
+    produtos.sort((a, b) => String(a.nome || '').localeCompare(String(b.nome || ''), 'pt-BR'));
+
+    const total = produtos.length;
+    let comCI = 0;
+
+    tbody.innerHTML = '';
+
+    produtos.forEach(produto => {
+        const nome = produto.nome || '-';
+        const regra = (precificacao && precificacao[nome]) ? precificacao[nome] : {};
+        const ci = Number(regra.ci ?? produto.ci ?? 0) || 0;
+        const margemMin = Number(regra.margemMinima ?? produto.margemMinima ?? 0) || 0;
+        const descontoMax = Number(regra.descontoMaximo ?? produto.descontoMaximo ?? 0) || 0;
+        const categoria = (categoriaPorProduto && categoriaPorProduto[nome]) || produto.categoria || '-';
+        const ncm = produto.ncm || '-';
+        const imbel = Number(calcularImbelDisponivel(produto) || 0);
+        const atualizadoEm = produto.atualizadoEm || produto.dataAtualizacao || produto.criadoEm || '';
+        const atualizadoTxt = atualizadoEm ? formatarData(atualizadoEm) : '-';
+
+        if (ci > 0) comCI += 1;
+
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td style="text-align:left; font-weight:600">${nome}</td>
+            <td>${ncm}</td>
+            <td>${categoria}</td>
+            <td>${ci > 0 ? formatarMoedaValor(ci) : '-'}</td>
+            <td>${margemMin > 0 ? margemMin.toFixed(1).replace('.', ',') : '-'}</td>
+            <td>${descontoMax > 0 ? descontoMax.toFixed(1).replace('.', ',') : '-'}</td>
+            <td>${imbel.toLocaleString('pt-BR')}</td>
+            <td>${atualizadoTxt}</td>
+            <td>
+                <button class="btn btn-outline btn-sm" data-admin="true" onclick="abrirModalEditarProduto(${Number(produto.id)})">Editar</button>
+            </td>
+        `;
+        tbody.appendChild(tr);
+    });
+
+    const semCI = Math.max(0, total - comCI);
+    const totalEl = document.getElementById('cadProdTotal');
+    const comCIEl = document.getElementById('cadProdComCI');
+    const semCIEl = document.getElementById('cadProdSemCI');
+    if (totalEl) totalEl.textContent = String(total);
+    if (comCIEl) comCIEl.textContent = String(comCI);
+    if (semCIEl) semCIEl.textContent = String(semCI);
+
+    const vazio = total === 0;
+    empty.style.display = vazio ? 'block' : 'none';
+    tabelaWrap.style.display = vazio ? 'none' : 'block';
 }
 
 // Calcula e aplica o top correto para a segunda linha do thead (sub-headers)
@@ -5050,11 +5112,17 @@ function abrirModalProduto() {
     produtoEditandoId = null;
     document.getElementById('modalProduto').style.display = 'flex';
     document.getElementById('formProduto').reset();
+    const categoriaSel = document.getElementById('produtoCategoria');
+    if (categoriaSel) categoriaSel.value = '';
     // Restaurar título e botão padrão
     const header = document.querySelector('#modalProduto .modal-header h2');
     if (header) header.innerHTML = '<span>+</span> Adicionar Novo Produto';
     const submitBtn = document.querySelector('#modalProduto .modal-footer button[type="submit"]');
     if (submitBtn) submitBtn.textContent = 'Salvar Produto';
+}
+
+function abrirModalNovoProduto() {
+    abrirModalProduto();
 }
 
 function abrirModalEditarProduto(produtoId) {
@@ -5069,6 +5137,20 @@ function abrirModalEditarProduto(produtoId) {
     document.getElementById('formProduto').reset();
     document.getElementById('nomeProduto').value = produto.nome || '';
     document.getElementById('estoqueTotal').value = Number(produto.estoqueConsolidado || 0);
+    const regra = (precificacao && precificacao[produto.nome]) ? precificacao[produto.nome] : {};
+    const cat = (categoriaPorProduto && categoriaPorProduto[produto.nome]) || produto.categoria || '';
+    const ncmInput = document.getElementById('produtoNCM');
+    const catInput = document.getElementById('produtoCategoria');
+    const ciInput = document.getElementById('produtoCI');
+    const margemInput = document.getElementById('produtoMargemMin');
+    const descInput = document.getElementById('produtoDescMax');
+    const obsInput = document.getElementById('produtoObservacoes');
+    if (ncmInput) ncmInput.value = produto.ncm || '';
+    if (catInput) catInput.value = cat || '';
+    if (ciInput) ciInput.value = Number(regra.ci ?? produto.ci ?? 0) || '';
+    if (margemInput) margemInput.value = Number(regra.margemMinima ?? produto.margemMinima ?? 0) || '';
+    if (descInput) descInput.value = Number(regra.descontoMaximo ?? produto.descontoMaximo ?? 0) || '';
+    if (obsInput) obsInput.value = produto.observacoes || '';
     // Ajustar título e botão para modo edição
     const header = document.querySelector('#modalProduto .modal-header h2');
     if (header) header.innerHTML = '<span>✎</span> Editar Produto';
@@ -6780,7 +6862,22 @@ function salvarProduto(event) {
     event.preventDefault();
     
     const nome = document.getElementById('nomeProduto').value.trim().toUpperCase();
-    const estoqueTotal = parseInt(document.getElementById('estoqueTotal').value);
+    const estoqueTotal = parseInt(document.getElementById('estoqueTotal').value) || 0;
+    const ncm = (document.getElementById('produtoNCM')?.value || '').trim();
+    const categoria = (document.getElementById('produtoCategoria')?.value || '').trim();
+    const ci = Number(document.getElementById('produtoCI')?.value || 0) || 0;
+    const margemMinima = Number(document.getElementById('produtoMargemMin')?.value || 0) || 0;
+    const descontoMaximo = Number(document.getElementById('produtoDescMax')?.value || 0) || 0;
+    const observacoes = (document.getElementById('produtoObservacoes')?.value || '').trim();
+
+    if (!nome) {
+        mostrarNotificacao('Informe o nome do produto.', 'error');
+        return;
+    }
+
+    if (!precificacao || typeof precificacao !== 'object') precificacao = {};
+    if (!categoriaPorProduto || typeof categoriaPorProduto !== 'object') categoriaPorProduto = {};
+
     // Se estamos editando um produto existente
     if (produtoEditandoId !== null) {
         const idx = estoque.produtos.findIndex(p => p.id === produtoEditandoId);
@@ -6797,15 +6894,49 @@ function salvarProduto(event) {
         }
 
         const produto = estoque.produtos[idx];
+        const nomeAnterior = produto.nome;
         produto.nome = nome;
         produto.estoqueConsolidado = Number(estoqueTotal) || 0;
+        produto.ncm = ncm;
+        produto.categoria = categoria;
+        produto.ci = ci;
+        produto.margemMinima = margemMinima;
+        produto.descontoMaximo = descontoMaximo;
+        produto.observacoes = observacoes;
+        produto.atualizadoEm = new Date().toISOString();
         produto.distribuicao = produto.distribuicao || { KOLTE: 0, ISA: 0, LC: 0, ADES: 0, FL: 0, IMBEL: 0 };
         produto.vendas = produto.vendas || { KOLTE: 0, ISA: 0, LC: 0, ADES: 0, FL: 0, IMBEL: 0 };
+
+        if (nomeAnterior && nomeAnterior !== nome) {
+            if (precificacao[nomeAnterior] && !precificacao[nome]) {
+                precificacao[nome] = { ...precificacao[nomeAnterior] };
+            }
+            delete precificacao[nomeAnterior];
+
+            if (categoriaPorProduto[nomeAnterior] && !categoriaPorProduto[nome]) {
+                categoriaPorProduto[nome] = categoriaPorProduto[nomeAnterior];
+            }
+            delete categoriaPorProduto[nomeAnterior];
+
+            if (tabelaAliquotas[nomeAnterior] && !tabelaAliquotas[nome]) {
+                tabelaAliquotas[nome] = { ...tabelaAliquotas[nomeAnterior] };
+            }
+            delete tabelaAliquotas[nomeAnterior];
+        }
+
+        precificacao[nome] = {
+            ...(precificacao[nome] || {}),
+            ci,
+            margemMinima,
+            descontoMaximo
+        };
+        if (categoria) categoriaPorProduto[nome] = categoria;
 
         atualizarSelectsProdutos();
         salvarDados();
         renderizarTabela();
         renderizarDashboard();
+        renderizarCadastroProdutos();
         fecharModal('modalProduto');
         mostrarNotificacao(`Produto "${nome}" atualizado com sucesso!`, 'success');
         produtoEditandoId = null;
@@ -6822,9 +6953,25 @@ function salvarProduto(event) {
         id: Date.now(),
         nome: nome,
         estoqueConsolidado: Number(estoqueTotal) || 0,
+        ncm,
+        categoria,
+        ci,
+        margemMinima,
+        descontoMaximo,
+        observacoes,
+        criadoEm: new Date().toISOString(),
+        atualizadoEm: new Date().toISOString(),
         distribuicao: { KOLTE: 0, ISA: 0, LC: 0, ADES: 0, FL: 0, IMBEL: 0 },
         vendas: { KOLTE: 0, ISA: 0, LC: 0, ADES: 0, FL: 0, IMBEL: 0 }
     };
+
+    precificacao[nome] = {
+        ...(precificacao[nome] || {}),
+        ci,
+        margemMinima,
+        descontoMaximo
+    };
+    if (categoria) categoriaPorProduto[nome] = categoria;
 
     estoque.produtos.push(novoProduto);
     // Atualizar selects imediatamente para refletir o novo produto em qualquer modal aberto
@@ -6832,6 +6979,7 @@ function salvarProduto(event) {
     salvarDados();
     renderizarTabela();
     renderizarDashboard();
+    renderizarCadastroProdutos();
     fecharModal('modalProduto');
 
     mostrarNotificacao(`Produto "${nome}" adicionado com sucesso!`, 'success');

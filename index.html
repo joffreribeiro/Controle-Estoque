@@ -59,6 +59,12 @@
 
             <nav class="sidebar-nav" aria-label="Navegação principal">
                 <div class="nav-group">
+                    <div class="nav-group-label">Cadastros</div>
+                    <button class="nav-item" data-tab="cadastro-produtos" onclick="trocarAba('cadastro-produtos')"><span>🧾</span><span class="nav-text">Produtos</span></button>
+                    <button class="nav-item" data-tab="clientes" onclick="trocarAba('clientes')"><span>👥</span><span class="nav-text">Clientes</span></button>
+                </div>
+
+                <div class="nav-group">
                     <div class="nav-group-label">Principal</div>
                     <button class="nav-item active" data-tab="estoque" onclick="trocarAba('estoque')"><span>📦</span><span class="nav-text">Estoque</span></button>
                     <button class="nav-item" data-tab="dashboard" onclick="trocarAba('dashboard')"><span>📊</span><span class="nav-text">Dashboard</span></button>
@@ -67,11 +73,6 @@
                 <div class="nav-group">
                     <div class="nav-group-label">Comercial</div>
                     <button class="nav-item" data-tab="precificacao" onclick="trocarAba('precificacao')"><span>💰</span><span class="nav-text">Precificação</span></button>
-                </div>
-
-                <div class="nav-group">
-                    <div class="nav-group-label">Relacionamento</div>
-                    <button class="nav-item" data-tab="clientes" onclick="trocarAba('clientes')"><span>👥</span><span class="nav-text">Clientes</span></button>
                     <button class="nav-item" data-tab="propostas" onclick="trocarAba('propostas')"><span>📋</span><span class="nav-text">Propostas</span></button>
                 </div>
 
@@ -167,10 +168,6 @@
         <!-- Barra de Ações -->
         <div class="actions-bar" id="acoesEstoque">
             <div class="actions-group">
-                <button class="btn btn-primary" data-admin="true" onclick="abrirModalProduto()">
-                    <span class="btn-icon">+</span>
-                    Novo Produto
-                </button>
                 <button class="btn btn-warning" onclick="abrirModalEntradaEstoque()">
                     <span class="btn-icon">📥</span>
                     Entrada Estoque
@@ -210,6 +207,67 @@
                           background:#ef4444; color:#fff; font-size:0.72rem; padding:2px 6px; border-radius:999px;
                           box-shadow:0 2px 6px rgba(0,0,0,0.12);">0</span>
                 </button>
+            </div>
+        </div>
+
+        <!-- ========================================
+             ABA: CADASTRO DE PRODUTOS
+             ======================================== -->
+        <div class="tab-content" id="tab-cadastro-produtos">
+            <div class="content-area">
+                <div class="section-header">
+                    <h2 class="section-title">Cadastro de Produtos</h2>
+                    <div class="header-actions">
+                        <button class="btn btn-primary" data-admin="true" onclick="abrirModalProduto()">
+                            <span class="btn-icon">+</span> Novo Produto
+                        </button>
+                    </div>
+                </div>
+
+                <div class="kpi-grid" style="grid-template-columns: repeat(3, 1fr); gap:12px; margin-bottom:20px;">
+                    <article class="kpi-card kpi-info">
+                        <div class="kpi-label">Total de Produtos</div>
+                        <div class="kpi-value" id="cadProdTotal">0</div>
+                        <div class="kpi-subtitle">Itens cadastrados</div>
+                    </article>
+                    <article class="kpi-card kpi-success">
+                        <div class="kpi-label">Com CI Definido</div>
+                        <div class="kpi-value" id="cadProdComCI">0</div>
+                        <div class="kpi-subtitle">Prontos para cálculo</div>
+                    </article>
+                    <article class="kpi-card kpi-danger">
+                        <div class="kpi-label">Sem CI</div>
+                        <div class="kpi-value" id="cadProdSemCI">0</div>
+                        <div class="kpi-subtitle">Requer preenchimento</div>
+                    </article>
+                </div>
+
+                <div class="table-container" id="cadastroProdutosTabelaWrap">
+                    <div class="table-wrapper">
+                        <table class="dashboard-table" id="tabelaCadastroProdutos">
+                            <thead>
+                                <tr>
+                                    <th style="text-align:left; min-width:220px">Nome</th>
+                                    <th style="min-width:100px">NCM</th>
+                                    <th style="min-width:120px">Categoria</th>
+                                    <th style="min-width:100px">CI (R$)</th>
+                                    <th style="min-width:100px">Margem Mín. (%)</th>
+                                    <th style="min-width:100px">Desc. Máx. (%)</th>
+                                    <th style="min-width:110px">Estoque IMBEL</th>
+                                    <th style="min-width:110px">Última Atualização</th>
+                                    <th style="min-width:90px">Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody id="corpoCadastroProdutos"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div id="cadastroProdutosEmpty" style="display:none; text-align:center; padding:60px 20px; color:#94a3b8;">
+                    <div style="font-size:3rem; margin-bottom:12px">📦</div>
+                    <div style="font-size:1rem; font-weight:600">Nenhum produto cadastrado</div>
+                    <div style="font-size:0.85rem; margin-top:6px">Clique em + Novo Produto para começar o cadastro.</div>
+                </div>
             </div>
         </div>
 
@@ -1780,15 +1838,56 @@
                 </div>
                 <form id="formProduto" onsubmit="salvarProduto(event)">
                     <div class="modal-body">
+                        <div style="font-size:0.76rem; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:0.7px; margin-bottom:8px;">Identificação</div>
                         <div class="form-group">
                             <label for="nomeProduto">Nome do Produto <span class="required">*</span></label>
                             <input type="text" id="nomeProduto" required placeholder="Ex: CARABINA IA2 5,56">
                         </div>
                         <div class="form-row">
                             <div class="form-group">
-                                <label for="estoqueTotal">Quantidade <span class="required">*</span></label>
+                                <label for="produtoNCM">NCM</label>
+                                <input type="text" id="produtoNCM" placeholder="Ex: 9302.00.00">
+                            </div>
+                            <div class="form-group">
+                                <label for="produtoCategoria">Categoria</label>
+                                <select id="produtoCategoria">
+                                    <option value="">Selecione...</option>
+                                    <option value="Arma Curta">Arma Curta</option>
+                                    <option value="Arma Longa">Arma Longa</option>
+                                    <option value="Acessório">Acessório</option>
+                                    <option value="Munição">Munição</option>
+                                    <option value="Peça">Peça</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div style="font-size:0.76rem; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:0.7px; margin:10px 0 8px;">Precificação</div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="produtoCI">CI (R$)</label>
+                                <input type="number" step="0.01" min="0" id="produtoCI" placeholder="0,00">
+                            </div>
+                            <div class="form-group">
+                                <label for="produtoMargemMin">Margem Mínima (%)</label>
+                                <input type="number" step="0.1" min="0" max="100" id="produtoMargemMin" placeholder="0,0">
+                            </div>
+                            <div class="form-group">
+                                <label for="produtoDescMax">Desconto Máximo (%)</label>
+                                <input type="number" step="0.1" min="0" max="100" id="produtoDescMax" placeholder="0,0">
+                            </div>
+                        </div>
+
+                        <div style="font-size:0.76rem; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:0.7px; margin:10px 0 8px;">Estoque</div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="estoqueTotal">Quantidade Inicial (IMBEL) <span class="required">*</span></label>
                                 <input type="number" id="estoqueTotal" required min="0" placeholder="0">
                             </div>
+                        </div>
+
+                        <div style="font-size:0.76rem; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:0.7px; margin:10px 0 8px;">Observações</div>
+                        <div class="form-group">
+                            <textarea id="produtoObservacoes" rows="3" placeholder="Observações internas do produto"></textarea>
                         </div>
                     </div>
                     <div class="modal-footer">
