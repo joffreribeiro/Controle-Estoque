@@ -301,6 +301,70 @@ function calcularEstoqueIMBEL(nomeProduto) {
     return estoqueTotal - totalDistribuido + totalDevolvido;
 }
 
+function obterMetricasImbelProduto(produto) {
+    if (!produto) {
+        return { estoqueTotal: 0, imbelDisp: 0, imbelVenda: 0, imbelSaldo: 0 };
+    }
+
+    const produtoId = produto.id;
+    const estoqueTotal = Number(
+        (produto.estoqueConsolidado ?? produto.estoqueTotal ?? produto.estoque ?? produto.qtdTotal ?? produto.estoqueInicial) || 0
+    );
+
+    const distPorRep = {};
+    (estoque.registroDistribuicao || []).forEach(d => {
+        try {
+            if (Number(d.produtoId) === Number(produtoId) || (d.produtoNome && d.produtoNome === produto.nome)) {
+                const r = (d.representante || '').toString().toUpperCase();
+                distPorRep[r] = (distPorRep[r] || 0) + (Number(d.quantidade) || 0);
+            }
+        } catch (e) {}
+    });
+    const totalDistribuido = Object.values(distPorRep).reduce((s, v) => s + v, 0);
+
+    let totalDevolvidoParaImbel = 0;
+    (estoque.registroDevolucoes || []).forEach(d => {
+        try {
+            if (Number(d.produtoId) === Number(produtoId) || (d.produtoNome && d.produtoNome === produto.nome)) {
+                const destino = (d.destino || '').toString().toUpperCase();
+                if (destino === 'IMBEL') totalDevolvidoParaImbel += (Number(d.quantidade) || 0);
+            }
+        } catch (e) {}
+    });
+
+    const vendasPorRep = {};
+    let agregadoTemValores = false;
+    if (produto.vendas && typeof produto.vendas === 'object') {
+        Object.keys(produto.vendas).forEach(k => {
+            const val = Number(produto.vendas[k]) || 0;
+            if (val !== 0) agregadoTemValores = true;
+            vendasPorRep[(k || '').toString().toUpperCase()] = val;
+        });
+    }
+    if (!agregadoTemValores) {
+        (estoque.registroVendas || []).forEach(v => {
+            try {
+                const rep = (v.representante || '').toString().toUpperCase();
+                if (Array.isArray(v.items) && v.items.length) {
+                    v.items.forEach(it => {
+                        if (Number(it.produtoId) === Number(produtoId) || (it.produto === produto.nome) || (it.produtoNome === produto.nome)) {
+                            vendasPorRep[rep] = (vendasPorRep[rep] || 0) + (Number(it.quantidade) || 0);
+                        }
+                    });
+                } else if (Number(v.produtoId) === Number(produtoId) || (v.produtoNome === produto.nome)) {
+                    vendasPorRep[rep] = (vendasPorRep[rep] || 0) + (Number(v.quantidade) || 0);
+                }
+            } catch (e) {}
+        });
+    }
+
+    const imbelDisp = estoqueTotal - totalDistribuido + totalDevolvidoParaImbel;
+    const imbelVenda = Number(vendasPorRep['IMBEL'] || 0);
+    const imbelSaldo = imbelDisp - imbelVenda;
+
+    return { estoqueTotal, imbelDisp, imbelVenda, imbelSaldo };
+}
+
 // Reconstrói o objeto `produto.distribuicao` a partir dos registros de distribuição e devolução
 function reconstruirDistribuicaoAPartirDeRegistros() {
     if (!Array.isArray(estoque.produtos)) return;
@@ -1363,6 +1427,7 @@ function renderizarTabela() {
         const tr = document.createElement('tr');
         tr.dataset.id = produto.id;
         let produtoHtml = produto.nome;
+        const metricaImbel = obterMetricasImbelProduto(produto);
 
         const produtoId = produto.id;
         const estoqueTotal = Number(
@@ -1434,11 +1499,10 @@ function renderizarTabela() {
             const repKey = (rep || '').toString().toUpperCase();
             let disp = 0, venda = 0, saldo = 0;
             if (repKey === 'IMBEL') {
-                // IMBEL calculado a partir do consolidado segundo regra definida
-                const imbelDisp = estoqueTotal - totalDistribuido + totalDevolvidoParaImbel;
-                const imbelVenda = vendasPorRep['IMBEL'] || 0;
-                const imbelSaldo = imbelDisp - imbelVenda;
-                disp = imbelDisp; venda = imbelVenda; saldo = imbelSaldo;
+                // IMBEL centralizado para evitar divergência entre abas
+                disp = metricaImbel.imbelDisp;
+                venda = metricaImbel.imbelVenda;
+                saldo = metricaImbel.imbelSaldo;
             } else {
                 const dist = distPorRep[repKey] || 0;
                 const dev = devPorRep[repKey] || 0;
@@ -1581,7 +1645,10 @@ function renderizarCadastroProdutos() {
         const descontoMax = Number(regra.descontoMaximo ?? produto.descontoMaximo ?? 0) || 0;
         const categoria = (categoriaPorProduto && categoriaPorProduto[nome]) || produto.categoria || '-';
         const ncm = produto.ncm || '-';
-        const imbel = Number(calcularImbelDisponivel(produto) || 0);
+        const metricaImbel = obterMetricasImbelProduto(produto);
+        const imbelTexto = metricaImbel.estoqueTotal === 0
+            ? '-'
+            : formatarNumero(metricaImbel.imbelSaldo);
         const atualizadoEm = produto.atualizadoEm || produto.dataAtualizacao || produto.criadoEm || '';
         const atualizadoTxt = atualizadoEm ? formatarData(atualizadoEm) : '-';
 
@@ -1595,7 +1662,7 @@ function renderizarCadastroProdutos() {
             <td>${ci > 0 ? formatarMoedaValor(ci) : '-'}</td>
             <td>${margemMin > 0 ? margemMin.toFixed(1).replace('.', ',') : '-'}</td>
             <td>${descontoMax > 0 ? descontoMax.toFixed(1).replace('.', ',') : '-'}</td>
-            <td>${imbel.toLocaleString('pt-BR')}</td>
+            <td>${imbelTexto}</td>
             <td>${atualizadoTxt}</td>
             <td>
                 <button class="btn btn-outline btn-sm" data-admin="true" onclick="abrirModalEditarProduto(${Number(produto.id)})">Editar</button>
