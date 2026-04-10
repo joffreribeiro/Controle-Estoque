@@ -59,6 +59,14 @@ Shape per product:
 }
 */
 
+// Precificações salvas por cliente (temporário/permanente salvo em estado)
+let precificacoesCliente = [];
+let ultimaPrecificacaoCalculada = null;
+// RETID + Benefícios fiscais (estado por sessão de precificação)
+let retidPorProduto = {};
+let beneficioFiscalAtivo = false;
+let beneficiosPorProduto = {};
+
 const CATEGORIAS_PRODUTO = [
         'Arma Curta', 'Arma Longa', 'Acessório', 'Faca', 'Munição', 'Outro'
 ];
@@ -596,6 +604,8 @@ function carregarDados() {
             precificacao = {};
             estoque.precificacao = precificacao;
         }
+        // carregar precificações por cliente, se presente
+        try { precificacoesCliente = Array.isArray(estoque.precificacoesCliente) ? estoque.precificacoesCliente : []; } catch (e) { precificacoesCliente = []; }
         tabelaAliquotas = (estoque.tabelaAliquotas && typeof estoque.tabelaAliquotas === 'object')
             ? estoque.tabelaAliquotas
             : {};
@@ -641,6 +651,8 @@ function salvarDados() {
     estoque.tabelaAliquotas = tabelaAliquotas;
     estoque.tabelaICMS = tabelaICMS;
     estoque.categoriaPorProduto = categoriaPorProduto;
+    // Persistir precificações salvas por cliente
+    try { estoque.precificacoesCliente = precificacoesCliente || []; } catch (e) {}
     // Persistir tabelas de impostos editáveis
     try { estoque.impostosEditaveis = impostosEditaveis || {}; } catch (e) {}
     try { estoque.icmsEditavelPJ = icmsEditavelPJ || {}; } catch (e) {}
@@ -670,6 +682,7 @@ async function salvarNoCloud() {
             tabelaAliquotas,
             tabelaICMS,
             categoriaPorProduto,
+            precificacoesCliente: precificacoesCliente || [],
             impostosEditaveis: impostosEditaveis || {},
             icmsEditavelPJ: icmsEditavelPJ || {},
             icmsEditavelPF: icmsEditavelPF || {},
@@ -738,6 +751,11 @@ async function carregarDoCloud({confirmOverwrite=true} = {}) {
             return false;
         }
         const data = doc.data();
+        // Restaurar precificações salvas por cliente (se houver)
+        try {
+            precificacoesCliente = data.precificacoesCliente || [];
+            estoque.precificacoesCliente = precificacoesCliente;
+        } catch (e) { precificacoesCliente = []; }
         if (!data || !data.estado) {
             console.warn('Documento encontrado não contém campo estado.');
             return false;
@@ -7608,6 +7626,8 @@ function limparTodosDados() {
     estoque.propostas = [];
     propostas = estoque.propostas;
     estoque.precificacao = {};
+    precificacoesCliente = [];
+    estoque.precificacoesCliente = [];
     estoque.precificacaoConfig = null;
     precificacao = estoque.precificacao;
     tabelaAliquotas = {};
@@ -8954,7 +8974,15 @@ function popularSelectClientesPrecif() {
 function selecionarClientePrecif() {
         const select = document.getElementById('precifClienteSelect');
         if (!select) return;
-        const clienteId = select.value;
+    const clienteId = select.value;
+    // Resetar benefícios/RETID ao trocar de cliente
+    beneficioFiscalAtivo = false;
+    beneficiosPorProduto = {};
+    retidPorProduto = {};
+    try {
+        const cbBenef = document.getElementById('precifBeneficioFiscal'); if (cbBenef) cbBenef.checked = false;
+        const painel = document.getElementById('painelBeneficioFiscal'); if (painel) painel.style.display = 'none';
+    } catch (e) {}
         const cliente = (clientes || []).find(c => String(c.id) === String(clienteId));
         if (!cliente) {
                 const banner = document.getElementById('precifClienteBanner'); if (banner) banner.style.display = 'none';
@@ -8979,118 +9007,231 @@ function selecionarClientePrecif() {
         const contato = document.getElementById('precifBannerContato'); if (contato) contato.textContent = cliente.contato || cliente.email || '—';
 
         calcularPrecificacaoPorCliente();
+
+        // Mostrar se existe precificação salva para este cliente
+        try {
+            const precifSalva = precificacoesCliente.find(p => String(p.clienteId) === String(cliente.id));
+            const infoEl = document.getElementById('precifSalvoInfo');
+            if (precifSalva && infoEl) {
+                const dt = precifSalva.dataCriacao ? new Date(precifSalva.dataCriacao).toLocaleString('pt-BR') : '';
+                infoEl.innerHTML = `<span style="color:#16a34a; font-size:0.82rem">✅ Precificação salva em ${dt}</span> <button onclick="carregarPrecificacaoSalva('${cliente.id}')" class="btn btn-outline btn-sm" style="margin-left:8px">↩ Carregar salva</button>`;
+            } else {
+                const infoEl2 = document.getElementById('precifSalvoInfo'); if (infoEl2) infoEl2.innerHTML = '';
+            }
+        } catch (e) {}
 }
 
 function calcularPrecificacaoPorCliente() {
-        const select = document.getElementById('precifClienteSelect');
-        const clienteId = select?.value;
-        const cliente = (clientes || []).find(c => String(c.id) === String(clienteId));
-        if (!cliente) {
-                const resultado = document.getElementById('precifClienteResultado'); if (resultado) resultado.style.display = 'none';
-                const empty = document.getElementById('precifClienteEmpty'); if (empty) empty.style.display = 'block';
-                const banner = document.getElementById('precifClienteBanner'); if (banner) banner.style.display = 'none';
-                return;
+    const select = document.getElementById('precifClienteSelect');
+    const clienteId = select?.value;
+    const cliente = (clientes || []).find(c => String(c.id) === String(clienteId));
+    if (!cliente) {
+        const resultado = document.getElementById('precifClienteResultado'); if (resultado) resultado.style.display = 'none';
+        const empty = document.getElementById('precifClienteEmpty'); if (empty) empty.style.display = 'block';
+        const banner = document.getElementById('precifClienteBanner'); if (banner) banner.style.display = 'none';
+        ultimaPrecificacaoCalculada = null;
+        return;
+    }
+
+    const uf = (cliente.uf || cliente.estado || '').toUpperCase().trim();
+    const cnpjLimpo = (cliente.cnpj || '').replace(/\D/g,'');
+    const tipoPessoa = cliente.tipoPessoa || (cnpjLimpo.length === 14 ? 'PJ' : 'PF');
+
+    try { document.getElementById('precifClienteUF').value = uf || '—'; } catch (e) {}
+    try { document.getElementById('precifClienteTipo').value = tipoPessoa; } catch (e) {}
+
+    const taxaOverride = parseFloat(document.getElementById('precifTaxaOverride')?.value);
+    const roiOverride = parseFloat(document.getElementById('precifROIOverride')?.value);
+    const comOverride = parseFloat(document.getElementById('precifComissaoOverride')?.value);
+
+    const taxaGlobal = parseFloat(document.getElementById('taxaPadrao')?.value) || 20;
+    const roiGlobal = parseFloat(document.getElementById('roiPadrao')?.value) || 30;
+    const comGlobal = parseFloat(document.getElementById('comissaoPadrao')?.value) || 5;
+
+    const taxaFinal = !isNaN(taxaOverride) ? taxaOverride : taxaGlobal;
+    const roiFinal  = !isNaN(roiOverride)  ? roiOverride  : roiGlobal;
+    const comFinal  = !isNaN(comOverride)  ? comOverride  : comGlobal;
+
+    // popular NCM select se necessário
+    try {
+        const selectNCM = document.getElementById('precifFiltroNCM');
+        if (selectNCM && selectNCM.options.length <= 1) {
+            const keys = Object.keys(impostosEditaveis || {}).sort();
+            keys.forEach(ncm => {
+                const opt = document.createElement('option');
+                opt.value = ncm;
+                opt.textContent = ncm + (impostosEditaveis[ncm] && impostosEditaveis[ncm].descricao ? ' — ' + impostosEditaveis[ncm].descricao : '');
+                selectNCM.appendChild(opt);
+            });
         }
+    } catch(e) {}
 
-        const uf = (cliente.uf || cliente.estado || '').toUpperCase().trim();
-        const cnpjLimpo = (cliente.cnpj || '').replace(/\D/g,'');
-        const tipoPessoa = cliente.tipoPessoa || (cnpjLimpo.length === 14 ? 'PJ' : 'PF');
+    // filtros
+    const filtroProduto = (document.getElementById('precifFiltroProduto')?.value || '').toLowerCase().trim();
+    const filtroNCM = document.getElementById('precifFiltroNCM')?.value || '';
+    const filtroCI = document.getElementById('precifFiltroCI')?.value || 'todos';
 
-        document.getElementById('precifClienteUF').value = uf || '—';
-        document.getElementById('precifClienteTipo').value = tipoPessoa;
+    const produtos = estoque.produtos || [];
+    const fmt = v => 'R$ ' + _fmtMoeda(v);
+    const pct = v => (Number.isFinite(Number(v)) ? Number(v).toFixed(2) : '0.00') + '%';
+    const corMargem = m => m >= 30 ? '#16a34a' : m >= 15 ? '#d97706' : '#dc2626';
 
-        const taxaOverride = parseFloat(document.getElementById('precifTaxaOverride')?.value);
-        const roiOverride = parseFloat(document.getElementById('precifROIOverride')?.value);
-        const comOverride = parseFloat(document.getElementById('precifComissaoOverride')?.value);
+    let totalFaturamento = 0;
+    let produtosSemCI = 0;
+    let produtosCalculados = 0;
 
-        const taxaGlobal = parseFloat(document.getElementById('taxaPadrao')?.value) || 20;
-        const roiGlobal = parseFloat(document.getElementById('roiPadrao')?.value) || 30;
-        const comGlobal = parseFloat(document.getElementById('comissaoPadrao')?.value) || 5;
+    const produtosFiltrados = produtos.filter(produto => {
+        try {
+            if (filtroProduto && !(produto.nome || '').toLowerCase().includes(filtroProduto)) return false;
+            const pNcm = produto.ncm || detectarNCM(produto.nome) || '';
+            if (filtroNCM && pNcm !== filtroNCM) return false;
+            const ci = parseFloat((precificacao[produto.nome] || {}).ci) || 0;
+            if (filtroCI === 'comCI' && ci === 0) return false;
+            if (filtroCI === 'semCI' && ci > 0) return false;
+            return true;
+        } catch (e) { return false; }
+    });
 
-        const taxaFinal = !isNaN(taxaOverride) ? taxaOverride : taxaGlobal;
-        const roiFinal  = !isNaN(roiOverride)  ? roiOverride  : roiGlobal;
-        const comFinal  = !isNaN(comOverride)  ? comOverride  : comGlobal;
+    const itensCalculados = [];
+    const rows = produtosFiltrados.map(produto => {
+        const prec = precificacao[produto.nome] || {};
+        const aliq = tabelaAliquotas[produto.nome] || {};
+        const ncm = produto.ncm || detectarNCM(produto.nome) || '—';
 
-        const produtos = estoque.produtos || [];
-        const fmt = v => 'R$ ' + _fmtMoeda(v);
-        const pct = v => (Number.isFinite(Number(v)) ? Number(v).toFixed(2) : '0.00') + '%';
-        const corMargem = m => m >= 30 ? '#16a34a' : m >= 15 ? '#d97706' : '#dc2626';
-
-        let totalFaturamento = 0;
-        let produtosSemCI = 0;
-        let produtosCalculados = 0;
-
-        const rows = produtos.map(produto => {
-                const prec = precificacao[produto.nome] || {};
-                const aliq = tabelaAliquotas[produto.nome] || {};
-                const ncm = produto.ncm || detectarNCM(produto.nome) || '—';
-
-                const ci = parseFloat(prec.ci) || 0;
-                if (ci === 0) {
-                        produtosSemCI++;
-                        return `
-                <tr style="opacity:0.45">
+        const ci = parseFloat(prec.ci) || 0;
+        if (ci === 0) {
+            produtosSemCI++;
+            const nomeId = (produto.nome || '').replace(/[^a-z0-9]/gi, '_');
+            return `
+                <tr id="precif_row_${nomeId}" style="opacity:0.45">
                     <td style="text-align:left; padding-left:15px; font-weight:500; position:sticky; left:0; background:#fff; z-index:1">${_escapeHtml(produto.nome)}<span style="font-size:0.7rem; color:#94a3b8; margin-left:6px">sem CI</span></td>
-                    <td colspan="13" style="text-align:center; color:#94a3b8; font-size:0.85rem">CI não configurado — acesse a aba Produtos para definir</td>
+                    <td colspan="14" style="text-align:center; color:#94a3b8; font-size:0.85rem">CI não configurado — acesse a aba Produtos para definir</td>
                 </tr>
             `;
-                }
+        }
 
-                const fedImpostos = impostosEditaveis[ncm] || {};
-                const pis = parseFloat(aliq.pis ?? fedImpostos.pis ?? document.getElementById('pisPadrao')?.value) || 1.65;
-                const cofins = parseFloat(aliq.cofins ?? fedImpostos.cofins ?? document.getElementById('cofinsPadrao')?.value) || 7.6;
-                const ipi = parseFloat(aliq.ipi ?? fedImpostos.ipi ?? 0) || 0;
+        const fedImpostos = impostosEditaveis[ncm] || {};
+        const pisPadrao = parseFloat(aliq.pis ?? fedImpostos.pis ?? document.getElementById('pisPadrao')?.value) || 1.65;
+        const cofinsPadrao = parseFloat(aliq.cofins ?? fedImpostos.cofins ?? document.getElementById('cofinsPadrao')?.value) || 7.6;
+        const ipiPadrao = parseFloat(aliq.ipi ?? fedImpostos.ipi ?? 0) || 0;
 
-                const icms = uf ? buscarAliquotaICMS(uf, tipoPessoa, produto.nome) : (parseFloat(aliq.icmsBase) || 0);
+        const icmsPadrao = uf ? buscarAliquotaICMS(uf, tipoPessoa, produto.nome) : (parseFloat(aliq.icmsBase) || 0);
 
-                const taxaProd = (prec.taxa !== null && prec.taxa !== undefined && prec.taxa !== '') ? parseFloat(prec.taxa) : taxaFinal;
-                const roiProd = (prec.roi !== null && prec.roi !== undefined && prec.roi !== '') ? parseFloat(prec.roi) : roiFinal;
-                const comissaoProd = (prec.comissao !== null && prec.comissao !== undefined && prec.comissao !== '') ? parseFloat(prec.comissao) : comFinal;
+        const taxaProd = (prec.taxa !== null && prec.taxa !== undefined && prec.taxa !== '') ? parseFloat(prec.taxa) : taxaFinal;
+        const roiProd = (prec.roi !== null && prec.roi !== undefined && prec.roi !== '') ? parseFloat(prec.roi) : roiFinal;
+        const comissaoProd = (prec.comissao !== null && prec.comissao !== undefined && prec.comissao !== '') ? parseFloat(prec.comissao) : comFinal;
 
-                const valorBase = ci * (1 + taxaProd/100) * (1 + roiProd/100);
-                const icmsR = valorBase * icms / 100;
-                const pisR = valorBase * pis / 100;
-                const cofinsR = valorBase * cofins / 100;
-                const valorImpostos = valorBase + icmsR + pisR + cofinsR;
-                const ipiR = valorImpostos * ipi / 100;
-                const valorTotal = valorImpostos + ipiR;
-                const comissaoR = valorBase * comissaoProd / 100;
-                const precoFinal = valorTotal + comissaoR;
+        // resolver alíquotas com benefícios/RETID
+        const pisEfetivo = resolverAliquota(produto.nome, 'pis', pisPadrao);
+        const cofinsEfetivo = resolverAliquota(produto.nome, 'cofins', cofinsPadrao);
+        const ipiEfetivo = resolverAliquota(produto.nome, 'ipi', ipiPadrao);
+        const icmsEfetivo = resolverAliquota(produto.nome, 'icms', icmsPadrao);
 
-                const margem = precoFinal > 0 ? ((precoFinal - ci) / precoFinal) * 100 : 0;
+        const retidAtivo = !!retidPorProduto[produto.nome];
 
-                totalFaturamento += precoFinal;
-                produtosCalculados++;
+        const valorBase = ci * (1 + taxaProd/100) * (1 + roiProd/100);
+        const icmsR = valorBase * icmsEfetivo / 100;
+        const pisR = valorBase * pisEfetivo / 100;
+        const cofinsR = valorBase * cofinsEfetivo / 100;
+        const valorImpostos = valorBase + icmsR + pisR + cofinsR;
+        const ipiR = valorImpostos * ipiEfetivo / 100;
+        const valorTotal = valorImpostos + ipiR;
+        const comissaoR = valorBase * comissaoProd / 100;
+        const precoFinal = valorTotal + comissaoR;
 
-                const icmsBg = tipoPessoa === 'PF' ? '#fef2f2' : '#f0fdf4';
-                const icmsColor = tipoPessoa === 'PF' ? '#dc2626' : '#16a34a';
+        const margem = precoFinal > 0 ? ((precoFinal - ci) / precoFinal) * 100 : 0;
 
-                return `
-            <tr>
-                <td style="text-align:left; padding-left:15px; font-weight:500; position:sticky; left:0; background:#fff; z-index:1; border-right:1px solid #e2e8f0">${_escapeHtml(produto.nome)}</td>
+        totalFaturamento += precoFinal;
+        produtosCalculados++;
+
+        itensCalculados.push({ produto: produto.nome, produtoId: produto.id || null, ncm, ci, taxa: taxaProd, roi: roiProd, valorBase, pis: pisEfetivo, pisR, cofins: cofinsEfetivo, cofinsR, icms: icmsEfetivo, icmsR, ipi: ipiEfetivo, ipiR, valorImpostos, comissaoR, precoFinal, margem });
+
+        const icmsBg = tipoPessoa === 'PF' ? '#fef2f2' : '#f0fdf4';
+        const icmsColor = tipoPessoa === 'PF' ? '#dc2626' : '#16a34a';
+
+        const nomeId = (produto.nome || '').replace(/[^a-z0-9]/gi, '_');
+        const safeNome = (produto.nome || '').replace(/'/g, "\\'");
+
+        // product badge
+        let prodBadge = '';
+        if (retidAtivo) prodBadge = '<span style="font-size:0.68rem; background:#dbeafe; color:#1d4ed8; padding:1px 6px; border-radius:10px; margin-left:6px; font-weight:700">RETID</span>';
+        else if ((beneficiosPorProduto[produto.nome] && beneficiosPorProduto[produto.nome].isentoTotal)) prodBadge = '<span style="font-size:0.68rem; background:#dcfce7; color:#166534; padding:1px 6px; border-radius:10px; margin-left:6px; font-weight:700">ISENTO</span>';
+
+        // RETID cell
+        const retidCell = `<td style="text-align:center">
+          <label style="display:flex; flex-direction:column; align-items:center; gap:4px; cursor:pointer">
+            <input type="checkbox" id="retid_${nomeId}" ${retidAtivo ? 'checked' : ''} onchange="toggleRetid('${safeNome}', this.checked)" style="width:16px; height:16px; cursor:pointer; accent-color:#1e3a5f">
+            <span style="font-size:0.65rem; color:${retidAtivo ? '#16a34a' : '#94a3b8'}; font-weight:${retidAtivo ? '700' : '400'}">${retidAtivo ? 'Ativo' : '—'}</span>
+          </label>
+        </td>`;
+
+        // PIS / COFINS / IPI cells with visual indicators
+        const pisZero = pisEfetivo === 0;
+        const pisOver = pisEfetivo !== pisPadrao && !pisZero;
+        let pisCell = '';
+        if (retidAtivo) pisCell = `<td style="text-decoration:line-through; color:#94a3b8; text-align:center; font-size:0.85rem">0% (RETID)</td>`;
+        else if (pisZero) pisCell = `<td style="text-align:center; background:#f0f9ff; color:#1e3a5f; font-weight:700">${Number(pisEfetivo).toFixed(2)}%<div style="font-size:0.65rem; background:#dcfce7; color:#166534; padding:1px 5px; border-radius:10px; margin-top:2px">ISENTO</div></td>`;
+        else if (pisOver) pisCell = `<td style="text-align:center; background:#f0fdf4; color:#16a34a; font-weight:700">${Number(pisEfetivo).toFixed(2)}%<div style="font-size:0.65rem; background:#dcfce7; color:#166534; padding:1px 5px; border-radius:10px; margin-top:2px">BENEFÍCIO</div></td>`;
+        else pisCell = `<td style="text-align:center; color:#dc2626; font-size:0.85rem">${Number(pisEfetivo).toFixed(2)}%</td>`;
+
+        const cofZero = cofinsEfetivo === 0;
+        const cofOver = cofinsEfetivo !== cofinsPadrao && !cofZero;
+        let cofCell = '';
+        if (retidAtivo) cofCell = `<td style="text-decoration:line-through; color:#94a3b8; text-align:center; font-size:0.85rem">0% (RETID)</td>`;
+        else if (cofZero) cofCell = `<td style="text-align:center; background:#f0f9ff; color:#1e3a5f; font-weight:700">${Number(cofinsEfetivo).toFixed(2)}%<div style="font-size:0.65rem; background:#dcfce7; color:#166534; padding:1px 5px; border-radius:10px; margin-top:2px">ISENTO</div></td>`;
+        else if (cofOver) cofCell = `<td style="text-align:center; background:#f0fdf4; color:#16a34a; font-weight:700">${Number(cofinsEfetivo).toFixed(2)}%<div style="font-size:0.65rem; background:#dcfce7; color:#166534; padding:1px 5px; border-radius:10px; margin-top:2px">BENEFÍCIO</div></td>`;
+        else cofCell = `<td style="text-align:center; color:#dc2626; font-size:0.85rem">${Number(cofinsEfetivo).toFixed(2)}%</td>`;
+
+        const ipiZero = ipiEfetivo === 0;
+        const ipiOver = ipiEfetivo !== ipiPadrao && !ipiZero;
+        let ipiCell = '';
+        if (retidAtivo) ipiCell = `<td style="text-decoration:line-through; color:#94a3b8; text-align:center; font-size:0.85rem">0% (RETID)</td>`;
+        else if (ipiZero) ipiCell = `<td style="text-align:center; background:#f0f9ff; color:#1e3a5f; font-weight:700">${Number(ipiEfetivo).toFixed(2)}%<div style="font-size:0.65rem; background:#dcfce7; color:#166534; padding:1px 5px; border-radius:10px; margin-top:2px">ISENTO</div></td>`;
+        else if (ipiOver) ipiCell = `<td style="text-align:center; background:#f0fdf4; color:#16a34a; font-weight:700">${Number(ipiEfetivo).toFixed(2)}%<div style="font-size:0.65rem; background:#dcfce7; color:#166534; padding:1px 5px; border-radius:10px; margin-top:2px">BENEFÍCIO</div></td>`;
+        else ipiCell = `<td style="text-align:center; color:#dc2626; font-size:0.85rem">${Number(ipiEfetivo).toFixed(2)}%</td>`;
+
+        // ICMS cell visuals
+        const icmsZero = icmsEfetivo === 0;
+        const icmsOver = icmsEfetivo !== icmsPadrao && !icmsZero;
+        let icmsCell = '';
+        if (icmsZero) icmsCell = `<td style="text-align:center; background:#f0f9ff; color:#1e3a5f; font-weight:700">${Number(icmsEfetivo).toFixed(2)}%<div style="font-size:0.65rem; background:#dcfce7; color:#166534; padding:1px 5px; border-radius:10px; margin-top:2px">ISENTO</div><div style="font-size:0.65rem; font-weight:400; color:#94a3b8">${uf} / ${tipoPessoa}</div></td>`;
+        else if (icmsOver) icmsCell = `<td style="text-align:center; background:#f0fdf4; color:#16a34a; font-weight:700">${Number(icmsEfetivo).toFixed(2)}%<div style="font-size:0.65rem; background:#dcfce7; color:#166534; padding:1px 5px; border-radius:10px; margin-top:2px">BENEFÍCIO</div><div style="font-size:0.65rem; font-weight:400; color:#94a3b8">${uf} / ${tipoPessoa}</div></td>`;
+        else icmsCell = `<td style="text-align:center; font-weight:700; background:${icmsBg}; color:${icmsColor}">${Number(icmsEfetivo).toFixed(2)}%<div style="font-size:0.65rem; font-weight:400; color:#94a3b8">${uf} / ${tipoPessoa}</div></td>`;
+
+        // row left border if RETID active
+        const rowStyle = retidAtivo ? 'border-left:3px solid #1e3a5f' : '';
+
+        return `
+            <tr id="precif_row_${nomeId}" style="${rowStyle}">
+                <td style="text-align:left; padding-left:15px; font-weight:500; position:sticky; left:0; background:#fff; z-index:1; border-right:1px solid #e2e8f0">${_escapeHtml(produto.nome)} ${prodBadge}</td>
+                ${retidCell}
                 <td style="font-family:monospace; font-size:0.75rem; color:#64748b; text-align:center">${_escapeHtml(ncm)}</td>
                 <td style="font-weight:600; color:#1e3a5f">${fmt(ci)}</td>
-                <td style="text-align:center; color:#475569">${pct(taxaProd)}</td>
-                <td style="text-align:center; color:#475569">${pct(roiProd)}</td>
+                <td style="text-align:center; color:#475569">${(Number(taxaProd)).toFixed(2)}%</td>
+                <td style="text-align:center; color:#475569">${(Number(roiProd)).toFixed(2)}%</td>
                 <td style="font-weight:600; color:#1e3a5f">${fmt(valorBase)}</td>
-                <td style="text-align:center; color:#dc2626; font-size:0.85rem">${pct(pis)}</td>
-                <td style="text-align:center; color:#dc2626; font-size:0.85rem">${pct(cofins)}</td>
-                <td style="text-align:center; font-weight:700; background:${icmsBg}; color:${icmsColor}">${pct(icms)}<div style="font-size:0.65rem; font-weight:400; color:#94a3b8">${uf} / ${tipoPessoa}</div></td>
-                <td style="text-align:center; color:#dc2626; font-size:0.85rem">${pct(ipi)}</td>
+                ${pisCell}
+                ${cofCell}
+                ${icmsCell}
+                ${ipiCell}
                 <td style="font-weight:600; color:#475569">${fmt(valorImpostos)}</td>
                 <td style="text-align:center; color:#d97706; font-size:0.85rem">${fmt(comissaoR)}</td>
                 <td style="font-weight:800; color:#c9a227; background:#fffbf0; font-size:1rem">${fmt(precoFinal)}</td>
                 <td style="font-weight:700; color:${corMargem(margem)}">${margem.toFixed(1)}%</td>
             </tr>
         `;
-        });
+    });
 
-        document.getElementById('tabelaPrecifClienteBody').innerHTML = rows.join('');
+    const tbody = document.getElementById('tabelaPrecifClienteBody');
+    if (tbody) tbody.innerHTML = rows.join('');
 
-        document.getElementById('precifClienteSummary').innerHTML = `
+    // Summary com contagem filtrada
+    const totalProdutos = produtos.length;
+    const filtrados = produtosFiltrados.length;
+    document.getElementById('precifClienteSummary').innerHTML = `
         <div>
-            <div style="font-size:0.75rem; color:#64748b; text-transform:uppercase; letter-spacing:0.5px">Produtos calculados</div>
-            <div style="font-size:1.2rem; font-weight:700; color:#1e3a5f">${produtosCalculados}</div>
+            <div style="font-size:0.75rem; color:#64748b; text-transform:uppercase; letter-spacing:0.5px">Exibindo</div>
+            <div style="font-size:1.1rem; font-weight:700; color:#1e3a5f">${filtrados} de ${totalProdutos}</div>
         </div>
         <div>
             <div style="font-size:0.75rem; color:#64748b; text-transform:uppercase; letter-spacing:0.5px">Sem CI definido</div>
@@ -9106,8 +9247,23 @@ function calcularPrecificacaoPorCliente() {
         </div>
     `;
 
-        document.getElementById('precifClienteResultado').style.display = 'block';
-        document.getElementById('precifClienteEmpty').style.display = 'none';
+    document.getElementById('precifClienteResultado').style.display = 'block';
+    document.getElementById('precifClienteEmpty').style.display = 'none';
+
+    // guardar última precificação calculada para salvar/gerar proposta
+    ultimaPrecificacaoCalculada = {
+        clienteId: cliente.id,
+        clienteNome: cliente.nome,
+        uf,
+        tipoPessoa,
+        taxa: taxaFinal,
+        roi: roiFinal,
+        comissao: comFinal,
+        filtros: { filtroProduto, filtroNCM, filtroCI },
+        dataCriacao: new Date().toISOString(),
+        itens: itensCalculados,
+        totalFaturamento
+    };
 }
 
 function exportarPrecifCliente() {
@@ -9117,7 +9273,7 @@ function exportarPrecifCliente() {
         if (!cliente) { alert('Selecione um cliente antes de exportar.'); return; }
 
         const rows = [];
-        const cabecalho = ['Produto','NCM','CI (R$)','Taxa %','ROI %','Valor Base','PIS %','COFINS %','ICMS % (UF/Tipo)','IPI %','c/ Impostos','Comissão R$','Preço Final','Margem%'];
+        const cabecalho = ['Produto','RETID','NCM','CI (R$)','Taxa %','ROI %','Valor Base','PIS %','COFINS %','ICMS % (UF/Tipo)','IPI %','c/ Impostos','Comissão R$','Preço Final','Margem%'];
         rows.push([`Cliente: ${cliente.nome}`, `UF: ${cliente.uf || cliente.estado || '—'}`, `Tipo: ${cliente.tipoPessoa || (((cliente.cnpj||'').replace(/\D/g,'')).length===14?'PJ':'PF')}`]);
         rows.push([]);
         rows.push(cabecalho);
@@ -9125,23 +9281,24 @@ function exportarPrecifCliente() {
         // Ler linhas da tabela DOM (para preservar a ordem e valores formatados)
         const trs = Array.from(document.querySelectorAll('#tabelaPrecifClienteBody tr'));
         trs.forEach(tr => {
-                const cols = Array.from(tr.querySelectorAll('td'));
-                if (!cols || cols.length < 6) return; // linha de aviso
-                const produto = cols[0]?.textContent?.trim() || '';
-                const ncm = cols[1]?.textContent?.trim() || '';
-                const ci = cols[2]?.textContent?.trim() || '';
-                const taxa = cols[3]?.textContent?.trim() || '';
-                const roi = cols[4]?.textContent?.trim() || '';
-                const vbase = cols[5]?.textContent?.trim() || '';
-                const pis = cols[6]?.textContent?.trim() || '';
-                const cof = cols[7]?.textContent?.trim() || '';
-                const icms = cols[8]?.textContent?.trim() || '';
-                const ipi = cols[9]?.textContent?.trim() || '';
-                const vimp = cols[10]?.textContent?.trim() || '';
-                const vcom = cols[11]?.textContent?.trim() || '';
-                const vfinal = cols[12]?.textContent?.trim() || '';
-                const margem = cols[13]?.textContent?.trim() || '';
-                rows.push([produto,ncm,ci,taxa,roi,vbase,pis,cof,icms,ipi,vimp,vcom,vfinal,margem]);
+            const cols = Array.from(tr.querySelectorAll('td'));
+            if (!cols || cols.length < 8) return; // linha de aviso
+            const produto = cols[0]?.textContent?.trim() || '';
+            const retid = cols[1]?.textContent?.trim() || '';
+            const ncm = cols[2]?.textContent?.trim() || '';
+            const ci = cols[3]?.textContent?.trim() || '';
+            const taxa = cols[4]?.textContent?.trim() || '';
+            const roi = cols[5]?.textContent?.trim() || '';
+            const vbase = cols[6]?.textContent?.trim() || '';
+            const pis = cols[7]?.textContent?.trim() || '';
+            const cof = cols[8]?.textContent?.trim() || '';
+            const icms = cols[9]?.textContent?.trim() || '';
+            const ipi = cols[10]?.textContent?.trim() || '';
+            const vimp = cols[11]?.textContent?.trim() || '';
+            const vcom = cols[12]?.textContent?.trim() || '';
+            const vfinal = cols[13]?.textContent?.trim() || '';
+            const margem = cols[14]?.textContent?.trim() || '';
+            rows.push([produto,retid,ncm,ci,taxa,roi,vbase,pis,cof,icms,ipi,vimp,vcom,vfinal,margem]);
         });
 
         const ws = XLSX.utils.aoa_to_sheet(rows);
@@ -9149,6 +9306,496 @@ function exportarPrecifCliente() {
         XLSX.utils.book_append_sheet(wb, ws, 'Preços Cliente');
         const nomeArquivo = `precos_${(cliente.nome||'cliente').replace(/[^a-z0-9\-]/gi,'_')}_${(cliente.uf||'XX')}_${(cliente.tipoPessoa||'PF')}_${new Date().toISOString().slice(0,10)}.xlsx`;
         XLSX.writeFile(wb, nomeArquivo);
+}
+
+function limparFiltrosPrecifCliente() {
+    try {
+        const fp = document.getElementById('precifFiltroProduto'); if (fp) fp.value = '';
+        const fn = document.getElementById('precifFiltroNCM'); if (fn) fn.value = '';
+        const fci = document.getElementById('precifFiltroCI'); if (fci) fci.value = 'todos';
+        calcularPrecificacaoPorCliente();
+    } catch (e) { console.warn('limparFiltrosPrecifCliente', e); }
+}
+
+function salvarPrecificacaoCliente() {
+    if (!ultimaPrecificacaoCalculada) {
+        calcularPrecificacaoPorCliente();
+        if (!ultimaPrecificacaoCalculada) { alert('Calcule a precificação antes de salvar.'); return; }
+    }
+    const cId = ultimaPrecificacaoCalculada.clienteId;
+    const existenteIndex = precificacoesCliente.findIndex(p => String(p.clienteId) === String(cId));
+    const registro = JSON.parse(JSON.stringify(ultimaPrecificacaoCalculada));
+    registro.id = 'pc-' + Date.now();
+    registro.dataCriacao = new Date().toISOString();
+    // Snapshot de RETID e benefícios no momento do salvamento
+    try { registro.retidPorProduto = JSON.parse(JSON.stringify(retidPorProduto || {})); } catch (e) { registro.retidPorProduto = {}; }
+    registro.beneficioFiscalAtivo = !!beneficioFiscalAtivo;
+    try { registro.beneficiosPorProduto = JSON.parse(JSON.stringify(beneficiosPorProduto || {})); } catch (e) { registro.beneficiosPorProduto = {}; }
+    if (existenteIndex >= 0) {
+        precificacoesCliente[existenteIndex] = registro;
+    } else {
+        precificacoesCliente.push(registro);
+    }
+    try { estoque.precificacoesCliente = precificacoesCliente; } catch (e) {}
+    salvarDados();
+    const infoEl = document.getElementById('precifSalvoInfo');
+    if (infoEl) infoEl.innerHTML = `<span style="color:#16a34a; font-size:0.82rem">✅ Precificação salva em ${new Date(registro.dataCriacao).toLocaleString('pt-BR')}</span> <button onclick="carregarPrecificacaoSalva('${cId}')" class="btn btn-outline btn-sm" style="margin-left:8px">↩ Carregar salva</button>`;
+    mostrarNotificacao('Precificação salva para o cliente.', 'success');
+}
+
+function carregarPrecificacaoSalva(clienteId) {
+    try {
+        const registro = precificacoesCliente.find(p => String(p.clienteId) === String(clienteId));
+        if (!registro) { mostrarNotificacao('Nenhuma precificação salva para este cliente.', 'warning'); return; }
+        // Restaurar estados de RETID / Benefícios do registro salvo
+        retidPorProduto = registro.retidPorProduto || {};
+        beneficioFiscalAtivo = registro.beneficioFiscalAtivo || false;
+        beneficiosPorProduto = registro.beneficiosPorProduto || {};
+        // Atualizar checkbox/painel
+        try {
+            const cb = document.getElementById('precifBeneficioFiscal'); if (cb) cb.checked = !!beneficioFiscalAtivo;
+            const painel = document.getElementById('painelBeneficioFiscal'); if (painel) painel.style.display = beneficioFiscalAtivo ? 'block' : 'none';
+            if (beneficioFiscalAtivo) renderizarTabelaBeneficios();
+        } catch (e) {}
+        ultimaPrecificacaoCalculada = registro;
+        // renderizar tabela a partir do registro
+        const itens = registro.itens || [];
+        const fmt = v => 'R$ ' + _fmtMoeda(v);
+        const pct = v => (Number.isFinite(Number(v)) ? Number(v).toFixed(2) : '0.00') + '%';
+        const corMargem = m => m >= 30 ? '#16a34a' : m >= 15 ? '#d97706' : '#dc2626';
+        const rows = itens.map(it => {
+            const nomeId = (it.produto || '').replace(/[^a-z0-9]/gi, '_');
+            const retidAtivo = (registro.retidPorProduto && registro.retidPorProduto[it.produto]) || false;
+            const prodBadge = retidAtivo ? '<span style="font-size:0.68rem; background:#dbeafe; color:#1d4ed8; padding:1px 6px; border-radius:10px; margin-left:6px; font-weight:700">RETID</span>' : '';
+            const pisDisplay = (retidAtivo ? '0% (RETID)' : (Number(it.pis || 0).toFixed(2) + '%'));
+            const cofDisplay = (retidAtivo ? '0% (RETID)' : (Number(it.cofins || 0).toFixed(2) + '%'));
+            const ipiDisplay = (retidAtivo ? '0% (RETID)' : (Number(it.ipi || 0).toFixed(2) + '%'));
+            return `
+                <tr id="precif_row_${nomeId}" style="${retidAtivo ? 'border-left:3px solid #1e3a5f' : ''}">
+                    <td style="text-align:left; padding-left:15px; font-weight:500; position:sticky; left:0; background:#fff; z-index:1; border-right:1px solid #e2e8f0">${_escapeHtml(it.produto)} ${prodBadge}</td>
+                    <td style="text-align:center">
+                      <label style="display:flex; flex-direction:column; align-items:center; gap:4px; cursor:pointer">
+                        <input type="checkbox" id="retid_${nomeId}" ${retidAtivo ? 'checked' : ''} onchange="toggleRetid('${(it.produto||'').replace(/'/g,"\\'")}', this.checked)" style="width:16px; height:16px; cursor:pointer; accent-color:#1e3a5f">
+                        <span style="font-size:0.65rem; color:${retidAtivo ? '#16a34a' : '#94a3b8'}; font-weight:${retidAtivo ? '700' : '400'}">${retidAtivo ? 'Ativo' : '—'}</span>
+                      </label>
+                    </td>
+                    <td style="font-family:monospace; font-size:0.75rem; color:#64748b; text-align:center">${_escapeHtml(it.ncm || '—')}</td>
+                    <td style="font-weight:600; color:#1e3a5f">${fmt(it.ci || 0)}</td>
+                    <td style="text-align:center; color:#475569">${Number(it.taxa || 0).toFixed(2)}%</td>
+                    <td style="text-align:center; color:#475569">${Number(it.roi || 0).toFixed(2)}%</td>
+                    <td style="font-weight:600; color:#1e3a5f">${fmt(it.valorBase)}</td>
+                    <td style="text-align:center; color:#dc2626; font-size:0.85rem">${_escapeHtml(pisDisplay)}</td>
+                    <td style="text-align:center; color:#dc2626; font-size:0.85rem">${_escapeHtml(cofDisplay)}</td>
+                    <td style="text-align:center; font-weight:700; background:#f8fafc; color:#1e3a5f">${Number(it.icms || 0).toFixed(2)}%<div style="font-size:0.65rem; font-weight:400; color:#94a3b8">${registro.uf || ''} / ${registro.tipoPessoa || ''}</div></td>
+                    <td style="text-align:center; color:#dc2626; font-size:0.85rem">${_escapeHtml(ipiDisplay)}</td>
+                    <td style="font-weight:600; color:#475569">${fmt(it.valorImpostos)}</td>
+                    <td style="text-align:center; color:#d97706; font-size:0.85rem">${fmt(it.comissaoR)}</td>
+                    <td style="font-weight:800; color:#c9a227; background:#fffbf0; font-size:1rem">${fmt(it.precoFinal)}</td>
+                    <td style="font-weight:700; color:${corMargem(it.margem)}">${(it.margem||0).toFixed(1)}%</td>
+                </tr>
+            `;
+        }).join('');
+
+        const tbody = document.getElementById('tabelaPrecifClienteBody'); if (tbody) tbody.innerHTML = rows;
+        document.getElementById('precifClienteResultado').style.display = 'block';
+        document.getElementById('precifClienteEmpty').style.display = 'none';
+        document.getElementById('precifClienteSummary').innerHTML = `
+            <div>
+                <div style="font-size:0.75rem; color:#64748b; text-transform:uppercase; letter-spacing:0.5px">Produtos</div>
+                <div style="font-size:1.1rem; font-weight:700; color:#1e3a5f">${itens.length}</div>
+            </div>
+            <div style="margin-left:auto; text-align:right">
+                <div style="font-size:0.75rem; color:#64748b; text-transform:uppercase; letter-spacing:0.5px">Total da tabela</div>
+                <div style="font-size:1.3rem; font-weight:800; color:#16a34a">${fmt(registro.totalFaturamento || 0)}</div>
+            </div>
+        `;
+        const infoEl = document.getElementById('precifSalvoInfo'); if (infoEl) infoEl.innerHTML = `<span style="color:#16a34a; font-size:0.82rem">Usando precificação salva em ${new Date(registro.dataCriacao).toLocaleString('pt-BR')}</span>`;
+        mostrarNotificacao('Precificação carregada.', 'success');
+    } catch (e) { console.error('carregarPrecificacaoSalva', e); mostrarNotificacao('Erro ao carregar precificação salva.', 'error'); }
+}
+
+function criarPropostaDaPrecificacao() {
+    if (!ultimaPrecificacaoCalculada) {
+        alert('Calcule ou carregue uma precificação antes de gerar proposta.');
+        return;
+    }
+    const reg = ultimaPrecificacaoCalculada;
+    const clienteObj = (clientes || []).find(c => String(c.id) === String(reg.clienteId));
+    const retidMap = (reg && reg.retidPorProduto && Object.keys(reg.retidPorProduto).length) ? reg.retidPorProduto : (retidPorProduto || {});
+    const benefMap = (reg && reg.beneficiosPorProduto) ? reg.beneficiosPorProduto : (beneficiosPorProduto || {});
+    const benefAtivo = (reg && reg.beneficioFiscalAtivo) || !!beneficioFiscalAtivo;
+    const items = (reg.itens || []).map(it => ({ produto: it.produto, produtoId: it.produtoId, quantidade: 1, valorUnitario: Number(it.precoFinal || 0), retid: !!(retidMap[it.produto]) }));
+    const valorTotal = items.reduce((s, it) => s + (Number(it.valorUnitario || 0) * (it.quantidade || 1)), 0);
+    const nova = {
+        id: 'prop-' + Date.now(),
+        numero: gerarNumeroProposta(),
+        cliente: clienteObj ? clienteObj.nome : (reg.clienteNome || ''),
+        representante: clienteObj ? (clienteObj.representante || '') : '',
+        data: new Date().toISOString(),
+        validade: 30,
+        status: 'rascunho',
+        itens: items.map(it => ({ produtoId: it.produtoId, produto: it.produto, quantidade: it.quantidade, valorUnitario: it.valorUnitario, retid: !!it.retid })),
+        valorTotal
+    };
+    // adicionar resumo de benefícios na observação da proposta
+    try {
+        const benefSummary = [];
+        if (Object.values(retidMap || {}).some(v => v)) benefSummary.push('RETID aplicado em produtos selecionados');
+        if (benefAtivo && Object.keys(benefMap || {}).length) benefSummary.push('Benefícios fiscais aplicados');
+        if (benefSummary.length) nova.observacoes = (nova.observacoes || '') + ' | ' + benefSummary.join(', ');
+    } catch (e) {}
+    propostas.push(nova);
+    estoque.propostas = propostas;
+    salvarDados();
+    renderizarPropostas();
+    atualizarKPIsPropostas();
+    mostrarNotificacao('Proposta criada a partir da precificação. Abra para editar.', 'success');
+    abrirModalProposta(nova.id);
+}
+
+// ====== Helpers: RETID e Benefícios Fiscais ======
+function resolverAliquota(nomeProduto, campo, valorPadrao) {
+    try {
+        // 1) isentoTotal em benefícios
+        if (beneficioFiscalAtivo && beneficiosPorProduto && beneficiosPorProduto[nomeProduto] && beneficiosPorProduto[nomeProduto].isentoTotal) return 0;
+        // 2) RETID zera apenas impostos federais (não ICMS)
+        if (retidPorProduto && retidPorProduto[nomeProduto] && campo !== 'icms') return 0;
+        // 3) override explícito por produto
+        if (beneficioFiscalAtivo && beneficiosPorProduto && beneficiosPorProduto[nomeProduto]) {
+            const override = beneficiosPorProduto[nomeProduto][campo];
+            if (override !== null && override !== undefined && override !== '') return Number(override);
+        }
+    } catch (e) {}
+    return Number(valorPadrao || 0);
+}
+
+function toggleRetid(nomeProduto, ativo) {
+    try {
+        retidPorProduto = retidPorProduto || {};
+        retidPorProduto[nomeProduto] = !!ativo;
+        const nomeId = (nomeProduto || '').replace(/[^a-z0-9]/gi, '_');
+        const cb = document.getElementById('retid_' + nomeId); if (cb) cb.checked = !!ativo;
+    } catch (e) { console.warn('toggleRetid', e); }
+    try { recalcularLinhaPrecifCliente(nomeProduto); } catch (e) { calcularPrecificacaoPorCliente(); }
+}
+
+function recalcularLinhaPrecifCliente(nomeProduto) {
+    try {
+        const nomeId = (nomeProduto || '').replace(/[^a-z0-9]/gi, '_');
+        const tr = document.getElementById('precif_row_' + nomeId);
+        if (!tr) { calcularPrecificacaoPorCliente(); return; }
+        const produto = (estoque.produtos || []).find(p => p.nome === nomeProduto);
+        if (!produto) { calcularPrecificacaoPorCliente(); return; }
+
+        const prec = precificacao[produto.nome] || {};
+        const aliq = tabelaAliquotas[produto.nome] || {};
+        const ncm = produto.ncm || detectarNCM(produto.nome) || '—';
+        const ci = parseFloat(prec.ci) || 0;
+        if (ci === 0) { calcularPrecificacaoPorCliente(); return; }
+        const fedImpostos = impostosEditaveis[ncm] || {};
+        const pisPadrao = parseFloat(aliq.pis ?? fedImpostos.pis ?? document.getElementById('pisPadrao')?.value) || 1.65;
+        const cofinsPadrao = parseFloat(aliq.cofins ?? fedImpostos.cofins ?? document.getElementById('cofinsPadrao')?.value) || 7.6;
+        const ipiPadrao = parseFloat(aliq.ipi ?? fedImpostos.ipi ?? 0) || 0;
+        const uf = (document.getElementById('precifClienteUF')?.value || '').toUpperCase().trim();
+        const tipoPessoa = document.getElementById('precifClienteTipo')?.value || 'PF';
+        const icmsPadrao = uf ? buscarAliquotaICMS(uf, tipoPessoa, produto.nome) : (parseFloat(aliq.icmsBase) || 0);
+
+        const taxaOverride = parseFloat(document.getElementById('precifTaxaOverride')?.value);
+        const roiOverride = parseFloat(document.getElementById('precifROIOverride')?.value);
+        const comOverride = parseFloat(document.getElementById('precifComissaoOverride')?.value);
+        const taxaGlobal = parseFloat(document.getElementById('taxaPadrao')?.value) || 20;
+        const roiGlobal = parseFloat(document.getElementById('roiPadrao')?.value) || 30;
+        const comGlobal = parseFloat(document.getElementById('comissaoPadrao')?.value) || 5;
+        const taxaProd = (prec.taxa !== null && prec.taxa !== undefined && prec.taxa !== '') ? parseFloat(prec.taxa) : (!isNaN(taxaOverride)?taxaOverride:taxaGlobal);
+        const roiProd = (prec.roi !== null && prec.roi !== undefined && prec.roi !== '') ? parseFloat(prec.roi) : (!isNaN(roiOverride)?roiOverride:roiGlobal);
+        const comissaoProd = (prec.comissao !== null && prec.comissao !== undefined && prec.comissao !== '') ? parseFloat(prec.comissao) : (!isNaN(comOverride)?comOverride:comGlobal);
+
+        const pisEfetivo = resolverAliquota(produto.nome, 'pis', pisPadrao);
+        const cofinsEfetivo = resolverAliquota(produto.nome, 'cofins', cofinsPadrao);
+        const ipiEfetivo = resolverAliquota(produto.nome, 'ipi', ipiPadrao);
+        const icmsEfetivo = resolverAliquota(produto.nome, 'icms', icmsPadrao);
+
+        const valorBase = ci * (1 + taxaProd/100) * (1 + roiProd/100);
+        const icmsR = valorBase * icmsEfetivo / 100;
+        const pisR = valorBase * pisEfetivo / 100;
+        const cofinsR = valorBase * cofinsEfetivo / 100;
+        const valorImpostos = valorBase + icmsR + pisR + cofinsR;
+        const ipiR = valorImpostos * ipiEfetivo / 100;
+        const valorTotal = valorImpostos + ipiR;
+        const comissaoR = valorBase * comissaoProd / 100;
+        const precoFinal = valorTotal + comissaoR;
+        const margem = precoFinal > 0 ? ((precoFinal - ci) / precoFinal) * 100 : 0;
+
+        // Render row HTML (reuse same patterns used no calculadora)
+        const nomeId = (produto.nome || '').replace(/[^a-z0-9]/gi, '_');
+        const retidAtivo = !!retidPorProduto[produto.nome];
+        const prodBadge = retidAtivo ? '<span style="font-size:0.68rem; background:#dbeafe; color:#1d4ed8; padding:1px 6px; border-radius:10px; margin-left:6px; font-weight:700">RETID</span>' : '';
+        const safeNome = (produto.nome || '').replace(/'/g, "\\'");
+        const retidCell = `<td style="text-align:center"><label style="display:flex; flex-direction:column; align-items:center; gap:4px; cursor:pointer"><input type="checkbox" id="retid_${nomeId}" ${retidAtivo ? 'checked' : ''} onchange="toggleRetid('${safeNome}', this.checked)" style="width:16px; height:16px; cursor:pointer; accent-color:#1e3a5f"><span style="font-size:0.65rem; color:${retidAtivo ? '#16a34a' : '#94a3b8'}; font-weight:${retidAtivo ? '700' : '400'}">${retidAtivo ? 'Ativo' : '—'}</span></label></td>`;
+
+        const pisCell = retidAtivo ? `<td style="text-decoration:line-through; color:#94a3b8; text-align:center; font-size:0.85rem">0% (RETID)</td>` : `<td style="text-align:center; color:#dc2626; font-size:0.85rem">${Number(pisEfetivo).toFixed(2)}%</td>`;
+        const cofCell = retidAtivo ? `<td style="text-decoration:line-through; color:#94a3b8; text-align:center; font-size:0.85rem">0% (RETID)</td>` : `<td style="text-align:center; color:#dc2626; font-size:0.85rem">${Number(cofinsEfetivo).toFixed(2)}%</td>`;
+        const ipiCell = retidAtivo ? `<td style="text-decoration:line-through; color:#94a3b8; text-align:center; font-size:0.85rem">0% (RETID)</td>` : `<td style="text-align:center; color:#dc2626; font-size:0.85rem">${Number(ipiEfetivo).toFixed(2)}%</td>`;
+        const icmsBg = tipoPessoa === 'PF' ? '#fef2f2' : '#f0fdf4';
+        const icmsColor = tipoPessoa === 'PF' ? '#dc2626' : '#16a34a';
+        const icmsCell = `<td style="text-align:center; font-weight:700; background:${icmsBg}; color:${icmsColor}">${Number(icmsEfetivo).toFixed(2)}%<div style="font-size:0.65rem; font-weight:400; color:#94a3b8">${uf} / ${tipoPessoa}</div></td>`;
+
+        const fmt = v => 'R$ ' + _fmtMoeda(v);
+        const corMargem = m => m >= 30 ? '#16a34a' : m >= 15 ? '#d97706' : '#dc2626';
+
+        const rowHtml = `\n            <tr id="precif_row_${nomeId}">\n                <td style="text-align:left; padding-left:15px; font-weight:500; position:sticky; left:0; background:#fff; z-index:1; border-right:1px solid #e2e8f0">${_escapeHtml(produto.nome)} ${prodBadge}</td>\n                ${retidCell}\n                <td style="font-family:monospace; font-size:0.75rem; color:#64748b; text-align:center">${_escapeHtml(ncm)}</td>\n                <td style="font-weight:600; color:#1e3a5f">${fmt(ci)}</td>\n                <td style="text-align:center; color:#475569">${Number(taxaProd).toFixed(2)}%</td>\n                <td style="text-align:center; color:#475569">${Number(roiProd).toFixed(2)}%</td>\n                <td style="font-weight:600; color:#1e3a5f">${fmt(valorBase)}</td>\n                ${pisCell}\n                ${cofCell}\n                ${icmsCell}\n                ${ipiCell}\n                <td style="font-weight:600; color:#475569">${fmt(valorImpostos)}</td>\n                <td style="text-align:center; color:#d97706; font-size:0.85rem">${fmt(comissaoR)}</td>\n                <td style="font-weight:800; color:#c9a227; background:#fffbf0; font-size:1rem">${fmt(precoFinal)}</td>\n                <td style="font-weight:700; color:${corMargem(margem)}">${margem.toFixed(1)}%</td>\n            </tr>\n        `;
+
+        tr.outerHTML = rowHtml;
+    } catch (e) { console.error('recalcularLinhaPrecifCliente', e); calcularPrecificacaoPorCliente(); }
+}
+
+function toggleBeneficioFiscal(ativo) {
+    beneficioFiscalAtivo = !!ativo;
+    const painel = document.getElementById('painelBeneficioFiscal'); if (painel) painel.style.display = beneficioFiscalAtivo ? 'block' : 'none';
+    if (beneficioFiscalAtivo) renderizarTabelaBeneficios();
+}
+
+function renderizarTabelaBeneficios() {
+    const tbody = document.getElementById('tabelaBeneficioFiscalBody');
+    if (!tbody) return;
+    const produtos = estoque.produtos || [];
+    tbody.innerHTML = produtos.map(p => {
+        const nome = p.nome || '';
+        const nomeId = (nome || '').replace(/[^a-z0-9]/gi, '_');
+        const b = beneficiosPorProduto[nome] || { pis:null, cofins:null, ipi:null, icms:null, isentoTotal:false };
+        const retChecked = retidPorProduto[nome] ? 'checked' : '';
+        const isentoChecked = b.isentoTotal ? 'checked' : '';
+        return `
+            <tr>
+              <td style="padding:6px 10px; font-weight:500">${_escapeHtml(nome)}</td>
+              <td style="padding:4px 6px; text-align:center"><input type="number" step="0.01" min="0" max="100" id="bpis_${nomeId}" value="${b.pis ?? ''}" placeholder="padrão" onchange="atualizarBeneficio('${nome}','pis',this.value)" style="width:70px; border:1px solid #fed7aa; border-radius:4px; padding:3px 4px; text-align:center; font-size:0.82rem"></td>
+              <td style="padding:4px 6px; text-align:center"><input type="number" step="0.01" min="0" max="100" id="bcofins_${nomeId}" value="${b.cofins ?? ''}" placeholder="padrão" onchange="atualizarBeneficio('${nome}','cofins',this.value)" style="width:70px; border:1px solid #fed7aa; border-radius:4px; padding:3px 4px; text-align:center; font-size:0.82rem"></td>
+              <td style="padding:4px 6px; text-align:center"><input type="number" step="0.01" min="0" max="100" id="bipi_${nomeId}" value="${b.ipi ?? ''}" placeholder="padrão" onchange="atualizarBeneficio('${nome}','ipi',this.value)" style="width:70px; border:1px solid #fed7aa; border-radius:4px; padding:3px 4px; text-align:center; font-size:0.82rem"></td>
+              <td style="padding:4px 6px; text-align:center"><input type="number" step="0.01" min="0" max="100" id="bicms_${nomeId}" value="${b.icms ?? ''}" placeholder="padrão" onchange="atualizarBeneficio('${nome}','icms',this.value)" style="width:70px; border:1px solid #fed7aa; border-radius:4px; padding:3px 4px; text-align:center; font-size:0.82rem"></td>
+              <td style="padding:4px 6px; text-align:center"><input type="checkbox" id="bretid_${nomeId}" ${retChecked} onchange="atualizarBeneficio('${nome}','retid',this.checked)" style="width:16px; height:16px; accent-color:#1e3a5f"></td>
+              <td style="padding:4px 6px; text-align:center"><input type="checkbox" id="bisento_${nomeId}" ${isentoChecked} onchange="atualizarBeneficio('${nome}','isentoTotal',this.checked)" style="width:16px; height:16px; accent-color:#dc2626"></td>
+            </tr>
+        `;
+    }).join('');
+}
+
+function atualizarBeneficio(nomeProduto, campo, valor) {
+    if (!beneficiosPorProduto[nomeProduto]) {
+        beneficiosPorProduto[nomeProduto] = { pis:null, cofins:null, ipi:null, icms:null, isentoTotal:false };
+    }
+    if (campo === 'retid') {
+        retidPorProduto[nomeProduto] = !!valor;
+        try { recalcularLinhaPrecifCliente(nomeProduto); } catch (e) { calcularPrecificacaoPorCliente(); }
+        return;
+    }
+    if (campo === 'isentoTotal') {
+        beneficiosPorProduto[nomeProduto].isentoTotal = !!valor;
+        if (valor) {
+            ['pis','cofins','ipi','icms'].forEach(t => {
+                beneficiosPorProduto[nomeProduto][t] = 0;
+                const el = document.getElementById('b' + t + '_' + (nomeProduto || '').replace(/[^a-z0-9]/gi, '_'));
+                if (el) { el.value = '0'; el.disabled = true; }
+            });
+        } else {
+            ['pis','cofins','ipi','icms'].forEach(t => {
+                beneficiosPorProduto[nomeProduto][t] = null;
+                const el = document.getElementById('b' + t + '_' + (nomeProduto || '').replace(/[^a-z0-9]/gi, '_'));
+                if (el) { el.value = ''; el.disabled = false; }
+            });
+        }
+        try { recalcularLinhaPrecifCliente(nomeProduto); } catch (e) { calcularPrecificacaoPorCliente(); }
+        return;
+    }
+    // numeric overrides
+    beneficiosPorProduto[nomeProduto][campo] = (valor === '' || valor === null) ? null : parseFloat(valor);
+}
+
+function isentarTodosProdutos() {
+    const produtos = estoque.produtos || [];
+    produtos.forEach(p => {
+        beneficiosPorProduto[p.nome] = { pis:0, cofins:0, ipi:0, icms:0, isentoTotal:true };
+        retidPorProduto[p.nome] = true;
+    });
+    renderizarTabelaBeneficios();
+}
+
+function limparBeneficios() {
+    beneficiosPorProduto = {};
+    retidPorProduto = {};
+    renderizarTabelaBeneficios();
+}
+
+// ====== Helpers: RETID e Benefícios Fiscais ======
+function resolverAliquota(nomeProduto, campo, valorPadrao) {
+    try {
+        // 1) isentoTotal em benefícios
+        if (beneficioFiscalAtivo && beneficiosPorProduto && beneficiosPorProduto[nomeProduto] && beneficiosPorProduto[nomeProduto].isentoTotal) return 0;
+        // 2) RETID zera apenas impostos federais (não ICMS)
+        if (retidPorProduto && retidPorProduto[nomeProduto] && campo !== 'icms') return 0;
+        // 3) override explícito por produto
+        if (beneficioFiscalAtivo && beneficiosPorProduto && beneficiosPorProduto[nomeProduto]) {
+            const override = beneficiosPorProduto[nomeProduto][campo];
+            if (override !== null && override !== undefined && override !== '') return Number(override);
+        }
+    } catch (e) {}
+    return Number(valorPadrao || 0);
+}
+
+function toggleRetid(nomeProduto, ativo) {
+    try {
+        retidPorProduto = retidPorProduto || {};
+        retidPorProduto[nomeProduto] = !!ativo;
+        const nomeId = (nomeProduto || '').replace(/[^a-z0-9]/gi, '_');
+        const cb = document.getElementById('retid_' + nomeId); if (cb) cb.checked = !!ativo;
+    } catch (e) { console.warn('toggleRetid', e); }
+    try { recalcularLinhaPrecifCliente(nomeProduto); } catch (e) { calcularPrecificacaoPorCliente(); }
+}
+
+function recalcularLinhaPrecifCliente(nomeProduto) {
+    try {
+        const nomeId = (nomeProduto || '').replace(/[^a-z0-9]/gi, '_');
+        const tr = document.getElementById('precif_row_' + nomeId);
+        if (!tr) { calcularPrecificacaoPorCliente(); return; }
+        const produto = (estoque.produtos || []).find(p => p.nome === nomeProduto);
+        if (!produto) { calcularPrecificacaoPorCliente(); return; }
+
+        const prec = precificacao[produto.nome] || {};
+        const aliq = tabelaAliquotas[produto.nome] || {};
+        const ncm = produto.ncm || detectarNCM(produto.nome) || '—';
+        const ci = parseFloat(prec.ci) || 0;
+        if (ci === 0) { calcularPrecificacaoPorCliente(); return; }
+        const fedImpostos = impostosEditaveis[ncm] || {};
+        const pisPadrao = parseFloat(aliq.pis ?? fedImpostos.pis ?? document.getElementById('pisPadrao')?.value) || 1.65;
+        const cofinsPadrao = parseFloat(aliq.cofins ?? fedImpostos.cofins ?? document.getElementById('cofinsPadrao')?.value) || 7.6;
+        const ipiPadrao = parseFloat(aliq.ipi ?? fedImpostos.ipi ?? 0) || 0;
+        const uf = (document.getElementById('precifClienteUF')?.value || '').toUpperCase().trim();
+        const tipoPessoa = document.getElementById('precifClienteTipo')?.value || 'PF';
+        const icmsPadrao = uf ? buscarAliquotaICMS(uf, tipoPessoa, produto.nome) : (parseFloat(aliq.icmsBase) || 0);
+
+        const taxaOverride = parseFloat(document.getElementById('precifTaxaOverride')?.value);
+        const roiOverride = parseFloat(document.getElementById('precifROIOverride')?.value);
+        const comOverride = parseFloat(document.getElementById('precifComissaoOverride')?.value);
+        const taxaGlobal = parseFloat(document.getElementById('taxaPadrao')?.value) || 20;
+        const roiGlobal = parseFloat(document.getElementById('roiPadrao')?.value) || 30;
+        const comGlobal = parseFloat(document.getElementById('comissaoPadrao')?.value) || 5;
+        const taxaProd = (prec.taxa !== null && prec.taxa !== undefined && prec.taxa !== '') ? parseFloat(prec.taxa) : (!isNaN(taxaOverride)?taxaOverride:taxaGlobal);
+        const roiProd = (prec.roi !== null && prec.roi !== undefined && prec.roi !== '') ? parseFloat(prec.roi) : (!isNaN(roiOverride)?roiOverride:roiGlobal);
+        const comissaoProd = (prec.comissao !== null && prec.comissao !== undefined && prec.comissao !== '') ? parseFloat(prec.comissao) : (!isNaN(comOverride)?comOverride:comGlobal);
+
+        const pisEfetivo = resolverAliquota(produto.nome, 'pis', pisPadrao);
+        const cofinsEfetivo = resolverAliquota(produto.nome, 'cofins', cofinsPadrao);
+        const ipiEfetivo = resolverAliquota(produto.nome, 'ipi', ipiPadrao);
+        const icmsEfetivo = resolverAliquota(produto.nome, 'icms', icmsPadrao);
+
+        const valorBase = ci * (1 + taxaProd/100) * (1 + roiProd/100);
+        const icmsR = valorBase * icmsEfetivo / 100;
+        const pisR = valorBase * pisEfetivo / 100;
+        const cofinsR = valorBase * cofinsEfetivo / 100;
+        const valorImpostos = valorBase + icmsR + pisR + cofinsR;
+        const ipiR = valorImpostos * ipiEfetivo / 100;
+        const valorTotal = valorImpostos + ipiR;
+        const comissaoR = valorBase * comissaoProd / 100;
+        const precoFinal = valorTotal + comissaoR;
+        const margem = precoFinal > 0 ? ((precoFinal - ci) / precoFinal) * 100 : 0;
+
+        // Render row HTML (reuse same patterns used no calculadora)
+        const nomeId = (produto.nome || '').replace(/[^a-z0-9]/gi, '_');
+        const retidAtivo = !!retidPorProduto[produto.nome];
+        const prodBadge = retidAtivo ? '<span style="font-size:0.68rem; background:#dbeafe; color:#1d4ed8; padding:1px 6px; border-radius:10px; margin-left:6px; font-weight:700">RETID</span>' : '';
+        const safeNome = (produto.nome || '').replace(/'/g, "\\'");
+        const retidCell = `<td style="text-align:center"><label style="display:flex; flex-direction:column; align-items:center; gap:4px; cursor:pointer"><input type="checkbox" id="retid_${nomeId}" ${retidAtivo ? 'checked' : ''} onchange="toggleRetid('${safeNome}', this.checked)" style="width:16px; height:16px; cursor:pointer; accent-color:#1e3a5f"><span style="font-size:0.65rem; color:${retidAtivo ? '#16a34a' : '#94a3b8'}; font-weight:${retidAtivo ? '700' : '400'}">${retidAtivo ? 'Ativo' : '—'}</span></label></td>`;
+
+        const pisCell = retidAtivo ? `<td style="text-decoration:line-through; color:#94a3b8; text-align:center; font-size:0.85rem">0% (RETID)</td>` : `<td style="text-align:center; color:#dc2626; font-size:0.85rem">${Number(pisEfetivo).toFixed(2)}%</td>`;
+        const cofCell = retidAtivo ? `<td style="text-decoration:line-through; color:#94a3b8; text-align:center; font-size:0.85rem">0% (RETID)</td>` : `<td style="text-align:center; color:#dc2626; font-size:0.85rem">${Number(cofinsEfetivo).toFixed(2)}%</td>`;
+        const ipiCell = retidAtivo ? `<td style="text-decoration:line-through; color:#94a3b8; text-align:center; font-size:0.85rem">0% (RETID)</td>` : `<td style="text-align:center; color:#dc2626; font-size:0.85rem">${Number(ipiEfetivo).toFixed(2)}%</td>`;
+        const icmsBg = tipoPessoa === 'PF' ? '#fef2f2' : '#f0fdf4';
+        const icmsColor = tipoPessoa === 'PF' ? '#dc2626' : '#16a34a';
+        const icmsCell = `<td style="text-align:center; font-weight:700; background:${icmsBg}; color:${icmsColor}">${Number(icmsEfetivo).toFixed(2)}%<div style="font-size:0.65rem; font-weight:400; color:#94a3b8">${uf} / ${tipoPessoa}</div></td>`;
+
+        const fmt = v => 'R$ ' + _fmtMoeda(v);
+        const corMargem = m => m >= 30 ? '#16a34a' : m >= 15 ? '#d97706' : '#dc2626';
+
+        const rowHtml = `\n            <tr id="precif_row_${nomeId}">\n                <td style="text-align:left; padding-left:15px; font-weight:500; position:sticky; left:0; background:#fff; z-index:1; border-right:1px solid #e2e8f0">${_escapeHtml(produto.nome)} ${prodBadge}</td>\n                ${retidCell}\n                <td style="font-family:monospace; font-size:0.75rem; color:#64748b; text-align:center">${_escapeHtml(ncm)}</td>\n                <td style="font-weight:600; color:#1e3a5f">${fmt(ci)}</td>\n                <td style="text-align:center; color:#475569">${Number(taxaProd).toFixed(2)}%</td>\n                <td style="text-align:center; color:#475569">${Number(roiProd).toFixed(2)}%</td>\n                <td style="font-weight:600; color:#1e3a5f">${fmt(valorBase)}</td>\n                ${pisCell}\n                ${cofCell}\n                ${icmsCell}\n                ${ipiCell}\n                <td style="font-weight:600; color:#475569">${fmt(valorImpostos)}</td>\n                <td style="text-align:center; color:#d97706; font-size:0.85rem">${fmt(comissaoR)}</td>\n                <td style="font-weight:800; color:#c9a227; background:#fffbf0; font-size:1rem">${fmt(precoFinal)}</td>\n                <td style="font-weight:700; color:${corMargem(margem)}">${margem.toFixed(1)}%</td>\n            </tr>\n        `;
+
+        tr.outerHTML = rowHtml;
+    } catch (e) { console.error('recalcularLinhaPrecifCliente', e); calcularPrecificacaoPorCliente(); }
+}
+
+function toggleBeneficioFiscal(ativo) {
+    beneficioFiscalAtivo = !!ativo;
+    const painel = document.getElementById('painelBeneficioFiscal'); if (painel) painel.style.display = beneficioFiscalAtivo ? 'block' : 'none';
+    if (beneficioFiscalAtivo) renderizarTabelaBeneficios();
+}
+
+function renderizarTabelaBeneficios() {
+    const tbody = document.getElementById('tabelaBeneficioFiscalBody');
+    if (!tbody) return;
+    const produtos = estoque.produtos || [];
+    tbody.innerHTML = produtos.map(p => {
+        const nome = p.nome || '';
+        const nomeId = (nome || '').replace(/[^a-z0-9]/gi, '_');
+        const b = beneficiosPorProduto[nome] || { pis:null, cofins:null, ipi:null, icms:null, isentoTotal:false };
+        const retChecked = retidPorProduto[nome] ? 'checked' : '';
+        const isentoChecked = b.isentoTotal ? 'checked' : '';
+        return `
+            <tr>
+              <td style="padding:6px 10px; font-weight:500">${_escapeHtml(nome)}</td>
+              <td style="padding:4px 6px; text-align:center"><input type="number" step="0.01" min="0" max="100" id="bpis_${nomeId}" value="${b.pis ?? ''}" placeholder="padrão" onchange="atualizarBeneficio('${nome}','pis',this.value)" style="width:70px; border:1px solid #fed7aa; border-radius:4px; padding:3px 4px; text-align:center; font-size:0.82rem"></td>
+              <td style="padding:4px 6px; text-align:center"><input type="number" step="0.01" min="0" max="100" id="bcofins_${nomeId}" value="${b.cofins ?? ''}" placeholder="padrão" onchange="atualizarBeneficio('${nome}','cofins',this.value)" style="width:70px; border:1px solid #fed7aa; border-radius:4px; padding:3px 4px; text-align:center; font-size:0.82rem"></td>
+              <td style="padding:4px 6px; text-align:center"><input type="number" step="0.01" min="0" max="100" id="bipi_${nomeId}" value="${b.ipi ?? ''}" placeholder="padrão" onchange="atualizarBeneficio('${nome}','ipi',this.value)" style="width:70px; border:1px solid #fed7aa; border-radius:4px; padding:3px 4px; text-align:center; font-size:0.82rem"></td>
+              <td style="padding:4px 6px; text-align:center"><input type="number" step="0.01" min="0" max="100" id="bicms_${nomeId}" value="${b.icms ?? ''}" placeholder="padrão" onchange="atualizarBeneficio('${nome}','icms',this.value)" style="width:70px; border:1px solid #fed7aa; border-radius:4px; padding:3px 4px; text-align:center; font-size:0.82rem"></td>
+              <td style="padding:4px 6px; text-align:center"><input type="checkbox" id="bretid_${nomeId}" ${retChecked} onchange="atualizarBeneficio('${nome}','retid',this.checked)" style="width:16px; height:16px; accent-color:#1e3a5f"></td>
+              <td style="padding:4px 6px; text-align:center"><input type="checkbox" id="bisento_${nomeId}" ${isentoChecked} onchange="atualizarBeneficio('${nome}','isentoTotal',this.checked)" style="width:16px; height:16px; accent-color:#dc2626"></td>
+            </tr>
+        `;
+    }).join('');
+}
+
+function atualizarBeneficio(nomeProduto, campo, valor) {
+    if (!beneficiosPorProduto[nomeProduto]) {
+        beneficiosPorProduto[nomeProduto] = { pis:null, cofins:null, ipi:null, icms:null, isentoTotal:false };
+    }
+    if (campo === 'retid') {
+        retidPorProduto[nomeProduto] = !!valor;
+        try { recalcularLinhaPrecifCliente(nomeProduto); } catch (e) { calcularPrecificacaoPorCliente(); }
+        return;
+    }
+    if (campo === 'isentoTotal') {
+        beneficiosPorProduto[nomeProduto].isentoTotal = !!valor;
+        if (valor) {
+            ['pis','cofins','ipi','icms'].forEach(t => {
+                beneficiosPorProduto[nomeProduto][t] = 0;
+                const el = document.getElementById('b' + t + '_' + (nomeProduto || '').replace(/[^a-z0-9]/gi, '_'));
+                if (el) { el.value = '0'; el.disabled = true; }
+            });
+        } else {
+            ['pis','cofins','ipi','icms'].forEach(t => {
+                beneficiosPorProduto[nomeProduto][t] = null;
+                const el = document.getElementById('b' + t + '_' + (nomeProduto || '').replace(/[^a-z0-9]/gi, '_'));
+                if (el) { el.value = ''; el.disabled = false; }
+            });
+        }
+        try { recalcularLinhaPrecifCliente(nomeProduto); } catch (e) { calcularPrecificacaoPorCliente(); }
+        return;
+    }
+    // numeric overrides
+    beneficiosPorProduto[nomeProduto][campo] = (valor === '' || valor === null) ? null : parseFloat(valor);
+    try { recalcularLinhaPrecifCliente(nomeProduto); } catch (e) { calcularPrecificacaoPorCliente(); }
+}
+
+function isentarTodosProdutos() {
+    const produtos = estoque.produtos || [];
+    produtos.forEach(p => {
+        beneficiosPorProduto[p.nome] = { pis:0, cofins:0, ipi:0, icms:0, isentoTotal:true };
+        retidPorProduto[p.nome] = true;
+    });
+    renderizarTabelaBeneficios();
+}
+
+function limparBeneficios() {
+    beneficiosPorProduto = {};
+    retidPorProduto = {};
+    renderizarTabelaBeneficios();
 }
 
 // ── FEDERAL TAXES EDITING (mutable, persisted) ──────────────────
