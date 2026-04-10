@@ -8980,7 +8980,7 @@ function resetarPrecoManual(nomeProduto) {
 
 // ── SUB-TAB NAVIGATION FOR PRECIFICAÇÃO ─────────────────────────
 function trocarSubabaPrecif(subaba) {
-    ['produtos','federais','icms','porcliente','comparativo'].forEach(s => {
+    ['produtos','federais','icms','porcliente','comparativo','rastreabilidade'].forEach(s => {
                 const el = document.getElementById('subaba-precif-' + s);
                 if (el) el.style.display = (s === subaba) ? 'block' : 'none';
                 const btn = document.getElementById('sbtn-' + s);
@@ -8994,6 +8994,9 @@ function trocarSubabaPrecif(subaba) {
         if (subaba === 'comparativo') {
             try { popularSelectsComparativo(); } catch (e) {}
             try { calcularComparativo(); } catch (e) {}
+        }
+        if (subaba === 'rastreabilidade') {
+            try { renderizarRastreabilidade(); } catch (e) {}
         }
         if (subaba === 'porcliente') {
                 // preparar dropdown e estado inicial da sub-aba
@@ -9197,6 +9200,230 @@ function exportarComparativo() {
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, 'Comparativo');
         XLSX.writeFile(wb, 'comparativo_precos_' + new Date().toISOString().split('T')[0] + '.xlsx');
+}
+
+function renderizarRastreabilidade() {
+        const selCliente = document.getElementById('rastreaCliente');
+        if (selCliente) {
+                const currentVal = selCliente.value;
+                selCliente.innerHTML = '<option value="">Todos os clientes</option>'
+                        + (clientes || []).slice().sort((a, b) => (a.nome || '').localeCompare(b.nome || ''))
+                                .map(c => `<option value="${c.id}" ${String(c.id) === String(currentVal) ? 'selected' : ''}>${_escapeHtml(c.nome || '')}</option>`).join('');
+        }
+
+        const filtroId = selCliente?.value || '';
+        const periodo = document.getElementById('rastreaPeriodo')?.value || 'todos';
+        const agora = new Date();
+
+        const inPeriod = iso => {
+                if (!iso || periodo === 'todos') return true;
+                const d = new Date(iso);
+                if (periodo === 'mes') return d.getMonth() === agora.getMonth() && d.getFullYear() === agora.getFullYear();
+                if (periodo === 'trimestre') return Math.floor(d.getMonth() / 3) === Math.floor(agora.getMonth() / 3) && d.getFullYear() === agora.getFullYear();
+                if (periodo === 'ano') return d.getFullYear() === agora.getFullYear();
+                return true;
+        };
+
+        const clientesFilt = (clientes || []).filter(c => !filtroId || String(c.id) === String(filtroId));
+        const fmt = v => 'R$ ' + parseFloat(v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
+
+        const statusColor = {
+                rascunho: '#64748b', enviada: '#1d4ed8', aceita: '#166534',
+                recusada: '#dc2626', expirada: '#d97706', convertida: '#0ea5e9',
+                aguardando_aprovacao: '#7c3aed'
+        };
+
+        const container = document.getElementById('painelRastreabilidade');
+        if (!container) return;
+
+        const html = clientesFilt.map(cliente => {
+                const precifs = (precificacoesCliente || [])
+                        .filter(p => String(p.clienteId) === String(cliente.id) && inPeriod(p.dataCriacao))
+                        .sort((a, b) => new Date(b.dataCriacao) - new Date(a.dataCriacao));
+                const propostasC = (propostas || [])
+                        .filter(p => p.cliente === cliente.nome && inPeriod(p.dataCriacao || p.data))
+                        .sort((a, b) => new Date(b.dataCriacao || b.data || 0) - new Date(a.dataCriacao || a.data || 0));
+                const vendasC = (estoque.registroVendas || [])
+                        .filter(v => v.loja === cliente.nome && inPeriod(v.data))
+                        .sort((a, b) => new Date(b.data || 0) - new Date(a.data || 0));
+
+                if (!precifs.length && !propostasC.length && !vendasC.length) return '';
+
+                const totalFat = vendasC.reduce((s, v) => s + (v.valorTotal || 0), 0);
+                const eventos = [
+                        ...precifs.map(p => ({ ...p, _tipo: 'precif', _date: p.dataCriacao })),
+                        ...propostasC.map(p => ({ ...p, _tipo: 'proposta', _date: p.dataCriacao || p.data })),
+                        ...vendasC.map(v => ({ ...v, _tipo: 'contrato', _date: v.data }))
+                ].sort((a, b) => new Date(b._date || 0) - new Date(a._date || 0));
+
+                return `
+            <div style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;
+                                    margin-bottom:20px;overflow:hidden">
+                <div style="background:linear-gradient(135deg,#1e3a5f,#2d5a8b);
+                                        padding:14px 20px;display:flex;justify-content:space-between;align-items:center">
+                    <div>
+                        <div style="font-size:1rem;font-weight:700;color:#fff">${_escapeHtml(cliente.nome || '')}</div>
+                        <div style="font-size:0.8rem;color:rgba(255,255,255,0.7);margin-top:2px">
+                            ${_escapeHtml(cliente.uf || '—')} · ${((cliente.cnpj || '').replace(/\D/g, '').length === 14 ? 'PJ' : 'PF')}
+                        </div>
+                    </div>
+                    <div style="text-align:right">
+                        <div style="font-size:0.75rem;color:rgba(255,255,255,0.6)">Total faturado</div>
+                        <div style="font-size:1.2rem;font-weight:800;color:#7ee787">${fmt(totalFat)}</div>
+                    </div>
+                </div>
+                <div style="display:flex;border-bottom:1px solid #f1f5f9;background:#f8fafc">
+                    ${[
+                            { icon: '💰', label: 'Precificações', val: precifs.length, cor: '#c9a227' },
+                            { icon: '📋', label: 'Propostas', val: propostasC.length, cor: '#1d4ed8' },
+                            { icon: '✅', label: 'Aceitas', val: propostasC.filter(p => p.status === 'aceita').length, cor: '#16a34a' },
+                            { icon: '📄', label: 'Contratos', val: vendasC.length, cor: '#0ea5e9' },
+                    ].map(s => `<div style="flex:1;padding:10px;text-align:center;border-right:1px solid #f1f5f9">
+                        <div>${s.icon}</div>
+                        <div style="font-size:1.2rem;font-weight:700;color:${s.cor}">${s.val}</div>
+                        <div style="font-size:0.72rem;color:#64748b">${s.label}</div>
+                    </div>`).join('')}
+                </div>
+                <div style="padding:16px 20px">
+                    <div style="position:relative;padding-left:24px">
+                        <div style="position:absolute;left:8px;top:0;bottom:0;width:2px;background:#e2e8f0"></div>
+                        ${eventos.map(item => {
+                                const d = new Date(item._date || new Date()).toLocaleDateString('pt-BR');
+                                if (item._tipo === 'precif') return `
+                                <div style="position:relative;margin-bottom:14px">
+                                    <div style="position:absolute;left:-19px;top:4px;width:12px;height:12px;
+                                                            border-radius:50%;background:#c9a227;border:2px solid #fff;
+                                                            box-shadow:0 0 0 2px #c9a227"></div>
+                                    <div style="background:#fffbf0;border:1px solid #fed7aa;border-radius:8px;padding:10px 14px">
+                                        <div style="display:flex;justify-content:space-between">
+                                            <span style="font-weight:600;color:#92400e;font-size:0.85rem">
+                                                💰 Precificação v${item.versao || '—'}
+                                            </span>
+                                            <span style="font-size:0.78rem;color:#94a3b8">${d}</span>
+                                        </div>
+                                        <div style="font-size:0.78rem;color:#64748b;margin-top:3px">
+                                            Taxa: ${item.taxa || '—'}% · ROI: ${item.roi || '—'}% ·
+                                            ${(item.itens || []).length} produto(s)
+                                            ${item.descricao ? ` · &quot;${_escapeHtml(item.descricao)}&quot;` : ''}
+                                        </div>
+                                        ${item.propostaId
+                                                ? `<div style="font-size:0.72rem;color:#0ea5e9;margin-top:3px">
+                                                     → Gerou proposta ${_escapeHtml((propostas || []).find(p => p.id === item.propostaId)?.numero || '—')}
+                                                 </div>` : ''}
+                                    </div>
+                                </div>`;
+                                if (item._tipo === 'proposta') {
+                                        const sc = statusColor[item.status] || '#64748b';
+                                        return `
+                                    <div style="position:relative;margin-bottom:14px">
+                                        <div style="position:absolute;left:-19px;top:4px;width:12px;height:12px;
+                                                                border-radius:50%;background:${sc};border:2px solid #fff;
+                                                                box-shadow:0 0 0 2px ${sc}"></div>
+                                        <div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:8px;padding:10px 14px">
+                                            <div style="display:flex;justify-content:space-between;align-items:center">
+                                                <span style="font-weight:600;color:#0369a1;font-size:0.85rem">
+                                                    📋 Proposta ${_escapeHtml(item.numero || '')}
+                                                </span>
+                                                <div style="display:flex;gap:6px;align-items:center">
+                                                    <span style="background:${sc}20;color:${sc};font-size:0.7rem;
+                                                                             font-weight:600;padding:1px 8px;border-radius:20px">
+                                                        ${_escapeHtml(item.status || '')}
+                                                    </span>
+                                                    <span style="font-size:0.78rem;color:#94a3b8">${d}</span>
+                                                </div>
+                                            </div>
+                                            <div style="display:flex;justify-content:space-between;margin-top:4px">
+                                                <span style="font-size:0.78rem;color:#64748b">
+                                                    ${(item.itens || []).length} item(ns)
+                                                </span>
+                                                <span style="font-size:0.85rem;font-weight:700;color:#16a34a">
+                                                    ${fmt(item.valorTotal)}
+                                                </span>
+                                            </div>
+                                            ${item.contratoNumero
+                                                ? `<div style="font-size:0.72rem;color:#0ea5e9;margin-top:3px">
+                                                         → Contrato #${_escapeHtml(item.contratoNumero)}
+                                                     </div>` : ''}
+                                        </div>
+                                    </div>`;
+                                }
+                                if (item._tipo === 'contrato') return `
+                                <div style="position:relative;margin-bottom:14px">
+                                    <div style="position:absolute;left:-19px;top:4px;width:12px;height:12px;
+                                                            border-radius:50%;background:#16a34a;border:2px solid #fff;
+                                                            box-shadow:0 0 0 2px #16a34a"></div>
+                                    <div style="background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:10px 14px">
+                                        <div style="display:flex;justify-content:space-between;align-items:center">
+                                            <span style="font-weight:700;color:#166534;font-size:0.9rem">
+                                                📄 Contrato #${_escapeHtml(item.contrato || '')}
+                                            </span>
+                                            <span style="font-size:0.78rem;color:#94a3b8">${d}</span>
+                                        </div>
+                                        <div style="display:flex;justify-content:space-between;margin-top:4px">
+                                            <span style="font-size:0.78rem;color:#64748b">
+                                                Rep: ${_escapeHtml(item.representante || '')} · ${(item.itens || []).length} item(ns)
+                                            </span>
+                                            <span style="font-size:1rem;font-weight:800;color:#16a34a">
+                                                ${fmt(item.valorTotal)}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>`;
+                                return '';
+                        }).join('')}
+                    </div>
+                </div>
+            </div>`;
+        }).filter(Boolean).join('');
+
+        container.innerHTML = html || `
+        <div style="text-align:center;padding:60px;color:#94a3b8">
+            <div style="font-size:3rem;margin-bottom:12px">🔗</div>
+            <div>Nenhuma rastreabilidade encontrada</div>
+        </div>`;
+}
+
+function exportarRastreabilidade() {
+        const rows = [];
+        (clientes || []).forEach(c => {
+                (precificacoesCliente || []).filter(p => String(p.clienteId) === String(c.id)).forEach(p => rows.push({
+                        'Cliente': c.nome,
+                        'UF': c.uf || '',
+                        'Tipo': ((c.cnpj || '').replace(/\D/g, '').length === 14 ? 'PJ' : 'PF'),
+                        'Evento': 'Precificação',
+                        'Data': new Date(p.dataCriacao).toLocaleDateString('pt-BR'),
+                        'Versão/Nº': 'v' + (p.versao || 1),
+                        'Valor': '',
+                        'Status': p.status,
+                        'Ligação': p.propostaId ? ((propostas || []).find(x => x.id === p.propostaId)?.numero || '') : ''
+                }));
+                (propostas || []).filter(p => p.cliente === c.nome).forEach(p => rows.push({
+                        'Cliente': c.nome,
+                        'UF': c.uf || '',
+                        'Tipo': ((c.cnpj || '').replace(/\D/g, '').length === 14 ? 'PJ' : 'PF'),
+                        'Evento': 'Proposta',
+                        'Data': new Date(p.dataCriacao || p.data || new Date()).toLocaleDateString('pt-BR'),
+                        'Versão/Nº': p.numero,
+                        'Valor': p.valorTotal || 0,
+                        'Status': p.status,
+                        'Ligação': p.contratoNumero || ''
+                }));
+                (estoque.registroVendas || []).filter(v => v.loja === c.nome).forEach(v => rows.push({
+                        'Cliente': c.nome,
+                        'UF': c.uf || '',
+                        'Tipo': ((c.cnpj || '').replace(/\D/g, '').length === 14 ? 'PJ' : 'PF'),
+                        'Evento': 'Contrato',
+                        'Data': new Date(v.data || new Date()).toLocaleDateString('pt-BR'),
+                        'Versão/Nº': '#' + (v.contrato || ''),
+                        'Valor': v.valorTotal || 0,
+                        'Status': 'fechado',
+                        'Ligação': ''
+                }));
+        });
+        const ws = XLSX.utils.json_to_sheet(rows);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, 'Rastreabilidade');
+        XLSX.writeFile(wb, 'rastreabilidade_' + new Date().toISOString().split('T')[0] + '.xlsx');
 }
 
 // ── Precificação por Cliente: utilitários e calculadora (em tempo real, não persiste dados) ──
