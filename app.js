@@ -546,15 +546,15 @@ async function inicializar() {
 
     try { renderizarTabela(); } catch (e) { console.error('renderizarTabela:', e); }
     try { renderizarDashboard(); } catch (e) { console.error('renderizarDashboard:', e); }
-    try { renderizarRegistroVendas(); } catch (e) { console.error('renderizarRegistroVendas:', e); }
-    try { renderizarRegistroDistribuicao(); } catch (e) { console.error('renderizarRegistroDistribuicao:', e); }
-    try { renderizarControleEnvio(); } catch (e) { console.error('renderizarControleEnvio:', e); }
+    try { renderizarRegistroVendas(); } catch (e) { console.error('renderizarVendas:', e); }
+    try { renderizarRegistroDistribuicao(); } catch (e) { console.error('renderizarDist:', e); }
+    try { renderizarControleEnvio(); } catch (e) { console.error('renderizarEnvio:', e); }
     try { renderizarClientes(); } catch (e) { console.error('renderizarClientes:', e); }
     try { atualizarKPIsClientes(); } catch (e) {}
     try { atualizarDatalistClientes(); } catch (e) {}
     try { renderizarPropostas(); } catch (e) { console.error('renderizarPropostas:', e); }
     try { atualizarKPIsPropostas(); } catch (e) {}
-    try { renderizarPrecificacao(); } catch (e) { console.warn('renderizarPrecificacao falhou na inicialização:', e); }
+    try { renderizarPrecificacao(); } catch (e) { console.error('renderizarPrecif:', e); }
     try { atualizarSelectsProdutos(); } catch (e) {}
     try { atualizarSelectsRelatorios(); } catch (e) {}
     try { atualizarEstatisticas(); } catch (e) {}
@@ -8692,7 +8692,6 @@ function renderizarPrecificacao() {
         }).join('');
 
         atualizarResumoPrecificacaoCI(produtos);
-        salvarDados();
     } catch (e) {
         console.error('renderizarPrecificacao error:', e);
     }
@@ -8718,13 +8717,11 @@ function salvarCI(nomeProduto, valor) {
     precificacao[nomeProduto].ci = parseFloat(valor) || 0;
     precificacao[nomeProduto].ciAtualizadoEm = new Date().toISOString();
 
-    const nomeId = nomeProduto.replace(/[^a-zA-Z0-9]/g, '_');
+    const nomeId = _nomeProdutoId(nomeProduto);
     const input = document.getElementById('ci_' + nomeId);
     if (input) {
         const temCI = parseFloat(valor) > 0;
         input.style.borderColor = temCI ? '#22c55e' : '#e2e8f0';
-        input.style.fontWeight = temCI ? '600' : '400';
-        input.style.color = temCI ? '#16a34a' : '#1e293b';
     }
 
     const ultimaAttEl = document.getElementById('ci_att_' + nomeId);
@@ -8733,7 +8730,10 @@ function salvarCI(nomeProduto, valor) {
     }
 
     atualizarResumoPrecificacaoCI();
-    salvarDados();
+    try {
+        estoque.precificacao = precificacao;
+        localStorage.setItem('estoqueArmasV2', JSON.stringify(estoque));
+    } catch (e) {}
 }
 
 function atualizarLinhaPrecificacao(nomeProduto) {
