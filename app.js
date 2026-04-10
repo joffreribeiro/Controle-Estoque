@@ -11389,4 +11389,3 @@ function requireAdminOrNotify() {
 try { if (firebase && firebase.auth) firebase.auth().currentUser; } catch(e) {}
 }
 }
-
