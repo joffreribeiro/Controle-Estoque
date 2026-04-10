@@ -1648,7 +1648,7 @@ function renderizarCadastroProdutos() {
         const metricaImbel = obterMetricasImbelProduto(produto);
         const imbelTexto = metricaImbel.estoqueTotal === 0
             ? '-'
-            : formatarNumero(metricaImbel.imbelSaldo);
+            : formatarNumero(metricaImbel.imbelDisp);
         const atualizadoEm = produto.atualizadoEm || produto.dataAtualizacao || produto.criadoEm || '';
         const atualizadoTxt = atualizadoEm ? formatarData(atualizadoEm) : '-';
 
