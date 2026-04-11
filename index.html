@@ -1687,6 +1687,13 @@
                             <button class="btn btn-outline" onclick="exportarSistema()">
                                 <span class="btn-icon">💾</span> Exportar Sistema
                             </button>
+                            <button class="btn btn-outline" onclick="exportarBackupCompleto()">
+                                <span class="btn-icon">📥</span> Exportar Backup JSON
+                            </button>
+                            <button class="btn btn-info" onclick="document.getElementById('inputImportarBackup').click()">
+                                <span class="btn-icon">📤</span> Importar Backup
+                            </button>
+                            <input type="file" id="inputImportarBackup" accept=".json,application/json" style="display:none" onchange="importarBackup(event)">
                         </div>
                     </div>
 

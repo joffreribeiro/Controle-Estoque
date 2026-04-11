@@ -7630,6 +7630,62 @@ function importarSistema(event) {
 }
 
 
+function exportarBackupCompleto() {
+    try {
+        const backup = {
+            versao: '2.0',
+            data: new Date().toISOString(),
+            dados: estoque,
+            precificacoesCliente: precificacoesCliente,
+            impostosEditaveis: impostosEditaveis,
+            icmsEditavelPJ: icmsEditavelPJ,
+            icmsEditavelPF: icmsEditavelPF
+        };
+        const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'backup_FI_' + new Date().toISOString().split('T')[0] + '.json';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        mostrarNotificacao('Backup exportado com sucesso!', 'success');
+    } catch (e) {
+        console.error('Erro ao exportar backup completo:', e);
+        mostrarNotificacao('Erro ao exportar backup: ' + (e.message || e), 'error');
+    }
+}
+
+function importarBackup(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = e => {
+        try {
+            const backup = JSON.parse(e.target.result);
+            if (!backup || !backup.dados || !backup.versao) throw new Error('Formato inválido');
+            if (!confirm('Importar backup de ' + new Date(backup.data).toLocaleDateString('pt-BR') + '?\nIsso substituirá TODOS os dados atuais.')) {
+                event.target.value = ''; 
+                return;
+            }
+            estoque = backup.dados;
+            precificacoesCliente = backup.precificacoesCliente || [];
+            impostosEditaveis    = backup.impostosEditaveis    || {};
+            icmsEditavelPJ       = backup.icmsEditavelPJ       || {};
+            icmsEditavelPF       = backup.icmsEditavelPF       || {};
+            try { salvarDados(); } catch (e) {}
+            location.reload();
+        } catch (err) {
+            console.error('Erro ao importar backup:', err);
+            mostrarNotificacao('Erro ao importar backup: ' + (err.message || err), 'error');
+        } finally {
+            event.target.value = '';
+        }
+    };
+    reader.readAsText(file);
+}
+
 
 function importarEstoque(event) {
     const file = event.target.files[0];
