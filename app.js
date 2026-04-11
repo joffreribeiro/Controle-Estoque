@@ -4726,7 +4726,8 @@ function renderControleImbelDashboard() {
         resumo.appendChild(listaZ);
     }
 
-    estoqueWrap.insertBefore(resumo, tabela);
+    // primeiro adiciona o resumo e depois a tabela (evita insertBefore com nó ainda não anexado)
+    estoqueWrap.appendChild(resumo);
     estoqueWrap.appendChild(tabela);
     container.appendChild(estoqueWrap);
 
