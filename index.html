@@ -735,6 +735,8 @@
             </div>
             <div>
                 <button class="btn btn-outline btn-sm" onclick="limparFiltrosPrecifCliente()" style="margin-top:auto">🔄 Limpar filtros</button>
+																		</div>
+																</div>
 
                                                                 <!-- Sub-aba: Consulta (Lista completa de precificações) -->
                                                                 <div id="subaba-precif-consulta" style="display:none">
@@ -808,88 +810,6 @@
     </div>
 
                                                                 </div>
-
-                                                                                                                                <div id="subaba-precif-comparativo" style="display:none">
-
-    <!-- Client info banner (shown after selection) -->
-    <div id="precifClienteBanner" style="display:none; margin-bottom:16px; background:linear-gradient(135deg,#1e3a5f,#2d5a8b); border-radius:10px; padding:14px 20px; display:flex; gap:24px; align-items:center">
-        <div>
-            <div style="font-size:0.75rem; color:rgba(255,255,255,0.6); text-transform:uppercase; letter-spacing:0.5px">Cliente</div>
-            <div style="font-size:1rem; font-weight:700; color:#fff" id="precifBannerNome">—</div>
-        </div>
-        <div>
-            <div style="font-size:0.75rem; color:rgba(255,255,255,0.6); text-transform:uppercase; letter-spacing:0.5px">CNPJ/CPF</div>
-            <div style="font-size:0.9rem; color:#e2e8f0" id="precifBannerDoc">—</div>
-        </div>
-        <div>
-            <div style="font-size:0.75rem; color:rgba(255,255,255,0.6); text-transform:uppercase; letter-spacing:0.5px">Estado</div>
-            <div style="font-size:1rem; font-weight:700; color:#c9a227" id="precifBannerUF">—</div>
-        </div>
-        <div>
-            <div style="font-size:0.75rem; color:rgba(255,255,255,0.6); text-transform:uppercase; letter-spacing:0.5px">Tipo</div>
-            <div style="font-size:0.9rem; font-weight:600; color:#e2e8f0" id="precifBannerTipo">—</div>
-        </div>
-        <div>
-            <div style="font-size:0.75rem; color:rgba(255,255,255,0.6); text-transform:uppercase; letter-spacing:0.5px">Contato</div>
-            <div style="font-size:0.9rem; color:#e2e8f0" id="precifBannerContato">—</div>
-        </div>
-    </div>
-
-    <!-- Results table -->
-    <div id="precifClienteResultado" style="display:none">
-        <div style="display:flex; gap:10px; margin-bottom:14px; align-items:center; flex-wrap:wrap">
-            <div style="font-size:0.85rem; color:#64748b" id="precifSalvoInfo"></div>
-            <div id="precifStatusProposta" style="margin-bottom:12px"></div>
-            <div style="margin-left:auto; display:flex; gap:8px">
-                <button class="btn btn-outline" onclick="exportarPrecifCliente()">📤 Exportar Excel</button>
-                <button class="btn btn-outline" onclick="salvarPrecificacaoCliente()">💾 Salvar Precificação</button>
-                <button class="btn btn-success" onclick="criarPropostaDaPrecificacao()">📋 Gerar Proposta →</button>
-            </div>
-        </div>
-        <div class="table-container">
-            <div class="table-wrapper">
-                <table class="dashboard-table" id="tabelaPrecifCliente">
-                    <thead>
-                        <tr>
-                            <th style="text-align:left; padding-left:15px; min-width:220px; position:sticky; left:0; background:#1e3a5f; z-index:2">Produto</th>
-                                                        <th style="min-width:65px; text-align:center">
-                                                            RETID
-                                                            <div style="font-size:0.65rem; font-weight:400; color:rgba(255,255,255,0.7)">
-                                                                isenção federal
-                                                            </div>
-                                                        </th>
-                            <th style="min-width:80px">NCM</th>
-                            <th style="min-width:90px">CI (R$)</th>
-                            <th style="min-width:70px">Taxa %</th>
-                            <th style="min-width:70px">ROI %</th>
-                            <th style="min-width:100px">Valor Base</th>
-                            <th style="min-width:65px; color:#ef4444">PIS %</th>
-                            <th style="min-width:65px; color:#ef4444">COFINS %</th>
-                            <th style="min-width:75px; color:#ef4444">ICMS %</th>
-                            <th style="min-width:65px; color:#ef4444">IPI %</th>
-                            <th style="min-width:110px">c/ Impostos</th>
-                            <th style="min-width:80px; color:#d97706">Comissão</th>
-                            <th style="min-width:120px; background:#fffbf0; color:#c9a227; font-weight:700">Preço Final</th>
-                            <th style="min-width:80px">Margem</th>
-                        </tr>
-                    </thead>
-                    <tbody id="tabelaPrecifClienteBody"></tbody>
-                </table>
-            </div>
-        </div>
-
-        <!-- Summary footer -->
-        <div id="precifClienteSummary" style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:14px 20px; margin-top:14px; display:flex; gap:24px; align-items:center; flex-wrap:wrap"></div>
-    </div>
-
-    <!-- Empty state -->
-    <div id="precifClienteEmpty" style="text-align:center; padding:60px 20px; color:#94a3b8">
-        <div style="font-size:3rem; margin-bottom:12px">👤</div>
-        <div style="font-size:1rem; font-weight:500">Selecione um cliente para calcular os preços</div>
-        <div style="font-size:0.85rem; margin-top:6px">As alíquotas de ICMS, PIS, COFINS e IPI serão aplicadas automaticamente conforme o estado e tipo do cliente.</div>
-    </div>
-
-</div>
 
                                                                 <div id="subaba-precif-comparativo" style="display:none">
                                                                     <div style="background:#fff;border:1px solid #e2e8f0;border-radius:10px;
@@ -2837,7 +2757,7 @@
             </div>
         </div>
 
-    <script src="app.js"></script>
+    <script src="app.js?v=20260411-3"></script>
 
     <script>
     (function matchSubtitleWidth(){
