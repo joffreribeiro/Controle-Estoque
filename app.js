@@ -50,6 +50,108 @@ Shape:
         icmsBase: 12
     }
 }
+
+// ========================================
+// GRÁFICO: COMISSÕES POR REPRESENTANTE
+// ========================================
+
+function renderizarGraficoComissoes() {
+    try {
+        if (typeof Chart === 'undefined') return;
+        const canvas = document.getElementById('chartComissoesRep');
+        if (!canvas) return;
+
+        const periodo = document.getElementById('filtroComissoesGraficoPeriodo')?.value || 'todos';
+        const agora = new Date();
+        const vendasFiltradas = obterVendasDashboardFiltradas() || [];
+
+        const reps = ['KOLTE', 'ISA', 'LC', 'ADES', 'FL', 'IMBEL'];
+        const comissoes = {};
+        reps.forEach(r => comissoes[r] = 0);
+        let totalComissoes = 0;
+
+        vendasFiltradas.forEach(venda => {
+            const d = new Date(venda.data || 0);
+            if (isNaN(d.getTime())) return;
+            if (periodo === 'mes' && !(d.getMonth() === agora.getMonth() && d.getFullYear() === agora.getFullYear())) return;
+            if (periodo === 'trimestre' && !(Math.floor(d.getMonth()/3) === Math.floor(agora.getMonth()/3) && d.getFullYear() === agora.getFullYear())) return;
+            if (periodo === 'ano' && !(d.getFullYear() === agora.getFullYear())) return;
+
+            const rep = (venda.representante || '').toUpperCase();
+            const itens = obterItensVendaNormalizados(venda) || [];
+            itens.forEach(it => {
+                const produtoKey = it.produtoNome || it.produtoId || it.produto;
+                // tentar achar margem/comissão na precificação do cliente
+                let margem = null;
+                try {
+                    const precs = (precificacoesCliente || []).filter(p => p && p.clienteId === venda.clienteId);
+                    if (precs.length) {
+                        const found = (precs[0].itens || []).find(vi => (vi.produtoNome || vi.produtoId) == produtoKey || String(vi.produtoId) === String(produtoKey));
+                        if (found) margem = Number(found.margem ?? found.margemPercent ?? found.comissao ?? 0);
+                    }
+                } catch (e) {}
+
+                const valor = Number(it.valorTotal || it.valor || 0) || 0;
+                let comissao = 0;
+                if (margem && !isNaN(margem) && margem !== 0) {
+                    comissao = valor * (Number(margem) / 100);
+                } else {
+                    comissao = valor * 0.05; // fallback 5%
+                }
+
+                if (!comissoes[rep]) comissoes[rep] = 0;
+                comissoes[rep] += comissao;
+                totalComissoes += comissao;
+            });
+        });
+
+        const labels = reps;
+        const dataValues = labels.map(l => comissoes[l] || 0);
+
+        // tabela lateral
+        const tabelaDiv = document.getElementById('tabelaComissoesGrafico');
+        if (tabelaDiv) {
+            tabelaDiv.innerHTML = '';
+            const tbl = document.createElement('table');
+            tbl.style.width = '100%';
+            const tb = document.createElement('tbody');
+            labels.forEach((lab, i) => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `<td style="padding:6px 0">${lab}</td><td style="text-align:right;padding:6px 0">${formatarMoedaValor(dataValues[i])}</td>`;
+                tb.appendChild(tr);
+            });
+            tbl.appendChild(tb);
+            tabelaDiv.appendChild(tbl);
+        }
+
+        const totalEl = document.getElementById('totalComissoesGrafico');
+        if (totalEl) totalEl.textContent = 'Total Comissões: ' + formatarMoedaValor(totalComissoes);
+
+        // chart
+        if (canvas) {
+            if (_chartComissoesRep) try { _chartComissoesRep.destroy(); } catch (e) {}
+            const palette = ['#79c0ff', '#7ee787', '#58a6ff', '#ffa657', '#d2a8ff', '#ff7b72'];
+            _chartComissoesRep = new Chart(canvas, {
+                type: 'bar',
+                data: {
+                    labels,
+                    datasets: [{ label: 'Comissões (R$)', data: dataValues, backgroundColor: palette, borderRadius: 6 }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: { callbacks: { label: function(ctx) { return formatarMoedaValor(ctx.raw || ctx.parsed?.y || 0); } } }
+                    },
+                    scales: { y: { beginAtZero: true, ticks: { callback: function(v){ return 'R$ ' + Number(v).toLocaleString('pt-BR'); } } } }
+                }
+            });
+        }
+    } catch (e) {
+        console.warn('renderizarGraficoComissoes erro', e);
+    }
+}
 */
 
 function verificarExpiracaoPrecificacoes() {
@@ -5499,6 +5601,9 @@ function renderizarDashboard() {
         trTotalRep.innerHTML = htmlTotal;
         tabelaRep.appendChild(trTotalRep);
     }
+    try {
+        if (typeof renderizarGraficoComissoes === 'function') renderizarGraficoComissoes();
+    } catch (e) { console.warn('Erro ao renderizar gráfico de comissões', e); }
 }
 
 // ========================================
@@ -9051,6 +9156,7 @@ function verificarAlertasEstoque() {
 
 let _chartVendasRep = null;
 let _chartTopProdutos = null;
+let _chartComissoesRep = null;
 
 function renderizarGraficos() {
     if (typeof Chart === 'undefined') return;
