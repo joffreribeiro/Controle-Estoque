@@ -1712,24 +1712,29 @@ function normalizarContratoKey(valor) {
     return digitos ? String(parseInt(digitos, 10)) : clean.toUpperCase();
 }
 
-function formatarContratoDisplay(valor) {
+function formatarContratoDisplay(valor, fallbackYear) {
     const bruto = (valor ?? '').toString().normalize('NFKC');
     const clean = bruto.replace(/[\u200B-\u200D\uFEFF\s]+/g, '');
-    const digitos = clean.replace(/\D+/g, '');
-    // Forçar o ano para 2026 conforme solicitado
-    const ANO_PADRAO = '2026';
-    if (digitos && digitos.length >= 4) {
-        // Se houver pelo menos 4 dígitos, usamos tudo que vier antes dos últimos 4 (quando houver)
-        let seq = digitos.length > 4 ? digitos.slice(0, -4) : digitos;
-        if (!seq) seq = '0';
-        return String(parseInt(seq, 10)).padStart(3, '0') + '/' + ANO_PADRAO;
+    const currentYear = fallbackYear || new Date().getFullYear();
+    // formato com separador: 002/2026 ou 2-2026
+    const m = clean.match(/^(\d+)\D+(\d{4})$/);
+    if (m) {
+        const seq = String(parseInt(m[1], 10)).padStart(3, '0');
+        const yr = m[2];
+        return seq + '/' + yr;
     }
-    if (digitos && digitos.length > 0) {
-        return String(parseInt(digitos, 10)).padStart(3, '0') + '/' + ANO_PADRAO;
+    const digits = clean.replace(/\D+/g, '');
+    if (digits) {
+        if (digits.length > 4) {
+            const maybeYear = parseInt(digits.slice(-4), 10);
+            if (!isNaN(maybeYear) && maybeYear >= 2000 && maybeYear <= 2099) {
+                const seq = String(parseInt(digits.slice(0, -4), 10) || 0).padStart(3, '0');
+                return seq + '/' + maybeYear;
+            }
+        }
+        const seq = String(parseInt(digits, 10) || 0).padStart(3, '0');
+        return seq + '/' + currentYear;
     }
-    // Fallback: se não houver dígitos, tentar extrair formato já com barra
-    const m = clean.match(/^(\d{1,3})\/(\d{4})$/);
-    if (m) return String(parseInt(m[1], 10)).padStart(3, '0') + '/' + ANO_PADRAO;
     return '-';
 }
 
@@ -7214,23 +7219,64 @@ function atualizarPreviaContrato() {
     }
 }
 
-function gerarNumeroContrato() {
-    const cfg = carregarConfigContrato();
-    const anoAtual = new Date().getFullYear();
-
-    if (cfg.ano !== anoAtual) {
-        // new year: reset sequence
-        cfg.ano = anoAtual;
-        cfg.proximo = 1;
+// Analisa um valor de contrato e tenta extrair sequência e ano
+function parseContratoParts(contrato) {
+    if (contrato === null || contrato === undefined) return null;
+    const bruto = (contrato ?? '').toString().normalize('NFKC');
+    const clean = bruto.replace(/[\u200B-\u200D\uFEFF\s]+/g, '');
+    if (!clean) return null;
+    // formato com separador: 002/2026 ou 2-2026
+    const m = clean.match(/^(\d+)\D+(\d{4})$/);
+    if (m) {
+        return { seq: parseInt(m[1], 10), year: parseInt(m[2], 10) };
     }
+    // apenas dígitos (pode ser 22026 -> seq=2, year=2026)
+    const digits = clean.replace(/\D+/g, '');
+    if (digits) {
+        if (digits.length > 4) {
+            const maybeYear = parseInt(digits.slice(-4), 10);
+            if (!isNaN(maybeYear) && maybeYear >= 2000 && maybeYear <= 2099) {
+                const seq = parseInt(digits.slice(0, -4), 10) || 0;
+                return { seq: seq, year: maybeYear };
+            }
+        }
+        return { seq: parseInt(digits, 10), year: null };
+    }
+    return null;
+}
 
-    const numero = String(cfg.proximo).padStart(3, '0') + '/' + cfg.ano;
+// Retorna o próximo número sequencial (inteiro) para o ano informado
+function obterProximoNumeroContratoParaAno(ano) {
+    ano = parseInt(ano, 10) || new Date().getFullYear();
+    let maxSeq = 0;
+    (estoque.registroVendas || []).forEach(v => {
+        try {
+            const parsed = parseContratoParts(v.contrato || '');
+            if (parsed && parsed.seq) {
+                if (parsed.year) {
+                    if (parsed.year === ano && parsed.seq > maxSeq) maxSeq = parsed.seq;
+                } else {
+                    // se contrato não tem ano explícito, use o ano da venda (quando disponível)
+                    if (v && v.data) {
+                        const vy = new Date(v.data).getFullYear();
+                        if (vy === ano && parsed.seq > maxSeq) maxSeq = parsed.seq;
+                    }
+                }
+            }
+        } catch (e) {}
+    });
+    if (maxSeq > 0) return maxSeq + 1;
+    // fallback para configContrato quando não houver registos
+    const cfg = carregarConfigContrato();
+    if (cfg && cfg.ano === ano && cfg.proximo && cfg.proximo > 0) return cfg.proximo;
+    return 1;
+}
 
-    // Increment and save
-    cfg.proximo++;
-    localStorage.setItem('configContrato', JSON.stringify(cfg));
-
-    return numero;
+// Gera o próximo número (sequência) com padding, sem incluir o ano.
+function gerarNumeroContrato(preferYear) {
+    const ano = preferYear || new Date().getFullYear();
+    const nextSeq = obterProximoNumeroContratoParaAno(ano);
+    return String(nextSeq).padStart(3, '0');
 }
 
 // ================================
@@ -7397,7 +7443,27 @@ function abrirModalVendaDetalhada(vendaId = null, propostaId = null) {
             vendaEditandoId = null;
             container.innerHTML = '';
 
-            document.getElementById('contratoVenda').value = gerarNumeroContrato();
+            // preencher contrato com sequência (apenas número) baseada no ano da data
+            try {
+                const contratoEl = document.getElementById('contratoVenda');
+                const dataEl = document.getElementById('dataVenda');
+                const defaultYear = (dataEl && dataEl.value) ? new Date(dataEl.value + 'T12:00:00').getFullYear() : new Date().getFullYear();
+                const seq = gerarNumeroContrato(defaultYear);
+                if (contratoEl) {
+                    contratoEl.value = seq;
+                    contratoEl.dataset.autogenerated = '1';
+                    contratoEl.oninput = function() { this.dataset.autogenerated = '0'; };
+                }
+                if (dataEl) {
+                    dataEl.onchange = function() {
+                        if (contratoEl && contratoEl.dataset.autogenerated === '1') {
+                            const y = this.value ? new Date(this.value + 'T12:00:00').getFullYear() : new Date().getFullYear();
+                            contratoEl.value = gerarNumeroContrato(y);
+                            contratoEl.dataset.autogenerated = '1';
+                        }
+                    };
+                }
+            } catch (e) {}
             document.getElementById('lojaVenda').value = proposta.cliente || '';
             document.getElementById('representanteVendaDet').value = proposta.representante || '';
             document.getElementById('observacoesVenda').value = 'Gerado a partir da proposta ' + proposta.numero + (proposta.observacoes ? '\n' + proposta.observacoes : '');
@@ -7422,7 +7488,26 @@ function abrirModalVendaDetalhada(vendaId = null, propostaId = null) {
         container.innerHTML = '';
         adicionarItemVendaRow();
 
-        document.getElementById('contratoVenda').value = gerarNumeroContrato();
+        try {
+            const contratoEl = document.getElementById('contratoVenda');
+            const dataEl = document.getElementById('dataVenda');
+            const defaultYear = (dataEl && dataEl.value) ? new Date(dataEl.value + 'T12:00:00').getFullYear() : new Date().getFullYear();
+            const seq = gerarNumeroContrato(defaultYear);
+            if (contratoEl) {
+                contratoEl.value = seq;
+                contratoEl.dataset.autogenerated = '1';
+                contratoEl.oninput = function() { this.dataset.autogenerated = '0'; };
+            }
+            if (dataEl) {
+                dataEl.onchange = function() {
+                    if (contratoEl && contratoEl.dataset.autogenerated === '1') {
+                        const y = this.value ? new Date(this.value + 'T12:00:00').getFullYear() : new Date().getFullYear();
+                        contratoEl.value = gerarNumeroContrato(y);
+                        contratoEl.dataset.autogenerated = '1';
+                    }
+                };
+            }
+        } catch (e) {}
         // Preencher data padrão como hoje
         try { document.getElementById('dataVenda').value = new Date().toISOString().slice(0,10); } catch (e) {}
         return;
@@ -7730,7 +7815,32 @@ function finalizarSalvamentoVendaDetalhada(params) {
 function salvarVendaDetalhada(event) {
     if (!requireAdminOrNotify()) return;
     event.preventDefault();
-    const contrato = document.getElementById('contratoVenda').value.trim();
+    const contratoInput = (document.getElementById('contratoVenda')?.value || '').trim();
+    const dataVendaVal = document.getElementById('dataVenda')?.value || '';
+    const anoVenda = dataVendaVal ? new Date(dataVendaVal + 'T12:00:00').getFullYear() : new Date().getFullYear();
+    const isEditing = vendaEditandoId !== null;
+    let contratoFinal = contratoInput;
+    if (!isEditing) {
+        if (!contratoFinal) {
+            contratoFinal = String(obterProximoNumeroContratoParaAno(anoVenda)).padStart(3, '0') + '/' + anoVenda;
+        } else if (!contratoFinal.includes('/')) {
+            contratoFinal = String(parseInt(contratoFinal, 10) || 0).padStart(3, '0') + '/' + anoVenda;
+        } else {
+            const parts = contratoFinal.split('/');
+            const seq = String(parseInt(parts[0] || '0', 10) || 0).padStart(3, '0');
+            contratoFinal = seq + '/' + anoVenda;
+        }
+    } else {
+        // edição: manter ano se fornecido, caso contrário usar ano da data; garantir padding da sequência
+        if (!contratoFinal.includes('/')) {
+            contratoFinal = String(parseInt(contratoFinal || '0', 10) || 0).padStart(3, '0') + '/' + anoVenda;
+        } else {
+            const parts = contratoFinal.split('/');
+            const seq = String(parseInt(parts[0] || '0', 10) || 0).padStart(3, '0');
+            const yr = parts[1] || anoVenda;
+            contratoFinal = seq + '/' + yr;
+        }
+    }
     const loja = document.getElementById('lojaVenda').value.trim().toUpperCase();
     const representante = document.getElementById('representanteVendaDet').value;
     const observacoes = document.getElementById('observacoesVenda').value.trim();
@@ -7797,7 +7907,6 @@ function salvarVendaDetalhada(event) {
     }
 
     // Se estivermos editando, primeiro reverter os efeitos da venda anterior
-    const isEditing = vendaEditandoId !== null;
     let vendaAnterior = null;
     let vendaAnteriorSnapshot = null;
     if (isEditing) {
@@ -7849,14 +7958,14 @@ function salvarVendaDetalhada(event) {
         };
 
         mostrarConfirmacaoEstoque(msg, () => {
-            finalizarSalvamentoVendaDetalhada({ contrato, loja, representante, observacoes, itens, totalQtd, totalValor, isEditing, vendaAnterior, vendaAnteriorSnapshot, vendaEditandoIdLocal: vendaEditandoId });
+            finalizarSalvamentoVendaDetalhada({ contrato: contratoFinal, loja, representante, observacoes, itens, totalQtd, totalValor, isEditing, vendaAnterior, vendaAnteriorSnapshot, vendaEditandoIdLocal: vendaEditandoId });
         }, cancelarCallback);
 
         return;
     }
 
     // Se válido, finalizar imediatamente
-    finalizarSalvamentoVendaDetalhada({ contrato, loja, representante, observacoes, itens, totalQtd, totalValor, isEditing, vendaAnterior, vendaAnteriorSnapshot, vendaEditandoIdLocal: vendaEditandoId });
+    finalizarSalvamentoVendaDetalhada({ contrato: contratoFinal, loja, representante, observacoes, itens, totalQtd, totalValor, isEditing, vendaAnterior, vendaAnteriorSnapshot, vendaEditandoIdLocal: vendaEditandoId });
 }
 
 function renderizarRegistroVendas() {
@@ -8019,7 +8128,8 @@ function renderizarRegistroVendas() {
 
         const resumo = document.createElement('tr');
         resumo.className = 'row-contrato-resumo' + (contratoCancelado ? ' contrato-cancelado' : '');
-        const contratoDisplay = formatarContratoDisplay(primeira.contratoRaw || primeira.contratoKey);
+        const fallbackYear = primeira.dataNorm ? (primeira.dataNorm.slice(0,4)) : new Date().getFullYear();
+        const contratoDisplay = formatarContratoDisplay(primeira.contratoRaw || primeira.contratoKey, fallbackYear);
         let actionsHtml = '';
         if (contratoCancelado) {
             actionsHtml = '<span class="badge-cancelado">CANCELADO</span>';
@@ -15012,10 +15122,20 @@ function confirmarConversaoVenda() {
     const proposta = _propostaParaConverter;
     if (!proposta) return;
 
-    const contrato = document.getElementById('confirmarVendaContrato').value?.trim();
+    const contratoInput = document.getElementById('confirmarVendaContrato').value?.trim();
     const data     = document.getElementById('confirmarVendaData').value;
     const rep      = document.getElementById('confirmarVendaRepresentante').value;
     const obs      = document.getElementById('confirmarVendaObs').value;
+    const ano = data ? new Date(data + 'T12:00:00').getFullYear() : new Date().getFullYear();
+    let contrato = contratoInput || '';
+    if (!contrato.includes('/')) {
+        contrato = String(parseInt(contrato || '0', 10) || 0).padStart(3, '0') + '/' + ano;
+    } else {
+        const parts = contrato.split('/');
+        const seq = String(parseInt(parts[0] || '0', 10) || 0).padStart(3, '0');
+        const yr = parts[1] || ano;
+        contrato = seq + '/' + yr;
+    }
 
     if (!contrato) {
         mostrarNotificacao('Informe o número do contrato.', 'warning');
