@@ -1198,9 +1198,10 @@ async function carregarDoCloud({confirmOverwrite=true} = {}) {
             precificacoesCliente = normalizarPrecificacoesCliente(data.precificacoesCliente || []);
             estoque.precificacoesCliente = precificacoesCliente;
             try {
-                const abaAtiva = document.querySelector('[data-subaba].ativo')?.dataset?.subaba;
-                if (abaAtiva === 'consulta') renderizarConsultaPrecificacao();
-                if (abaAtiva === 'rastreabilidade') renderizarRastreabilidade();
+                const isConsultaVis = document.getElementById('subaba-precif-consulta')?.style.display !== 'none';
+                const isRastreaVis  = document.getElementById('subaba-precif-rastreabilidade')?.style.display !== 'none';
+                if (isConsultaVis) renderizarConsultaPrecificacao();
+                if (isRastreaVis)  renderizarRastreabilidade();
             } catch(e) {}
         } catch (e) { precificacoesCliente = []; }
         if (!data || !data.estado) {
@@ -1287,7 +1288,12 @@ async function carregarDoCloudAuto() {
         if (remoteUpdated && remoteUpdated > localUpdated) {
             // substituir local automaticamente
             estoque = data.estado;
-            estoque.precificacoesCliente = normalizarPrecificacoesCliente(estoque.precificacoesCliente);
+            estoque.precificacoesCliente = normalizarPrecificacoesCliente(
+                data.precificacoesCliente && data.precificacoesCliente.length
+                    ? data.precificacoesCliente
+                    : (estoque.precificacoesCliente || [])
+            );
+            precificacoesCliente = estoque.precificacoesCliente; // sincroniza variável global
             if (!Array.isArray(estoque.auditoriaVendas)) estoque.auditoriaVendas = [];
             if (!Array.isArray(estoque.fechamentosComissoes)) estoque.fechamentosComissoes = [];
             if (!Array.isArray(estoque.clientes)) estoque.clientes = [];
