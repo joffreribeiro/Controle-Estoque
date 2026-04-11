@@ -620,11 +620,17 @@
             <div class="form-group" style="margin:0">
                 <label style="font-size:0.85rem">Produto</label>
                 <select id="precifProdutoSelect"
-                        onchange="calcularPrecificacaoPorCliente()"
                         style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;
-                               border-radius:6px;font-size:0.9rem">
+                               border-radius:6px;font-size:0.9rem"
+                        onchange="
+                          const tf=document.getElementById('precifFiltroProduto');
+                          if(tf&&this.value)tf.value='';
+                          calcularPrecificacaoPorCliente()">
                     <option value="">Todos os produtos</option>
                 </select>
+                <div id="precifProdutoContador"
+                     style="font-size:0.75rem;color:#64748b;margin-top:4px">
+                </div>
             </div>
 
             <div class="form-group" style="margin:0">

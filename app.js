@@ -13469,6 +13469,12 @@ function calcularPrecificacaoPorCliente(opcoes = {}) {
     });
 
     const itensCalculados = [];
+    // atualizar contador de quantos produtos serão calculados (se houver contador no DOM)
+    try {
+        const contadorEl = document.getElementById('precifProdutoContador');
+        if (contadorEl) contadorEl.textContent = `${produtosFiltrados.length} produto(s) serão calculados`;
+    } catch (e) {}
+
     const rows = produtosFiltrados.map(produto => {
         const prec = precificacao[produto.nome] || {};
         const aliq = tabelaAliquotas[produto.nome] || {};
@@ -13627,7 +13633,15 @@ function calcularPrecificacaoPorCliente(opcoes = {}) {
     });
 
     const tbody = document.getElementById('tabelaPrecifClienteBody');
-    if (tbody) tbody.innerHTML = rows.join('');
+    if (!tbody) {
+        // Se o corpo da tabela não existe ainda, atualizamos apenas o contador (se houver) e abortamos
+        try {
+            const contadorEl = document.getElementById('precifProdutoContador');
+            if (contadorEl) contadorEl.textContent = `${produtosFiltrados.length} produto(s) serão calculados`;
+        } catch (e) {}
+        return;
+    }
+    tbody.innerHTML = rows.join('');
 
     // Summary com contagem filtrada
     const totalProdutos = produtos.length;
@@ -13657,10 +13671,13 @@ function calcularPrecificacaoPorCliente(opcoes = {}) {
     if (produtoSelecionado) {
         summaryHTML += `<div style="font-size:0.85rem;color:#64748b;margin-top:8px">Filtro ativo: ${_escapeHtml(produtoSelecionado)} — produtos calculados: ${produtosFiltrados.length}</div>`;
     }
-    document.getElementById('precifClienteSummary').innerHTML = summaryHTML;
+    const summaryEl = document.getElementById('precifClienteSummary');
+    if (summaryEl) summaryEl.innerHTML = summaryHTML;
 
-    document.getElementById('precifClienteResultado').style.display = 'block';
-    document.getElementById('precifClienteEmpty').style.display = 'none';
+    const resEl = document.getElementById('precifClienteResultado');
+    if (resEl) resEl.style.display = 'block';
+    const emptyEl2 = document.getElementById('precifClienteEmpty');
+    if (emptyEl2) emptyEl2.style.display = 'none';
 
     // guardar última precificação calculada para salvar/gerar proposta
     ultimaPrecificacaoCalculada = {
