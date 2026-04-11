@@ -1113,6 +1113,15 @@
                             <option value="90">Últimos 90 dias</option>
                             <option value="custom">Personalizado</option>
                         </select>
+                                                <select id="filtroDashboardPeriodo" 
+                                                                onchange="atualizarFiltroDashboardPeriodo()"
+                                                                style="padding:7px 12px;border:1px solid #e2e8f0;
+                                                                             border-radius:8px;font-size:0.875rem; margin-left:8px">
+                                                    <option value="todos">Todo o período</option>
+                                                    <option value="mes">Este mês</option>
+                                                    <option value="trimestre">Este trimestre</option>
+                                                    <option value="ano">Este ano</option>
+                                                </select>
                         <input type="date" id="dashboardDateStart" onchange="renderizarDashboard()" style="display:none">
                         <input type="date" id="dashboardDateEnd" onchange="renderizarDashboard()" style="display:none">
                         <button class="btn btn-outline btn-sm" onclick="imprimirRelatorioAba('dashboard')">

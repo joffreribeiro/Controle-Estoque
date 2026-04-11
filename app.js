@@ -5081,6 +5081,18 @@ function atualizarFiltroDashboardPeriodo() {
 
 function renderizarDashboard() {
     const vendasFiltradas = obterVendasDashboardFiltradas();
+    // Aplicar filtro de período (todos / mês / trimestre / ano)
+    const periodo = document.getElementById('filtroDashboardPeriodo')?.value || 'todos';
+    const agora = new Date();
+    const vendasPeriodo = (vendasFiltradas || []).filter(v => {
+        if (periodo === 'todos') return true;
+        const d = new Date(v.data || 0);
+        if (isNaN(d.getTime())) return false;
+        if (periodo === 'mes') return d.getMonth() === agora.getMonth() && d.getFullYear() === agora.getFullYear();
+        if (periodo === 'trimestre') return Math.floor(d.getMonth()/3) === Math.floor(agora.getMonth()/3) && d.getFullYear() === agora.getFullYear();
+        if (periodo === 'ano') return d.getFullYear() === agora.getFullYear();
+        return true;
+    });
     const repsOrdem = ['ADES', 'FL', 'IMBEL', 'ISA', 'KOLTE', 'LC'];
     const vendasPorRep = {};
     repsOrdem.forEach(rep => { vendasPorRep[rep] = 0; });
@@ -5089,7 +5101,7 @@ function renderizarDashboard() {
     let totalUnidades = 0;
     let totalFaturamento = 0;
 
-    vendasFiltradas.forEach(venda => {
+    vendasPeriodo.forEach(venda => {
         const rep = (venda.representante || '').toUpperCase();
         const itens = obterItensVendaNormalizados(venda);
         itens.forEach(it => {
