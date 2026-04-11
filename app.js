@@ -4605,14 +4605,17 @@ function renderControleImbelEstoque() {
     const thStyle = 'padding:8px 12px;border:1px solid #ddd;background:#1e3a5f;color:#fff;font-size:.82rem;white-space:nowrap;text-align:center';
     const tabela = document.createElement('table');
     tabela.style.cssText = 'width:100%;border-collapse:collapse;font-size:.85rem';
-    // Observação removida para simplificar a tabela IMBEL
     tabela.innerHTML = `<thead><tr>
-        <th style="${thStyle}">ID</th>
-        <th style="${thStyle}">Descrição</th>
-        <th style="${thStyle}">Quantidade Inicial</th>
-        <th style="${thStyle}">Entrada</th>
-        <th style="${thStyle}">Saída</th>
-        <th style="${thStyle}">Estoque Atual</th>
+        <th style="${thStyle}">#</th>
+        <th style="${thStyle};text-align:left">Produto</th>
+        <th style="${thStyle}">Qtd Inicial</th>
+        <th style="${thStyle}">Entradas</th>
+        <th style="${thStyle}">Saídas</th>
+        <th style="${thStyle}">Saldo Atual</th>
+        <th style="${thStyle}">Ponto Reposição</th>
+        <th style="${thStyle}">Valor Unit.</th>
+        <th style="${thStyle}">Valor em Estoque</th>
+        <th style="${thStyle}">Ações</th>
     </tr></thead><tbody></tbody>`;
 
     const tbody = tabela.querySelector('tbody');
@@ -4643,22 +4646,75 @@ function renderControleImbelEstoque() {
         const saida   = totSaida[p.id]   || 0;
         const inicial = Number(p.quantidadeInicial) || 0;
         const estoqueAtual = inicial + entrada - saida;
-        const saldoColor = estoqueAtual < 0 ? '#721c24' : estoqueAtual === 0 ? '#856404' : '#155724';
-        const saldoBg    = estoqueAtual < 0 ? '#f8d7da' : estoqueAtual === 0 ? '#fff3cd' : '#d4edda';
+
+        const ponto = (p.pontoReposicao !== undefined && p.pontoReposicao !== '')
+            ? Number(p.pontoReposicao)
+            : Math.max(1, Math.floor((Number(p.quantidadeInicial)||0) * 0.2));
+
+        let saldoStatus, rowBg, saldoBadge;
+        if (estoqueAtual <= 0) {
+            saldoStatus = 'ESGOTADO';
+            rowBg = '#fff5f5';
+            saldoBadge = `<span style="display:inline-block;padding:2px 10px;border-radius:20px;background:#dc2626;color:#fff;font-size:0.75rem;font-weight:700">${estoqueAtual} 🔴</span>`;
+        } else if (estoqueAtual <= ponto) {
+            saldoStatus = 'BAIXO';
+            rowBg = '#fffbeb';
+            saldoBadge = `<span style="display:inline-block;padding:2px 10px;border-radius:20px;background:#d97706;color:#fff;font-size:0.75rem;font-weight:700">${estoqueAtual} 🟡</span>`;
+        } else {
+            saldoStatus = 'OK';
+            rowBg = idx % 2 === 0 ? '#fff' : '#f7f9fc';
+            saldoBadge = `<span style="display:inline-block;padding:2px 10px;border-radius:20px;background:#16a34a;color:#fff;font-size:0.75rem;font-weight:700">${estoqueAtual} 🟢</span>`;
+        }
+
+        const valorUnit = Number(p.valorUnitario) || 0;
+        const valorEstoque = valorUnit * Math.max(0, estoqueAtual);
+        const fmtR = v => v > 0
+            ? 'R$ ' + v.toLocaleString('pt-BR', {minimumFractionDigits:2})
+            : '—';
 
         const tr = document.createElement('tr');
-        tr.style.background = idx % 2 === 0 ? '#fff' : '#f7f9fc';
-        // Observação removida: manter apenas colunas essenciais
+        tr.style.background = rowBg;
         tr.innerHTML = `
-            <td style="${tdCenter}">${idx + 1}</td>
-            <td style="${tdBase}">${p.nome}${p.codigo ? ' <span style="color:#888;font-size:.75rem">('+p.codigo+')</span>' : ''} <button class="btn btn-outline" data-editprod="${p.id}" style="margin-left:8px;padding:4px 8px;font-size:.8rem">Editar</button></td>
-            <td style="${tdCenter};font-weight:600">${inicial}</td>
-            <td style="${tdCenter};color:#155724;font-weight:600">${entrada}</td>
-            <td style="${tdCenter};color:#721c24;font-weight:600">${saida}</td>
-            <td style="${tdCenter};font-weight:700;background:${saldoBg};color:${saldoColor}">${estoqueAtual}</td>
-        `;
+            <td style="${tdCenter};font-weight:600">${idx + 1}</td>
+            <td style="${tdBase};font-weight:500">
+              ${p.nome}
+              ${p.codigo ? `<span style="color:#94a3b8;font-size:0.72rem;margin-left:4px">(${p.codigo})</span>` : ''}
+            </td>
+            <td style="${tdCenter}">${inicial}</td>
+            <td style="${tdCenter};color:#16a34a;font-weight:600">${entrada}</td>
+            <td style="${tdCenter};color:#dc2626;font-weight:600">${saida}</td>
+            <td style="${tdCenter}">${saldoBadge}</td>
+            <td style="${tdCenter}">
+              <input type="number" min="0" step="1"
+                     value="${p.pontoReposicao !== undefined ? p.pontoReposicao : ponto}"
+                     onchange="salvarPontoReposicaoImbel('${p.id}', this.value)"
+                     style="width:70px;padding:4px 6px;border:1px solid #e2e8f0;border-radius:6px;text-align:center;font-size:0.85rem">
+            </td>
+            <td style="${tdCenter}">${fmtR(valorUnit)}</td>
+            <td style="${tdCenter};font-weight:600;color:${valorEstoque > 0 ? '#16a34a' : '#94a3b8'}">${fmtR(valorEstoque)}</td>
+            <td style="${tdCenter}">
+              <button class="btn btn-outline btn-sm" data-editprod="${p.id}">✎ Editar</button>
+            </td>`;
         tbody.appendChild(tr);
     });
+
+    // Totais: valor total em estoque
+    const totalValorEstoque = (data.produtos||[]).reduce((s, p) => {
+        const ent = totEntrada[p.id] || 0;
+        const sai = totSaida[p.id]   || 0;
+        const ini = Number(p.quantidadeInicial) || 0;
+        const saldo = Math.max(0, ini + ent - sai);
+        return s + saldo * (Number(p.valorUnitario)||0);
+    }, 0);
+
+    const tfootRow = document.createElement('tr');
+    tfootRow.style.cssText = 'background:#1e3a5f;color:#fff;font-weight:700';
+    tfootRow.innerHTML = `
+        <td colspan="5" style="padding:10px 12px;text-align:left">Total (${produtos.length} produto(s))</td>
+        <td colspan="3" style="padding:10px 12px;text-align:center">Valor total em estoque:</td>
+        <td style="padding:10px 12px;text-align:center;color:#7ee787;font-size:1rem">R$ ${totalValorEstoque.toLocaleString('pt-BR',{minimumFractionDigits:2})}</td>
+        <td></td>`;
+    tabela.appendChild(document.createElement('tfoot')).appendChild(tfootRow);
 
     // Linha de totais gerais
     if (produtos.length > 0) {
@@ -4822,6 +4878,18 @@ function renderControleImbelCadastro() {
         openImbelProdModal();
         document.getElementById('imbel_prod_nome').focus();
     });
+}
+
+function salvarPontoReposicaoImbel(prodId, valor) {
+    try {
+        const data = loadImbel();
+        const prod = (data.produtos||[]).find(p => p.id === prodId);
+        if (!prod) return;
+        prod.pontoReposicao = parseInt(valor) || 0;
+        saveImbel(data);
+        mostrarNotificacao('Ponto de reposição atualizado.', 'success');
+        renderControleImbelEstoque();
+    } catch (e) { console.error('Erro ao salvar ponto de reposição:', e); }
 }
 
 function renderControleImbelMovimentacao() {
