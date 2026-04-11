@@ -1221,7 +1221,10 @@ async function carregarDoCloud({confirmOverwrite=true} = {}) {
             if (!ok) return false;
         }
         estoque = data.estado;
-        estoque.precificacoesCliente = normalizarPrecificacoesCliente(estoque.precificacoesCliente);
+        const precifsCloudFinal = (data.precificacoesCliente && data.precificacoesCliente.length)
+            ? data.precificacoesCliente
+            : (estoque.precificacoesCliente || []);
+        estoque.precificacoesCliente = normalizarPrecificacoesCliente(precifsCloudFinal);
         precificacoesCliente = estoque.precificacoesCliente;
         if (!Array.isArray(estoque.auditoriaVendas)) estoque.auditoriaVendas = [];
         if (!Array.isArray(estoque.fechamentosComissoes)) estoque.fechamentosComissoes = [];
@@ -12655,6 +12658,8 @@ function renderizarConsultaPrecificacao() {
     };
 
     const rows = [];
+    const listaClientes = Array.isArray(clientes) ? clientes : [];
+    const listaPropostas = Array.isArray(propostas) ? propostas : [];
     const listaPrecificacoes = (precificacoesCliente && precificacoesCliente.length)
         ? precificacoesCliente
         : normalizarPrecificacoesCliente(estoque?.precificacoesCliente || []);
@@ -12664,30 +12669,58 @@ function renderizarConsultaPrecificacao() {
 
     (listaPrecificacoes||[])
         .filter(p => {
-            const clienteFiltroObj = (clientes||[]).find(c => String(c.id) === String(filtroClienteId));
+            const clienteFiltroObj = listaClientes.find(c => String(c.id) === String(filtroClienteId));
             const bateCliente = !filtroClienteId
                 || String(p.clienteId) === String(filtroClienteId)
                 || (!!clienteFiltroObj && String((p.clienteNome || '')).trim() === String((clienteFiltroObj.nome || '')).trim());
             if (!bateCliente) return false;
-            if (filtroStatus && p.status !== filtroStatus) return false;
+            if (filtroStatus && String(p.status || 'ativa').toLowerCase() !== String(filtroStatus).toLowerCase()) return false;
             return true;
         })
         .sort((a,b) => new Date(b.dataCriacao||0) - new Date(a.dataCriacao||0))
         .forEach(precif => {
-            const cliente = (clientes||[]).find(c =>
+            const cliente = listaClientes.find(c =>
                 String(c.id) === String(precif.clienteId)
                 || String((c.nome || '')).trim() === String((precif.clienteNome || '')).trim()
             );
             const cnpjLimpo = (cliente?.cnpj||'').replace(/\D/g,'');
             const tipo = cnpjLimpo.length === 14 ? 'PJ' : 'PF';
             const sc = statusColors[precif.status] || { bg:'#f1f5f9', text:'#64748b' };
-            const proposta = precif.propostaId ? (propostas||[]).find(p => p.id === precif.propostaId) : null;
+            const proposta = precif.propostaId ? listaPropostas.find(p => p.id === precif.propostaId) : null;
 
-            const itensOriginais = (precif.itens || precif.items || []);
+            const itensOriginais = (precif.itens || precif.items || precif.produtos || []);
             const itensFiltrados = itensOriginais.filter(it => !filtroProduto || (it.produto || it.produtoNome) === filtroProduto);
             if (!itensFiltrados.length && filtroProduto) return;
 
             const itensParaExibir = itensFiltrados.length ? itensFiltrados : itensOriginais;
+
+            if (!itensParaExibir.length) {
+                rows.push({
+                    clienteNome: precif.clienteNome || cliente?.nome || '—',
+                    uf: precif.clienteUF || cliente?.uf || '—',
+                    tipo,
+                    versao: 'v' + (precif.versao || 1),
+                    data: new Date(precif.dataCriacao||new Date()).toLocaleDateString('pt-BR'),
+                    status: precif.status || 'ativa',
+                    sc,
+                    produto: '— sem itens —',
+                    ncm: '—',
+                    ci: 0,
+                    taxa: precif.taxa || 0,
+                    roi: precif.roi || 0,
+                    valorBase: 0,
+                    icms: 0, icmsR: 0,
+                    pis: 0, pisR: 0,
+                    cofins: 0, cofinsR: 0,
+                    ipi: 0, ipiR: 0,
+                    valorImpostos: 0,
+                    comissao: precif.comissao || 0, comissaoR: 0,
+                    precoFinal: 0,
+                    margem: 0,
+                    propostaNum: proposta?.numero || (precif.propostaId ? '—' : ''),
+                });
+                return;
+            }
 
             itensParaExibir.forEach((item, idx) => {
                 const margem = item.margem ?? (
