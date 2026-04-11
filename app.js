@@ -907,11 +907,25 @@ async function inicializar() {
 }
 
 function normalizarPrecificacoesCliente(origem) {
-    const lista = Array.isArray(origem) ? origem : [];
+    const lista = Array.isArray(origem)
+        ? origem
+        : (origem && typeof origem === 'object')
+            ? Object.values(origem)
+            : [];
     return lista.map((p, i) => {
         const item = (p && typeof p === 'object') ? p : {};
+        const itensNorm = Array.isArray(item.itens)
+            ? item.itens
+            : Array.isArray(item.items)
+                ? item.items
+                : (item.itens && typeof item.itens === 'object')
+                    ? Object.values(item.itens)
+                    : (item.items && typeof item.items === 'object')
+                        ? Object.values(item.items)
+                        : [];
         return {
             ...item,
+            itens: itensNorm,
             versao: item.versao || (i + 1),
             status: item.status || 'ativa',
             propostaId: item.propostaId || null,
@@ -1012,6 +1026,13 @@ function carregarDados() {
         }
         // carregar precificações por cliente, se presente
         try { precificacoesCliente = normalizarPrecificacoesCliente(estoque.precificacoesCliente); } catch (e) { precificacoesCliente = []; }
+        if (!precificacoesCliente.length) {
+            try {
+                const rawEspelho = localStorage.getItem('precificacoesClienteBackupV1');
+                const espelho = normalizarPrecificacoesCliente(rawEspelho ? JSON.parse(rawEspelho) : []);
+                if (espelho.length) precificacoesCliente = espelho;
+            } catch (e) {}
+        }
         estoque.precificacoesCliente = precificacoesCliente;
         tabelaAliquotas = (estoque.tabelaAliquotas && typeof estoque.tabelaAliquotas === 'object')
             ? estoque.tabelaAliquotas
@@ -1200,6 +1221,7 @@ async function carregarDoCloud({confirmOverwrite=true} = {}) {
                 : ((data.estado && data.estado.precificacoesCliente) || []);
             precificacoesCliente = normalizarPrecificacoesCliente(precifsCloud);
             estoque.precificacoesCliente = precificacoesCliente;
+            try { localStorage.setItem('precificacoesClienteBackupV1', JSON.stringify(precificacoesCliente || [])); } catch (e) {}
             try {
                 const isConsultaVis = document.getElementById('subaba-precif-consulta')?.style.display !== 'none';
                 const isRastreaVis  = document.getElementById('subaba-precif-rastreabilidade')?.style.display !== 'none';
@@ -1226,6 +1248,7 @@ async function carregarDoCloud({confirmOverwrite=true} = {}) {
             : (estoque.precificacoesCliente || []);
         estoque.precificacoesCliente = normalizarPrecificacoesCliente(precifsCloudFinal);
         precificacoesCliente = estoque.precificacoesCliente;
+        try { localStorage.setItem('precificacoesClienteBackupV1', JSON.stringify(precificacoesCliente || [])); } catch (e) {}
         if (!Array.isArray(estoque.auditoriaVendas)) estoque.auditoriaVendas = [];
         if (!Array.isArray(estoque.fechamentosComissoes)) estoque.fechamentosComissoes = [];
         if (!Array.isArray(estoque.clientes)) estoque.clientes = [];
@@ -1301,6 +1324,7 @@ async function carregarDoCloudAuto() {
                     : (estoque.precificacoesCliente || [])
             );
             precificacoesCliente = estoque.precificacoesCliente; // sincroniza variável global
+            try { localStorage.setItem('precificacoesClienteBackupV1', JSON.stringify(precificacoesCliente || [])); } catch (e) {}
             if (!Array.isArray(estoque.auditoriaVendas)) estoque.auditoriaVendas = [];
             if (!Array.isArray(estoque.fechamentosComissoes)) estoque.fechamentosComissoes = [];
             if (!Array.isArray(estoque.clientes)) estoque.clientes = [];
@@ -12681,6 +12705,61 @@ function renderizarConsultaPrecificacao(forceSemFiltros = false) {
             console.warn('Falha ao recuperar precificações do localStorage para consulta:', e);
         }
     }
+    if (!listaPrecificacoes.length) {
+        try {
+            const rawEspelho = localStorage.getItem('precificacoesClienteBackupV1');
+            const fromMirror = normalizarPrecificacoesCliente(rawEspelho ? JSON.parse(rawEspelho) : []);
+            if (fromMirror.length) {
+                listaPrecificacoes = fromMirror;
+                precificacoesCliente = fromMirror;
+                try { if (estoque) estoque.precificacoesCliente = fromMirror; } catch (e) {}
+            }
+        } catch (e) {
+            console.warn('Falha ao recuperar precificações do espelho local para consulta:', e);
+        }
+    }
+    if (!listaPrecificacoes.length) {
+        try {
+            const pseudo = (Array.isArray(propostas) ? propostas : []).map((p, idx) => {
+                const cli = (Array.isArray(clientes) ? clientes : []).find(c => String(c.nome || '').trim() === String(p.cliente || '').trim());
+                const itensProp = Array.isArray(p.itens) ? p.itens : [];
+                return {
+                    id: 'pseudo-proposta-' + (p.id || idx),
+                    clienteId: cli?.id || '',
+                    clienteNome: p.cliente || cli?.nome || '—',
+                    clienteUF: cli?.uf || '—',
+                    dataCriacao: p.dataCriacao || p.data || new Date().toISOString(),
+                    versao: 1,
+                    status: p.status === 'aceita' ? 'convertida' : 'ativa',
+                    propostaId: p.id || null,
+                    itens: itensProp.map(it => ({
+                        produto: it.produto || it.produtoNome || '—',
+                        ncm: it.ncm || '—',
+                        ci: Number(it.ci || 0),
+                        taxa: Number(it.taxa || 0),
+                        roi: Number(it.roi || 0),
+                        valorBase: Number(it.valorBase || 0),
+                        icms: Number(it.icms || 0),
+                        icmsR: Number(it.icmsR || 0),
+                        pis: Number(it.pis || 0),
+                        pisR: Number(it.pisR || 0),
+                        cofins: Number(it.cofins || 0),
+                        cofinsR: Number(it.cofinsR || 0),
+                        ipi: Number(it.ipi || 0),
+                        ipiR: Number(it.ipiR || 0),
+                        valorImpostos: Number(it.valorImpostos || 0),
+                        comissao: Number(it.comissao || 0),
+                        comissaoR: Number(it.comissaoR || 0),
+                        precoFinal: Number(it.valorUnitario || it.precoFinal || 0),
+                        margem: Number(it.margem || 0)
+                    }))
+                };
+            }).filter(x => x.clienteNome && x.itens && x.itens.length);
+            if (pseudo.length) listaPrecificacoes = normalizarPrecificacoesCliente(pseudo);
+        } catch (e) {
+            console.warn('Falha ao gerar fallback da consulta a partir de propostas:', e);
+        }
+    }
     if ((!precificacoesCliente || !precificacoesCliente.length) && listaPrecificacoes.length) {
         precificacoesCliente = listaPrecificacoes;
     }
@@ -13943,6 +14022,7 @@ function salvarPrecificacaoCliente() {
     precificacoesCliente.push(registro);
     ultimaVersaoSalva = proximaVersao;
     try { estoque.precificacoesCliente = precificacoesCliente; } catch (e) {}
+    try { localStorage.setItem('precificacoesClienteBackupV1', JSON.stringify(precificacoesCliente || [])); } catch (e) {}
     salvarDados();
     const infoEl = document.getElementById('precifSalvoInfo');
     if (infoEl) infoEl.innerHTML = `<span style="color:#16a34a; font-size:0.82rem">✅ Precificação salva v${registro.versao} em ${new Date(registro.dataCriacao).toLocaleString('pt-BR')}</span> <button onclick="carregarVersaoPrecif('${registro.id}')" class="btn btn-outline btn-sm" style="margin-left:8px">↩ Carregar versão</button> <button onclick="renderizarHistoricoPrecif('${cId}')" class="btn btn-outline btn-sm" style="margin-left:8px">🕘 Histórico</button>`;
