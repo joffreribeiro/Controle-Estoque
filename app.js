@@ -13386,95 +13386,100 @@ async function signOut() {
 }
 
 // Atualiza UI conforme estado de autenticação
-firebase.auth().onAuthStateChanged(async function(user) {
-    const formEl = document.getElementById('authPanelForm');
-    const signedEl = document.getElementById('authSignedIn');
-    const userDisplay = document.getElementById('authUserDisplay');
-    const loggedEmailEl = document.getElementById('loggedAccountEmail');
-    const loggedBadgeEl = document.getElementById('loggedAccountBadge');
-    if (user) {
-        if (formEl) formEl.style.display = 'none';
-        if (signedEl) signedEl.style.display = 'flex';
-        if (userDisplay) userDisplay.textContent = user.email || user.uid;
+if (typeof firebase !== 'undefined' && firebase.auth) {
+    firebase.auth().onAuthStateChanged(async function(user) {
+        const formEl = document.getElementById('authPanelForm');
+        const signedEl = document.getElementById('authSignedIn');
+        const userDisplay = document.getElementById('authUserDisplay');
+        const loggedEmailEl = document.getElementById('loggedAccountEmail');
+        const loggedBadgeEl = document.getElementById('loggedAccountBadge');
+        if (user) {
+            if (formEl) formEl.style.display = 'none';
+            if (signedEl) signedEl.style.display = 'flex';
+            if (userDisplay) userDisplay.textContent = user.email || user.uid;
 
-        // Verifica claims para habilitar controles de admin
-        let isAdmin = false;
-        try {
-            const idt = await user.getIdTokenResult();
-            isAdmin = !!idt.claims && !!idt.claims.admin;
-        } catch (e) { /* ignore */ }
+            // Verifica claims para habilitar controles de admin
+            let isAdmin = false;
+            try {
+                const idt = await user.getIdTokenResult();
+                isAdmin = !!idt.claims && !!idt.claims.admin;
+            } catch (e) { /* ignore */ }
 
-        // Fallback por email (temporário) — remove se preferir depender apenas da claim
-        if (!isAdmin && user.email === 'joffre.ribeiro@gmail.com') isAdmin = true;
+            // Fallback por email (temporário) — remove se preferir depender apenas da claim
+            if (!isAdmin && user.email === 'joffre.ribeiro@gmail.com') isAdmin = true;
 
-        if (isAdmin) {
-            document.body.classList.add('is-admin');
-            if (loggedBadgeEl) loggedBadgeEl.style.display = 'inline-block';
-        } else {
-            document.body.classList.remove('is-admin');
-            if (loggedBadgeEl) loggedBadgeEl.style.display = 'none';
-        }
-        // Toggle UI controls marked as admin-only
-        try {
-            const adminControls = document.querySelectorAll('[data-admin="true"]');
-            adminControls.forEach(el => {
-                if (isAdmin) {
-                    el.removeAttribute('disabled');
-                    el.style.pointerEvents = '';
-                    el.style.opacity = '';
-                } else {
-                    el.setAttribute('disabled','disabled');
-                    el.style.pointerEvents = 'none';
-                    el.style.opacity = '0.55';
-                }
-            });
-        } catch(e) {}
-        if (loggedEmailEl) loggedEmailEl.textContent = user.email || '';
-
-        // Persist a short record of current user in localStorage for quick reference
-        try {
-            localStorage.setItem('currentUser', JSON.stringify({ email: user.email || null, uid: user.uid || null, isAdmin }));
-        } catch(e) {}
-
-        // Após autenticar, atualizar status do cloud e tentar auto-load 1x por usuário
-        try {
-            if (window.firestoreDB) {
-                try {
-                    const doc = await window.firestoreDB.collection('app_data').doc('latest').get();
-                    if (doc && doc.exists) {
-                        const data = doc.data();
-                        const updatedAt = data && data.updatedAt ? data.updatedAt.toDate() : null;
-                        updateFirestoreStatus(true, updatedAt, 'Cloud: pronto');
-                    } else {
-                        updateFirestoreStatus(true, null, 'Cloud: pronto (sem backup)');
-                    }
-                } catch (e) {
-                    updateFirestoreStatus(true, null, 'Cloud: sem permissão de leitura');
-                }
-
-                // Auto-load somente uma vez por usuário autenticado
-                if (window.__cloudAutoLoadDoneForUid !== user.uid) {
-                    const autoLoaded = await carregarDoCloudAuto();
-                    window.__cloudAutoLoadDoneForUid = user.uid;
-                    if (autoLoaded) {
-                        try { mostrarNotificacao('Dados carregados automaticamente do Cloud (remoto mais recente).', 'success'); } catch (e) {}
-                    }
-                }
+            if (isAdmin) {
+                document.body.classList.add('is-admin');
+                if (loggedBadgeEl) loggedBadgeEl.style.display = 'inline-block';
+            } else {
+                document.body.classList.remove('is-admin');
+                if (loggedBadgeEl) loggedBadgeEl.style.display = 'none';
             }
-        } catch (e) { /* ignore */ }
+            // Toggle UI controls marked as admin-only
+            try {
+                const adminControls = document.querySelectorAll('[data-admin="true"]');
+                adminControls.forEach(el => {
+                    if (isAdmin) {
+                        el.removeAttribute('disabled');
+                        el.style.pointerEvents = '';
+                        el.style.opacity = '';
+                    } else {
+                        el.setAttribute('disabled','disabled');
+                        el.style.pointerEvents = 'none';
+                        el.style.opacity = '0.55';
+                    }
+                });
+            } catch(e) {}
+            if (loggedEmailEl) loggedEmailEl.textContent = user.email || '';
 
-    } else {
-        if (formEl) formEl.style.display = 'flex';
-        if (signedEl) signedEl.style.display = 'none';
-        if (userDisplay) userDisplay.textContent = '';
-        document.body.classList.remove('is-admin');
-        if (loggedEmailEl) loggedEmailEl.textContent = '';
-        if (loggedBadgeEl) loggedBadgeEl.style.display = 'none';
-        try { localStorage.removeItem('currentUser'); } catch(e) {}
-        try { window.__cloudAutoLoadDoneForUid = null; } catch (e) {}
-        try { updateFirestoreStatus(true, null, 'Cloud: aguardando login'); } catch (e) {}
-    }
-});
+            // Persist a short record of current user in localStorage for quick reference
+            try {
+                localStorage.setItem('currentUser', JSON.stringify({ email: user.email || null, uid: user.uid || null, isAdmin }));
+            } catch(e) {}
+
+            // Após autenticar, atualizar status do cloud e tentar auto-load 1x por usuário
+            try {
+                if (window.firestoreDB) {
+                    try {
+                        const doc = await window.firestoreDB.collection('app_data').doc('latest').get();
+                        if (doc && doc.exists) {
+                            const data = doc.data();
+                            const updatedAt = data && data.updatedAt ? data.updatedAt.toDate() : null;
+                            updateFirestoreStatus(true, updatedAt, 'Cloud: pronto');
+                        } else {
+                            updateFirestoreStatus(true, null, 'Cloud: pronto (sem backup)');
+                        }
+                    } catch (e) {
+                        updateFirestoreStatus(true, null, 'Cloud: sem permissão de leitura');
+                    }
+
+                    // Auto-load somente uma vez por usuário autenticado
+                    if (window.__cloudAutoLoadDoneForUid !== user.uid) {
+                        const autoLoaded = await carregarDoCloudAuto();
+                        window.__cloudAutoLoadDoneForUid = user.uid;
+                        if (autoLoaded) {
+                            try { mostrarNotificacao('Dados carregados automaticamente do Cloud (remoto mais recente).', 'success'); } catch (e) {}
+                        }
+                    }
+                }
+            } catch (e) { /* ignore */ }
+
+        } else {
+            if (formEl) formEl.style.display = 'flex';
+            if (signedEl) signedEl.style.display = 'none';
+            if (userDisplay) userDisplay.textContent = '';
+            document.body.classList.remove('is-admin');
+            if (loggedEmailEl) loggedEmailEl.textContent = '';
+            if (loggedBadgeEl) loggedBadgeEl.style.display = 'none';
+            try { localStorage.removeItem('currentUser'); } catch(e) {}
+            try { window.__cloudAutoLoadDoneForUid = null; } catch (e) {}
+            try { updateFirestoreStatus(true, null, 'Cloud: aguardando login'); } catch (e) {}
+        }
+    });
+} else {
+    // Firebase/Auth não disponível — marcar status e manter UI funcional offline
+    try { updateFirestoreStatus(false, null, 'SDK não carregado'); } catch (e) {}
+}
 
 // Helper to check admin state synchronously from localStorage/cache
 function isCurrentUserAdmin() {
