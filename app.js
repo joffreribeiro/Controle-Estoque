@@ -1020,6 +1020,18 @@ function carregarDados() {
             : {};
         // Reconstruir distribuições por produto a partir dos registros (corrige inconsistências legadas)
         try { reconstruirDistribuicaoAPartirDeRegistros(); } catch (e) { /* ignore */ }
+
+        // Restore IMBEL data if it was saved in the main object
+        try {
+            if (estoque && estoque._imbelData) {
+                const existing = localStorage.getItem(IMBEL_KEY);
+                // Only restore if IMBEL localStorage is empty or default
+                if (!existing || existing === '{"produtos":[],"movimentacoes":[]}') {
+                    localStorage.setItem(IMBEL_KEY, JSON.stringify(estoque._imbelData));
+                    console.info('IMBEL: dados restaurados do backup principal');
+                }
+            }
+        } catch (e) {}
     } else {
         estoque.produtos = dadosIniciais.map((item, index) => ({
             id: index + 1,
@@ -1065,6 +1077,11 @@ function salvarDados() {
     try { estoque.icmsEditavelPF = icmsEditavelPF || {}; } catch (e) {}
     // marca hora local de atualização para comparação com o remoto
     try { estoque._localUpdatedAt = new Date().toISOString(); } catch (e) {}
+    // Include IMBEL data in main save
+    try {
+        const imbelData = loadImbel();
+        estoque._imbelData = imbelData;
+    } catch(e) {}
     localStorage.setItem('estoqueArmasV2', JSON.stringify(estoque));
     atualizarEstatisticas();
 
@@ -8418,6 +8435,7 @@ function exportarBackupCompleto() {
             versao: '2.0',
             data: new Date().toISOString(),
             dados: estoque,
+            imbelData: loadImbel(),
             precificacoesCliente: precificacoesCliente,
             impostosEditaveis: impostosEditaveis,
             icmsEditavelPJ: icmsEditavelPJ,
@@ -8456,6 +8474,12 @@ function importarBackup(event) {
             impostosEditaveis    = backup.impostosEditaveis    || {};
             icmsEditavelPJ       = backup.icmsEditavelPJ       || {};
             icmsEditavelPF       = backup.icmsEditavelPF       || {};
+            // Restore IMBEL data if present in backup
+            try {
+                if (backup.imbelData) {
+                    localStorage.setItem(IMBEL_KEY, JSON.stringify(backup.imbelData));
+                }
+            } catch(e) {}
             try { salvarDados(); } catch (e) {}
             location.reload();
         } catch (err) {
