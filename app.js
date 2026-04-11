@@ -872,6 +872,7 @@ async function inicializar() {
     try { atualizarKPIsPropostas(); } catch (e) {}
     try { renderizarPrecificacao(); } catch (e) { console.error('renderizarPrecif:', e); }
     try { atualizarSelectsProdutos(); } catch (e) {}
+    try { popularSelectProdutosPrecif(); } catch (e) {}
     try { atualizarSelectsRelatorios(); } catch (e) {}
     try { atualizarEstatisticas(); } catch (e) {}
     try { atualizarData(); } catch (e) {}
@@ -1922,6 +1923,7 @@ function trocarAba(aba) {
         } else if (aba === 'precificacao') {
             try { trocarSubabaPrecif('federais'); } catch (e) { if (window.__showRuntimeErrorOverlay) window.__showRuntimeErrorOverlay(e); }
             try { renderizarPrecificacao(); } catch (e) { if (window.__showRuntimeErrorOverlay) window.__showRuntimeErrorOverlay(e); }
+            try { popularSelectProdutosPrecif(); } catch (e) {}
         } else if (aba === 'clientes') {
             try { renderizarClientes(); } catch (e) { if (window.__showRuntimeErrorOverlay) window.__showRuntimeErrorOverlay(e); }
         } else if (aba === 'propostas') {
@@ -2204,7 +2206,11 @@ function renderizarCadastroProdutos() {
         const saldoConsolidadoCor = saldoConsolidado > 0 ? '#2da44e' : '#cf222e';
         const saldoConsolidadoClasse = saldoConsolidado < 0 ? 'negativo' : '';
         const atualizadoEm = produto.atualizadoEm || produto.dataAtualizacao || produto.criadoEm || '';
-        const atualizadoTxt = atualizadoEm ? formatarData(atualizadoEm) : '-';
+        const atualizadoTxt = atualizadoEm
+            ? (typeof formatDateToDDMMYYYY === 'function'
+                ? formatDateToDDMMYYYY(atualizadoEm)
+                : new Date(atualizadoEm).toLocaleDateString('pt-BR'))
+            : '-';
 
         if (ci > 0) comCI += 1;
 
@@ -9453,8 +9459,14 @@ function salvarProduto(event) {
         produto.observacoes = observacoes;
         produto.atualizadoEm = new Date().toISOString();
         produto.dataAtualizacao = Date.now();
-        produto.distribuicao = produto.distribuicao || { KOLTE: 0, ISA: 0, LC: 0, ADES: 0, FL: 0, IMBEL: 0 };
-        produto.vendas = produto.vendas || { KOLTE: 0, ISA: 0, LC: 0, ADES: 0, FL: 0, IMBEL: 0 };
+        // Preserve existing rep data, only add missing reps
+        const repsAtivos = estoque.representantes || ['KOLTE','ISA','LC','ADES','FL','IMBEL'];
+        if (!produto.distribuicao || typeof produto.distribuicao !== 'object') produto.distribuicao = {};
+        if (!produto.vendas || typeof produto.vendas !== 'object') produto.vendas = {};
+        repsAtivos.forEach(rep => {
+            if (produto.distribuicao[rep] === undefined) produto.distribuicao[rep] = 0;
+            if (produto.vendas[rep] === undefined)       produto.vendas[rep]       = 0;
+        });
 
         if (nomeAnterior && nomeAnterior !== nome) {
             if (precificacao[nomeAnterior] && !precificacao[nome]) {
@@ -9482,6 +9494,7 @@ function salvarProduto(event) {
         if (categoria) categoriaPorProduto[nome] = categoria;
 
         atualizarSelectsProdutos();
+        try { popularSelectProdutosPrecif(); } catch (e) {}
         salvarDados();
         renderizarTabela();
         renderizarDashboard();
@@ -9514,8 +9527,12 @@ function salvarProduto(event) {
         criadoEm: new Date().toISOString(),
         atualizadoEm: new Date().toISOString(),
         dataAtualizacao: Date.now(),
-        distribuicao: { KOLTE: 0, ISA: 0, LC: 0, ADES: 0, FL: 0, IMBEL: 0 },
-        vendas: { KOLTE: 0, ISA: 0, LC: 0, ADES: 0, FL: 0, IMBEL: 0 }
+        distribuicao: Object.fromEntries(
+            (estoque.representantes || ['KOLTE','ISA','LC','ADES','FL','IMBEL']).map(r => [r, 0])
+        ),
+        vendas: Object.fromEntries(
+            (estoque.representantes || ['KOLTE','ISA','LC','ADES','FL','IMBEL']).map(r => [r, 0])
+        )
     };
 
     precificacao[nome] = {
@@ -9531,6 +9548,7 @@ function salvarProduto(event) {
     estoque.produtos.push(novoProduto);
     // Atualizar selects imediatamente para refletir o novo produto em qualquer modal aberto
     atualizarSelectsProdutos();
+    try { popularSelectProdutosPrecif(); } catch (e) {}
     salvarDados();
     renderizarTabela();
     renderizarDashboard();
@@ -12548,7 +12566,8 @@ function trocarSubabaPrecif(subaba) {
                 // preparar dropdown e estado inicial da sub-aba
                 try {
                 try { verificarExpiracaoPrecificacoes(); } catch (e) {}
-                popularSelectClientesPrecif();
+            popularSelectClientesPrecif();
+            try { popularSelectProdutosPrecif(); } catch (e) {}
                 } catch (e) {}
                 const res = document.getElementById('precifClienteResultado');
                 const empty = document.getElementById('precifClienteEmpty');
@@ -13186,6 +13205,17 @@ function popularSelectClientesPrecif() {
     const elCom  = document.getElementById('precifComissaoPadraoLabel'); if (elCom) elCom.textContent = comPad;
 }
 
+function popularSelectProdutosPrecif() {
+    const sel = document.getElementById('precifProdutoSelect');
+    if (!sel) return;
+    const atual = sel.value;
+    sel.innerHTML = '<option value="">Todos os produtos</option>' + (estoque.produtos || [])
+        .filter(p => p.nome)
+        .sort((a,b) => (a.nome||'').localeCompare(b.nome||'', 'pt-BR'))
+        .map(p => `<option value="${_escapeHtml(p.nome)}" ${p.nome===atual? 'selected':''}>${_escapeHtml(p.nome)}</option>`)
+        .join('');
+}
+
 function obterUltimaPrecificacaoCliente(clienteId) {
     const registros = (precificacoesCliente || []).filter(p => String(p.clienteId) === String(clienteId));
     if (!registros.length) return null;
@@ -13405,7 +13435,11 @@ function calcularPrecificacaoPorCliente(opcoes = {}) {
     } catch(e) {}
 
     // filtros
-    const filtroProduto = (document.getElementById('precifFiltroProduto')?.value || '').toLowerCase().trim();
+    // Priority: dropdown selection > text filter
+    const produtoSelecionado = document.getElementById('precifProdutoSelect')?.value || '';
+    const filtroProduto = produtoSelecionado
+        ? produtoSelecionado.toLowerCase()
+        : (document.getElementById('precifFiltroProduto')?.value || '').toLowerCase().trim();
     const filtroNCM = document.getElementById('precifFiltroNCM')?.value || '';
     const filtroCI = document.getElementById('precifFiltroCI')?.value || 'todos';
 
@@ -13618,6 +13652,10 @@ function calcularPrecificacaoPorCliente(opcoes = {}) {
     `;
     if (abaixoCount > 0) {
         summaryHTML += `<div style="color:#dc2626;font-weight:600">⚠️ ${abaixoCount} produto(s) abaixo da margem mínima</div>`;
+    }
+    // If product dropdown was used, show explicit feedback about selection
+    if (produtoSelecionado) {
+        summaryHTML += `<div style="font-size:0.85rem;color:#64748b;margin-top:8px">Filtro ativo: ${_escapeHtml(produtoSelecionado)} — produtos calculados: ${produtosFiltrados.length}</div>`;
     }
     document.getElementById('precifClienteSummary').innerHTML = summaryHTML;
 
