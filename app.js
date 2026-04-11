@@ -4781,6 +4781,11 @@ function renderControleImbelCadastro() {
         openImbelProdModal();
     };
     topActions.appendChild(btnAdd);
+    const btnExport = document.createElement('button');
+    btnExport.className = 'btn btn-outline';
+    btnExport.innerHTML = '<span class="btn-icon">📊</span> Exportar Excel';
+    btnExport.onclick = () => exportarMovimentacoesImbel();
+    topActions.appendChild(btnExport);
     container.appendChild(topActions);
 
     // Tabela de produtos
@@ -5139,13 +5144,15 @@ function renderControleImbelMovimentacao() {
             const mov = (data.movimentacoes||[]).find(m=>m.id===id);
             if (!mov) return; mov.fi = this.checked ? 'SIM' : 'NÃO'; saveImbel(data); mostrarNotificacao('FI atualizado.', 'success'); renderControleImbelEstoque();
         });
+        // Atualizar resumo abaixo da tabela (se a função existir)
+        try { if (typeof atualizarResumoMovimentacoes === 'function') atualizarResumoMovimentacoes(); } catch(e) {}
     }
 
     // conectar eventos dos filtros
     ['imbel_filter_prod','imbel_filter_tipo','imbel_filter_date_start','imbel_filter_date_end','imbel_filter_dest','imbel_filter_cpf','imbel_filter_pago','imbel_filter_entregue_only','imbel_filter_fi_only'].forEach(id=>{
         const el = document.getElementById(id);
-        if (el) el.addEventListener('change', populateTbody);
-        if (el && el.addEventListener && el.tagName === 'INPUT') el.addEventListener('input', populateTbody);
+        if (el) el.addEventListener('change', function(){ populateTbody(); try{ atualizarResumoMovimentacoes(); }catch(e){} });
+        if (el && el.addEventListener && el.tagName === 'INPUT') el.addEventListener('input', function(){ populateTbody(); try{ atualizarResumoMovimentacoes(); }catch(e){} });
     });
     const btnResetFiltros = document.getElementById('imbel_filter_reset'); if (btnResetFiltros) btnResetFiltros.onclick = function(){
         document.getElementById('imbel_filter_prod').value = '';
@@ -5162,6 +5169,49 @@ function renderControleImbelMovimentacao() {
 
     // preencher tabela inicialmente
     populateTbody();
+
+        // Barra de resumo (entradas / saídas / valor)
+        const resumoBar = document.createElement('div');
+        resumoBar.id = 'imbelMovResumo';
+        resumoBar.style.cssText = 'display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px;padding:8px 0';
+        container.appendChild(resumoBar);
+
+        function atualizarResumoMovimentacoes() {
+                const all = (data.movimentacoes||[]).slice().reverse();
+                const fProd  = (document.getElementById('imbel_filter_prod')||{value:''}).value;
+                const fTipo  = (document.getElementById('imbel_filter_tipo')||{value:''}).value;
+                const fStart = (document.getElementById('imbel_filter_date_start')||{value:''}).value;
+                const fEnd   = (document.getElementById('imbel_filter_date_end')||{value:''}).value;
+
+                const filtered = all.filter(m => {
+                    if (fProd && String(m.produtoId) !== String(fProd)) return false;
+                    if (fTipo && (m.tipo||'').toUpperCase() !== fTipo.toUpperCase()) return false;
+                    if (fStart && (m.data||'') < fStart) return false;
+                    if (fEnd   && (m.data||'') > fEnd)   return false;
+                    return true;
+                });
+
+                const totalEntradas = filtered
+                    .filter(m => (m.tipo||'').toUpperCase() === 'ENTRADA')
+                    .reduce((s,m) => s + (Number(m.quantidade)||0), 0);
+                const totalSaidas = filtered
+                    .filter(m => ['SAÍDA','SAIDA'].includes((m.tipo||'').toUpperCase()))
+                    .reduce((s,m) => s + (Number(m.quantidade)||0), 0);
+                const totalValor = filtered
+                    .reduce((s,m) => s + (Number(m.valor)||0), 0);
+
+                const resumoEl = document.getElementById('imbelMovResumo');
+                if (resumoEl) {
+                    resumoEl.innerHTML = `
+                        <span style="background:#f0fdf4;color:#16a34a;padding:4px 12px;border-radius:20px;font-weight:700;font-size:0.82rem">📥 Entradas: ${totalEntradas}</span>
+                        <span style="background:#fef2f2;color:#dc2626;padding:4px 12px;border-radius:20px;font-weight:700;font-size:0.82rem">📤 Saídas: ${totalSaidas}</span>
+                        <span style="background:#f0f9ff;color:#0369a1;padding:4px 12px;border-radius:20px;font-weight:700;font-size:0.82rem">💰 Valor: R$ ${totalValor.toLocaleString('pt-BR',{minimumFractionDigits:2})}</span>
+                        <span style="color:#64748b;font-size:0.78rem">${filtered.length} registro(s)</span>`;
+                }
+        }
+
+        // Chamada inicial do resumo
+        try { atualizarResumoMovimentacoes(); } catch(e) {}
 
     // Preencher select de produtos do modal (se houver produtos)
     const selec = document.getElementById('imbel_mov_prod');
@@ -5265,6 +5315,49 @@ function renderControleImbelMovimentacao() {
 
 // Inicializar controle IMBEL (não altera outros dados)
 try { initControleImbel(); } catch(e) {}
+
+// Exportar movimentações IMBEL para Excel
+function exportarMovimentacoesImbel() {
+    try {
+        const data = loadImbel();
+        const movs = (data.movimentacoes || []).slice().reverse();
+        if (!movs.length) { mostrarNotificacao('Nenhuma movimentação para exportar.', 'warning'); return; }
+
+        const prodMap = {};
+        (data.produtos||[]).forEach(p => { prodMap[p.id] = p.nome; });
+
+        const rows = movs.map(m => ({
+            'Data':          m.data ? new Date(m.data).toLocaleDateString('pt-BR') : '',
+            'Produto':       prodMap[m.produtoId] || m.produtoId || '',
+            'Tipo':          m.tipo || '',
+            'Quantidade':    Number(m.quantidade) || 0,
+            'Destinatário':  m.destinatario || '',
+            'CPF/CNPJ':      m.cpfCnpj     || '',
+            'Valor (R$)':    Number(m.valor) || 0,
+            'Pagamento':     m.pagamento    || '',
+            'Entregue':      m.entregue     || '',
+            'FI':            m.fi           || '',
+            'Endereço':      m.endereco     || '',
+            'Telefone':      m.telefone     || '',
+            'E-mail':        m.email        || '',
+            'Observações':   m.observacoes  || ''
+        }));
+
+        const ws = XLSX.utils.json_to_sheet(rows);
+        ws['!cols'] = [
+            {wch:12},{wch:30},{wch:10},{wch:10},{wch:30},{wch:18},
+            {wch:14},{wch:12},{wch:10},{wch:8},
+            {wch:35},{wch:16},{wch:30},{wch:40}
+        ];
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, 'Movimentações IMBEL');
+        XLSX.writeFile(wb, 'imbel_movimentacoes_' + new Date().toISOString().split('T')[0] + '.xlsx');
+        mostrarNotificacao(`${rows.length} movimentação(ões) exportada(s)!`, 'success');
+    } catch(e) {
+        console.error('Erro exportarMovimentacoesImbel', e);
+        mostrarNotificacao('Erro ao exportar.', 'error');
+    }
+}
 
 // Abre a sub-aba de Cadastro e preenche o formulário para editar o produto indicado
 function editarProdutoPorId(id) {
