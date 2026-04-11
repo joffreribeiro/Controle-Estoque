@@ -153,7 +153,6 @@ function renderizarGraficoComissoes() {
         console.warn('renderizarGraficoComissoes erro', e);
     }
 }
-*/
 
 function verificarExpiracaoPrecificacoes() {
     try {
