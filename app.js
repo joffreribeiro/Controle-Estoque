@@ -12597,7 +12597,8 @@ function popularSelectsComparativo() {
 function renderizarConsultaPrecificacao() {
     // Populate selects
     const selCliente = document.getElementById('consultaFiltroCliente');
-    if (selCliente && selCliente.options.length <= 1) {
+    if (selCliente) {
+        selCliente.innerHTML = '<option value="">Todos os clientes</option>';
         (clientes||[]).slice().sort((a,b)=> (a.nome||'').localeCompare(b.nome||'')).forEach(c => {
             const opt = document.createElement('option');
             opt.value = c.id;
@@ -12607,7 +12608,8 @@ function renderizarConsultaPrecificacao() {
     }
 
     const selProd = document.getElementById('consultaFiltroProduto');
-    if (selProd && selProd.options.length <= 1) {
+    if (selProd) {
+        selProd.innerHTML = '<option value="">Todos os produtos</option>';
         (estoque.produtos||[]).slice().sort((a,b)=> (a.nome||'').localeCompare(b.nome||'')).forEach(p => {
             const opt = document.createElement('option');
             opt.value = p.nome;
