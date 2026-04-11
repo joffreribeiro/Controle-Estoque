@@ -11,6 +11,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <script src="https://unpkg.com/docx@8.5.0/build/index.js"></script>
 </head>
 <body>
     <div class="container">
@@ -1779,6 +1780,214 @@
                             </button>
                         </div>
                     </div>
+                                        <!-- Dados do Vendedor (IMBEL / FI) -->
+                                        <div class="config-card" style="margin-bottom:20px">
+                                            <div style="font-size:0.85rem;font-weight:700;color:#1e3a5f;
+                                                                    text-transform:uppercase;letter-spacing:0.5px;
+                                                                    margin-bottom:14px">
+                                                🏭 Dados do Vendedor (IMBEL / Fábrica de Itajubá)
+                                            </div>
+
+                                            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+
+                                                <div class="form-group" style="margin:0;grid-column:1/-1">
+                                                    <label style="font-size:0.82rem;color:#64748b">
+                                                        Nome / Razão Social
+                                                    </label>
+                                                    <input type="text" id="cfgVend_nomeEmpresa"
+                                                                 placeholder="Indústria de Material Bélico do Brasil – IMBEL..."
+                                                                 style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;
+                                                                                border-radius:6px;font-size:0.9rem">
+                                                </div>
+
+                                                <div class="form-group" style="margin:0">
+                                                    <label style="font-size:0.82rem;color:#64748b">CNPJ</label>
+                                                    <input type="text" id="cfgVend_cnpj" maxlength="18"
+                                                                 oninput="this.value=formatCpfCnpjMask(this.value)"
+                                                                 style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;
+                                                                                border-radius:6px;font-size:0.9rem">
+                                                </div>
+
+                                                <div class="form-group" style="margin:0">
+                                                    <label style="font-size:0.82rem;color:#64748b">
+                                                        Inscrição Estadual
+                                                    </label>
+                                                    <input type="text" id="cfgVend_inscricaoEstadual"
+                                                                 style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;
+                                                                                border-radius:6px;font-size:0.9rem">
+                                                </div>
+
+                                                <div class="form-group" style="margin:0;grid-column:1/-1">
+                                                    <label style="font-size:0.82rem;color:#64748b">Endereço</label>
+                                                    <input type="text" id="cfgVend_endereco"
+                                                                 placeholder="Av. Cel. Aventino Ribeiro, 1099"
+                                                                 style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;
+                                                                                border-radius:6px;font-size:0.9rem">
+                                                </div>
+
+                                                <div class="form-group" style="margin:0">
+                                                    <label style="font-size:0.82rem;color:#64748b">Bairro</label>
+                                                    <input type="text" id="cfgVend_bairro"
+                                                                 placeholder="IMBEL"
+                                                                 style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;
+                                                                                border-radius:6px;font-size:0.9rem">
+                                                </div>
+
+                                                <div class="form-group" style="margin:0">
+                                                    <label style="font-size:0.82rem;color:#64748b">Cidade</label>
+                                                    <input type="text" id="cfgVend_cidade"
+                                                                 placeholder="Itajubá"
+                                                                 style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;
+                                                                                border-radius:6px;font-size:0.9rem">
+                                                </div>
+
+                                                <div class="form-group" style="margin:0">
+                                                    <label style="font-size:0.82rem;color:#64748b">UF</label>
+                                                    <input type="text" id="cfgVend_uf" maxlength="2"
+                                                                 placeholder="MG"
+                                                                 oninput="this.value=this.value.toUpperCase()"
+                                                                 style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;
+                                                                                border-radius:6px;font-size:0.9rem;text-transform:uppercase">
+                                                </div>
+
+                                                <div class="form-group" style="margin:0">
+                                                    <label style="font-size:0.82rem;color:#64748b">CEP</label>
+                                                    <input type="text" id="cfgVend_cep" maxlength="9"
+                                                                 placeholder="00000-000"
+                                                                 style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;
+                                                                                border-radius:6px;font-size:0.9rem">
+                                                </div>
+
+                                                <div class="form-group" style="margin:0">
+                                                    <label style="font-size:0.82rem;color:#64748b">Registro no EB</label>
+                                                    <input type="text" id="cfgVend_registroEB"
+                                                                 style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;
+                                                                                border-radius:6px;font-size:0.9rem">
+                                                </div>
+
+                                                <div class="form-group" style="margin:0">
+                                                    <label style="font-size:0.82rem;color:#64748b">
+                                                        Nome do Responsável Legal
+                                                    </label>
+                                                    <input type="text" id="cfgVend_nomeResponsavel"
+                                                                 style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;
+                                                                                border-radius:6px;font-size:0.9rem">
+                                                </div>
+
+                                                <div class="form-group" style="margin:0">
+                                                    <label style="font-size:0.82rem;color:#64748b">
+                                                        CPF do Responsável Legal
+                                                    </label>
+                                                    <input type="text" id="cfgVend_cpfResponsavel"
+                                                                 maxlength="14"
+                                                                 oninput="this.value=formatCpfCnpjMask(this.value)"
+                                                                 style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;
+                                                                                border-radius:6px;font-size:0.9rem">
+                                                </div>
+
+                                            </div>
+
+                                            <div style="margin-top:14px">
+                                                <button class="btn btn-primary" onclick="salvarConfigVendedorForm()">
+                                                    💾 Salvar dados do vendedor
+                                                </button>
+                                            </div>
+
+                                        </div>
+
+                                                                                <!-- Representantes Comerciais -->
+                                                                                <div class="config-card" style="margin-bottom:20px">
+                                                                                        <div style="font-size:0.85rem;font-weight:700;color:#1e3a5f;
+                                                                                                                                        text-transform:uppercase;letter-spacing:0.5px;
+                                                                                                                                        margin-bottom:14px">
+                                                                                                🤝 Dados dos Representantes Comerciais
+                                                                                        </div>
+
+                                                                                        <div style="margin-bottom:12px">
+                                                                                                <select id="configRepSelect"
+                                                                                                                                onchange="carregarFormRep(this.value)"
+                                                                                                                                style="padding:8px 12px;border:1px solid #e2e8f0;
+                                                                                                                                                         border-radius:6px;font-size:0.9rem;min-width:200px">
+                                                                                                        <option value="">Selecione o representante</option>
+                                                                                                </select>
+                                                                                        </div>
+
+                                                                                        <div id="configRepForm" style="display:none">
+                                                                                                <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+
+                                                                                                        <div class="form-group" style="margin:0;grid-column:1/-1">
+                                                                                                                <label style="font-size:0.82rem;color:#64748b">Razão Social</label>
+                                                                                                                <input type="text" id="cfgRep_razaoSocial"
+                                                                                                                                         style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;
+                                                                                                                                                                        border-radius:6px;font-size:0.9rem">
+                                                                                                        </div>
+
+                                                    <div class="form-group" style="margin:0">
+                                                        <label style="font-size:0.82rem;color:#64748b">Nome Fantasia</label>
+                                                        <input type="text" id="cfgRep_nomeFantasia"
+                                                                     style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;
+                                                                                    border-radius:6px;font-size:0.9rem">
+                                                    </div>
+
+                                                    <div class="form-group" style="margin:0">
+                                                        <label style="font-size:0.82rem;color:#64748b">CNPJ</label>
+                                                        <input type="text" id="cfgRep_cnpj"
+                                                                     maxlength="18"
+                                                                     oninput="this.value=formatCpfCnpjMask(this.value)"
+                                                                     style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;
+                                                                                    border-radius:6px;font-size:0.9rem">
+                                                    </div>
+
+                                                    <div class="form-group" style="margin:0">
+                                                        <label style="font-size:0.82rem;color:#64748b">Nº CORE</label>
+                                                        <input type="text" id="cfgRep_nrCore"
+                                                                     style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;
+                                                                                    border-radius:6px;font-size:0.9rem">
+                                                    </div>
+
+                                                    <div class="form-group" style="margin:0">
+                                                        <label style="font-size:0.82rem;color:#64748b">UF CORE</label>
+                                                        <input type="text" id="cfgRep_ufCore" maxlength="2"
+                                                                     style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;
+                                                                                    border-radius:6px;font-size:0.9rem;
+                                                                                    text-transform:uppercase"
+                                                                     oninput="this.value=this.value.toUpperCase()">
+                                                    </div>
+
+                                                    <div class="form-group" style="margin:0">
+                                                        <label style="font-size:0.82rem;color:#64748b">
+                                                            Nome do Responsável
+                                                        </label>
+                                                        <input type="text" id="cfgRep_nomeResponsavel"
+                                                                     style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;
+                                                                                    border-radius:6px;font-size:0.9rem">
+                                                    </div>
+
+                                                    <div class="form-group" style="margin:0">
+                                                        <label style="font-size:0.82rem;color:#64748b">Telefone</label>
+                                                        <input type="text" id="cfgRep_telefone"
+                                                                     maxlength="15"
+                                                                     oninput="this.value=formatPhoneMask(this.value)"
+                                                                     style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;
+                                                                                    border-radius:6px;font-size:0.9rem">
+                                                    </div>
+
+                                                    <div class="form-group" style="margin:0">
+                                                        <label style="font-size:0.82rem;color:#64748b">E-mail</label>
+                                                        <input type="email" id="cfgRep_email"
+                                                                     style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;
+                                                                                    border-radius:6px;font-size:0.9rem">
+                                                    </div>
+
+                                                </div>
+
+                                                <div style="margin-top:14px;display:flex;gap:8px">
+                                                    <button class="btn btn-primary" onclick="salvarFormRep()">
+                                                        💾 Salvar dados do representante
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
 
                                         <!-- Log de Auditoria -->
                                         <div class="config-card">

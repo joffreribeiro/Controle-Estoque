@@ -1905,6 +1905,8 @@ function trocarAba(aba) {
         } else if (aba === 'configuracoes') {
             try { atualizarPreviaContrato(); } catch (e) { if (window.__showRuntimeErrorOverlay) window.__showRuntimeErrorOverlay(e); }
             try { renderizarAuditoria(); } catch (e) { if (window.__showRuntimeErrorOverlay) window.__showRuntimeErrorOverlay(e); }
+            try { renderizarConfigVendedor(); } catch (e) { if (window.__showRuntimeErrorOverlay) window.__showRuntimeErrorOverlay(e); }
+            try { renderizarSelectConfigRep(); } catch (e) { if (window.__showRuntimeErrorOverlay) window.__showRuntimeErrorOverlay(e); }
         }
 
         try { if (window.__updateDebugPanel) window.__updateDebugPanel(); } catch (e) {}
@@ -7210,6 +7212,137 @@ function gerarNumeroContrato() {
     return numero;
 }
 
+// ================================
+// CONFIGURAÇÃO: REPRESENTANTES
+// Chave localStorage: 'configRepresentantes'
+// ================================
+
+function carregarConfigRepresentantes() {
+    try {
+        return JSON.parse(localStorage.getItem('configRepresentantes') || '{}');
+    } catch (e) {
+        return {};
+    }
+}
+
+function salvarConfigRepresentantes(dados) {
+    try {
+        localStorage.setItem('configRepresentantes', JSON.stringify(dados || {}));
+    } catch (e) {
+        console.error('Falha ao salvar configRepresentantes', e);
+    }
+}
+
+function getConfigRep(nome) {
+    if (!nome) return {};
+    const todos = carregarConfigRepresentantes();
+    return todos[(nome || '').toString().toUpperCase()] || {};
+}
+
+function renderizarSelectConfigRep() {
+    const sel = document.getElementById('configRepSelect');
+    if (!sel) return;
+    const reps = (window.estoque && Array.isArray(estoque.representantes) && estoque.representantes.length)
+        ? estoque.representantes
+        : ['KOLTE','ISA','LC','ADES','FL'];
+    const atual = sel.value || '';
+    sel.innerHTML = '<option value="">Selecione o representante</option>' + reps.map(r => {
+        const esc = String(r).replace(/"/g,'&quot;');
+        return `<option value="${esc}" ${r===atual? 'selected':''}>${esc}</option>`;
+    }).join('');
+}
+
+function carregarFormRep(rep) {
+    const form = document.getElementById('configRepForm');
+    if (!form) return;
+    if (!rep) {
+        form.style.display = 'none';
+        return;
+    }
+    form.style.display = 'block';
+    const dados = getConfigRep(rep || '');
+    document.getElementById('cfgRep_razaoSocial').value = dados.razaoSocial || '';
+    document.getElementById('cfgRep_nomeFantasia').value = dados.nomeFantasia || '';
+    document.getElementById('cfgRep_cnpj').value = dados.cnpj || '';
+    document.getElementById('cfgRep_nrCore').value = dados.nrCore || '';
+    document.getElementById('cfgRep_ufCore').value = (dados.ufCore || '').toString().toUpperCase();
+    document.getElementById('cfgRep_nomeResponsavel').value = dados.nomeResponsavel || '';
+    document.getElementById('cfgRep_telefone').value = dados.telefone || '';
+    document.getElementById('cfgRep_email').value = dados.email || '';
+}
+
+function salvarFormRep() {
+    const sel = document.getElementById('configRepSelect');
+    if (!sel) return mostrarNotificacao('Selecione um representante antes de salvar.', 'warning');
+    const rep = (sel.value || '').toString().trim();
+    if (!rep) return mostrarNotificacao('Selecione um representante antes de salvar.', 'warning');
+
+    const dados = carregarConfigRepresentantes();
+    const key = rep.toUpperCase();
+    dados[key] = {
+        razaoSocial: document.getElementById('cfgRep_razaoSocial').value || '',
+        nomeFantasia: document.getElementById('cfgRep_nomeFantasia').value || '',
+        cnpj: document.getElementById('cfgRep_cnpj').value || '',
+        nrCore: document.getElementById('cfgRep_nrCore').value || '',
+        ufCore: (document.getElementById('cfgRep_ufCore').value || '').toString().toUpperCase(),
+        nomeResponsavel: document.getElementById('cfgRep_nomeResponsavel').value || '',
+        telefone: document.getElementById('cfgRep_telefone').value || '',
+        email: document.getElementById('cfgRep_email').value || ''
+    };
+
+    salvarConfigRepresentantes(dados);
+    try { renderizarSelectConfigRep(); } catch (e) {}
+    mostrarNotificacao('Dados do representante salvos!', 'success');
+}
+
+// ================================
+// CONFIGURAÇÃO: VENDEDOR (IMBEL / Fábrica de Itajubá)
+// Chave localStorage: 'configVendedor'
+// ================================
+
+function carregarConfigVendedor() {
+    try {
+        return JSON.parse(localStorage.getItem('configVendedor') || '{}');
+    } catch (e) {
+        return {};
+    }
+}
+
+function salvarConfigVendedor(dados) {
+    try {
+        localStorage.setItem('configVendedor', JSON.stringify(dados || {}));
+    } catch (e) {
+        console.error('Falha ao salvar configVendedor', e);
+    }
+}
+
+function renderizarConfigVendedor() {
+    const dados = carregarConfigVendedor();
+    const fields = [
+        'nomeEmpresa','cnpj','inscricaoEstadual','endereco',
+        'bairro','cidade','uf','cep','registroEB',
+        'nomeResponsavel','cpfResponsavel'
+    ];
+    fields.forEach(f => {
+        const el = document.getElementById('cfgVend_' + f);
+        if (el) el.value = dados[f] || '';
+    });
+}
+
+function salvarConfigVendedorForm() {
+    const fields = [
+        'nomeEmpresa','cnpj','inscricaoEstadual','endereco',
+        'bairro','cidade','uf','cep','registroEB',
+        'nomeResponsavel','cpfResponsavel'
+    ];
+    const dados = {};
+    fields.forEach(f => {
+        dados[f] = document.getElementById('cfgVend_' + f)?.value.trim() || '';
+    });
+    salvarConfigVendedor(dados);
+    mostrarNotificacao('Dados do vendedor salvos!', 'success');
+}
+
 function abrirModalVendaDetalhada(vendaId = null, propostaId = null) {
     // vendaId: se fornecido, abre o modal em modo de edição para essa venda
     // propostaId: se fornecido, preenche campos a partir da proposta para revisão
@@ -7872,7 +8005,8 @@ function renderizarRegistroVendas() {
             actionsHtml = `<button class="btn-action btn-edit" onclick="abrirModalVendaDetalhada(${primeira.vendaId})" title="Editar venda">✎</button>` +
                           `<button class="btn-action btn-delete" onclick="excluirVenda(${primeira.vendaId})" title="Excluir venda">🗑</button>` +
                           `<button class="btn-action" onclick="abrirHistoricoContrato('${contratoKey}')" title="Histórico do Contrato">🕘</button>` +
-                          `<button class="btn-action btn-cancel" onclick="cancelarContrato('${contratoKey}')" title="Cancelar contrato">✖</button>`;
+                          `<button class="btn-action btn-cancel" onclick="cancelarContrato('${contratoKey}')" title="Cancelar contrato">✖</button>` +
+                          `<button class="btn btn-outline btn-sm" onclick="gerarContratoVenda('${primeira.vendaId || primeira.contratoRaw}')" title="Gerar contrato .docx" style="color:#1e3a5f;border-color:#1e3a5f">📄 Contrato</button>`;
         }
 
         resumo.innerHTML = `
@@ -7900,9 +8034,11 @@ function renderizarRegistroVendas() {
             // verificar se a venda específica está cancelada
             const vendaObj = estoque.registroVendas.find(v => v.id === linha.vendaId);
             const isLinhaCancelada = vendaObj && vendaObj.cancelado;
-            const detalheAcoesHtml = isLinhaCancelada
-                ? '<span class="badge-cancelado">CANCELADO</span>'
-                : `<button class="btn-action btn-edit" onclick="abrirModalVendaDetalhada(${linha.vendaId})" title="Editar venda">✎</button><button class="btn-action btn-delete" onclick="excluirVenda(${linha.vendaId})" title="Excluir venda">🗑</button>`;
+                        const detalheAcoesHtml = isLinhaCancelada
+                                ? '<span class="badge-cancelado">CANCELADO</span>'
+                                : `<button class="btn-action btn-edit" onclick="abrirModalVendaDetalhada(${linha.vendaId})" title="Editar venda">✎</button>` +
+                                    `<button class="btn-action btn-delete" onclick="excluirVenda(${linha.vendaId})" title="Excluir venda">🗑</button>` +
+                                    `<button class="btn btn-outline btn-sm" onclick="gerarContratoVenda('${linha.vendaId || linha.contratoKey}')" title="Gerar contrato .docx" style="color:#1e3a5f;border-color:#1e3a5f">📄 Contrato</button>`;
 
             tr.innerHTML = `
                 <td class="col-contrato detalhe-vazio"></td>
@@ -8158,6 +8294,472 @@ function cancelarContrato(contratoKey) {
     renderizarControleEnvio();
 
     mostrarNotificacao(`Contrato ${contratoKey} cancelado. Quantidades devolvidas ao representante.`, 'success');
+}
+
+async function gerarContratoVenda(vendaId) {
+    // Find the sale
+    const venda = (estoque.registroVendas||[]).find(v =>
+        v.id == vendaId || v.contrato == vendaId
+    );
+    if (!venda) {
+        mostrarNotificacao('Venda não encontrada.', 'error');
+        return;
+    }
+
+    // Find client data
+    const clienteObj = (clientes||[]).find(c =>
+        (c.nome||'').toLowerCase() === (venda.loja||'').toLowerCase()
+    );
+
+    // Load configs
+    const vendedor = carregarConfigVendedor();
+    const rep      = getConfigRep(venda.representante || '');
+
+    // Resolve items
+    const itens = (venda.items || venda.itens || []);
+    if (!itens.length) {
+        mostrarNotificacao('Esta venda não tem itens cadastrados.', 'warning');
+        return;
+    }
+
+    // Dates
+    const dataVenda = venda.data
+        ? new Date(venda.data + 'T12:00:00')
+        : new Date();
+    const dataFim   = new Date(dataVenda);
+    dataFim.setMonth(dataFim.getMonth() + 6);
+
+    const fmtDate = d => d.toLocaleDateString('pt-BR');
+    const fmtMoeda = v => 'R$ ' + Number(v||0).toLocaleString('pt-BR',
+        {minimumFractionDigits:2, maximumFractionDigits:2});
+
+    const totalContrato = itens.reduce((s, it) =>
+        s + (Number(it.valorTotal || (it.quantidade*(it.valorUnitario||it.valorUnit||0))) || 0), 0);
+
+    // ── BUILD DOCX ──
+    const {
+        Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell,
+        AlignmentType, WidthType, BorderStyle, ShadingType, VerticalAlign,
+        HeadingLevel
+    } = docx;
+
+    const border = { style: BorderStyle.SINGLE, size: 4, color: '000000' };
+    const borders = { top: border, bottom: border, left: border, right: border };
+    const noBorder = { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' };
+    const noBorders = { top: noBorder, bottom: noBorder, left: noBorder, right: noBorder };
+
+    const bold  = (text, sz=20) => new TextRun({ text, bold: true, size: sz, font: 'Calibri' });
+    const norm  = (text, sz=20) => new TextRun({ text, size: sz, font: 'Calibri' });
+    const red   = (text, sz=20) => new TextRun({ text, bold: true, size: sz, font: 'Calibri', color: 'C00000' });
+    const para  = (children, align=AlignmentType.LEFT, spacing={}) =>
+        new Paragraph({ children, alignment: align,
+            spacing: { before: 60, after: 60, ...spacing } });
+    const paraBold = (text, align=AlignmentType.LEFT) =>
+        para([bold(text)], align);
+    const emptyPara = () => new Paragraph({ children: [norm('')] });
+
+    // Helper: table cell
+    const cell = (children, widthDxa, opts={}) => new TableCell({
+        children: Array.isArray(children) ? children : [para([norm(children||'')])],
+        width: { size: widthDxa, type: WidthType.DXA },
+        borders,
+        margins: { top: 80, bottom: 80, left: 120, right: 120 },
+        ...opts
+    });
+    const cellBold = (text, widthDxa, opts={}) => new TableCell({
+        children: [para([bold(text||'')])],
+        width: { size: widthDxa, type: WidthType.DXA },
+        borders,
+        margins: { top: 80, bottom: 80, left: 120, right: 120 },
+        ...opts
+    });
+    const headerCell = (text, widthDxa) => new TableCell({
+        children: [para([bold(text, 20)], AlignmentType.CENTER)],
+        width: { size: widthDxa, type: WidthType.DXA },
+        borders,
+        shading: { fill: 'D9D9D9', type: ShadingType.CLEAR },
+        margins: { top: 80, bottom: 80, left: 120, right: 120 },
+    });
+
+    const TW = 9360; // table width in DXA (US Letter 1" margins)
+
+    // ── PRODUCTS TABLE (Cláusula 1ª) ──
+    const prodRows = itens.map(it => {
+        const nome      = it.produtoNome || it.produto || '—';
+        const qtd       = Number(it.quantidade) || 0;
+        const valorUnit = Number(it.valorUnitario || it.valorUnit || 0);
+        const valorTot  = Number(it.valorTotal || qtd * valorUnit || 0);
+        return new TableRow({ children: [
+            cell(nome,            5400),
+            cell(String(qtd),      900, { verticalAlign: VerticalAlign.CENTER }),
+            cell(fmtMoeda(valorUnit), 1530, { verticalAlign: VerticalAlign.CENTER }),
+            cell(fmtMoeda(valorTot),  1530, { verticalAlign: VerticalAlign.CENTER }),
+        ]});
+    });
+
+    const tabelaProdutos = new Table({
+        width: { size: TW, type: WidthType.DXA },
+        columnWidths: [5400, 900, 1530, 1530],
+        rows: [
+            new TableRow({ children: [
+                headerCell('Calibre/ Modelo/ ADC/ Cor\n(no caso de peça, discriminar o calibre da arma e cor)', 5400),
+                headerCell('Qtd', 900),
+                headerCell('Valor Unitário', 1530),
+                headerCell('Valor Total', 1530),
+            ]}),
+            ...prodRows,
+            new TableRow({ children: [
+                new TableCell({
+                    children: [para([bold('VALOR TOTAL DO CONTRATO')], AlignmentType.RIGHT)] ,
+                    width: { size: 6300, type: WidthType.DXA },
+                    columnSpan: 3,
+                    borders,
+                    margins: { top: 80, bottom: 80, left: 120, right: 120 },
+                }),
+                cellBold(fmtMoeda(totalContrato), 1530),
+            ]}),
+        ]
+    });
+
+    // ── VENDEDOR TABLE ──
+    const tabelaVendedor = new Table({
+        width: { size: TW, type: WidthType.DXA },
+        columnWidths: [2340, 2340, 2340, 2340],
+        rows: [
+            new TableRow({ children: [
+                new TableCell({
+                    children: [para([bold('VENDEDOR', 22)], AlignmentType.LEFT)],
+                    columnSpan: 4,
+                    width: { size: TW, type: WidthType.DXA },
+                    shading: { fill: 'D9D9D9', type: ShadingType.CLEAR },
+                    borders, margins: { top: 80, bottom: 80, left: 120, right: 120 },
+                }),
+            ]}),
+            new TableRow({ children: [
+                new TableCell({
+                    children: [para([bold('Nome: '), norm(vendedor.nomeEmpresa||'')])],
+                    columnSpan: 4, width:{size:TW,type:WidthType.DXA},
+                    borders, margins:{top:80,bottom:80,left:120,right:120},
+                }),
+            ]}),
+            new TableRow({ children: [
+                new TableCell({
+                    children: [para([bold('CNPJ/MF: '), norm(vendedor.cnpj||'')])],
+                    columnSpan: 2, width:{size:4680,type:WidthType.DXA},
+                    borders, margins:{top:80,bottom:80,left:120,right:120},
+                }),
+                new TableCell({
+                    children: [para([bold('Inscrição estadual: '), norm(vendedor.inscricaoEstadual||'')])],
+                    columnSpan: 2, width:{size:4680,type:WidthType.DXA},
+                    borders, margins:{top:80,bottom:80,left:120,right:120},
+                }),
+            ]}),
+            new TableRow({ children: [
+                new TableCell({
+                    children: [para([bold('Endereço: '), norm(vendedor.endereco||'')])],
+                    columnSpan: 4, width:{size:TW,type:WidthType.DXA},
+                    borders, margins:{top:80,bottom:80,left:120,right:120},
+                }),
+            ]}),
+            new TableRow({ children: [
+                cell([para([bold('Bairro: '), norm(vendedor.bairro||'')])] , 2340),
+                cell([para([bold('Cidade: '), norm(vendedor.cidade||'')])] , 2340),
+                cell([para([bold('UF: '),     norm(vendedor.uf||'')])]     , 2340),
+                cell([para([bold('CEP: '),    norm(vendedor.cep||'')])]    , 2340),
+            ]}),
+            new TableRow({ children: [
+                new TableCell({
+                    children: [para([bold('Registro no EB: '), norm(vendedor.registroEB||'')])],
+                    columnSpan: 4, width:{size:TW,type:WidthType.DXA},
+                    borders, margins:{top:80,bottom:80,left:120,right:120},
+                }),
+            ]}),
+        ]
+    });
+
+    // ── COMPRADOR TABLE ──
+    // Parse client address into parts
+    const endCliente  = clienteObj?.endereco || '';
+    const cidCliente  = clienteObj?.cidade   || '';
+    const ufCliente   = clienteObj?.uf       || '';
+    const cnpjCliente = clienteObj?.cnpj     || '';
+    const regEB       = clienteObj?.registroEB || '';
+
+    const tabelaComprador = new Table({
+        width: { size: TW, type: WidthType.DXA },
+        columnWidths: [2340, 2340, 2340, 2340],
+        rows: [
+            new TableRow({ children: [
+                new TableCell({
+                    children: [para([bold('COMPRADOR', 22)])],
+                    columnSpan: 4, width:{size:TW,type:WidthType.DXA},
+                    shading: { fill: 'D9D9D9', type: ShadingType.CLEAR },
+                    borders, margins:{top:80,bottom:80,left:120,right:120},
+                }),
+            ]}),
+            new TableRow({ children: [
+                new TableCell({
+                    children: [para([bold('Nome: '), norm(venda.loja||'')])],
+                    columnSpan: 4, width:{size:TW,type:WidthType.DXA},
+                    borders, margins:{top:80,bottom:80,left:120,right:120},
+                }),
+            ]}),
+            new TableRow({ children: [
+                new TableCell({
+                    children: [para([bold('CNPJ/CPF: '), norm(cnpjCliente)])],
+                    columnSpan: 2, width:{size:4680,type:WidthType.DXA},
+                    borders, margins:{top:80,bottom:80,left:120,right:120},
+                }),
+                new TableCell({
+                    children: [para([bold('Inscrição estadual: ')])],
+                    columnSpan: 2, width:{size:4680,type:WidthType.DXA},
+                    borders, margins:{top:80,bottom:80,left:120,right:120},
+                }),
+            ]}),
+            new TableRow({ children: [
+                new TableCell({
+                    children: [para([bold('Endereço: '), norm(endCliente)])],
+                    columnSpan: 4, width:{size:TW,type:WidthType.DXA},
+                    borders, margins:{top:80,bottom:80,left:120,right:120},
+                }),
+            ]}),
+            new TableRow({ children: [
+                cell([para([bold('Bairro: ')])]              , 2340),
+                cell([para([bold('Cidade: '), norm(cidCliente)])], 2340),
+                cell([para([bold('UF: '),     norm(ufCliente)])]  , 2340),
+                cell([para([bold('CEP: ')])]                 , 2340),
+            ]}),
+            new TableRow({ children: [
+                new TableCell({
+                    children: [para([bold('Registro no EB: '), norm(regEB)])],
+                    columnSpan: 4, width:{size:TW,type:WidthType.DXA},
+                    borders, margins:{top:80,bottom:80,left:120,right:120},
+                }),
+            ]}),
+        ]
+    });
+
+    // ── REPRESENTANTE TABLE ──
+    const tabelaRep = new Table({
+        width: { size: TW, type: WidthType.DXA },
+        columnWidths: [3120, 1560, 2340, 2340],
+        rows: [
+            new TableRow({ children: [
+                new TableCell({
+                    children: [para([bold('REPRESENTANTE COMERCIAL AUTORIZADO', 22)])],
+                    columnSpan: 4, width:{size:TW,type:WidthType.DXA},
+                    shading: { fill: 'D9D9D9', type: ShadingType.CLEAR },
+                    borders, margins:{top:80,bottom:80,left:120,right:120},
+                }),
+            ]}),
+            new TableRow({ children: [
+                new TableCell({
+                    children: [para([bold('Razão Social: '), norm(rep.razaoSocial||'')])],
+                    columnSpan: 4, width:{size:TW,type:WidthType.DXA},
+                    borders, margins:{top:80,bottom:80,left:120,right:120},
+                }),
+            ]}),
+            new TableRow({ children: [
+                new TableCell({
+                    children: [para([bold('Nome Fantasia: '), norm(rep.nomeFantasia||'')])],
+                    columnSpan: 4, width:{size:TW,type:WidthType.DXA},
+                    borders, margins:{top:80,bottom:80,left:120,right:120},
+                }),
+            ]}),
+            new TableRow({ children: [
+                cell([para([bold('CNPJ: '), norm(rep.cnpj||'')])]       , 3120),
+                cell([para([bold('Nº CORE: '), norm(rep.nrCore||'')])]  , 1560),
+                new TableCell({
+                    children: [para([bold('UF: '), norm(rep.ufCore||'')])],
+                    columnSpan: 2, width:{size:4680,type:WidthType.DXA},
+                    borders, margins:{top:80,bottom:80,left:120,right:120},
+                }),
+            ]}),
+            new TableRow({ children: [
+                new TableCell({
+                    children: [para([bold('Nome do responsável: '), norm(rep.nomeResponsavel||'')])],
+                    columnSpan: 4, width:{size:TW,type:WidthType.DXA},
+                    borders, margins:{top:80,bottom:80,left:120,right:120},
+                }),
+            ]}),
+            new TableRow({ children: [
+                new TableCell({
+                    children: [para([bold('Telefone: '), norm(rep.telefone||'')])],
+                    columnSpan: 2, width:{size:4680,type:WidthType.DXA},
+                    borders, margins:{top:80,bottom:80,left:120,right:120},
+                }),
+                new TableCell({
+                    children: [para([bold('E-mail: '), norm(rep.email||'')])],
+                    columnSpan: 2, width:{size:4680,type:WidthType.DXA},
+                    borders, margins:{top:80,bottom:80,left:120,right:120},
+                }),
+            ]}),
+        ]
+    });
+
+    // ── ASSEMBLE DOCUMENT ──
+    const doc = new Document({
+        sections: [{
+            properties: {
+                page: {
+                    size: { width: 12240, height: 15840 },
+                    margin: { top: 1080, right: 1080, bottom: 1080, left: 1080 }
+                }
+            },
+            children: [
+                // Title
+                para([bold('CONTRATO DE COMPRA E VENDA DE ARMAMENTO, PEÇAS', 28)],
+                         AlignmentType.CENTER),
+                para([bold('E ACESSÓRIOS DE PRODUTOS CONTROLADOS E NÃO CONTROLADOS', 28)],
+                         AlignmentType.CENTER),
+                emptyPara(),
+
+                // Contract number header block
+                para([
+                    bold('CONTRATO Nº '),
+                    red(String(venda.contrato||'____')),
+                    bold('/'),
+                    red(String(dataVenda.getFullYear())),
+                    bold(' – Fábrica de Itajubá/IMBEL'),
+                ], AlignmentType.CENTER, { before: 120, after: 80 }),
+
+                para([bold('VENDEDOR: '), norm(vendedor.nomeEmpresa||'Fábrica de Itajubá – IMBEL')],
+                         AlignmentType.LEFT),
+                para([bold('COMPRADOR: '), norm(venda.loja||'')]),
+                para([bold('REPRESENTANTE COMERCIAL AUTORIZADO: '),
+                            norm(rep.razaoSocial || venda.representante || '')]),
+                para([bold('OBJETO: '), norm(
+                    'Compra e venda de armamento, peças e acessórios do portfólio da ' +
+                    'Fábrica de Itajubá da IMBEL, em especial: ' +
+                    itens.map(it => it.produtoNome||it.produto||'').join(', ') + '.'
+                )]),
+                para([bold('VIGÊNCIA DO CONTRATO: '),
+                            norm(fmtDate(dataVenda) + ' a ' + fmtDate(dataFim) + '.')]),
+                emptyPara(),
+
+                // Vendedor table
+                tabelaVendedor,
+                emptyPara(),
+
+                // Comprador table
+                tabelaComprador,
+                emptyPara(),
+
+                // Representante table
+                tabelaRep,
+                emptyPara(),
+
+                // Preamble
+                para([bold('Pelo presente instrumento e na melhor forma de direito, as partes acima ' +
+                    'qualificadas celebram o CONTRATO DE COMPRA E VENDA, o qual se regerá ' +
+                    'pelas seguintes cláusulas e condições:')],
+                    AlignmentType.JUSTIFIED),
+                emptyPara(),
+
+                // Clause 1
+                para([bold('CLÁUSULA 1ª – DO OBJETO E DO VALOR TOTAL DO CONTRATO')]),
+                para([norm(
+                    'O VENDEDOR vende ao COMPRADOR, e este compra daquele, o(s) produto(s) ' +
+                    'descrito(s) e caracterizado(s) no quadro abaixo:'
+                )], AlignmentType.JUSTIFIED),
+                emptyPara(),
+
+                tabelaProdutos,
+                emptyPara(),
+
+                // Clause 2
+                para([bold('CLÁUSULA 2ª – DAS CONDIÇÕES DE PAGAMENTO')]),
+                para([norm('2.1 O pagamento será realizado mediante Guia de Recolhimento da União – GRU, em uma única parcela.')]),
+                para([norm('2.2 A GRU será enviada para o e-mail do COMPRADOR em até 30 (trinta) dias após a assinatura deste Contrato.')]),
+                para([norm('2.3 A GRU terá prazo de vencimento de 30 (trinta) dias após a sua emissão.')]),
+                para([norm('2.4 O não pagamento da GRU, até a data de vencimento, implicará no cancelamento automático do contrato.')]),
+                emptyPara(),
+
+                // Clause 3
+                para([bold('CLÁUSULA 3ª – DA ENTREGA')]),
+                para([norm('3.1 A entrega será realizada em até 180 (cento e oitenta) dias após a data de assinatura do presente contrato pelo VENDEDOR.')]),
+                para([norm('3.2 Se por motivo de força maior ou caso fortuito não for possível à IMBEL cumprir a entrega, o prazo ficará automaticamente prorrogado por 90 (noventa) dias, e assim sucessivamente.')]),
+                emptyPara(),
+
+                // Clause 4
+                para([bold('CLÁUSULA 4ª – DO LOCAL E DAS CONDIÇÕES DE ENTREGA')]),
+                para([norm('4.1 O(s) produto(s) somente poderão ser entregues ao COMPRADOR mediante cumprimento das Portarias emitidas pelo COLOG.')]),
+                para([norm('4.2 O(s) produto(s) será(ão) entregue(s) ao COMPRADOR na Fábrica de Itajubá – FI, Av. Cel. Aventino Ribeiro, 1099 – Bairro IMBEL, Itajubá-MG, COM PRÉ-AGENDAMENTO (obrigatório).')]),
+                para([norm('4.3 A retirada somente poderá ser efetuada pelo COMPRADOR na FI ou por empresa transportadora contratada pelo próprio COMPRADOR, com Certificado de Registro – CR com atividade de transporte.')]),
+                emptyPara(),
+
+                // Clause 5
+                para([bold('CLÁUSULA 5ª – DA RESCISÃO DO CONTRATO')]),
+                para([norm('5.1 Em caso de desistência antes do faturamento, o contrato resultará rescindido de pleno direito.')]),
+                para([norm('5.2 Nesta hipótese, o VENDEDOR devolverá ao COMPRADOR, em até 30 dias, a importância paga, deduzida de 10% a título de cláusula penal compensatória.')]),
+                emptyPara(),
+
+                // Clause 6
+                para([bold('CLÁUSULA 6ª – DA GARANTIA E ASSISTÊNCIA TÉCNICA')]),
+                para([norm('6.1 Fica estabelecido o prazo de garantia de 12 (doze) meses contra eventuais defeitos de fabricação, desde que cumpridas as recomendações do manual do produto.')]),
+                emptyPara(),
+
+                // Clause 7
+                para([bold('CLÁUSULA 7ª – DISPOSIÇÕES GERAIS')]),
+                para([norm('7.1 O REPRESENTANTE COMERCIAL AUTORIZADO é responsável pela verificação de todos os documentos legais exigidos do COMPRADOR e por prestar qualquer esclarecimento sobre o presente contrato.')]),
+                emptyPara(),
+
+                // Clause 8
+                para([bold('CLÁUSULA 8ª – DO FORO')]),
+                para([norm('8.1 As partes elegem o foro da Justiça Federal de Pouso Alegre – MG, como competente para dirimir quaisquer questões relacionadas ao presente contrato.')]),
+                emptyPara(),
+
+                para([norm(
+                    'E por estarem assim justos e contratados, assinam o presente instrumento ' +
+                    'em duas vias de igual teor.'
+                )], AlignmentType.JUSTIFIED),
+                emptyPara(),
+
+                // Local e data
+                para([norm('Itajubá/MG, ' + fmtDate(dataVenda) + '.')], AlignmentType.RIGHT),
+                emptyPara(),
+                emptyPara(),
+
+                // Signatures
+                para([norm('COMPRADOR')], AlignmentType.CENTER),
+                para([norm('__________________________________________________')], AlignmentType.CENTER),
+                para([norm(venda.loja||'')], AlignmentType.CENTER),
+                para([norm(cnpjCliente)], AlignmentType.CENTER),
+                emptyPara(),
+                emptyPara(),
+
+                para([norm('REPRESENTANTE COMERCIAL DA IMBEL')], AlignmentType.CENTER),
+                para([norm('__________________________________________________')], AlignmentType.CENTER),
+                para([norm(rep.nomeResponsavel||venda.representante||'')], AlignmentType.CENTER),
+                para([norm(rep.cnpj||'')], AlignmentType.CENTER),
+                emptyPara(),
+                emptyPara(),
+
+                para([norm('VENDEDOR')], AlignmentType.CENTER),
+                para([norm('__________________________________________________')], AlignmentType.CENTER),
+                para([norm(vendedor.nomeResponsavel||'')], AlignmentType.CENTER),
+                para([norm(vendedor.cpfResponsavel||'')], AlignmentType.CENTER),
+            ]
+        }]
+    });
+
+    // ── GENERATE AND DOWNLOAD ──
+    try {
+        mostrarNotificacao('Gerando contrato...', 'success');
+        const buffer = await Packer.toBlob(doc);
+        const url = URL.createObjectURL(buffer);
+        const a   = document.createElement('a');
+        a.href    = url;
+        a.download = `Contrato_${String(venda.contrato||'').replace(/\//g,'_')}_${(venda.loja||'cliente').replace(/[^a-z0-9]/gi,'_')}.docx`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+        mostrarNotificacao('Contrato gerado com sucesso!', 'success');
+    } catch(e) {
+        console.error('Erro ao gerar contrato:', e);
+        mostrarNotificacao('Erro ao gerar contrato. Verifique o console.', 'error');
+    }
 }
 
 function exportarVendas() {
