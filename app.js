@@ -1712,6 +1712,21 @@ function normalizarContratoKey(valor) {
     return digitos ? String(parseInt(digitos, 10)) : clean.toUpperCase();
 }
 
+function formatarContratoDisplay(valor) {
+    const bruto = (valor ?? '').toString().normalize('NFKC');
+    const clean = bruto.replace(/[\u200B-\u200D\uFEFF\s]+/g, '');
+    const digitos = clean.replace(/\D+/g, '');
+    if (digitos && digitos.length >= 5) {
+        const ano = digitos.slice(-4);
+        const seq = digitos.slice(0, -4) || '0';
+        return String(parseInt(seq, 10)).padStart(3, '0') + '/' + ano;
+    }
+    const m = clean.match(/^(\d{1,3})\/(\d{4})$/);
+    if (m) return String(parseInt(m[1], 10)).padStart(3, '0') + '/' + m[2];
+    if (digitos && digitos.length > 0) return String(parseInt(digitos, 10)).padStart(3, '0');
+    return clean.toUpperCase() || '-';
+}
+
 function getUsuarioAtual() {
     let usuario = '';
     try { usuario = (localStorage.getItem('estoqueUsuarioAtual') || '').trim(); } catch (e) {}
@@ -7998,6 +8013,7 @@ function renderizarRegistroVendas() {
 
         const resumo = document.createElement('tr');
         resumo.className = 'row-contrato-resumo' + (contratoCancelado ? ' contrato-cancelado' : '');
+        const contratoDisplay = formatarContratoDisplay(primeira.contratoRaw || primeira.contratoKey);
         let actionsHtml = '';
         if (contratoCancelado) {
             actionsHtml = '<span class="badge-cancelado">CANCELADO</span>';
@@ -8010,7 +8026,7 @@ function renderizarRegistroVendas() {
         }
 
         resumo.innerHTML = `
-            <td class="col-contrato">${contratoKey || '-'} ${cancelBadgeHtml}</td>
+            <td class="col-contrato">${contratoDisplay || '-'} ${cancelBadgeHtml}</td>
             <td class="col-loja" title="${primeira.loja}">${primeira.loja}</td>
             <td class="col-representante"><span class="badge-rep ${repClass}">${primeira.representante}</span></td>
             <td class="col-produto-venda"><button class="btn-expand-contrato" onclick="toggleContratoExpandido('${contratoKey}')">${expandido ? '▾' : '▸'} ${linhasDoContrato} item(ns)</button></td>
