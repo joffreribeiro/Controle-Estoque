@@ -1534,6 +1534,97 @@ function obterAuditoriaPorContrato(contrato) {
 }
 
 // ========================================
+// RENDER: AUDITORIA DE VENDAS
+// ========================================
+
+function renderizarAuditoria() {
+    const tbody = document.getElementById('auditoriaTbody');
+    if (!tbody) return;
+
+    const busca  = (document.getElementById('auditoriaBusca')?.value || '').toLowerCase();
+    const filtroAcao = document.getElementById('auditoriaFiltroAcao')?.value || '';
+
+    const lista = (estoque.auditoriaVendas || [])
+        .slice()
+        .reverse()
+        .filter(a => {
+            if (filtroAcao && !(a.acao||'').toUpperCase().includes(filtroAcao)) return false;
+            if (busca) {
+                return (a.contrato||'').toLowerCase().includes(busca) ||
+                             (a.quem||'').toLowerCase().includes(busca) ||
+                             (a.acao||'').toLowerCase().includes(busca) ||
+                             (a.detalhes||'').toLowerCase().includes(busca);
+            }
+            return true;
+        });
+
+    const acaoColor = {
+        'CRIAÇÃO':      { bg:'#f0fdf4', text:'#16a34a', icon:'➕' },
+        'EDIÇÃO':       { bg:'#eff6ff', text:'#1d4ed8', icon:'✏️' },
+        'EXCLUSÃO':     { bg:'#fef2f2', text:'#dc2626', icon:'🗑️' },
+        'CANCELAMENTO': { bg:'#fff8f0', text:'#d97706', icon:'⛔' },
+    };
+
+    if (!lista.length) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="5" style="text-align:center;color:#94a3b8;padding:40px">Nenhum registro de auditoria encontrado</td>
+            </tr>`;
+        const cnt = document.getElementById('auditoriaCount');
+        if (cnt) cnt.textContent = '0 registros';
+        return;
+    }
+
+    tbody.innerHTML = lista.map((a, i) => {
+        const dt = a.quando ? new Date(a.quando).toLocaleString('pt-BR') : '—';
+        const acaoUpper = (a.acao||'').toUpperCase();
+        const colorKey = Object.keys(acaoColor).find(k => acaoUpper.includes(k));
+        const ac = acaoColor[colorKey] || { bg:'#f8fafc', text:'#475569', icon:'📝' };
+
+        let delta = a.detalhes || '';
+        if (a.antes && a.depois) {
+            const campos = [];
+            ['valorTotal','representante','contrato','loja'].forEach(campo => {
+                const antes  = a.antes[campo];
+                const depois = a.depois[campo];
+                if (antes !== undefined && depois !== undefined && antes !== depois) {
+                    campos.push(`${campo}: ${antes} → ${depois}`);
+                }
+            });
+            if (campos.length) delta = campos.join(' | ');
+        }
+
+        return `
+            <tr style="background:${i%2===0?'#fff':'#f8fafc'};border-bottom:1px solid #f1f5f9">
+                <td style="font-size:0.78rem;color:#475569;white-space:nowrap">${dt}</td>
+                <td style="font-size:0.8rem;font-weight:500;color:#1e293b">${a.quem || 'Sistema'}</td>
+                <td><span style="background:${ac.bg};color:${ac.text};font-size:0.72rem;font-weight:600;padding:2px 8px;border-radius:20px;white-space:nowrap">${ac.icon} ${a.acao || '—'}</span></td>
+                <td style="font-weight:700;color:#1e3a5f">${a.contrato ? '#' + a.contrato : '—'}</td>
+                <td style="font-size:0.78rem;color:#64748b;max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${delta}">${delta || '—'}</td>
+            </tr>`;
+    }).join('');
+
+    const cnt = document.getElementById('auditoriaCount');
+    if (cnt) cnt.textContent = `${lista.length} de ${(estoque.auditoriaVendas||[]).length} registros`;
+}
+
+function exportarAuditoria() {
+    const lista = (estoque.auditoriaVendas||[]).slice().reverse();
+    if (!lista.length) { mostrarNotificacao('Nenhum registro para exportar.', 'warning'); return; }
+    const rows = lista.map(a => ({
+        'Data/Hora': a.quando ? new Date(a.quando).toLocaleString('pt-BR') : '',
+        'Usuário':   a.quem   || 'Sistema',
+        'Ação':      a.acao   || '',
+        'Contrato':  a.contrato || '',
+        'Detalhes':  a.detalhes || '',
+    }));
+    const ws = XLSX.utils.json_to_sheet(rows);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Auditoria');
+    XLSX.writeFile(wb, 'auditoria_' + new Date().toISOString().split('T')[0] + '.xlsx');
+}
+
+// ========================================
 // NAVEGAÇÃO POR ABAS
 // ========================================
 
@@ -1595,6 +1686,7 @@ function trocarAba(aba) {
             try { renderizarTabela(); } catch (e) { if (window.__showRuntimeErrorOverlay) window.__showRuntimeErrorOverlay(e); }
         } else if (aba === 'configuracoes') {
             try { atualizarPreviaContrato(); } catch (e) { if (window.__showRuntimeErrorOverlay) window.__showRuntimeErrorOverlay(e); }
+            try { renderizarAuditoria(); } catch (e) { if (window.__showRuntimeErrorOverlay) window.__showRuntimeErrorOverlay(e); }
         }
 
         try { if (window.__updateDebugPanel) window.__updateDebugPanel(); } catch (e) {}

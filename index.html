@@ -1739,6 +1739,48 @@
                         </div>
                     </div>
 
+                                        <!-- Log de Auditoria -->
+                                        <div class="config-card">
+                                                <h3>🔍 Log de Auditoria</h3>
+                                                <div style="background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:20px;margin-top:8px">
+                                                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+                                                        <div style="font-size:0.85rem;font-weight:700;color:#1e3a5f;text-transform:uppercase;letter-spacing:0.5px">🔍 Log de Auditoria</div>
+                                                        <div style="display:flex;gap:8px">
+                                                            <input type="text" id="auditoriaBusca" placeholder="🔍 Buscar contrato ou usuário..." oninput="renderizarAuditoria()" style="padding:6px 10px;border:1px solid #e2e8f0;border-radius:6px;font-size:0.82rem;width:220px">
+                                                            <select id="auditoriaFiltroAcao" onchange="renderizarAuditoria()" style="padding:6px 10px;border:1px solid #e2e8f0;border-radius:6px;font-size:0.82rem">
+                                                                <option value="">Todas as ações</option>
+                                                                <option value="CRIAÇÃO">Criação</option>
+                                                                <option value="EDIÇÃO">Edição</option>
+                                                                <option value="EXCLUSÃO">Exclusão</option>
+                                                                <option value="CANCELAMENTO">Cancelamento</option>
+                                                            </select>
+                                                            <button class="btn btn-outline btn-sm" onclick="exportarAuditoria()">📤 Exportar</button>
+                                                        </div>
+                                                    </div>
+
+                                                    <div id="auditoriaContainer" style="max-height:420px;overflow-y:auto;border:1px solid #f1f5f9;border-radius:8px">
+                                                        <table class="dashboard-table" style="font-size:0.82rem">
+                                                            <thead style="position:sticky;top:0;z-index:1">
+                                                                <tr>
+                                                                    <th style="min-width:160px">Data / Hora</th>
+                                                                    <th style="min-width:120px">Usuário</th>
+                                                                    <th style="min-width:130px">Ação</th>
+                                                                    <th style="min-width:100px">Contrato</th>
+                                                                    <th>Detalhes</th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody id="auditoriaTbody">
+                                                                <tr>
+                                                                    <td colspan="5" style="text-align:center;color:#94a3b8;padding:30px">Carregando log de auditoria...</td>
+                                                                </tr>
+                                                            </tbody>
+                                                        </table>
+                                                    </div>
+
+                                                    <div id="auditoriaCount" style="font-size:0.78rem;color:#94a3b8;margin-top:8px;text-align:right"></div>
+                                                </div>
+                                        </div>
+
                     <!-- Histórico de Alterações -->
                     <div class="config-card">
                         <h3>📋 Histórico de Alterações</h3>
