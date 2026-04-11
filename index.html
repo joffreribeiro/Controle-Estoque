@@ -959,14 +959,7 @@
                 <div class="filtros-container">
                     <div class="filtro-group">
                         <label>Representante:</label>
-                        <select id="filtroDistribuicaoRep" onchange="renderizarRegistroDistribuicao()">
-                            <option value="">Todos</option>
-                            <option value="KOLTE">KOLTE</option>
-                            <option value="ISA">ISA</option>
-                            <option value="LC">LC</option>
-                            <option value="ADES">ADES</option>
-                            <option value="FL">FL</option>
-                        </select>
+                        <select id="filtroDistribuicaoRep" onchange="renderizarRegistroDistribuicao()"></select>
                     </div>
                     <div class="filtro-group">
                         <label>Produto:</label>
@@ -1043,15 +1036,7 @@
                 <div class="filtros-container">
                     <div class="filtro-group">
                         <label>Representante:</label>
-                        <select id="filtroRepresentante" onchange="filtrarVendas()">
-                            <option value="">Todos</option>
-                            <option value="KOLTE">KOLTE</option>
-                            <option value="ISA">ISA</option>
-                            <option value="LC">LC</option>
-                            <option value="ADES">ADES</option>
-                            <option value="FL">FL</option>
-                            <option value="IMBEL">IMBEL</option>
-                        </select>
+                        <select id="filtroRepresentante" onchange="filtrarVendas()"></select>
                     </div>
                     <div class="filtro-group">
                         <label>Produto:</label>
@@ -1264,9 +1249,7 @@
                     <h2 class="section-title">Relatórios</h2>
                     <div class="header-actions">
                         <label style="margin-right:8px">Representante:</label>
-                        <select id="filtroRelatoriosRep" onchange="prepararRelatorioInventario()">
-                            <option value="">Todos</option>
-                        </select>
+                        <select id="filtroRelatoriosRep" onchange="prepararRelatorioInventario()"></select>
                         <label style="margin:0 8px">Produto:</label>
                         <select id="filtroRelatoriosProduto" onchange="prepararRelatorioInventario()">
                             <option value="">Todos</option>
@@ -1568,15 +1551,7 @@
                 <div class="filtros-container">
                     <div class="filtro-group">
                         <label>Representante:</label>
-                        <select id="filtroControleEnvioRep" onchange="renderizarControleEnvio()">
-                            <option value="">Todos</option>
-                            <option value="KOLTE">KOLTE</option>
-                            <option value="ISA">ISA</option>
-                            <option value="LC">LC</option>
-                            <option value="ADES">ADES</option>
-                            <option value="FL">FL</option>
-                            <option value="IMBEL">IMBEL</option>
-                        </select>
+                        <select id="filtroControleEnvioRep" onchange="renderizarControleEnvio()"></select>
                     </div>
                     <div class="filtro-group">
                         <label>Sistema:</label>
@@ -1904,14 +1879,7 @@
                         </div>
                         <div class="form-group">
                             <label for="representanteDistribuicao">Representante <span class="required">*</span></label>
-                            <select id="representanteDistribuicao" required>
-                                <option value="">Selecione o representante</option>
-                                <option value="KOLTE">KOLTE</option>
-                                <option value="ISA">ISA</option>
-                                <option value="LC">LC</option>
-                                <option value="ADES">ADES</option>
-                                <option value="FL">FL</option>
-                            </select>
+                            <select id="representanteDistribuicao" required></select>
                         </div>
                         <div class="form-group">
                             <label for="quantidadeDistribuicao">Quantidade <span class="required">*</span></label>
@@ -1943,15 +1911,7 @@
                         </div>
                         <div class="form-group">
                             <label for="vendedorVenda">Vendedor <span class="required">*</span></label>
-                            <select id="vendedorVenda" required>
-                                <option value="">Selecione o vendedor</option>
-                                <option value="KOLTE">KOLTE</option>
-                                <option value="ISA">ISA</option>
-                                <option value="LC">LC</option>
-                                <option value="ADES">ADES</option>
-                                <option value="FL">FL</option>
-                                <option value="IMBEL">IMBEL (Venda Direta)</option>
-                            </select>
+                            <select id="vendedorVenda" required></select>
                         </div>
                         <div class="form-group">
                             <label for="quantidadeVenda">Quantidade <span class="required">*</span></label>
@@ -1978,20 +1938,11 @@
                         <div class="form-row">
                             <div class="form-group">
                                 <label for="representanteDevolucao">Representante (origem) <span class="required">*</span></label>
-                                <select id="representanteDevolucao" required>
-                                    <option value="">Selecione o representante</option>
-                                    <option value="KOLTE">KOLTE</option>
-                                    <option value="ISA">ISA</option>
-                                    <option value="LC">LC</option>
-                                    <option value="ADES">ADES</option>
-                                    <option value="FL">FL</option>
-                                </select>
+                                <select id="representanteDevolucao" required></select>
                             </div>
                             <div class="form-group">
                                 <label for="destinoDevolucao">Destino</label>
-                                <select id="destinoDevolucao">
-                                    <option value="IMBEL">IMBEL (estoque central)</option>
-                                </select>
+                                <select id="destinoDevolucao"></select>
                             </div>
                         </div>
                         <div class="form-group">
@@ -2054,15 +2005,7 @@
                                     <div class="form-row">
                                         <div class="form-group">
                                             <label for="representanteVendaDet">Representante <span class="required">*</span></label>
-                                            <select id="representanteVendaDet" required>
-                                                <option value="">Selecione o representante</option>
-                                                <option value="KOLTE">KOLTE</option>
-                                                <option value="ISA">ISA</option>
-                                                <option value="LC">LC</option>
-                                                <option value="ADES">ADES</option>
-                                                <option value="FL">FL</option>
-                                                <option value="IMBEL">IMBEL (Venda Direta)</option>
-                                            </select>
+                                            <select id="representanteVendaDet" required></select>
                                         </div>
                                     </div>
                                 </section>
@@ -2121,14 +2064,7 @@
                         <div class="form-row">
                             <div class="form-group">
                                 <label for="representanteDistDet">Representante <span class="required">*</span></label>
-                                <select id="representanteDistDet" required>
-                                    <option value="">Selecione o representante</option>
-                                    <option value="KOLTE">KOLTE</option>
-                                    <option value="ISA">ISA</option>
-                                    <option value="LC">LC</option>
-                                    <option value="ADES">ADES</option>
-                                    <option value="FL">FL</option>
-                                </select>
+                                <select id="representanteDistDet" required></select>
                             </div>
                             <div class="form-group" style="flex:1">
                                 <label>Produtos</label>
@@ -2400,15 +2336,7 @@
                         </div>
                         <div class="form-group">
                             <label>Representante Responsável</label>
-                            <select id="clienteRepresentante">
-                                <option value="">Nenhum</option>
-                                <option value="KOLTE">KOLTE</option>
-                                <option value="ISA">ISA</option>
-                                <option value="LC">LC</option>
-                                <option value="ADES">ADES</option>
-                                <option value="FL">FL</option>
-                                <option value="IMBEL">IMBEL</option>
-                            </select>
+                            <select id="clienteRepresentante"></select>
                         </div>
                     </div>
                     <div class="form-group">
@@ -2465,15 +2393,7 @@
                                 <div class="form-row">
                                     <div class="form-group">
                                         <label>Representante <span class="required">*</span></label>
-                                        <select id="propostaRepresentante" required>
-                                            <option value="">Selecione</option>
-                                            <option value="KOLTE">KOLTE</option>
-                                            <option value="ISA">ISA</option>
-                                            <option value="LC">LC</option>
-                                            <option value="ADES">ADES</option>
-                                            <option value="FL">FL</option>
-                                            <option value="IMBEL">IMBEL</option>
-                                        </select>
+                                        <select id="propostaRepresentante" required></select>
                                     </div>
                                     <div class="form-group">
                                         <label>Status</label>

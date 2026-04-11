@@ -611,6 +611,18 @@ const dadosIniciais = [
 // FUNÇÕES DE INICIALIZAÇÃO
 // ========================================
 
+function popularSelectRepresentantes(selectId, incluirImbel = true) {
+    const sel = document.getElementById(selectId);
+    if (!sel) return;
+    const reps = estoque.representantes || 
+        ['KOLTE', 'ISA', 'LC', 'ADES', 'FL'];
+    // evitar duplicar IMBEL caso esteja presente em `estoque.representantes`
+    const repsSemImbel = reps.filter(r => String(r).toUpperCase() !== 'IMBEL');
+    sel.innerHTML = '<option value="">Selecione...</option>'
+        + (incluirImbel ? '<option value="IMBEL">IMBEL (Venda Direta)</option>' : '')
+        + repsSemImbel.map(r => `<option value="${r}">${r}</option>`).join('');
+}
+
 async function inicializar() {
     carregarDados();
     try { verificarExpiracaoPrecificacoes(); } catch (e) {}
@@ -637,6 +649,12 @@ async function inicializar() {
     try { atualizarSelectsRelatorios(); } catch (e) {}
     try { atualizarEstatisticas(); } catch (e) {}
     try { atualizarData(); } catch (e) {}
+
+    // Popular selects visíveis de representantes (filtros) na inicialização
+    try { popularSelectRepresentantes('filtroDistribuicaoRep', true); } catch (e) {}
+    try { popularSelectRepresentantes('filtroRepresentante', true); } catch (e) {}
+    try { popularSelectRepresentantes('filtroControleEnvioRep', true); } catch (e) {}
+    try { popularSelectRepresentantes('filtroRelatoriosRep', true); } catch (e) {}
 
     // Check proposal alerts every hour
     if (!window.__PROPOSTA_ALERTAS_INTERVALO__) {
@@ -5497,31 +5515,9 @@ function abrirModalDevolucao() {
     if (!modal) return;
     modal.style.display = 'flex';
     document.getElementById('formDevolucao').reset();
-    // Popular select de produtos
-    const selectRep = document.getElementById('representanteDevolucao');
-    if (selectRep) {
-        selectRep.innerHTML = '<option value="">Selecione o representante</option>';
-        estoque.representantes.forEach(rep => {
-            const opt = document.createElement('option');
-            opt.value = rep;
-            opt.textContent = rep;
-            selectRep.appendChild(opt);
-        });
-    }
-
-    // Popular select destino (IMBEL por padrão, mas permitir redistribuir para qualquer rep)
-    const selectDestino = document.getElementById('destinoDevolucao');
-    if (selectDestino) {
-        selectDestino.innerHTML = '<option value="IMBEL">IMBEL (Retornar ao estoque central)</option>';
-        estoque.representantes.forEach(rep => {
-            if (rep !== 'IMBEL') {
-                const opt = document.createElement('option');
-                opt.value = rep;
-                opt.textContent = rep;
-                selectDestino.appendChild(opt);
-            }
-        });
-    }
+    // Popular selects de representantes via helper centralizado
+    try { popularSelectRepresentantes('representanteDevolucao', false); } catch (e) {}
+    try { popularSelectRepresentantes('destinoDevolucao', true); } catch (e) {}
 
     // Reset container de itens e adicionar uma linha inicial
     try {
@@ -5619,6 +5615,7 @@ function abrirModalVendaDetalhada(vendaId = null, propostaId = null) {
     document.getElementById('valorUnitarioVenda').value = '';
     document.getElementById('valorTotalVenda').value = '';
     atualizarSelectsProdutos();
+    try { popularSelectRepresentantes('representanteVendaDet', true); } catch (e) {}
 
     const container = document.getElementById('itensVendaContainer');
     if (!container) return;
@@ -6574,6 +6571,7 @@ function abrirModalNovaDistribuicao() {
     document.getElementById('modalNovaDistribuicao').style.display = 'flex';
     document.getElementById('formNovaDistribuicao').reset();
     atualizarSelectsProdutos();
+    try { popularSelectRepresentantes('representanteDistDet', false); } catch (e) {}
     // Reset container de itens e adicionar uma linha inicial
     try {
         const container = document.getElementById('itensDistribuicaoContainer');
@@ -8745,6 +8743,7 @@ function abrirModalCliente(id = null) {
     document.getElementById('clienteTelefone').value = '';
     document.getElementById('clienteEmail').value = '';
     document.getElementById('clienteContato').value = '';
+    try { popularSelectRepresentantes('clienteRepresentante', true); } catch (e) {}
     document.getElementById('clienteRepresentante').value = '';
     document.getElementById('clienteObservacoes').value = '';
     document.getElementById('modalClienteTitulo').textContent = 'Novo Cliente';
@@ -11494,6 +11493,7 @@ function abrirModalProposta(id = null) {
     document.getElementById('propostaEditId').value = '';
     const container = document.getElementById('itensPropostaContainer');
     if (container) container.innerHTML = '';
+    try { popularSelectRepresentantes('propostaRepresentante', true); } catch (e) {}
 
     try { document.getElementById('propostaData').value = new Date().toISOString().slice(0, 10); } catch (e) {}
 
