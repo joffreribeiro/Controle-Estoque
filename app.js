@@ -5,7 +5,7 @@
 
 // Estrutura de dados principal
 if (location.hostname !== 'localhost') {
-    console.log = () => {};
+    // console.log = () => {};  // desativado para permitir depuração em produção
     console.debug = () => {};
 }
 // Flag para indicar que há dados locais alterados que ainda não foram sincronizados com o cloud
@@ -1197,6 +1197,11 @@ async function carregarDoCloud({confirmOverwrite=true} = {}) {
         try {
             precificacoesCliente = normalizarPrecificacoesCliente(data.precificacoesCliente || []);
             estoque.precificacoesCliente = precificacoesCliente;
+            try {
+                const abaAtiva = document.querySelector('[data-subaba].ativo')?.dataset?.subaba;
+                if (abaAtiva === 'consulta') renderizarConsultaPrecificacao();
+                if (abaAtiva === 'rastreabilidade') renderizarRastreabilidade();
+            } catch(e) {}
         } catch (e) { precificacoesCliente = []; }
         if (!data || !data.estado) {
             console.warn('Documento encontrado não contém campo estado.');
