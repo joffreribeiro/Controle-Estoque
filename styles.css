@@ -388,6 +388,23 @@ header {
     --logo-title-width: auto;
 }
 
+/* Sortable table header styles */
+th[data-sort] {
+    cursor: pointer;
+    user-select: none;
+}
+th[data-sort]::after {
+    content: '⇅';
+    display: inline-block;
+    font-size: 0.76rem;
+    margin-left: 6px;
+    color: #94a3b8;
+    opacity: 0.75;
+}
+th[data-sort].sort-asc::after { content: '▲'; color: var(--primary-color); opacity: 0.95; }
+th[data-sort].sort-desc::after { content: '▼'; color: var(--primary-color); opacity: 0.95; }
+th[data-sort]:hover { background: rgba(30,58,95,0.03); }
+
 .logo-text .subtitle {
     display: block;
     box-sizing: border-box;

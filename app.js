@@ -6628,39 +6628,28 @@ function renderizarRegistroVendas() {
         }
     });
 
-    // Ordenar conforme seleção do usuário (_ordenVendas)
-    linhas.sort((a, b) => {
-        const campo = _ordenVendas.campo || 'contrato';
-        const dire = _ordenVendas.direcao === 'asc' ? 1 : -1;
-        try {
-            if (campo === 'contrato') {
-                const na = parseInt(a.contratoKey);
-                const nb = parseInt(b.contratoKey);
-                if (!isNaN(na) && !isNaN(nb)) return dire * (na - nb);
-                return dire * a.contratoKey.localeCompare(b.contratoKey);
-            }
-            if (campo === 'valorTotal') {
-                return dire * ((a.valorTotal || 0) - (b.valorTotal || 0));
-            }
-            if (campo === 'data') {
-                const da = a.dataNorm || '';
-                const db = b.dataNorm || '';
-                if (da === db) return 0;
-                return dire * (da < db ? -1 : 1);
-            }
-            const mapaCampo = { loja: 'loja', representante: 'representante' };
-            const chave = mapaCampo[campo] || 'contratoKey';
-            const aa = (a[chave] || '').toString().toLowerCase();
-            const bb = (b[chave] || '').toString().toLowerCase();
-            if (aa < bb) return -1 * dire;
-            if (aa > bb) return 1 * dire;
-            return 0;
-        } catch (e) { return 0; }
-    });
-    
+    // Ordenar conforme seleção do usuário (estado genérico _sortState, fallback para _ordenVendas)
+    const sortV = _sortState['vendas'] || { col: _ordenVendas.campo || 'contrato', dir: _ordenVendas.direcao || 'asc' };
+    const getValVenda = (l, col) => {
+        if (!l) return '';
+        if (col === 'contrato') {
+            const n = parseInt(l.contratoKey);
+            return isNaN(n) ? String(l.contratoKey || '') : n;
+        }
+        if (col === 'valorTotal') return Number(l.valorTotal || 0);
+        if (col === 'quantidade') return Number(l.quantidade || 0);
+        if (col === 'data') return l.dataNorm || '';
+        if (col === 'loja') return l.loja || '';
+        if (col === 'representante') return l.representante || '';
+        if (col === 'produtoNome') return l.produtoNome || '';
+        return l[col] ?? '';
+    };
+
+    const linhasOrdenadas = getSortedArray(linhas, sortV.col, sortV.dir, getValVenda);
+
     tbody.innerHTML = '';
-    
-    if (linhas.length === 0) {
+
+    if (linhasOrdenadas.length === 0) {
         tbody.innerHTML = `
             <tr>
                 <td colspan="10" class="empty-state">
@@ -6673,23 +6662,30 @@ function renderizarRegistroVendas() {
         atualizarTotaisVendas(0, 0);
         return;
     }
-    
+
     let totalQtd = 0;
     let totalValor = 0;
 
+    // Agrupar mantendo a ordem das linhas ordenadas
     const grupos = {};
-    linhas.forEach(linha => {
-        if (!grupos[linha.contratoKey]) grupos[linha.contratoKey] = [];
-        grupos[linha.contratoKey].push(linha);
+    const orderedKeys = [];
+    linhasOrdenadas.forEach(linha => {
+        const k = linha.contratoKey;
+        if (!grupos[k]) { grupos[k] = []; orderedKeys.push(k); }
+        grupos[k].push(linha);
     });
 
-    // Ordenar chaves por contrato numérico
-    const chavesOrdenadas = Object.keys(grupos).sort((a,b) => {
-        const na = parseInt(a);
-        const nb = parseInt(b);
-        if (!isNaN(na) && !isNaN(nb)) return na - nb;
-        return a.localeCompare(b);
-    });
+    // Determinar chaves na ordem apropriada; se o usuário ordenou por 'contrato', ordenar numericamente
+    let chavesOrdenadas = orderedKeys.slice();
+    if (sortV.col === 'contrato') {
+        chavesOrdenadas = Object.keys(grupos).sort((a, b) => {
+            const na = parseInt(a);
+            const nb = parseInt(b);
+            if (!isNaN(na) && !isNaN(nb)) return na - nb;
+            return a.localeCompare(b);
+        });
+        if (sortV.dir === 'desc') chavesOrdenadas.reverse();
+    }
 
     // Remover overlay de debug temporário se existir
     const dbg = document.getElementById('debug-grupos-vendas');
@@ -6779,6 +6775,30 @@ function renderizarRegistroVendas() {
     });
     
     atualizarTotaisVendas(totalQtd, totalValor);
+    // Rodapé resumido para o período filtrado
+    try {
+        const totalFiltrado = linhas.reduce((s, l) => s + (Number(l.valorTotal) || 0), 0);
+        const totalUnidades = linhas.reduce((s, l) => s + (Number(l.quantidade) || 0), 0);
+        const qtdContratos = new Set(linhas.map(l => l.contratoKey)).size;
+
+        const tfoot = document.querySelector('#tabelaRegistroVendas tfoot') || document.createElement('tfoot');
+        const fmtVal = v => formatarMoedaValor(Number(v) || 0);
+        tfoot.innerHTML = `
+            <tr style="background:#1e3a5f;color:#fff;font-weight:700">
+              <td colspan="3" style="padding:10px 14px;text-align:left">📊 ${qtdContratos} contrato(s) · ${linhas.length} linha(s)</td>
+              <td style="padding:10px;text-align:center">${totalUnidades}</td>
+              <td colspan="2"></td>
+              <td style="padding:10px;text-align:right;color:#7ee787;font-size:1rem">${fmtVal(totalFiltrado)}</td>
+              <td></td>
+            </tr>`;
+
+        const table = document.getElementById('tabelaRegistroVendas') || (tbody && tbody.closest && tbody.closest('table'));
+        if (table) {
+            const existing = table.querySelector('tfoot');
+            if (existing) existing.remove();
+            table.appendChild(tfoot);
+        }
+    } catch (e) { console.warn('Erro ao renderizar rodapé de totais vendas', e); }
 }
 
 function atualizarTotaisVendas(totalQtd, totalValor) {
@@ -6826,12 +6846,60 @@ function filtrarVendas() {
 }
 
 function limparFiltrosVendas() {
-    const filtroRep = document.getElementById('filtroRepresentante');
-    const filtroProduto = document.getElementById('filtroProduto');
-    
-    if (filtroRep) filtroRep.value = '';
-    if (filtroProduto) filtroProduto.value = '';
-    
+    const fields = [
+        'filtroRepresentante',
+        'filtroProduto',
+        'filtroVendasDataInicio',
+        'filtroVendasDataFim'
+    ];
+    fields.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.value = '';
+    });
+    renderizarRegistroVendas();
+}
+
+function filtroVendasRapido(periodo) {
+    const inicio = document.getElementById('filtroVendasDataInicio');
+    const fim = document.getElementById('filtroVendasDataFim');
+    if (!inicio || !fim) return;
+
+    const hoje = new Date();
+    const pad = n => String(n).padStart(2, '0');
+    const fmt = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+    const hojeStr = fmt(hoje);
+
+    if (periodo === 'limpar') {
+        inicio.value = '';
+        fim.value = '';
+        renderizarRegistroVendas();
+        return;
+    }
+
+    if (periodo === 'hoje') {
+        inicio.value = hojeStr;
+        fim.value = hojeStr;
+    }
+
+    if (periodo === 'semana') {
+        const seteDias = new Date(hoje);
+        seteDias.setDate(seteDias.getDate() - 6);
+        inicio.value = fmt(seteDias);
+        fim.value = hojeStr;
+    }
+
+    if (periodo === 'mes') {
+        const primeiroDia = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
+        const ultimoDia = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 0);
+        inicio.value = fmt(primeiroDia);
+        fim.value = fmt(ultimoDia);
+    }
+
+    if (periodo === 'ano') {
+        inicio.value = `${hoje.getFullYear()}-01-01`;
+        fim.value = `${hoje.getFullYear()}-12-31`;
+    }
+
     renderizarRegistroVendas();
 }
 
@@ -8834,6 +8902,67 @@ function ordenarDistribuicao(campo) {
     renderizarRegistroDistribuicao();
 }
 
+// Estado genérico de ordenação para múltiplas tabelas
+let _sortState = {};
+
+function aplicarSortTabela(table, campo) {
+    const cur = _sortState[table] || { col: null, dir: 'asc' };
+    if (cur.col === campo) cur.dir = cur.dir === 'asc' ? 'desc' : 'asc';
+    else { cur.col = campo; cur.dir = 'asc'; }
+    _sortState[table] = cur;
+
+    // Atualizar classes visuais nos cabeçalhos da tabela
+    try {
+        document.querySelectorAll(`[data-table="${table}"] th[data-sort]`).forEach(th => {
+            th.classList.remove('sort-asc', 'sort-desc');
+            if (th.dataset.sort === campo) th.classList.add('sort-' + cur.dir);
+        });
+    } catch (e) { }
+
+    // Compatibilidade com ordenação antiga específica de vendas
+    if (table === 'vendas') {
+        _ordenVendas.campo = cur.col;
+        _ordenVendas.direcao = cur.dir;
+    }
+}
+
+function getSortedArray(arr, campo, direcao, getValue) {
+    if (!campo) return Array.isArray(arr) ? arr.slice() : [];
+    const dir = (direcao === 'desc') ? -1 : 1;
+    return (arr || []).slice().sort((a, b) => {
+        try {
+            let va = getValue ? getValue(a, campo) : a[campo];
+            let vb = getValue ? getValue(b, campo) : b[campo];
+            if (va == null) va = '';
+            if (vb == null) vb = '';
+
+            // Números nativos
+            if (typeof va === 'number' && typeof vb === 'number') return dir * (va - vb);
+
+            // Tentar parseFloat (remoção de simbolos monetários)
+            const na = parseFloat(String(va).replace(/[^0-9,.-]+/g, '').replace(',', '.'));
+            const nb = parseFloat(String(vb).replace(/[^0-9,.-]+/g, '').replace(',', '.'));
+            if (!isNaN(na) && !isNaN(nb)) return dir * (na - nb);
+
+            // Datas
+            const da = Date.parse(String(va));
+            const db = Date.parse(String(vb));
+            if (!isNaN(da) && !isNaN(db)) return dir * (da - db);
+
+            // Texto
+            const sa = String(va).toLowerCase();
+            const sb = String(vb).toLowerCase();
+            if (sa < sb) return -1 * dir;
+            if (sa > sb) return 1 * dir;
+            return 0;
+        } catch (e) { return 0; }
+    });
+}
+
+function sortVendas(campo) { aplicarSortTabela('vendas', campo); try { renderizarRegistroVendas(); } catch(e){} }
+function sortClientes(campo) { aplicarSortTabela('clientes', campo); try { renderizarClientes(); } catch(e){} }
+function sortPropostas(campo) { aplicarSortTabela('propostas', campo); try { renderizarPropostas(); } catch(e){} }
+
 // ========================================
 // PAGINAÇÃO
 // ========================================
@@ -9427,14 +9556,33 @@ function renderizarClientes(filtro = '') {
         (c.contato || '').toLowerCase().includes(termo)
     );
 
-    if (clientesFiltrados.length === 0) {
+    // Aplicar ordenação de clientes se houver
+    const sortC = _sortState['clientes'] || { col: 'nome', dir: 'asc' };
+    const getValCliente = (c, col) => {
+        if (!c) return '';
+        if (col === 'nome') return c.nome || '';
+        if (col === 'cnpj') return c.cnpj || '';
+        if (col === 'cidade') return ((c.cidade||'') + '/' + (c.uf||'')) || '';
+        if (col === 'telefone') return c.telefone || '';
+        if (col === 'email') return c.email || '';
+        if (col === 'representante') return c.representante || '';
+        if (col === 'compras') {
+            const vendas = estoque.registroVendas || [];
+            return vendas.filter(v => (v.loja || '').toLowerCase() === (c.nome || '').toLowerCase()).length;
+        }
+        return c[col] ?? '';
+    };
+
+    const clientesOrdenados = getSortedArray(clientesFiltrados, sortC.col, sortC.dir, getValCliente);
+
+    if (clientesOrdenados.length === 0) {
         tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;padding:24px;color:var(--text-secondary)">Nenhum cliente encontrado.</td></tr>';
         return;
     }
 
     const vendas = estoque.registroVendas || [];
 
-    tbody.innerHTML = clientesFiltrados.map(c => {
+    tbody.innerHTML = clientesOrdenados.map(c => {
         const repClass = (c.representante || '').toLowerCase();
         const repBadge = c.representante
             ? `<span class="badge-rep ${repClass}">${c.representante}</span>`
@@ -12916,7 +13064,22 @@ function renderizarPropostas(filtro, statusFiltro) {
         expirada: { label: 'Expirada', bg: '#f59e0b' }
     };
 
-    tbody.innerHTML = lista.map(p => {
+    // Aplicar ordenação de propostas se houver
+    const sortP = _sortState['propostas'] || { col: 'data', dir: 'desc' };
+    const getValProposta = (p, col) => {
+        if (!p) return '';
+        if (col === 'numero') return Number(p.numero || 0);
+        if (col === 'cliente') return p.cliente || '';
+        if (col === 'representante') return p.representante || '';
+        if (col === 'valorTotal') return Number(p.valorTotal || 0);
+        if (col === 'data') return p.data || p.dataCriacao || '';
+        if (col === 'contrato') return p.contratoNumero || p.contrato || '';
+        if (col === 'status') return p.status || '';
+        return p[col] ?? '';
+    };
+    const listaOrdenada = getSortedArray(lista, sortP.col, sortP.dir, getValProposta);
+
+    tbody.innerHTML = listaOrdenada.map(p => {
         const repClass = (p.representante || '').toLowerCase();
         const statusConf = statusLabels[p.status] || statusLabels.rascunho;
         const dataProposta = p.data ? new Date(p.data).toLocaleDateString('pt-BR') : '-';

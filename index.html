@@ -387,10 +387,10 @@
 
                 <div class="table-container">
                     <div class="table-wrapper">
-                        <table class="dashboard-table" id="tabelaClientes">
+                        <table class="dashboard-table" id="tabelaClientes" data-table="clientes">
                             <thead>
                                 <tr>
-                                    <th>Nome / Razão Social</th>
+                                    <th class="sortable" data-sort="nome" onclick="sortClientes('nome')">Nome / Razão Social <span class="sort-icon">⇅</span></th>
                                     <th>Tipo</th>
                                     <th>CNPJ / CPF</th>
                                     <th>Cidade / UF</th>
@@ -398,7 +398,7 @@
                                     <th>E-mail</th>
                                     <th>Contato</th>
                                     <th>Representante</th>
-                                    <th>Compras</th>
+                                    <th class="sortable" data-sort="compras" onclick="sortClientes('compras')">Compras <span class="sort-icon">⇅</span></th>
                                     <th>Ações</th>
                                 </tr>
                             </thead>
@@ -465,17 +465,17 @@
 
                 <div class="table-container">
                     <div class="table-wrapper">
-                        <table class="dashboard-table" id="tabelaPropostas">
+                        <table class="dashboard-table" id="tabelaPropostas" data-table="propostas">
                             <thead>
                                 <tr>
-                                    <th style="width:70px">Nº</th>
-                                    <th style="text-align:left">Cliente</th>
-                                    <th>Representante</th>
-                                    <th>Valor Total</th>
-                                    <th>Data</th>
+                                    <th style="width:70px" class="sortable" data-sort="numero" onclick="sortPropostas('numero')">Nº <span class="sort-icon">⇅</span></th>
+                                    <th style="text-align:left" class="sortable" data-sort="cliente" onclick="sortPropostas('cliente')">Cliente <span class="sort-icon">⇅</span></th>
+                                    <th class="sortable" data-sort="representante" onclick="sortPropostas('representante')">Representante <span class="sort-icon">⇅</span></th>
+                                    <th class="sortable" data-sort="valorTotal" onclick="sortPropostas('valorTotal')">Valor Total <span class="sort-icon">⇅</span></th>
+                                    <th class="sortable" data-sort="data" onclick="sortPropostas('data')">Data <span class="sort-icon">⇅</span></th>
                                     <th>Validade</th>
-                                    <th>Status</th>
-                                    <th>Contrato</th>
+                                    <th class="sortable" data-sort="status" onclick="sortPropostas('status')">Status <span class="sort-icon">⇅</span></th>
+                                    <th class="sortable" data-sort="contrato" onclick="sortPropostas('contrato')">Contrato <span class="sort-icon">⇅</span></th>
                                     <th style="min-width:160px">Motivo Recusa</th>
                                     <th style="width:140px">Ações</th>
                                 </tr>
@@ -1048,8 +1048,16 @@
                         </select>
                     </div>
                     <div class="filtro-group">
-                        <label>De:</label>
-                        <input type="date" id="filtroVendasDataInicio" onchange="filtrarVendas()">
+                                                <div class="filtro-group" style="display:flex;gap:4px;flex-wrap:wrap">
+                                                    <span style="font-size:0.78rem;color:#64748b;align-self:flex-end;margin-bottom:6px;white-space:nowrap">Período:</span>
+                                                    <button type="button" onclick="filtroVendasRapido('hoje')" class="btn btn-outline btn-sm" style="padding:4px 10px;font-size:0.78rem">Hoje</button>
+                                                    <button type="button" onclick="filtroVendasRapido('semana')" class="btn btn-outline btn-sm" style="padding:4px 10px;font-size:0.78rem">7 dias</button>
+                                                    <button type="button" onclick="filtroVendasRapido('mes')" class="btn btn-outline btn-sm" style="padding:4px 10px;font-size:0.78rem">Este mês</button>
+                                                    <button type="button" onclick="filtroVendasRapido('ano')" class="btn btn-outline btn-sm" style="padding:4px 10px;font-size:0.78rem">Este ano</button>
+                                                    <button type="button" onclick="filtroVendasRapido('limpar')" class="btn btn-outline btn-sm" style="padding:4px 10px;font-size:0.78rem;color:#94a3b8">✕ Limpar</button>
+                                                </div>
+                                                <label>De:</label>
+                                                <input type="date" id="filtroVendasDataInicio" onchange="filtrarVendas()">
                     </div>
                     <div class="filtro-group">
                         <label>Até:</label>
@@ -1062,17 +1070,17 @@
 
                 <div class="table-container">
                     <div class="table-wrapper">
-                        <table class="dashboard-table" id="tabelaRegistroVendas">
+                        <table class="dashboard-table" id="tabelaRegistroVendas" data-table="vendas">
                             <thead>
                                 <tr>
-                                    <th style="width: 80px;" class="col-contrato sortable" data-sort="contrato" onclick="ordenarVendas('contrato')">Contrato <span class="sort-icon">⇅</span></th>
-                                    <th class="col-loja sortable" data-sort="loja" onclick="ordenarVendas('loja')">Loja / Cliente <span class="sort-icon">⇅</span></th>
-                                    <th style="width: 120px;" class="col-representante sortable" data-sort="representante" onclick="ordenarVendas('representante')">Representante <span class="sort-icon">⇅</span></th>
+                                    <th style="width: 80px;" class="col-contrato sortable" data-sort="contrato" onclick="sortVendas('contrato')">Contrato <span class="sort-icon">⇅</span></th>
+                                    <th class="col-loja sortable" data-sort="loja" onclick="sortVendas('loja')">Loja / Cliente <span class="sort-icon">⇅</span></th>
+                                    <th style="width: 120px;" class="col-representante sortable" data-sort="representante" onclick="sortVendas('representante')">Representante <span class="sort-icon">⇅</span></th>
                                     <th class="col-produto-venda">Produto</th>
                                     <th style="width: 90px;" class="col-qtd">Qtd</th>
                                     <th style="width: 120px;" class="col-valor-un">Valor Un.</th>
-                                    <th style="width: 130px;" class="col-valor-total sortable" data-sort="valorTotal" onclick="ordenarVendas('valorTotal')">Valor Total <span class="sort-icon">⇅</span></th>
-                                    <th style="width: 120px;" class="col-data sortable" data-sort="data" onclick="ordenarVendas('data')">Data <span class="sort-icon">⇅</span></th>
+                                    <th style="width: 130px;" class="col-valor-total sortable" data-sort="valorTotal" onclick="sortVendas('valorTotal')">Valor Total <span class="sort-icon">⇅</span></th>
+                                    <th style="width: 120px;" class="col-data sortable" data-sort="data" onclick="sortVendas('data')">Data <span class="sort-icon">⇅</span></th>
                                     <!-- Coluna 'Total Contrato (R$)' removida -->
                                     <th style="width: 150px;" class="col-obs">Obs</th>
                                     <th style="width: 80px;" class="col-acoes">Ações</th>
