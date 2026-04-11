@@ -2388,14 +2388,34 @@
             <div class="imbel-modal-body" style="max-height:70vh;overflow-y:auto">
                 <input type="hidden" id="imbel_mov_edit_id" />
                 <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;align-items:end">
-                                        <div>
-                                                <label style="font-size:.82rem;font-weight:600;color:#555;display:block;margin-bottom:4px">Descrição (Produto)</label>
-                                                <select id="imbel_mov_prod" onchange="onImbelTipoChange()" style="width:100%;padding:7px 8px;border:1px solid #ddd;border-radius:6px;font-size:.85rem"></select>
-                                        </div>
-                                        <div>
-                                                <label style="font-size:.82rem;font-weight:600;color:#555;display:block;margin-bottom:4px">Tipo</label>
-                                                <select id="imbel_mov_tipo" onchange="onImbelTipoChange()"
-                                                                style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;border-radius:6px;font-size:0.9rem">
+                    <div class="form-group">
+                        <label style="font-size:.82rem;font-weight:600;color:#555;display:block;margin-bottom:4px">Destinatário</label>
+                        <input type="text" id="imbel_mov_dest" placeholder="Nome" style="width:100%;padding:7px 8px;border:1px solid #ddd;border-radius:6px;font-size:.85rem"/>
+                    </div>
+                    <div class="form-group">
+                        <label style="font-size:.82rem;font-weight:600;color:#555;display:block;margin-bottom:4px">CPF / CNPJ</label>
+                        <input type="text" id="imbel_mov_cpf" placeholder="000.000.000-00" style="width:100%;padding:7px 8px;border:1px solid #ddd;border-radius:6px;font-size:.85rem"/>
+                    </div>
+
+                    <div id="imbel_mov_marketing_ctx" style="display:none">
+                        <div class="form-group">
+                            <label>Ação / Evento de Marketing</label>
+                            <input type="text" id="imbel_mov_evento" placeholder="Ex: Feira de Caça e Pesca 2026, Demonstração PMMG..." style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;border-radius:6px;font-size:0.9rem">
+                        </div>
+                    </div>
+                    <div>
+                        <label style="font-size:.82rem;font-weight:600;color:#555;display:block;margin-bottom:4px">E-mail</label>
+                        <input type="email" id="imbel_mov_email" placeholder="email@exemplo.com" style="width:100%;padding:7px 8px;border:1px solid #ddd;border-radius:6px;font-size:.85rem"/>
+                    </div>
+                    <div>
+                        <label style="font-size:.82rem;font-weight:600;color:#555;display:block;margin-bottom:4px">Telefone</label>
+                        <input type="text" id="imbel_mov_tel" placeholder="(00) 00000-0000" style="width:100%;padding:7px 8px;border:1px solid #ddd;border-radius:6px;font-size:.85rem"/>
+                    </div>
+
+                    <div style="grid-column:1/-1">
+                        <label style="font-size:.82rem;font-weight:600;color:#555;display:block;margin-bottom:4px">Tipo</label>
+                        <select id="imbel_mov_tipo" onchange="onImbelTipoChange()"
+                                style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;border-radius:6px;font-size:0.9rem">
 
     <optgroup label="── ENTRADAS (aumentam estoque) ──">
         <option value="RECEBIMENTO_FABRICA">📦 Recebimento Fábrica</option>
@@ -2411,41 +2431,33 @@
     </optgroup>
 
 </select>
-                                        </div>
-                                        <div id="imbel_mov_preco_ref" style="display:none;background:#fffbf0;border:1px solid #fcd34d;border-radius:6px;padding:8px 12px;font-size:0.85rem;color:#92400e"></div>
+                    </div>
+                    <div id="imbel_mov_preco_ref" style="display:none;background:#fffbf0;border:1px solid #fcd34d;border-radius:6px;padding:8px 12px;font-size:0.85rem;color:#92400e"></div>
+
                     <div>
                         <label style="font-size:.82rem;font-weight:600;color:#555;display:block;margin-bottom:4px">Data</label>
                         <input type="date" id="imbel_mov_data" style="width:100%;padding:7px 8px;border:1px solid #ddd;border-radius:6px;font-size:.85rem"/>
                     </div>
+
+                    <!-- Campos rápidos para adicionar itens -->
                     <div>
-                        <label style="font-size:.82rem;font-weight:600;color:#555;display:block;margin-bottom:4px">Quantidade</label>
+                        <label style="font-size:.82rem;font-weight:600;color:#555;display:block;margin-bottom:4px">Produto (adicionar)</label>
+                        <select id="imbel_mov_prod" onchange="onImbelTipoChange()" style="width:100%;padding:7px 8px;border:1px solid #ddd;border-radius:6px;font-size:.85rem"></select>
+                    </div>
+                    <div>
+                        <label style="font-size:.82rem;font-weight:600;color:#555;display:block;margin-bottom:4px">Quantidade (adicionar)</label>
                         <input type="number" id="imbel_mov_qtd" value="1" min="1" style="width:100%;padding:7px 8px;border:1px solid #ddd;border-radius:6px;font-size:.85rem"/>
                     </div>
-                                        <div class="form-group">
-                                                <label style="font-size:.82rem;font-weight:600;color:#555;display:block;margin-bottom:4px">Destinatário</label>
-                                                <input type="text" id="imbel_mov_dest" placeholder="Nome" style="width:100%;padding:7px 8px;border:1px solid #ddd;border-radius:6px;font-size:.85rem"/>
-                                        </div>
-                                        <div class="form-group">
-                                                <label style="font-size:.82rem;font-weight:600;color:#555;display:block;margin-bottom:4px">CPF / CNPJ</label>
-                                                <input type="text" id="imbel_mov_cpf" placeholder="000.000.000-00" style="width:100%;padding:7px 8px;border:1px solid #ddd;border-radius:6px;font-size:.85rem"/>
-                                        </div>
+                    <div id="imbel_mov_valor_ctx">
+                        <div class="form-group">
+                            <label style="font-size:.82rem;font-weight:600;color:#555;display:block;margin-bottom:4px">
+                                Valor (R$)
+                                <span style="font-size:0.75rem;color:#94a3b8;font-weight:400"> — deixe em branco para usar o preço de referência</span>
+                            </label>
+                            <input type="number" id="imbel_mov_valor" step="0.01" min="0" placeholder="Usar preço de referência" style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;border-radius:6px;font-size:0.9rem" />
+                        </div>
+                    </div>
 
-                                        <div id="imbel_mov_marketing_ctx" style="display:none">
-                                            <div class="form-group">
-                                                <label>Ação / Evento de Marketing</label>
-                                                <input type="text" id="imbel_mov_evento" placeholder="Ex: Feira de Caça e Pesca 2026, Demonstração PMMG..." style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;border-radius:6px;font-size:0.9rem">
-                                            </div>
-                                        </div>
-                                        <div id="imbel_mov_valor_ctx">
-                                            <div class="form-group">
-                                                <label style="font-size:.82rem;font-weight:600;color:#555;display:block;margin-bottom:4px">
-                                                    Valor (R$)
-                                                    <span style="font-size:0.75rem;color:#94a3b8;font-weight:400"> — deixe em branco para usar o preço de referência</span>
-                                                </label>
-                                                <input type="number" id="imbel_mov_valor" step="0.01" min="0" placeholder="Usar preço de referência" style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;border-radius:6px;font-size:0.9rem" />
-                                            </div>
-                                        </div>
-                    
                     <div id="imbel_mov_itens_container" style="grid-column:1/-1">
                         <label style="font-size:.82rem;font-weight:600;color:#555;display:block;margin-bottom:6px">Itens da movimentação</label>
                         <div id="imbel_mov_itens" style="display:flex;flex-direction:column;gap:8px;margin-bottom:8px"></div>
@@ -2455,18 +2467,12 @@
                             <small style="margin-left:auto;color:#94a3b8">Use os campos Produto / Quantidade / Valor e clique em "Adicionar item" para incluir múltiplos produtos nesta movimentação.</small>
                         </div>
                     </div>
-                    <div style="grid-column:span 2">
+
+                    <div style="grid-column:1/-1">
                         <label style="font-size:.82rem;font-weight:600;color:#555;display:block;margin-bottom:4px">Endereço</label>
                         <input type="text" id="imbel_mov_endereco" placeholder="Rua, número, cidade" style="width:100%;padding:7px 8px;border:1px solid #ddd;border-radius:6px;font-size:.85rem"/>
                     </div>
-                    <div>
-                        <label style="font-size:.82rem;font-weight:600;color:#555;display:block;margin-bottom:4px">Telefone</label>
-                        <input type="text" id="imbel_mov_tel" placeholder="(00) 00000-0000" style="width:100%;padding:7px 8px;border:1px solid #ddd;border-radius:6px;font-size:.85rem"/>
-                    </div>
-                    <div>
-                        <label style="font-size:.82rem;font-weight:600;color:#555;display:block;margin-bottom:4px">E-mail</label>
-                        <input type="email" id="imbel_mov_email" placeholder="email@exemplo.com" style="width:100%;padding:7px 8px;border:1px solid #ddd;border-radius:6px;font-size:.85rem"/>
-                    </div>
+
                     <div style="grid-column:1/-1">
                         <label style="font-size:.82rem;font-weight:600;color:#555;display:block;margin-bottom:4px">Observações</label>
                         <input type="text" id="imbel_mov_obs" placeholder="Observações adicionais" style="width:100%;padding:7px 8px;border:1px solid #ddd;border-radius:6px;font-size:.85rem"/>
