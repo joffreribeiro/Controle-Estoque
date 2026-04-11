@@ -644,6 +644,15 @@ function popularSelectRepresentantes(selectId, incluirImbel = true) {
 
 async function inicializar() {
     carregarDados();
+    // Load contract config into Configurações tab
+    try {
+        const cfg = carregarConfigContrato();
+        const anoEl = document.getElementById('configContratoAno');
+        const proxEl = document.getElementById('configContratoProximo');
+        if (anoEl) anoEl.value = cfg.ano;
+        if (proxEl) proxEl.value = cfg.proximo;
+        atualizarPreviaContrato();
+    } catch (e) {}
     try { verificarExpiracaoPrecificacoes(); } catch (e) {}
     try { inicializarImpostosPreDefinidos(); } catch (e) { console.warn('Inicialização de impostos predefinidos falhou:', e); }
 
@@ -695,6 +704,50 @@ async function inicializar() {
     // Reativar auto-save: habilita salvamento automático (debounced + periódico)
     try { window.__AUTO_SAVE_CLOUD.enabled = true; } catch (e) {}
     try { iniciarAutoSaveCloud(); } catch (e) { console.warn('Falha ao iniciar auto-save:', e); }
+}
+
+// Contract numbering configuration (NNN/YYYY) stored in localStorage as 'configContrato'
+function carregarConfigContrato() {
+    try {
+        const cfg = JSON.parse(localStorage.getItem('configContrato') || '{}');
+        return {
+            ano: Number(cfg.ano) || new Date().getFullYear(),
+            proximo: Number(cfg.proximo) || 1,
+        };
+    } catch (e) {
+        return { ano: new Date().getFullYear(), proximo: 1 };
+    }
+}
+
+function salvarConfigContrato() {
+    const ano = parseInt(document.getElementById('configContratoAno')?.value) || new Date().getFullYear();
+    const proximo = parseInt(document.getElementById('configContratoProximo')?.value) || 1;
+    const cfg = { ano, proximo };
+    localStorage.setItem('configContrato', JSON.stringify(cfg));
+    atualizarPreviaContrato();
+    try { mostrarNotificacao('Configuração de contrato salva!', 'success'); } catch (e) {}
+}
+
+function atualizarPreviaContrato() {
+    const ano = parseInt(document.getElementById('configContratoAno')?.value) || new Date().getFullYear();
+    const proximo = parseInt(document.getElementById('configContratoProximo')?.value) || 1;
+    const previa = document.getElementById('configContratoPreviaPrev');
+    if (previa) {
+        previa.textContent = String(proximo).padStart(3, '0') + '/' + ano;
+    }
+}
+
+function gerarNumeroContrato() {
+    const cfg = carregarConfigContrato();
+    const anoAtual = new Date().getFullYear();
+    if (Number(cfg.ano) !== anoAtual) {
+        cfg.ano = anoAtual;
+        cfg.proximo = 1;
+    }
+    const numero = String(cfg.proximo).padStart(3, '0') + '/' + cfg.ano;
+    cfg.proximo = Number(cfg.proximo) + 1;
+    localStorage.setItem('configContrato', JSON.stringify(cfg));
+    return numero;
 }
 
 function normalizarPrecificacoesCliente(origem) {
@@ -5286,6 +5339,7 @@ function renderizarDashboard() {
         trTotalRep.innerHTML = htmlTotal;
         tabelaRep.appendChild(trTotalRep);
     }
+    try { renderizarGraficoComissoes(); } catch (e) {}
 }
 
 // ========================================
@@ -5718,10 +5772,7 @@ function abrirModalVendaDetalhada(vendaId = null, propostaId = null) {
             vendaEditandoId = null;
             container.innerHTML = '';
 
-            const ultimoContrato = estoque.registroVendas.length > 0
-                ? Math.max(...estoque.registroVendas.map(v => parseInt(v.contrato) || 0))
-                : 0;
-            document.getElementById('contratoVenda').value = ultimoContrato + 1;
+            document.getElementById('contratoVenda').value = gerarNumeroContrato();
             document.getElementById('lojaVenda').value = proposta.cliente || '';
             document.getElementById('representanteVendaDet').value = proposta.representante || '';
             document.getElementById('observacoesVenda').value = 'Gerado a partir da proposta ' + proposta.numero + (proposta.observacoes ? '\n' + proposta.observacoes : '');
@@ -5746,10 +5797,7 @@ function abrirModalVendaDetalhada(vendaId = null, propostaId = null) {
         container.innerHTML = '';
         adicionarItemVendaRow();
 
-        const ultimoContrato = estoque.registroVendas.length > 0 
-            ? Math.max(...estoque.registroVendas.map(v => parseInt(v.contrato) || 0)) 
-            : 0;
-        document.getElementById('contratoVenda').value = ultimoContrato + 1;
+        document.getElementById('contratoVenda').value = gerarNumeroContrato();
         // Preencher data padrão como hoje
         try { document.getElementById('dataVenda').value = new Date().toISOString().slice(0,10); } catch (e) {}
         return;
@@ -8703,6 +8751,16 @@ function verificarAlertasEstoque() {
                 proposta: p, cor: '#7c3aed', urgencia: 'AGUARD. APROVAÇÃO', tipo: 'aprovacao'
             }));
 
+        // Propostas recusadas recentemente (últimos 7 dias) — lembrete de follow-up
+        (propostas || []).filter(p => p.status === 'recusada' && p.dataRecusa).forEach(p => {
+            try {
+                const dias = Math.ceil((new Date() - new Date(p.dataRecusa)) / 86400000);
+                if (dias >= 0 && dias <= 7) {
+                    alertasPropostas.push({ proposta: p, cor: '#ef4444', urgencia: 'RECUSADA', tipo: 'recusada' });
+                }
+            } catch (e) {}
+        });
+
         if (mudouStatusProposta) {
             try { estoque.propostas = propostas; } catch (e) {}
             try { salvarDados(); } catch (e) {}
@@ -8720,7 +8778,7 @@ function verificarAlertasEstoque() {
                 header.textContent = `Propostas (${alertasPropostas.length})`;
                 lista.appendChild(header);
 
-                alertasPropostas.forEach(alerta => {
+                                alertasPropostas.forEach(alerta => {
                     const p = alerta.proposta;
                     const fmt = v => 'R$' + (v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
                     const div = document.createElement('div');
@@ -8739,8 +8797,10 @@ function verificarAlertasEstoque() {
           <div style="font-size:0.78rem;color:#64748b;margin-top:3px">
             ${p.cliente} · ${fmt(p.valorTotal)}
           </div>
-          ${alerta.tipo === 'aprovacao' && p.motivoAprovacao
-                            ? `<div style="font-size:0.75rem;color:#7c3aed;margin-top:3px">Motivo: ${_escapeHtml(String(p.motivoAprovacao))}</div>` : ''}
+                    ${alerta.tipo === 'aprovacao' && p.motivoAprovacao
+                                                        ? `<div style="font-size:0.75rem;color:#7c3aed;margin-top:3px">Motivo: ${_escapeHtml(String(p.motivoAprovacao))}</div>` : ''}
+                    ${alerta.tipo === 'recusada' && p.motivoRecusa
+                                                        ? `<div style="font-size:0.75rem;color:#dc2626;margin-top:3px">Motivo: ${_escapeHtml(String(p.motivoRecusa))}</div>` : ''}
           <button onclick="trocarAba('propostas');fecharPainelAlertas();"
                   style="font-size:0.75rem;color:${alerta.cor};background:none;
                          border:none;cursor:pointer;text-decoration:underline;
@@ -8782,6 +8842,7 @@ function verificarAlertasEstoque() {
 
 let _chartVendasRep = null;
 let _chartTopProdutos = null;
+let _chartComissoesRep = null;
 
 function renderizarGraficos() {
     if (typeof Chart === 'undefined') return;
@@ -8866,6 +8927,109 @@ function renderizarGraficos() {
 // ========================================
 // MÓDULO DE CLIENTES
 // ========================================
+
+// ========================================
+// GRÁFICO: Comissões por Representante
+// ========================================
+function renderizarGraficoComissoes() {
+        const periodo = document.getElementById('filtroComissoesGraficoPeriodo')?.value || 'todos';
+        const agora = new Date();
+
+        const inPeriod = d => {
+                if (!d || periodo === 'todos') return true;
+                const dt = new Date(d);
+                if (periodo === 'mes') return dt.getMonth() === agora.getMonth() && dt.getFullYear() === agora.getFullYear();
+                if (periodo === 'trimestre') return Math.floor(dt.getMonth()/3) === Math.floor(agora.getMonth()/3) && dt.getFullYear() === agora.getFullYear();
+                if (periodo === 'ano') return dt.getFullYear() === agora.getFullYear();
+                return true;
+        };
+
+        const reps = (estoque.representantes && estoque.representantes.length) ? estoque.representantes : ['KOLTE','ISA','LC','ADES','FL','IMBEL'];
+        const repColors = { KOLTE: '#79c0ff', ISA: '#7ee787', LC: '#58a6ff', ADES: '#ffa657', FL: '#d2a8ff', IMBEL: '#ff7b72' };
+
+        const comissoesPorRep = {};
+        reps.forEach(r => { comissoesPorRep[r] = 0; });
+
+        (estoque.registroVendas || []).filter(v => inPeriod(v.data)).forEach(venda => {
+                const rep = (venda.representante || '').toUpperCase();
+                if (!comissoesPorRep.hasOwnProperty(rep)) comissoesPorRep[rep] = 0;
+
+                const precifDoCliente = (precificacoesCliente || [])
+                        .filter(p => p.clienteNome === venda.loja || (clientes||[]).find(c => c.nome === venda.loja)?.id === p.clienteId)
+                        .sort((a,b) => new Date(b.dataCriacao||0) - new Date(a.dataCriacao||0))[0];
+
+                if (precifDoCliente) {
+                        const totalComissao = (precifDoCliente.itens || []).reduce((s, item) => {
+                                const vendaItem = (venda.items || venda.itens || []).find(vi => (vi.produtoNome||vi.produtoId) === item.produto);
+                                if (vendaItem) return s + ((item.comissaoR || 0) * (vendaItem.quantidade || 0));
+                                return s + (item.comissaoR || 0);
+                        }, 0);
+                        comissoesPorRep[rep] += totalComissao;
+                } else {
+                        comissoesPorRep[rep] += (venda.valorTotal || 0) * 0.05;
+                }
+        });
+
+        const repsComDados = reps.filter(r => comissoesPorRep[r] > 0);
+        const labels = repsComDados.length ? repsComDados : reps;
+        const valores = labels.map(r => comissoesPorRep[r] || 0);
+        const colors = labels.map(r => repColors[r] || '#94a3b8');
+        const totalGeral = valores.reduce((s,v) => s+v, 0);
+
+        const fmt = v => 'R$ ' + v.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+
+        const ctx = document.getElementById('chartComissoesRep');
+        if (ctx && window.Chart) {
+                if (_chartComissoesRep) { try { _chartComissoesRep.destroy(); } catch(e) {} }
+                _chartComissoesRep = new Chart(ctx.getContext('2d'), {
+                        type: 'bar',
+                        data: { labels, datasets: [{ label: 'Comissão (R$)', data: valores, backgroundColor: colors.map(c => c + 'cc'), borderColor: colors, borderWidth: 2, borderRadius: 6 }] },
+                        options: {
+                                responsive: true,
+                                maintainAspectRatio: false,
+                                plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => fmt(ctx.raw) } } },
+                                scales: {
+                                        y: { beginAtZero: true, ticks: { callback: v => 'R$ ' + (v/1000).toFixed(0) + 'k', font: { size: 10 } }, grid: { color: '#f1f5f9' } },
+                                        x: { ticks: { font: { size: 11, weight: '600' } }, grid: { display: false } }
+                                }
+                        }
+                });
+        }
+
+        const tableDiv = document.getElementById('tabelaComissoesGrafico');
+        if (tableDiv) {
+                const sorted = labels.map((r,i) => ({ rep: r, valor: valores[i], cor: colors[i] })).sort((a,b) => b.valor - a.valor);
+                tableDiv.innerHTML = `
+                    <table style="width:100%;border-collapse:collapse">
+                        <thead>
+                            <tr style="background:#f8fafc">
+                                <th style="padding:6px 10px;text-align:left;font-size:0.75rem;color:#64748b;text-transform:uppercase">Rep</th>
+                                <th style="padding:6px 10px;text-align:right;font-size:0.75rem;color:#64748b;text-transform:uppercase">Comissão</th>
+                                <th style="padding:6px 10px;text-align:right;font-size:0.75rem;color:#64748b;text-transform:uppercase">%</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${sorted.map(row => {
+                                const pct = totalGeral > 0 ? (row.valor/totalGeral*100).toFixed(1) : '0';
+                                return `
+                                    <tr style="border-bottom:1px solid #f1f5f9">
+                                        <td style="padding:7px 10px;display:flex;align-items:center;gap:6px">
+                                            <span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${row.cor};flex-shrink:0"></span>
+                                            <span style="font-weight:600;color:#1e293b">${row.rep}</span>
+                                        </td>
+                                        <td style="padding:7px 10px;text-align:right;font-weight:700;color:#16a34a">${fmt(row.valor)}</td>
+                                        <td style="padding:7px 10px;text-align:right;color:#64748b;font-size:0.78rem">${pct}%</td>
+                                    </tr>`;
+                            }).join('')}
+                        </tbody>
+                    </table>`;
+        }
+
+        const totalEl = document.getElementById('totalComissoesGrafico');
+        if (totalEl) {
+                totalEl.innerHTML = `Total de comissões no período: <strong style="color:#16a34a;font-size:1rem;margin-left:6px">${fmt(totalGeral)}</strong>`;
+        }
+}
 
 let clientes = [];
 
@@ -12272,15 +12436,12 @@ function converterPropostaEmVenda(propostaId) {
 
     _propostaParaConverter = proposta;
 
-    // Calculate next contract number
-    const ultimoContrato = estoque.registroVendas.length > 0
-        ? Math.max(...estoque.registroVendas.map(v => parseInt(v.contrato) || 0))
-        : 0;
-    const nextNum = ultimoContrato + 1;
+    // Calculate next contract number using configurable generator
+    const nextContractNumber = gerarNumeroContrato();
 
     // Populate modal
     const contratoEl = document.getElementById('confirmarVendaContrato');
-    if (contratoEl) contratoEl.value = nextNum;
+    if (contratoEl) contratoEl.value = nextContractNumber;
     const dataEl = document.getElementById('confirmarVendaData');
     if (dataEl) dataEl.value = new Date().toISOString().split('T')[0];
 
@@ -12479,8 +12640,8 @@ function renderizarPropostas(filtro, statusFiltro) {
         const dataValidade = p.dataExpiracao ? new Date(p.dataExpiracao).toLocaleDateString('pt-BR') : '-';
         const validadeExpirada = p.dataExpiracao && new Date(p.dataExpiracao) < agora;
         const contratoDisplay = p.contratoNumero ? p.contratoNumero : '-';
-
         const podeConverter = p.status === 'rascunho' || p.status === 'enviada';
+        const podeRecusar = !['recusada','aceita','expirada'].includes(p.status);
 
         return `<tr>
             <td><span style="background:#0ea5e9; color:#fff; padding:2px 10px; border-radius:12px; font-size:0.82rem; font-weight:600;">${p.numero}</span></td>
@@ -12489,7 +12650,12 @@ function renderizarPropostas(filtro, statusFiltro) {
             <td style="color:#16a34a; font-weight:600">${formatarMoedaValor(p.valorTotal || 0)}</td>
             <td>${dataProposta}</td>
             <td style="${validadeExpirada ? 'color:#ef4444; font-weight:600' : ''}">${dataValidade}</td>
-            <td><span style="background:${statusConf.bg}; color:#fff; padding:2px 10px; border-radius:12px; font-size:0.8rem;">${statusConf.label}</span></td>
+            <td><span style="background:${statusConf.bg}; color:#fff; padding:2px 10px; border-radius:12px; font-size:0.8rem;">${statusConf.label}</span>
+                ${p.status === 'recusada' && p.motivoRecusa ? `<div style="font-size:0.75rem;color:#dc2626;margin-top:4px;max-width:200px;overflow:hidden;text-overflow:ellipsis" title="${_escapeHtml(p.motivoRecusa)}">↳ ${_escapeHtml(p.motivoRecusa)}</div>` : ''}
+            </td>
+            <td style="font-size:0.78rem;color:#dc2626;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${_escapeHtml(p.motivoRecusa || '')}">
+              ${p.status === 'recusada' && p.motivoRecusa ? _escapeHtml(p.motivoRecusa) : '—'}
+            </td>
             <td style="font-weight:600">${contratoDisplay}</td>
             <td>
                                 <div style="position:relative;display:inline-block">
@@ -12507,6 +12673,7 @@ function renderizarPropostas(filtro, statusFiltro) {
                                 </div>
                 <button class="btn btn-outline btn-sm" data-admin="true" onclick="abrirModalProposta('${p.id}')" title="Editar">✏️</button>
                 ${podeConverter ? `<button class="btn btn-success btn-sm" data-admin="true" onclick="converterPropostaEmVenda('${p.id}')" title="Converter em Venda" style="font-size:0.78rem;">🔄</button>` : ''}
+                ${podeRecusar ? `<button class="btn btn-outline btn-sm" data-admin="true" onclick="recusarProposta('${p.id}')" title="Recusar proposta" style="color:#ef4444">Recusar</button>` : ''}
                 <button class="btn btn-outline btn-sm" data-admin="true" onclick="excluirProposta('${p.id}')" title="Excluir" style="color:#ef4444">🗑️</button>
             </td>
         </tr>`;
@@ -12549,6 +12716,32 @@ function atualizarKPIsPropostas() {
     if (elAceitas) elAceitas.textContent = aceitas;
     if (elRecusadas) elRecusadas.textContent = recusadas;
     if (elTaxa) elTaxa.textContent = taxa + '%';
+}
+
+function recusarProposta(id) {
+    const p = (propostas || []).find(x => x.id === id);
+    if (!p) return;
+
+    const motivo = prompt(
+        `Recusar proposta ${p.numero}?\n\n` +
+        `Informe o motivo da recusa (aparecerá no histórico do cliente):\n` +
+        `(Ex: "Preço acima do orçamento", "Concorrente venceu", ` +
+        `"Cliente desistiu", "Prazo de entrega")`
+    );
+
+    if (motivo === null) return; // user cancelled
+
+    p.status = 'recusada';
+    p.motivoRecusa = motivo || 'Sem motivo informado';
+    p.dataRecusa = new Date().toISOString();
+
+    try { salvarDados(); } catch (e) { console.error('salvarDados erro', e); }
+    try { renderizarPropostas(); } catch (e) { console.warn('renderizarPropostas erro', e); }
+    try { atualizarKPIsPropostas(); } catch (e) { console.warn('atualizarKPIsPropostas erro', e); }
+
+    try { registrarHistorico('proposta_recusada', `Proposta ${p.numero} recusada: ${p.motivoRecusa}`); } catch(e) {}
+
+    mostrarNotificacao(`Proposta ${p.numero} marcada como recusada.`, 'warning');
 }
 
 function preencherDadosCliente(nomeCliente) {
