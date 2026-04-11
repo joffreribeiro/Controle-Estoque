@@ -1716,15 +1716,21 @@ function formatarContratoDisplay(valor) {
     const bruto = (valor ?? '').toString().normalize('NFKC');
     const clean = bruto.replace(/[\u200B-\u200D\uFEFF\s]+/g, '');
     const digitos = clean.replace(/\D+/g, '');
-    if (digitos && digitos.length >= 5) {
-        const ano = digitos.slice(-4);
-        const seq = digitos.slice(0, -4) || '0';
-        return String(parseInt(seq, 10)).padStart(3, '0') + '/' + ano;
+    // Forçar o ano para 2026 conforme solicitado
+    const ANO_PADRAO = '2026';
+    if (digitos && digitos.length >= 4) {
+        // Se houver pelo menos 4 dígitos, usamos tudo que vier antes dos últimos 4 (quando houver)
+        let seq = digitos.length > 4 ? digitos.slice(0, -4) : digitos;
+        if (!seq) seq = '0';
+        return String(parseInt(seq, 10)).padStart(3, '0') + '/' + ANO_PADRAO;
     }
+    if (digitos && digitos.length > 0) {
+        return String(parseInt(digitos, 10)).padStart(3, '0') + '/' + ANO_PADRAO;
+    }
+    // Fallback: se não houver dígitos, tentar extrair formato já com barra
     const m = clean.match(/^(\d{1,3})\/(\d{4})$/);
-    if (m) return String(parseInt(m[1], 10)).padStart(3, '0') + '/' + m[2];
-    if (digitos && digitos.length > 0) return String(parseInt(digitos, 10)).padStart(3, '0');
-    return clean.toUpperCase() || '-';
+    if (m) return String(parseInt(m[1], 10)).padStart(3, '0') + '/' + ANO_PADRAO;
+    return '-';
 }
 
 function getUsuarioAtual() {
