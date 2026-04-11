@@ -4,6 +4,10 @@
 // ========================================
 
 // Estrutura de dados principal
+if (location.hostname !== 'localhost') {
+    console.log = () => {};
+    console.debug = () => {};
+}
 let estoque = {
     produtos: [],
     representantes: ['KOLTE', 'ISA', 'LC', 'ADES', 'FL', 'IMBEL'],
@@ -440,7 +444,7 @@ function diagnosticarProduto(produtoId) {
         const distribuicaoPorRep = {};
         (estoque.representantes || []).forEach(r => { distribuicaoPorRep[r] = p.distribuicao ? (p.distribuicao[r] || 0) : 0; });
         const result = { produtoId: p.id, nome: p.nome, estoqueConsolidado, totalDistribuido, totalDevolvidoParaImbel, totalVendas, imbelDisponivel, distribuicaoPorRep };
-        console.log('Diagnóstico do produto:', result);
+        console.debug('Diagnóstico do produto:', result);
         return result;
     } catch (e) { console.error('Erro no diagnóstico:', e); return null; }
 }
@@ -884,7 +888,7 @@ async function salvarNoCloud() {
             indicator.style.color = '#16a34a';
             setTimeout(() => { if (indicator) indicator.textContent = ''; }, 3000);
         }
-        console.log('Dados salvos no Firestore (coleção app_data / doc latest)');
+        console.debug('Dados salvos no Firestore (coleção app_data / doc latest)');
         return true;
     } catch (e) {
         console.error('Erro salvando no Firestore:', e);
@@ -998,7 +1002,7 @@ async function carregarDoCloud({confirmOverwrite=true} = {}) {
         if (abaAtiva === 'precificacao') renderizarPrecificacao();
         atualizarSelectsProdutos();
         atualizarSelectsRelatorios();
-        console.log('Dados carregados do Firestore com sucesso.');
+        console.debug('Dados carregados do Firestore com sucesso.');
         return true;
     } catch (e) {
         console.error('Erro carregando do Firestore:', e);
@@ -1072,7 +1076,7 @@ async function carregarDoCloudAuto() {
             if (abaAtiva === 'precificacao') renderizarPrecificacao();
             atualizarSelectsProdutos();
             atualizarSelectsRelatorios();
-            console.log('Dados carregados automaticamente do Firestore (remoto mais recente).');
+            console.debug('Dados carregados automaticamente do Firestore (remoto mais recente).');
             return true;
         }
         return false;
@@ -4830,10 +4834,10 @@ function importarImbel(event) {
 
             if (erros.length > 0 && importados === 0) {
                 mostrarNotificacao('Nenhum registro importado. Verifique o formato.', 'error');
-                console.log('Erros de importação IMBEL:', erros);
+                console.debug('Erros de importação IMBEL:', erros);
             } else if (erros.length > 0) {
                 mostrarNotificacao(`${importados} registros importados. ${erros.length} linhas com erro.`, 'warning');
-                console.log('Erros de importação IMBEL:', erros);
+                console.debug('Erros de importação IMBEL:', erros);
             } else {
                 mostrarNotificacao(`${importados} registros importados com sucesso!`, 'success');
             }
@@ -4901,8 +4905,8 @@ function importarImbelCadastro(event) {
             }
             if (importados>0) { saveImbel(data); renderControleImbelCadastro(); renderControleImbelEstoque(); }
             event.target.value = '';
-            if (erros.length>0 && importados===0) { mostrarNotificacao('Nenhum produto importado. Verifique o formato.', 'error'); console.log('Erros IMBEL cadastro:',erros); }
-            else if (erros.length>0) { mostrarNotificacao(`${importados} produtos importados. ${erros.length} linhas com erro.`, 'warning'); console.log('Erros IMBEL cadastro:',erros); }
+            if (erros.length>0 && importados===0) { mostrarNotificacao('Nenhum produto importado. Verifique o formato.', 'error'); console.debug('Erros IMBEL cadastro:',erros); }
+            else if (erros.length>0) { mostrarNotificacao(`${importados} produtos importados. ${erros.length} linhas com erro.`, 'warning'); console.debug('Erros IMBEL cadastro:',erros); }
             else { mostrarNotificacao(`${importados} produtos importados com sucesso!`, 'success'); }
         } catch(err) { console.error('Erro importar cadastro IMBEL',err); mostrarNotificacao('Erro ao processar o arquivo.', 'error'); }
     };
@@ -5019,8 +5023,8 @@ function importarImbelMovimentacao(event) {
             }
             if (importados>0) { saveImbel(data); renderControleImbelMovimentacao(); renderControleImbelEstoque(); renderControleImbelCadastro(); }
             event.target.value = '';
-            if (erros.length>0 && importados===0) { mostrarNotificacao('Nenhuma movimentação importada. Verifique o formato.', 'error'); console.log('Erros IMBEL mov:',erros); }
-            else if (erros.length>0) { mostrarNotificacao(`${importados} movimentações importadas. ${erros.length} linhas com erro.`, 'warning'); console.log('Erros IMBEL mov:',erros); }
+            if (erros.length>0 && importados===0) { mostrarNotificacao('Nenhuma movimentação importada. Verifique o formato.', 'error'); console.debug('Erros IMBEL mov:',erros); }
+            else if (erros.length>0) { mostrarNotificacao(`${importados} movimentações importadas. ${erros.length} linhas com erro.`, 'warning'); console.debug('Erros IMBEL mov:',erros); }
             else { mostrarNotificacao(`${importados} movimentações importadas com sucesso!`, 'success'); }
         } catch(err) { console.error('Erro importar movimentações IMBEL',err); mostrarNotificacao('Erro ao processar o arquivo.', 'error'); }
     };
@@ -7004,10 +7008,10 @@ function importarDistribuicao(event) {
             // Mostrar resultado
             if (erros.length > 0 && distribuicoesImportadas === 0) {
                 mostrarNotificacao(`Nenhuma distribuição importada. Verifique o formato.`, 'error');
-                console.log('Erros de importação:', erros);
+                console.debug('Erros de importação:', erros);
             } else if (erros.length > 0) {
                 mostrarNotificacao(`${distribuicoesImportadas} distribuições importadas. ${erros.length} linhas com erro.`, 'warning');
-                console.log('Erros de importação:', erros);
+                console.debug('Erros de importação:', erros);
             } else {
                 mostrarNotificacao(`${distribuicoesImportadas} distribuições importadas com sucesso!`, 'success');
             }
@@ -7713,7 +7717,7 @@ function importarEstoque(event) {
             
             // Ler cabeçalho para identificar colunas
             const cabecalho = parseCsvLinha(linhas[0]);
-            console.log('Cabeçalho:', cabecalho);
+            console.debug('Cabeçalho:', cabecalho);
             
             let produtosAtualizados = 0;
             let erros = [];
@@ -7774,10 +7778,10 @@ function importarEstoque(event) {
             // Mostrar resultado
             if (erros.length > 0 && produtosAtualizados === 0) {
                 mostrarNotificacao(`Nenhum produto atualizado. Verifique o formato.`, 'error');
-                console.log('Erros de importação:', erros);
+                console.debug('Erros de importação:', erros);
             } else if (erros.length > 0) {
                 mostrarNotificacao(`${produtosAtualizados} produtos atualizados. ${erros.length} erros.`, 'warning');
-                console.log('Erros de importação:', erros);
+                console.debug('Erros de importação:', erros);
             } else {
                 mostrarNotificacao(`${produtosAtualizados} produtos atualizados com sucesso!`, 'success');
             }
@@ -7804,13 +7808,13 @@ function importarVendas(event) {
     reader.onload = function(e) {
         try {
             const conteudo = e.target.result;
-            console.log('Conteúdo do arquivo:', conteudo); // Debug
+            console.debug('Conteúdo do arquivo:', conteudo); // Debug
             
             const linhas = conteudo.split(/\r?\n/).filter(l => l.trim());
             
-            console.log('Linhas encontradas:', linhas.length); // Debug
-            console.log('Primeira linha:', linhas[0]); // Debug
-            if (linhas[1]) console.log('Segunda linha:', linhas[1]); // Debug
+            console.debug('Linhas encontradas:', linhas.length); // Debug
+            console.debug('Primeira linha:', linhas[0]); // Debug
+            if (linhas[1]) console.debug('Segunda linha:', linhas[1]); // Debug
             
             // Pular cabeçalho
             if (linhas.length < 2) {
@@ -7829,7 +7833,7 @@ function importarVendas(event) {
                 // Parse do CSV com suporte a aspas
                 const colunas = parseCsvLinha(linha);
                 
-                console.log(`Linha ${i + 1} - Colunas:`, colunas); // Debug
+                console.debug(`Linha ${i + 1} - Colunas:`, colunas); // Debug
                 
                 // Pular linha se primeira coluna estiver vazia (linha de total ou vazia)
                 if (!colunas[0] || colunas[0].trim() === '') continue;
@@ -7846,7 +7850,7 @@ function importarVendas(event) {
                 const quantidade = parseInt(colunas[4]?.trim()) || 0;
                 const observacoes = colunas[7]?.trim()?.replace(/"/g, '') || '';
                 
-                console.log(`Dados: contrato=${contrato}, loja=${loja}, rep=${representante}, produto=${produtoNome}, qtd=${quantidade}`); // Debug
+                console.debug(`Dados: contrato=${contrato}, loja=${loja}, rep=${representante}, produto=${produtoNome}, qtd=${quantidade}`); // Debug
                 
                 if (!contrato || !loja || !representante || !produtoNome || quantidade <= 0) {
                     erros.push(`Linha ${i + 1}: dados obrigatórios faltando (contrato=${contrato}, loja=${loja}, rep=${representante}, produto=${produtoNome}, qtd=${quantidade})`);
@@ -7914,10 +7918,10 @@ function importarVendas(event) {
             // Mostrar resultado
             if (erros.length > 0 && vendasImportadas === 0) {
                 mostrarNotificacao(`Nenhuma venda importada. Verifique o formato do arquivo.`, 'error');
-                console.log('Erros de importação:', erros);
+                console.debug('Erros de importação:', erros);
             } else if (erros.length > 0) {
                 mostrarNotificacao(`${vendasImportadas} vendas importadas. ${erros.length} linhas com erro.`, 'warning');
-                console.log('Erros de importação:', erros);
+                console.debug('Erros de importação:', erros);
             } else {
                 mostrarNotificacao(`${vendasImportadas} vendas importadas com sucesso!`, 'success');
             }
