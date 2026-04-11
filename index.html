@@ -606,162 +606,223 @@
                                                                 <!-- Sub-aba Precificação por Cliente -->
                                                                 <div id="subaba-precif-porcliente" style="display:none">
 
-    <div style="background:#fff; border:1px solid #e2e8f0; border-radius:10px; padding:16px 20px; margin-bottom:20px">
-        <div style="font-size:0.8rem; font-weight:600; color:#64748b; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:14px">Selecionar Cliente</div>
-        <div style="display:grid; grid-template-columns:2fr 2fr 1fr 1fr 1fr; gap:14px; align-items:end">
+        <div style="background:#fff;border:1px solid #e2e8f0;border-radius:10px;
+                        padding:20px;margin-bottom:16px">
 
-            <div class="form-group" style="margin:0">
-                <label style="font-size:0.85rem">Cliente</label>
-                <select id="precifClienteSelect" onchange="selecionarClientePrecif()" style="width:100%; padding:8px 10px; border:1px solid #e2e8f0; border-radius:6px; font-size:0.9rem">
-                    <option value="">Selecione um cliente...</option>
-                </select>
+            <!-- Row 1: Cliente + UF + Tipo + Botões -->
+            <div style="display:grid;grid-template-columns:3fr 1fr 1fr auto;
+                            gap:14px;align-items:end;margin-bottom:16px">
+
+                <div class="form-group" style="margin:0">
+                    <label style="font-size:0.85rem;font-weight:600">Cliente</label>
+                    <select id="precifClienteSelect" onchange="selecionarClientePrecif()"
+                                    style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;
+                                                 border-radius:6px;font-size:0.9rem">
+                        <option value="">Selecione um cliente...</option>
+                    </select>
+                </div>
+
+                <div class="form-group" style="margin:0">
+                    <label style="font-size:0.85rem;font-weight:600">Estado (UF)</label>
+                    <input type="text" id="precifClienteUF" readonly
+                                 style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;
+                                                border-radius:6px;font-size:0.9rem;background:#f8fafc;
+                                                color:#1e3a5f;font-weight:700;text-align:center;
+                                                letter-spacing:1px">
+                </div>
+
+                <div class="form-group" style="margin:0">
+                    <label style="font-size:0.85rem;font-weight:600">Tipo de Pessoa</label>
+                    <input type="text" id="precifClienteTipo" readonly
+                                 style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;
+                                                border-radius:6px;font-size:0.9rem;background:#f8fafc;
+                                                color:#1e3a5f;font-weight:700;text-align:center">
+                </div>
+
+                <div style="display:flex;gap:8px;align-items:flex-end">
+                    <button class="btn btn-primary"
+                                    onclick="calcularPrecificacaoPorCliente({forcarAtual:true})"
+                                    style="white-space:nowrap">
+                        🧮 Calcular
+                    </button>
+                    <button class="btn btn-outline btn-sm"
+                                    onclick="exportarPrecifCliente()"
+                                    title="Exportar Excel">
+                        📤
+                    </button>
+                </div>
+
             </div>
 
-            <div class="form-group" style="margin:0">
-                <label style="font-size:0.85rem">Produto</label>
-                <select id="precifProdutoSelect"
-                        style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;
-                               border-radius:6px;font-size:0.9rem"
-                        onchange="
-                          const tf=document.getElementById('precifFiltroProduto');
-                          if(tf&&this.value)tf.value='';
-                          calcularPrecificacaoPorCliente()">
-                    <option value="">Todos os produtos</option>
-                </select>
+            <!-- Row 2: Produtos (multi-select style checklist) -->
+            <div style="border-top:1px solid #f1f5f9;padding-top:14px;margin-bottom:14px">
+                <div style="display:flex;justify-content:space-between;
+                                align-items:center;margin-bottom:8px">
+                    <label style="font-size:0.82rem;font-weight:600;color:#1e3a5f">
+                        Produtos a calcular
+                    </label>
+                    <div style="display:flex;gap:8px">
+                        <button class="btn btn-outline btn-sm"
+                                        onclick="precifSelecionarTodosProdutos(true)">
+                            Selecionar todos
+                        </button>
+                        <button class="btn btn-outline btn-sm"
+                                        onclick="precifSelecionarTodosProdutos(false)">
+                            Desmarcar todos
+                        </button>
+                    </div>
+                </div>
+                <div id="precifProdutosChecklist"
+                         style="display:flex;flex-wrap:wrap;gap:8px;
+                                        min-height:36px;padding:10px;
+                                        background:#f8fafc;border:1px solid #e2e8f0;
+                                        border-radius:8px;max-height:120px;overflow-y:auto">
+                    <span style="color:#94a3b8;font-size:0.85rem">
+                        Selecione um cliente para ver os produtos disponíveis
+                    </span>
+                </div>
                 <div id="precifProdutoContador"
-                     style="font-size:0.75rem;color:#64748b;margin-top:4px">
+                         style="font-size:0.75rem;color:#64748b;margin-top:6px">
                 </div>
             </div>
 
-            <div class="form-group" style="margin:0">
-                <label style="font-size:0.85rem">Estado (UF)</label>
-                <input type="text" id="precifClienteUF" readonly style="width:100%; padding:8px 10px; border:1px solid #e2e8f0; border-radius:6px; font-size:0.9rem; background:#f8fafc; color:#1e3a5f; font-weight:700; text-align:center; letter-spacing:1px">
+            <!-- Row 3: Taxa, ROI, Comissão, Validade — SINGLE ROW, no duplicates -->
+            <div style="border-top:1px solid #f1f5f9;padding-top:14px">
+                <div style="font-size:0.75rem;font-weight:700;color:#64748b;
+                                text-transform:uppercase;letter-spacing:0.5px;
+                                margin-bottom:10px">
+                    Parâmetros desta precificação
+                </div>
+                <div style="display:grid;grid-template-columns:repeat(4,1fr);
+                                gap:12px">
+
+                    <div class="form-group" style="margin:0">
+                        <label style="font-size:0.8rem;color:#64748b">
+                            Taxa (%)
+                            <span style="font-weight:400;color:#94a3b8;font-size:0.72rem">
+                                — global: <span id="precifTaxaPadraoLabel">—</span>%
+                            </span>
+                        </label>
+                        <input type="number" step="0.01" min="0"
+                                     id="precifTaxaOverride"
+                                     placeholder="Usar padrão global"
+                                     oninput="calcularPrecificacaoPorCliente()"
+                                     style="width:100%;padding:7px 10px;border:1px solid #e2e8f0;
+                                                    border-radius:6px;font-size:0.9rem">
+                    </div>
+
+                    <div class="form-group" style="margin:0">
+                        <label style="font-size:0.8rem;color:#64748b">
+                            ROI (%)
+                            <span style="font-weight:400;color:#94a3b8;font-size:0.72rem">
+                                — global: <span id="precifROIPadraoLabel">—</span>%
+                            </span>
+                        </label>
+                        <input type="number" step="0.01" min="0"
+                                     id="precifROIOverride"
+                                     placeholder="Usar padrão global"
+                                     oninput="calcularPrecificacaoPorCliente()"
+                                     style="width:100%;padding:7px 10px;border:1px solid #e2e8f0;
+                                                    border-radius:6px;font-size:0.9rem">
+                    </div>
+
+                    <div class="form-group" style="margin:0">
+                        <label style="font-size:0.8rem;color:#64748b">
+                            Comissão (%)
+                            <span style="font-weight:400;color:#94a3b8;font-size:0.72rem">
+                                — global: <span id="precifComissaoPadraoLabel">—</span>%
+                            </span>
+                        </label>
+                        <input type="number" step="0.01" min="0"
+                                     id="precifComissaoOverride"
+                                     placeholder="Usar padrão global"
+                                     oninput="calcularPrecificacaoPorCliente()"
+                                     style="width:100%;padding:7px 10px;border:1px solid #e2e8f0;
+                                                    border-radius:6px;font-size:0.9rem">
+                    </div>
+
+                    <div class="form-group" style="margin:0">
+                        <label style="font-size:0.8rem;color:#64748b">
+                            Validade (dias)
+                        </label>
+                        <input type="number" id="precifValidadeDias"
+                                     value="30" min="1" max="365" step="1"
+                                     style="width:100%;padding:7px 10px;border:1px solid #e2e8f0;
+                                                    border-radius:6px;font-size:0.9rem">
+                    </div>
+
+                </div>
             </div>
 
-            <div class="form-group" style="margin:0">
-                <label style="font-size:0.85rem">Tipo de Pessoa</label>
-                <input type="text" id="precifClienteTipo" readonly style="width:100%; padding:8px 10px; border:1px solid #e2e8f0; border-radius:6px; font-size:0.9rem; background:#f8fafc; color:#1e3a5f; font-weight:700; text-align:center">
-            </div>
-
-            <div style="display:flex; gap:8px">
-                <button class="btn btn-primary" onclick="calcularPrecificacaoPorCliente({ forcarAtual: true })" style="flex:1">🧮 Calcular</button>
-                <button class="btn btn-outline btn-sm" onclick="exportarPrecifCliente()" title="Exportar preços deste cliente">📤</button>
-            </div>
-
-        </div>
-
-        <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:16px 18px; margin-top:14px">
-            <div style="font-size:0.8rem; font-weight:600; color:#64748b; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:12px">Parâmetros globais da precificação por cliente</div>
-            <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px">
-                <div class="form-group" style="margin:0">
-                    <label style="font-size:0.8rem">Taxa Padrão (diretoria)</label>
-                    <input type="number" id="taxaPadrao" value="1" step="0.01" min="0" style="width:100%;padding:7px 10px;border:1px solid #e2e8f0; border-radius:6px;font-size:0.9rem" oninput="recalcularTodosProdutos()">
-                </div>
-                <div class="form-group" style="margin:0">
-                    <label style="font-size:0.8rem">ROI Padrão</label>
-                    <input type="number" id="roiPadrao" value="1" step="0.01" min="0" style="width:100%;padding:7px 10px;border:1px solid #e2e8f0; border-radius:6px;font-size:0.9rem" oninput="recalcularTodosProdutos()">
-                </div>
-                <div class="form-group" style="margin:0">
-                    <label style="font-size:0.8rem">Comissão Padrão (%)</label>
-                    <input type="number" id="comissaoPadrao" value="5" step="0.1" min="0" style="width:100%;padding:7px 10px;border:1px solid #e2e8f0; border-radius:6px;font-size:0.9rem" oninput="recalcularTodosProdutos()">
-                </div>
-                <div class="form-group" style="margin:0">
-                    <label style="font-size:0.8rem">PIS Padrão (%)</label>
-                    <input type="number" id="pisPadrao" value="1.65" step="0.01" min="0" style="width:100%;padding:7px 10px;border:1px solid #e2e8f0; border-radius:6px;font-size:0.9rem" oninput="recalcularTodosProdutos()">
-                </div>
-                <div class="form-group" style="margin:0">
-                    <label style="font-size:0.8rem">COFINS Padrão (%)</label>
-                    <input type="number" id="cofinsPadrao" value="7.6" step="0.01" min="0" style="width:100%;padding:7px 10px;border:1px solid #e2e8f0; border-radius:6px;font-size:0.9rem" oninput="recalcularTodosProdutos()">
-                </div>
-            </div>
-        </div>
-
-        <!-- Global rate overrides for this calculation -->
-        <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-top:14px; padding-top:14px; border-top:1px solid #f1f5f9">
-            <div class="form-group" style="margin:0">
-                <label style="font-size:0.8rem; color:#64748b">Taxa (%) <span style="font-weight:400; color:#94a3b8">— padrão: <span id="precifTaxaPadraoLabel">—</span>%</span></label>
-                <input type="number" step="0.01" min="0" id="precifTaxaOverride" placeholder="Usar padrão" oninput="calcularPrecificacaoPorCliente()" style="width:100%; padding:7px 10px; border:1px solid #e2e8f0; border-radius:6px; font-size:0.9rem">
-            </div>
-            <div class="form-group" style="margin:0">
-                <label style="font-size:0.8rem; color:#64748b">ROI (%) <span style="font-weight:400; color:#94a3b8">— padrão: <span id="precifROIPadraoLabel">—</span>%</span></label>
-                <input type="number" step="0.01" min="0" id="precifROIOverride" placeholder="Usar padrão" oninput="calcularPrecificacaoPorCliente()" style="width:100%; padding:7px 10px; border:1px solid #e2e8f0; border-radius:6px; font-size:0.9rem">
-            </div>
-            <div class="form-group" style="margin:0">
-                <label style="font-size:0.8rem; color:#64748b">Comissão (%) <span style="font-weight:400; color:#94a3b8">— padrão: <span id="precifComissaoPadraoLabel">—</span>%</span></label>
-                <input type="number" step="0.01" min="0" id="precifComissaoOverride" placeholder="Usar padrão" oninput="calcularPrecificacaoPorCliente()" style="width:100%; padding:7px 10px; border:1px solid #e2e8f0; border-radius:6px; font-size:0.9rem">
-            </div>
-            <div class="form-group" style="margin:0">
-                <label style="font-size:0.8rem; color:#64748b">
-                    Validade da precificação (dias)
+            <!-- Row 4: Benefício Fiscal (collapsed) -->
+            <div style="border-top:1px solid #f1f5f9;margin-top:14px;padding-top:12px">
+                <label style="display:flex;align-items:center;gap:10px;
+                                            cursor:pointer;user-select:none">
+                    <input type="checkbox" id="precifBeneficioFiscal"
+                                 onchange="toggleBeneficioFiscal(this.checked)"
+                                 style="width:16px;height:16px;cursor:pointer;
+                                                accent-color:#c9a227">
+                    <span style="font-size:0.88rem;font-weight:600;color:#1e3a5f">
+                        Benefício / Redução Fiscal
+                    </span>
+                    <span style="font-size:0.78rem;color:#64748b">
+                        — marque para ajustar alíquotas individuais por produto
+                    </span>
                 </label>
-                <input type="number" id="precifValidadeDias" value="30"
-                       min="1" max="365" step="1"
-                       style="width:100%; padding:7px 10px; border:1px solid #e2e8f0; border-radius:6px; font-size:0.9rem">
-            </div>
-        </div>
-    </div>
 
-        <!-- Benefício / Redução Fiscal (toggle + painel) -->
-        <div style="border-top:1px solid #f1f5f9; margin-top:14px; padding-top:14px">
-            <label style="display:flex; align-items:center; gap:10px; cursor:pointer; user-select:none">
-                <input type="checkbox" id="precifBeneficioFiscal" onchange="toggleBeneficioFiscal(this.checked)" style="width:18px; height:18px; cursor:pointer; accent-color:#c9a227">
-                <span style="font-size:0.9rem; font-weight:600; color:#1e3a5f">Benefício / Redução Fiscal</span>
-                <span style="font-size:0.8rem; color:#64748b">— marque para ajustar alíquotas individuais por produto</span>
-            </label>
-
-            <div id="painelBeneficioFiscal" style="display:none; margin-top:14px; background:#fffbf0; border:1px solid #fed7aa; border-radius:8px; padding:14px 16px">
-
-                <div style="font-size:0.8rem; font-weight:600; color:#92400e; margin-bottom:10px">⚠️ Os valores abaixo substituem as alíquotas padrão para esta precificação. Deixe em branco para usar o valor padrão do produto. Use 0 para isenção total.</div>
-
-                <div class="table-wrapper">
-                    <table style="width:100%; font-size:0.85rem; border-collapse:collapse">
-                        <thead>
-                            <tr style="background:#fff8ed">
-                                <th style="text-align:left; padding:8px 10px; border-bottom:1px solid #fed7aa; min-width:220px">Produto</th>
-                                <th style="padding:8px; border-bottom:1px solid #fed7aa; min-width:90px; text-align:center">PIS % override</th>
-                                <th style="padding:8px; border-bottom:1px solid #fed7aa; min-width:90px; text-align:center">COFINS % override</th>
-                                <th style="padding:8px; border-bottom:1px solid #fed7aa; min-width:90px; text-align:center">IPI % override</th>
-                                <th style="padding:8px; border-bottom:1px solid #fed7aa; min-width:90px; text-align:center">ICMS % override</th>
-                                <th style="padding:8px; border-bottom:1px solid #fed7aa; min-width:70px; text-align:center">RETID</th>
-                                <th style="padding:8px; border-bottom:1px solid #fed7aa; min-width:80px; text-align:center">Isento total</th>
-                            </tr>
-                        </thead>
-                        <tbody id="tabelaBeneficioFiscalBody"></tbody>
-                    </table>
+                <div id="painelBeneficioFiscal"
+                         style="display:none;margin-top:12px;background:#fffbf0;
+                                        border:1px solid #fed7aa;border-radius:8px;padding:14px">
+                    <div style="font-size:0.8rem;font-weight:600;color:#92400e;
+                                            margin-bottom:10px">
+                        ⚠️ Os valores abaixo substituem as alíquotas padrão para esta
+                        precificação. Deixe em branco para usar o valor padrão do produto.
+                        Use 0 para isenção total.
+                    </div>
+                    <div class="table-wrapper">
+                        <table style="width:100%;font-size:0.85rem;border-collapse:collapse">
+                            <thead>
+                                <tr style="background:#fff8ed">
+                                    <th style="text-align:left;padding:8px 10px;
+                                                         border-bottom:1px solid #fed7aa;min-width:220px">
+                                        Produto
+                                    </th>
+                                    <th style="padding:8px;border-bottom:1px solid #fed7aa;
+                                                         min-width:90px;text-align:center">PIS % override</th>
+                                    <th style="padding:8px;border-bottom:1px solid #fed7aa;
+                                                         min-width:90px;text-align:center">COFINS % override</th>
+                                    <th style="padding:8px;border-bottom:1px solid #fed7aa;
+                                                         min-width:90px;text-align:center">IPI % override</th>
+                                    <th style="padding:8px;border-bottom:1px solid #fed7aa;
+                                                         min-width:90px;text-align:center">ICMS % override</th>
+                                    <th style="padding:8px;border-bottom:1px solid #fed7aa;
+                                                         min-width:70px;text-align:center">RETID</th>
+                                    <th style="padding:8px;border-bottom:1px solid #fed7aa;
+                                                         min-width:80px;text-align:center">Isento total</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tabelaBeneficioFiscalBody"></tbody>
+                        </table>
+                    </div>
+                    <div style="display:flex;gap:8px;margin-top:12px">
+                        <button class="btn btn-outline btn-sm"
+                                        onclick="isentarTodosProdutos()">
+                            Isentar todos (PIS+COFINS+IPI = 0)
+                        </button>
+                        <button class="btn btn-outline btn-sm"
+                                        onclick="limparBeneficios()">
+                            Limpar todos os overrides
+                        </button>
+                        <button class="btn btn-primary btn-sm"
+                                        onclick="calcularPrecificacaoPorCliente()"
+                                        style="margin-left:auto">
+                            🧮 Recalcular com benefícios
+                        </button>
+                    </div>
                 </div>
-
-                <div style="display:flex; gap:8px; margin-top:12px">
-                    <button class="btn btn-outline btn-sm" onclick="isentarTodosProdutos()">Isentar todos (PIS+COFINS+IPI = 0)</button>
-                    <button class="btn btn-outline btn-sm" onclick="limparBeneficios()">Limpar todos os overrides</button>
-                    <button class="btn btn-primary btn-sm" onclick="calcularPrecificacaoPorCliente()" style="margin-left:auto">🧮 Recalcular com benefícios</button>
-                </div>
             </div>
+
         </div>
-
-        <!-- Product filters -->
-        <div style="border-top:1px solid #f1f5f9; margin-top:14px; padding-top:14px; display:flex; gap:12px; align-items:end; flex-wrap:wrap">
-            <div class="form-group" style="margin:0; flex:1; min-width:200px">
-                <label style="font-size:0.8rem; color:#64748b">Filtrar produtos (deixe vazio para mostrar todos)</label>
-                <input type="text" id="precifFiltroProduto" placeholder="Digite para filtrar por nome..." oninput="calcularPrecificacaoPorCliente()" style="width:100%; padding:7px 10px; border:1px solid #e2e8f0; border-radius:6px; font-size:0.9rem">
-            </div>
-            <div class="form-group" style="margin:0">
-                <label style="font-size:0.8rem; color:#64748b">NCM</label>
-                <select id="precifFiltroNCM" onchange="calcularPrecificacaoPorCliente()" style="padding:7px 10px; border:1px solid #e2e8f0; border-radius:6px; font-size:0.9rem; min-width:200px">
-                    <option value="">Todos os NCMs</option>
-                </select>
-            </div>
-            <div class="form-group" style="margin:0">
-                <label style="font-size:0.8rem; color:#64748b">Mostrar</label>
-                <select id="precifFiltroCI" onchange="calcularPrecificacaoPorCliente()" style="padding:7px 10px; border:1px solid #e2e8f0; border-radius:6px; font-size:0.9rem">
-                    <option value="todos">Todos os produtos</option>
-                    <option value="comCI">Apenas com CI definido</option>
-                    <option value="semCI">Apenas sem CI</option>
-                </select>
-            </div>
-            <div>
-                <button class="btn btn-outline btn-sm" onclick="limparFiltrosPrecifCliente()" style="margin-top:auto">🔄 Limpar filtros</button>
-																		</div>
-																</div>
 
                                                                 <!-- Sub-aba: Consulta (Lista completa de precificações) -->
                                                                 <div id="subaba-precif-consulta" style="display:none">

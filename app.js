@@ -13196,24 +13196,82 @@ function popularSelectClientesPrecif() {
     select.innerHTML = '<option value="">Selecione um cliente...</option>' + optionsHtml;
     if (valorAtual) select.value = valorAtual;
 
-    // Atualizar labels de padrão
-    const taxaPad = document.getElementById('taxaPadrao')?.value || '—';
-    const roiPad  = document.getElementById('roiPadrao')?.value  || '—';
-    const comPad  = document.getElementById('comissaoPadrao')?.value || '—';
+    // Atualizar labels de padrão (agora vindos de configuração/localStorage)
+    const taxaPad = parseFloat(localStorage.getItem('precif_taxa_global')) || 20;
+    const roiPad  = parseFloat(localStorage.getItem('precif_roi_global'))  || 30;
+    const comPad  = parseFloat(localStorage.getItem('precif_com_global'))  || 5;
     const elTaxa = document.getElementById('precifTaxaPadraoLabel'); if (elTaxa) elTaxa.textContent = taxaPad;
     const elROI  = document.getElementById('precifROIPadraoLabel'); if (elROI) elROI.textContent = roiPad;
     const elCom  = document.getElementById('precifComissaoPadraoLabel'); if (elCom) elCom.textContent = comPad;
 }
 
 function popularSelectProdutosPrecif() {
-    const sel = document.getElementById('precifProdutoSelect');
-    if (!sel) return;
-    const atual = sel.value;
-    sel.innerHTML = '<option value="">Todos os produtos</option>' + (estoque.produtos || [])
-        .filter(p => p.nome)
-        .sort((a,b) => (a.nome||'').localeCompare(b.nome||'', 'pt-BR'))
-        .map(p => `<option value="${_escapeHtml(p.nome)}" ${p.nome===atual? 'selected':''}>${_escapeHtml(p.nome)}</option>`)
-        .join('');
+    // Mantida para compatibilidade com chamadas antigas.
+    // Agora a seleção de produtos é via checklist.
+    try { precifPopularChecklist(); } catch (e) {}
+}
+
+// Populate product checklist when client is selected
+function precifPopularChecklist() {
+    const container = document.getElementById('precifProdutosChecklist');
+    const contador  = document.getElementById('precifProdutoContador');
+    if (!container) return;
+
+    const produtos = (estoque.produtos || [])
+        .filter(p => {
+            const ci = parseFloat((precificacao[p.nome] || {}).ci || p.ci || 0);
+            return ci > 0; // only show products with CI defined
+        })
+        .sort((a, b) => (a.nome || '').localeCompare(b.nome || '', 'pt-BR'));
+
+    if (!produtos.length) {
+        container.innerHTML =
+            '<span style="color:#94a3b8;font-size:0.85rem">' +
+            'Nenhum produto com CI configurado</span>';
+        if (contador) contador.textContent = '0 produto(s) selecionados';
+        return;
+    }
+
+    container.innerHTML = produtos.map(p => `
+        <label style="display:flex;align-items:center;gap:6px;
+                      background:#fff;border:1px solid #e2e8f0;
+                      border-radius:20px;padding:4px 12px;
+                      cursor:pointer;font-size:0.85rem;
+                      white-space:nowrap;user-select:none"
+               title="${_escapeHtml(p.nome)}">
+          <input type="checkbox" class="precif-prod-check"
+                 value="${String(p.nome).replace(/"/g, '&quot;')}"
+                 checked
+                 onchange="precifAtualizarContador()"
+                 style="cursor:pointer;accent-color:#1e3a5f">
+          ${_escapeHtml(p.nome)}
+        </label>`).join('');
+
+    precifAtualizarContador();
+}
+
+function precifAtualizarContador() {
+    const checks = document.querySelectorAll('.precif-prod-check');
+    const checked = document.querySelectorAll('.precif-prod-check:checked');
+    const el = document.getElementById('precifProdutoContador');
+    if (el) {
+        el.textContent = checked.length === checks.length
+            ? `Todos os ${checks.length} produto(s) serão calculados`
+            : `${checked.length} de ${checks.length} produto(s) selecionados`;
+        el.style.color = checked.length === 0 ? '#dc2626' : '#64748b';
+    }
+}
+
+function precifSelecionarTodosProdutos(selecionar) {
+    document.querySelectorAll('.precif-prod-check').forEach(cb => {
+        cb.checked = selecionar;
+    });
+    precifAtualizarContador();
+    try { calcularPrecificacaoPorCliente(); } catch (e) {}
+}
+
+function precifGetProdutosSelecionados() {
+    return Array.from(document.querySelectorAll('.precif-prod-check:checked')).map(cb => cb.value);
 }
 
 function obterUltimaPrecificacaoCliente(clienteId) {
@@ -13381,6 +13439,7 @@ function selecionarClientePrecif() {
             }
         } catch (e) {}
         try { atualizarStatusPropostaNaPrecif(cliente.id); } catch (e) {}
+        try { precifPopularChecklist(); } catch(e) {}
 }
 
 function calcularPrecificacaoPorCliente(opcoes = {}) {
@@ -13412,36 +13471,23 @@ function calcularPrecificacaoPorCliente(opcoes = {}) {
     const roiOverride = parseFloat(document.getElementById('precifROIOverride')?.value);
     const comOverride = parseFloat(document.getElementById('precifComissaoOverride')?.value);
 
-    const taxaGlobal = parseFloat(document.getElementById('taxaPadrao')?.value) || 20;
-    const roiGlobal = parseFloat(document.getElementById('roiPadrao')?.value) || 30;
-    const comGlobal = parseFloat(document.getElementById('comissaoPadrao')?.value) || 5;
+    const taxaGlobal = parseFloat(localStorage.getItem('precif_taxa_global')) || 20;
+    const roiGlobal  = parseFloat(localStorage.getItem('precif_roi_global'))  || 30;
+    const comGlobal  = parseFloat(localStorage.getItem('precif_com_global'))  || 5;
+
+    const taxaLbl = document.getElementById('precifTaxaPadraoLabel');
+    const roiLbl  = document.getElementById('precifROIPadraoLabel');
+    const comLbl  = document.getElementById('precifComissaoPadraoLabel');
+    if (taxaLbl) taxaLbl.textContent = taxaGlobal;
+    if (roiLbl)  roiLbl.textContent  = roiGlobal;
+    if (comLbl)  comLbl.textContent  = comGlobal;
 
     const taxaFinal = !isNaN(taxaOverride) ? taxaOverride : taxaGlobal;
     const roiFinal  = !isNaN(roiOverride)  ? roiOverride  : roiGlobal;
     const comFinal  = !isNaN(comOverride)  ? comOverride  : comGlobal;
 
-    // popular NCM select se necessário
-    try {
-        const selectNCM = document.getElementById('precifFiltroNCM');
-        if (selectNCM && selectNCM.options.length <= 1) {
-            const keys = Object.keys(impostosEditaveis || {}).sort();
-            keys.forEach(ncm => {
-                const opt = document.createElement('option');
-                opt.value = ncm;
-                opt.textContent = ncm + (impostosEditaveis[ncm] && impostosEditaveis[ncm].descricao ? ' — ' + impostosEditaveis[ncm].descricao : '');
-                selectNCM.appendChild(opt);
-            });
-        }
-    } catch(e) {}
-
-    // filtros
-    // Priority: dropdown selection > text filter
-    const produtoSelecionado = document.getElementById('precifProdutoSelect')?.value || '';
-    const filtroProduto = produtoSelecionado
-        ? produtoSelecionado.toLowerCase()
-        : (document.getElementById('precifFiltroProduto')?.value || '').toLowerCase().trim();
-    const filtroNCM = document.getElementById('precifFiltroNCM')?.value || '';
-    const filtroCI = document.getElementById('precifFiltroCI')?.value || 'todos';
+    // filtros via checklist (fallback para texto, caso exista)
+    const filtroProdutoTexto = (document.getElementById('precifFiltroProduto')?.value || '').toLowerCase().trim();
 
     const produtos = estoque.produtos || [];
     const fmt = v => 'R$ ' + _fmtMoeda(v);
@@ -13453,28 +13499,27 @@ function calcularPrecificacaoPorCliente(opcoes = {}) {
     let produtosCalculados = 0;
     let abaixoCount = 0;
 
+    const produtosSelecionados = precifGetProdutosSelecionados();
+
     const produtosFiltrados = produtos.filter(produto => {
         try {
+            // If checklist has items, use it as the filter
+            if (produtosSelecionados.length > 0) {
+                return produtosSelecionados.includes(produto.nome);
+            }
+            // Fallback to old text filter if checklist is empty
+            const filtroProduto = (document.getElementById('precifFiltroProduto')?.value || '').toLowerCase().trim();
             if (filtroProduto && !(produto.nome || '').toLowerCase().includes(filtroProduto)) return false;
-            const pNcm = produto.ncm || detectarNCM(produto.nome) || '';
-            if (filtroNCM && pNcm !== filtroNCM) return false;
-            const itemSalvo = exibindoPrecifSalva && precifSalvaCarregada
-                ? (precifSalvaCarregada.itens || []).find(i => i.produto === produto.nome)
-                : null;
-            const ci = itemSalvo ? (parseFloat(itemSalvo.ci) || 0) : (parseFloat((precificacao[produto.nome] || {}).ci) || 0);
-            if (filtroCI === 'comCI' && ci === 0) return false;
-            if (filtroCI === 'semCI' && ci > 0) return false;
             return true;
-        } catch (e) { return false; }
+        } catch(e) { return false; }
     });
 
-    const itensCalculados = [];
-    // atualizar contador de quantos produtos serão calculados (se houver contador no DOM)
-    try {
-        const contadorEl = document.getElementById('precifProdutoContador');
-        if (contadorEl) contadorEl.textContent = `${produtosFiltrados.length} produto(s) serão calculados`;
-    } catch (e) {}
+    const contEl = document.getElementById('precifProdutoContador');
+    if (contEl && produtosSelecionados.length > 0) {
+        contEl.textContent = `${produtosFiltrados.length} produto(s) sendo calculado(s)`;
+    }
 
+    const itensCalculados = [];
     const rows = produtosFiltrados.map(produto => {
         const prec = precificacao[produto.nome] || {};
         const aliq = tabelaAliquotas[produto.nome] || {};
@@ -13668,8 +13713,8 @@ function calcularPrecificacaoPorCliente(opcoes = {}) {
         summaryHTML += `<div style="color:#dc2626;font-weight:600">⚠️ ${abaixoCount} produto(s) abaixo da margem mínima</div>`;
     }
     // If product dropdown was used, show explicit feedback about selection
-    if (produtoSelecionado) {
-        summaryHTML += `<div style="font-size:0.85rem;color:#64748b;margin-top:8px">Filtro ativo: ${_escapeHtml(produtoSelecionado)} — produtos calculados: ${produtosFiltrados.length}</div>`;
+    if (produtosSelecionados.length > 0) {
+        summaryHTML += `<div style="font-size:0.85rem;color:#64748b;margin-top:8px">Checklist ativo — produtos calculados: ${produtosFiltrados.length}</div>`;
     }
     const summaryEl = document.getElementById('precifClienteSummary');
     if (summaryEl) summaryEl.innerHTML = summaryHTML;
@@ -13688,7 +13733,7 @@ function calcularPrecificacaoPorCliente(opcoes = {}) {
         taxa: taxaFinal,
         roi: roiFinal,
         comissao: comFinal,
-        filtros: { filtroProduto, filtroNCM, filtroCI },
+        filtros: { filtroProduto: filtroProdutoTexto, produtosSelecionados },
         dataCriacao: new Date().toISOString(),
         itens: itensCalculados,
         totalFaturamento
