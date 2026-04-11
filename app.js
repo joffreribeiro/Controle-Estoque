@@ -11157,7 +11157,7 @@ function _nomeProdutoId(nome) {
 function gerarRelatorioVendasImbel() {
     const data   = loadImbel();
     const prods  = data.produtos || [];
-    const checks = document.querySelectorAll('.imbel_table_chk_sel:checked');
+    const checks = document.querySelectorAll('.imbel_table_chk_sel:checked, .imbel-mov-check:checked');
 
     if (!checks.length) {
         mostrarNotificacao(
@@ -11167,37 +11167,29 @@ function gerarRelatorioVendasImbel() {
         return;
     }
 
-    // Build rows from selected checkboxes (um row por item quando existirem múltiplos itens)
+    // Coletar movimentos a partir das checkboxes selecionadas (suporta grupos com data-ids)
     const rows = [];
+    const dataAll = loadImbel();
     checks.forEach(cb => {
-        const id  = cb.dataset.id;
-        const mov = (data.movimentacoes||[]).find(m => m.id === id);
-        if (!mov) return;
-        if (mov.items && (mov.items||[]).length) {
-            mov.items.forEach(it => {
-                const prod = prods.find(p => p.id === it.produtoId);
-                rows.push({
-                    produto:    prod?.nome || it.produtoId || '—',
-                    quantidade: it.quantidade || 0,
-                    nome:       mov.destinatario || '—',
-                    cpf:        mov.cpfCnpj || '—',
-                    valor:      Number(it.valor) || 0,
-                    endereco:   mov.endereco || '—',
-                    email:      mov.email || '—'
-                });
-            });
-        } else {
-            const prod = prods.find(p => p.id === mov.produtoId);
+        const singleId = cb.dataset.id;
+        const groupIds = cb.dataset.ids;
+
+        const ids = groupIds ? groupIds.split(',').filter(Boolean) : (singleId ? [singleId] : []);
+
+        ids.forEach(id => {
+            const mov = (dataAll.movimentacoes||[]).find(m => m.id === id);
+            if (!mov) return;
+            const prod = (dataAll.produtos||[]).find(p => p.id === mov.produtoId);
             rows.push({
-                produto:     prod?.nome     || '—',
-                quantidade:  mov.quantidade || 0,
-                nome:        mov.destinatario || '—',
-                cpf:         mov.cpfCnpj    || '—',
-                valor:       Number(mov.valor) || 0,
-                endereco:    mov.endereco   || '—',
-                email:       mov.email      || '—',
+                produto:    mov.produtoNome || prod?.nome || '—',
+                quantidade: Number(mov.quantidade) || 0,
+                nome:       mov.destinatario || '—',
+                cpf:        mov.cpfCnpj     || '—',
+                valor:      Number(mov.valor) || 0,
+                endereco:   mov.endereco    || '—',
+                email:      mov.email       || '—',
             });
-        }
+        });
     });
 
     if (!rows.length) {
