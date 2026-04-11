@@ -12664,22 +12664,30 @@ function renderizarConsultaPrecificacao() {
 
     (listaPrecificacoes||[])
         .filter(p => {
-            if (filtroClienteId && String(p.clienteId) !== String(filtroClienteId)) return false;
+            const clienteFiltroObj = (clientes||[]).find(c => String(c.id) === String(filtroClienteId));
+            const bateCliente = !filtroClienteId
+                || String(p.clienteId) === String(filtroClienteId)
+                || (!!clienteFiltroObj && String((p.clienteNome || '')).trim() === String((clienteFiltroObj.nome || '')).trim());
+            if (!bateCliente) return false;
             if (filtroStatus && p.status !== filtroStatus) return false;
             return true;
         })
         .sort((a,b) => new Date(b.dataCriacao||0) - new Date(a.dataCriacao||0))
         .forEach(precif => {
-            const cliente = (clientes||[]).find(c => String(c.id) === String(precif.clienteId));
+            const cliente = (clientes||[]).find(c =>
+                String(c.id) === String(precif.clienteId)
+                || String((c.nome || '')).trim() === String((precif.clienteNome || '')).trim()
+            );
             const cnpjLimpo = (cliente?.cnpj||'').replace(/\D/g,'');
             const tipo = cnpjLimpo.length === 14 ? 'PJ' : 'PF';
             const sc = statusColors[precif.status] || { bg:'#f1f5f9', text:'#64748b' };
             const proposta = precif.propostaId ? (propostas||[]).find(p => p.id === precif.propostaId) : null;
 
-            const itensFiltrados = (precif.itens||[]).filter(it => !filtroProduto || it.produto === filtroProduto);
+            const itensOriginais = (precif.itens || precif.items || []);
+            const itensFiltrados = itensOriginais.filter(it => !filtroProduto || (it.produto || it.produtoNome) === filtroProduto);
             if (!itensFiltrados.length && filtroProduto) return;
 
-            const itensParaExibir = itensFiltrados.length ? itensFiltrados : (precif.itens||[]);
+            const itensParaExibir = itensFiltrados.length ? itensFiltrados : itensOriginais;
 
             itensParaExibir.forEach((item, idx) => {
                 const margem = item.margem ?? (
@@ -12694,7 +12702,7 @@ function renderizarConsultaPrecificacao() {
                     data: new Date(precif.dataCriacao||new Date()).toLocaleDateString('pt-BR'),
                     status: precif.status,
                     sc,
-                    produto: item.produto || '—',
+                    produto: item.produto || item.produtoNome || '—',
                     ncm: item.ncm || '—',
                     ci: item.ci || 0,
                     taxa: item.taxa || 0,
@@ -12767,7 +12775,7 @@ function exportarConsultaPrecificacao() {
         const tipo = cnpjLimpo.length === 14 ? 'PJ' : 'PF';
         const proposta = precif.propostaId ? (propostas||[]).find(p => p.id === precif.propostaId) : null;
 
-        (precif.itens||[]).forEach(item => {
+        (precif.itens||precif.items||[]).forEach(item => {
             rows.push({
                 'Cliente':       precif.clienteNome || cliente?.nome || '',
                 'UF':            precif.clienteUF   || cliente?.uf   || '',
@@ -12776,7 +12784,7 @@ function exportarConsultaPrecificacao() {
                 'Data':          new Date(precif.dataCriacao||new Date()).toLocaleDateString('pt-BR'),
                 'Status':        precif.status,
                 'Proposta':      proposta?.numero || '',
-                'Produto':       item.produto   || '',
+            'Produto':       item.produto   || item.produtoNome || '',
                 'NCM':           item.ncm       || '',
                 'CI (R$)':       item.ci        || 0,
                 'Taxa (%)':      item.taxa      || 0,
