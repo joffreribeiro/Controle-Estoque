@@ -117,6 +117,102 @@ const CATEGORIAS_PRODUTO = [
 
 let categoriaPorProduto = {};
 
+// ----------------------------------------
+// Debug helpers: overlay de erro e painel de diagnóstico
+// (ajuda a capturar erros que antes eram suprimidos)
+;(function(){
+    function showRuntimeErrorOverlay(msg) {
+        try {
+            const id = 'runtime-error-overlay';
+            let el = document.getElementById(id);
+            if (!el) {
+                el = document.createElement('div');
+                el.id = id;
+                el.style.position = 'fixed';
+                el.style.right = '12px';
+                el.style.bottom = '12px';
+                el.style.zIndex = 2000;
+                el.style.maxWidth = '520px';
+                el.style.background = 'rgba(220,38,38,0.95)';
+                el.style.color = '#fff';
+                el.style.padding = '12px';
+                el.style.borderRadius = '8px';
+                el.style.fontSize = '0.9rem';
+                el.style.boxShadow = '0 8px 30px rgba(0,0,0,0.3)';
+                el.style.whiteSpace = 'pre-wrap';
+                el.style.fontFamily = 'Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial';
+                el.style.cursor = 'pointer';
+                el.title = 'Clique para esconder este painel de erro';
+                el.addEventListener('click', () => { el.style.display = 'none'; });
+                (document.body || document.documentElement).appendChild(el);
+            }
+            const text = (typeof msg === 'string') ? msg : (msg && msg.stack) ? msg.stack : JSON.stringify(msg, null, 2);
+            el.textContent = 'Erro em tempo de execução detectado:\n' + text;
+        } catch (e) { try { console.error('Falha ao exibir overlay de erro', e); } catch(_){} }
+    }
+
+    function createDebugPanel(){
+        try {
+            const id = 'debug-panel-mini';
+            if (document.getElementById(id)) return;
+            const p = document.createElement('div');
+            p.id = id;
+            p.style.position = 'fixed';
+            p.style.left = '12px';
+            p.style.bottom = '12px';
+            p.style.zIndex = 2000;
+            p.style.background = 'rgba(15,23,42,0.95)';
+            p.style.color = '#cbd5e1';
+            p.style.padding = '10px';
+            p.style.borderRadius = '8px';
+            p.style.fontSize = '0.85rem';
+            p.style.boxShadow = '0 6px 24px rgba(0,0,0,0.2)';
+            p.style.fontFamily = 'Inter, system-ui, -apple-system, "Segoe UI", Roboto, Arial';
+            p.style.maxWidth = '360px';
+            p.style.whiteSpace = 'nowrap';
+            p.innerHTML = '<strong style="color:#fff;display:block;margin-bottom:6px">Debug</strong>' +
+                '<div id="debug-panel-content">carregando...</div>' +
+                '<div style="margin-top:8px;text-align:right"><button id="debug-copy-json" style="background:#1f2937;color:#fff;border:none;padding:6px 8px;border-radius:6px;cursor:pointer">Copiar JSON</button></div>';
+            (document.body || document.documentElement).appendChild(p);
+            document.getElementById('debug-copy-json')?.addEventListener('click', () => {
+                try {
+                    const raw = localStorage.getItem('estoqueArmasV2') || '{}';
+                    navigator.clipboard?.writeText(raw);
+                    mostrarNotificacao && mostrarNotificacao('JSON copiado para área de transferência', 'info');
+                } catch(e) { showRuntimeErrorOverlay(e); }
+            });
+        } catch(e){}
+    }
+
+    function updateDebugPanel(){
+        try {
+            createDebugPanel();
+            const el = document.getElementById('debug-panel-content');
+            if (!el) return;
+            const raw = localStorage.getItem('estoqueArmasV2');
+            let parsed = null;
+            try { parsed = raw ? JSON.parse(raw) : null; } catch(e) { parsed = null; }
+            const cfgRaw = localStorage.getItem('configContrato');
+            let cfg = null;
+            try { cfg = cfgRaw ? JSON.parse(cfgRaw) : null; } catch(e){ cfg = cfgRaw; }
+            const lines = [];
+            lines.push('produtos: ' + (Array.isArray(parsed?.produtos) ? parsed.produtos.length : '-'));
+            lines.push('registroVendas: ' + (Array.isArray(parsed?.registroVendas) ? parsed.registroVendas.length : '-'));
+            lines.push('registroDistribuicao: ' + (Array.isArray(parsed?.registroDistribuicao) ? parsed.registroDistribuicao.length : '-'));
+            lines.push('clientes: ' + (Array.isArray(parsed?.clientes) ? parsed.clients?.length || parsed?.clientes.length : '-'));
+            lines.push('configContrato: ' + (cfg ? (cfg.proximo || '-') + '/' + (cfg.ano || '-') : 'ausente'));
+            lines.push('abaAtiva: ' + (window.abaAtiva || '-'));
+            el.textContent = lines.join('\n');
+        } catch(e) { showRuntimeErrorOverlay(e); }
+    }
+
+    window.__showRuntimeErrorOverlay = showRuntimeErrorOverlay;
+    window.__updateDebugPanel = updateDebugPanel;
+
+    window.addEventListener('error', function(ev){ try { showRuntimeErrorOverlay(ev.error || ev.message || ev); console.error('Unhandled error', ev.error || ev.message || ev); } catch(e){} });
+    window.addEventListener('unhandledrejection', function(ev){ try { showRuntimeErrorOverlay(ev.reason || ev); console.error('Unhandled rejection', ev.reason || ev); } catch(e){} });
+    document.addEventListener('DOMContentLoaded', function(){ setTimeout(updateDebugPanel, 400); });
+})();
 // ===== NCM / Predefinições fiscais =====
 const NCM_PRODUTOS = {
     "9301.90.00": "FUZIL DE ALTA PRECISÃO IMBEL 308 AGLC",
@@ -13009,96 +13105,105 @@ async function signOut() {
     }
 }
 
-// Atualiza UI conforme estado de autenticação
-firebase.auth().onAuthStateChanged(async function(user) {
-    const formEl = document.getElementById('authPanelForm');
-    const signedEl = document.getElementById('authSignedIn');
-    const userDisplay = document.getElementById('authUserDisplay');
-    const loggedEmailEl = document.getElementById('loggedAccountEmail');
-    const loggedBadgeEl = document.getElementById('loggedAccountBadge');
-    if (user) {
-        if (formEl) formEl.style.display = 'none';
-        if (signedEl) signedEl.style.display = 'flex';
-        if (userDisplay) userDisplay.textContent = user.email || user.uid;
+// Atualiza UI conforme estado de autenticação (guardado caso Firebase esteja bloqueado)
+if (window.firebase && firebase.auth) {
+    try {
+        firebase.auth().onAuthStateChanged(async function(user) {
+            const formEl = document.getElementById('authPanelForm');
+            const signedEl = document.getElementById('authSignedIn');
+            const userDisplay = document.getElementById('authUserDisplay');
+            const loggedEmailEl = document.getElementById('loggedAccountEmail');
+            const loggedBadgeEl = document.getElementById('loggedAccountBadge');
+            if (user) {
+                if (formEl) formEl.style.display = 'none';
+                if (signedEl) signedEl.style.display = 'flex';
+                if (userDisplay) userDisplay.textContent = user.email || user.uid;
 
-        // Verifica claims para habilitar controles de admin
-        let isAdmin = false;
-        try {
-            const idt = await user.getIdTokenResult();
-            isAdmin = !!idt.claims && !!idt.claims.admin;
-        } catch (e) { /* ignore */ }
-
-        // Fallback por email (temporário) — remove se preferir depender apenas da claim
-        if (!isAdmin && user.email === 'joffre.ribeiro@gmail.com') isAdmin = true;
-
-        if (isAdmin) {
-            document.body.classList.add('is-admin');
-            if (loggedBadgeEl) loggedBadgeEl.style.display = 'inline-block';
-        } else {
-            document.body.classList.remove('is-admin');
-            if (loggedBadgeEl) loggedBadgeEl.style.display = 'none';
-        }
-        // Toggle UI controls marked as admin-only
-        try {
-            const adminControls = document.querySelectorAll('[data-admin="true"]');
-            adminControls.forEach(el => {
-                if (isAdmin) {
-                    el.removeAttribute('disabled');
-                    el.style.pointerEvents = '';
-                    el.style.opacity = '';
-                } else {
-                    el.setAttribute('disabled','disabled');
-                    el.style.pointerEvents = 'none';
-                    el.style.opacity = '0.55';
-                }
-            });
-        } catch(e) {}
-        if (loggedEmailEl) loggedEmailEl.textContent = user.email || '';
-
-        // Persist a short record of current user in localStorage for quick reference
-        try {
-            localStorage.setItem('currentUser', JSON.stringify({ email: user.email || null, uid: user.uid || null, isAdmin }));
-        } catch(e) {}
-
-        // Após autenticar, atualizar status do cloud e tentar auto-load 1x por usuário
-        try {
-            if (window.firestoreDB) {
+                // Verifica claims para habilitar controles de admin
+                let isAdmin = false;
                 try {
-                    const doc = await window.firestoreDB.collection('app_data').doc('latest').get();
-                    if (doc && doc.exists) {
-                        const data = doc.data();
-                        const updatedAt = data && data.updatedAt ? data.updatedAt.toDate() : null;
-                        updateFirestoreStatus(true, updatedAt, 'Cloud: pronto');
-                    } else {
-                        updateFirestoreStatus(true, null, 'Cloud: pronto (sem backup)');
-                    }
-                } catch (e) {
-                    updateFirestoreStatus(true, null, 'Cloud: sem permissão de leitura');
-                }
+                    const idt = await user.getIdTokenResult();
+                    isAdmin = !!idt.claims && !!idt.claims.admin;
+                } catch (e) { /* ignore */ }
 
-                // Auto-load somente uma vez por usuário autenticado
-                if (window.__cloudAutoLoadDoneForUid !== user.uid) {
-                    const autoLoaded = await carregarDoCloudAuto();
-                    window.__cloudAutoLoadDoneForUid = user.uid;
-                    if (autoLoaded) {
-                        try { mostrarNotificacao('Dados carregados automaticamente do Cloud (remoto mais recente).', 'success'); } catch (e) {}
-                    }
+                // Fallback por email (temporário) — remove se preferir depender apenas da claim
+                if (!isAdmin && user.email === 'joffre.ribeiro@gmail.com') isAdmin = true;
+
+                if (isAdmin) {
+                    document.body.classList.add('is-admin');
+                    if (loggedBadgeEl) loggedBadgeEl.style.display = 'inline-block';
+                } else {
+                    document.body.classList.remove('is-admin');
+                    if (loggedBadgeEl) loggedBadgeEl.style.display = 'none';
                 }
+                // Toggle UI controls marked as admin-only
+                try {
+                    const adminControls = document.querySelectorAll('[data-admin="true"]');
+                    adminControls.forEach(el => {
+                        if (isAdmin) {
+                            el.removeAttribute('disabled');
+                            el.style.pointerEvents = '';
+                            el.style.opacity = '';
+                        } else {
+                            el.setAttribute('disabled','disabled');
+                            el.style.pointerEvents = 'none';
+                            el.style.opacity = '0.55';
+                        }
+                    });
+                } catch(e) {}
+                if (loggedEmailEl) loggedEmailEl.textContent = user.email || '';
+
+                // Persist a short record of current user in localStorage for quick reference
+                try {
+                    localStorage.setItem('currentUser', JSON.stringify({ email: user.email || null, uid: user.uid || null, isAdmin }));
+                } catch(e) {}
+
+                // Após autenticar, atualizar status do cloud e tentar auto-load 1x por usuário
+                try {
+                    if (window.firestoreDB) {
+                        try {
+                            const doc = await window.firestoreDB.collection('app_data').doc('latest').get();
+                            if (doc && doc.exists) {
+                                const data = doc.data();
+                                const updatedAt = data && data.updatedAt ? data.updatedAt.toDate() : null;
+                                updateFirestoreStatus(true, updatedAt, 'Cloud: pronto');
+                            } else {
+                                updateFirestoreStatus(true, null, 'Cloud: pronto (sem backup)');
+                            }
+                        } catch (e) {
+                            updateFirestoreStatus(true, null, 'Cloud: sem permissão de leitura');
+                        }
+
+                        // Auto-load somente uma vez por usuário autenticado
+                        if (window.__cloudAutoLoadDoneForUid !== user.uid) {
+                            const autoLoaded = await carregarDoCloudAuto();
+                            window.__cloudAutoLoadDoneForUid = user.uid;
+                            if (autoLoaded) {
+                                try { mostrarNotificacao('Dados carregados automaticamente do Cloud (remoto mais recente).', 'success'); } catch (e) {}
+                            }
+                        }
+                    }
+                } catch (e) { /* ignore */ }
+
+            } else {
+                if (formEl) formEl.style.display = 'flex';
+                if (signedEl) signedEl.style.display = 'none';
+                if (userDisplay) userDisplay.textContent = '';
+                document.body.classList.remove('is-admin');
+                if (loggedEmailEl) loggedEmailEl.textContent = '';
+                if (loggedBadgeEl) loggedBadgeEl.style.display = 'none';
+                try { localStorage.removeItem('currentUser'); } catch(e) {}
+                try { window.__cloudAutoLoadDoneForUid = null; } catch (e) {}
+                try { updateFirestoreStatus(true, null, 'Cloud: aguardando login'); } catch (e) {}
             }
-        } catch (e) { /* ignore */ }
-
-    } else {
-        if (formEl) formEl.style.display = 'flex';
-        if (signedEl) signedEl.style.display = 'none';
-        if (userDisplay) userDisplay.textContent = '';
-        document.body.classList.remove('is-admin');
-        if (loggedEmailEl) loggedEmailEl.textContent = '';
-        if (loggedBadgeEl) loggedBadgeEl.style.display = 'none';
-        try { localStorage.removeItem('currentUser'); } catch(e) {}
-        try { window.__cloudAutoLoadDoneForUid = null; } catch (e) {}
-        try { updateFirestoreStatus(true, null, 'Cloud: aguardando login'); } catch (e) {}
+        });
+    } catch (err) {
+        console.warn('firebase.auth() hook failed:', err);
+        window.__showRuntimeErrorOverlay && window.__showRuntimeErrorOverlay('firebase.auth() hook failed: ' + (err && err.message ? err.message : err));
     }
-});
+} else {
+    console.warn('Firebase SDK não disponível; pulando onAuthStateChanged.');
+}
 
 // Helper to check admin state synchronously from localStorage/cache
 function isCurrentUserAdmin() {
