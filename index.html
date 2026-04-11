@@ -511,6 +511,7 @@
                                     <button class="precif-subtab-btn" onclick="trocarSubabaPrecif('porcliente')" id="sbtn-porcliente" style="padding:10px 20px; border:none; background:transparent; font-size:0.9rem; font-weight:600; color:#64748b; border-bottom:2px solid transparent; margin-bottom:-2px; cursor:pointer">👤 Por Cliente</button>
                                     <button class="precif-subtab-btn" onclick="trocarSubabaPrecif('icms')" id="sbtn-icms" style="padding:10px 20px; border:none; background:transparent; font-size:0.9rem; font-weight:600; color:#64748b; border-bottom:2px solid transparent; margin-bottom:-2px; cursor:pointer">🗺️ ICMS por Estado</button>
                                     <button class="precif-subtab-btn" onclick="trocarSubabaPrecif('comparativo')" id="sbtn-comparativo" style="padding:10px 20px;border:none;background:transparent; font-size:0.9rem;font-weight:600;color:#64748b; border-bottom:2px solid transparent;margin-bottom:-2px; cursor:pointer">⚖️ Comparativo</button>
+                                    <button class="precif-subtab-btn" onclick="trocarSubabaPrecif('consulta')" id="sbtn-consulta" style="padding:10px 20px;border:none;background:transparent; font-size:0.9rem;font-weight:600;color:#64748b; border-bottom:2px solid transparent;margin-bottom:-2px; cursor:pointer">🔍 Consulta</button>
                                     <button class="precif-subtab-btn active" onclick="trocarSubabaPrecif('federais')" id="sbtn-federais" style="padding:10px 20px; border:none; background:transparent; font-size:0.9rem; font-weight:600; color:#1e3a5f; border-bottom:2px solid #1e3a5f; margin-bottom:-2px; cursor:pointer">📋 Impostos Federais</button>
                                     <button class="precif-subtab-btn" onclick="trocarSubabaPrecif('rastreabilidade')" id="sbtn-rastreabilidade" style="padding:10px 20px;border:none;background:transparent; font-size:0.9rem;font-weight:600;color:#64748b; border-bottom:2px solid transparent;margin-bottom:-2px; cursor:pointer">🔗 Rastreabilidade</button>
                                 </div>
@@ -733,8 +734,81 @@
             </div>
             <div>
                 <button class="btn btn-outline btn-sm" onclick="limparFiltrosPrecifCliente()" style="margin-top:auto">🔄 Limpar filtros</button>
-            </div>
+
+                                                                <!-- Sub-aba: Consulta (Lista completa de precificações) -->
+                                                                <div id="subaba-precif-consulta" style="display:none">
+
+    <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;align-items:end">
+        <div class="form-group" style="margin:0;min-width:220px">
+            <label style="font-size:0.82rem;color:#64748b">Cliente</label>
+            <select id="consultaFiltroCliente" onchange="renderizarConsultaPrecificacao()" style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;border-radius:6px;font-size:0.85rem">
+                <option value="">Todos os clientes</option>
+            </select>
         </div>
+        <div class="form-group" style="margin:0;min-width:160px">
+            <label style="font-size:0.82rem;color:#64748b">Status</label>
+            <select id="consultaFiltroStatus" onchange="renderizarConsultaPrecificacao()" style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;border-radius:6px;font-size:0.85rem">
+                <option value="">Todos</option>
+                <option value="ativa">Ativa</option>
+                <option value="expirada">Expirada</option>
+                <option value="convertida">Convertida</option>
+                <option value="arquivada">Arquivada</option>
+            </select>
+        </div>
+        <div class="form-group" style="margin:0;min-width:160px">
+            <label style="font-size:0.82rem;color:#64748b">Produto</label>
+            <select id="consultaFiltroProduto" onchange="renderizarConsultaPrecificacao()" style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;border-radius:6px;font-size:0.85rem">
+                <option value="">Todos os produtos</option>
+            </select>
+        </div>
+        <button class="btn btn-outline btn-sm" onclick="exportarConsultaPrecificacao()">📤 Exportar Excel</button>
+    </div>
+
+    <div class="table-container">
+        <div class="table-wrapper" style="overflow-x:auto">
+            <table class="dashboard-table" id="tabelaConsultaPrecif" style="font-size:0.8rem;white-space:nowrap">
+                <thead>
+                    <tr>
+                        <th style="position:sticky;left:0;z-index:3;min-width:160px;text-align:left;padding-left:12px">Cliente</th>
+                        <th>UF</th>
+                        <th>Tipo</th>
+                        <th>Versão</th>
+                        <th>Data</th>
+                        <th>Status</th>
+                        <th>Produto</th>
+                        <th>NCM</th>
+                        <th style="text-align:right">CI (R$)</th>
+                        <th style="text-align:center">Taxa %</th>
+                        <th style="text-align:center">ROI %</th>
+                        <th style="text-align:right">Valor Base</th>
+                        <th style="text-align:center">ICMS %</th>
+                        <th style="text-align:right">ICMS R$</th>
+                        <th style="text-align:center">PIS %</th>
+                        <th style="text-align:right">PIS R$</th>
+                        <th style="text-align:center">COFINS %</th>
+                        <th style="text-align:right">COFINS R$</th>
+                        <th style="text-align:center">IPI %</th>
+                        <th style="text-align:right">IPI R$</th>
+                        <th style="text-align:right">s/ Impostos</th>
+                        <th style="text-align:center">Comissão %</th>
+                        <th style="text-align:right">Comissão R$</th>
+                        <th style="text-align:right;color:#c9a227">Preço Final</th>
+                        <th style="text-align:center">Margem %</th>
+                        <th>Proposta</th>
+                    </tr>
+                </thead>
+                <tbody id="tabelaConsultaPrecifBody">
+                    <tr>
+                        <td colspan="26" style="text-align:center;color:#94a3b8;padding:40px">Selecione um cliente ou aguarde o carregamento</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+                                                                </div>
+
+                                                                                                                                <div id="subaba-precif-comparativo" style="display:none">
 
     <!-- Client info banner (shown after selection) -->
     <div id="precifClienteBanner" style="display:none; margin-bottom:16px; background:linear-gradient(135deg,#1e3a5f,#2d5a8b); border-radius:10px; padding:14px 20px; display:flex; gap:24px; align-items:center">
@@ -2468,6 +2542,109 @@
             </form>
         </div>
     </div>
+
+        <!-- Modal: Confirmar Conversão em Venda -->
+        <div id="modalConfirmarVenda" class="modal" style="display:none">
+            <div class="modal-content" style="max-width:560px">
+                <div class="modal-header" style="background:#1e3a5f">
+                    <h2 style="color:#fff">
+                        <span>📄</span> Confirmar Conversão em Venda
+                    </h2>
+                    <span class="close" onclick="fecharModal('modalConfirmarVenda')"
+                                style="color:#fff">&times;</span>
+                </div>
+                <div class="modal-body" style="padding:20px">
+
+                    <!-- Proposta info -->
+                    <div id="confirmarVendaInfo"
+                             style="background:#f8fafc;border-radius:8px;padding:14px;
+                                            margin-bottom:16px;border:1px solid #e2e8f0">
+                    </div>
+
+                    <!-- Contract number -->
+                    <div style="display:flex;gap:12px;align-items:end;margin-bottom:16px">
+                        <div style="flex:1">
+                            <label style="font-size:0.85rem;font-weight:600;color:#1e3a5f;
+                                                        display:block;margin-bottom:5px">
+                                Número do Contrato
+                            </label>
+                            <input type="number" id="confirmarVendaContrato"
+                                         min="1" step="1"
+                                         style="width:100%;padding:10px 12px;border:2px solid #1e3a5f;
+                                                        border-radius:8px;font-size:1.1rem;font-weight:700;
+                                                        color:#1e3a5f;text-align:center">
+                            <div style="font-size:0.78rem;color:#64748b;margin-top:4px">
+                                Próximo número sugerido automaticamente. Edite se necessário.
+                            </div>
+                        </div>
+                        <div style="flex:1">
+                            <label style="font-size:0.85rem;font-weight:600;color:#64748b;
+                                                        display:block;margin-bottom:5px">
+                                Data da Venda
+                            </label>
+                            <input type="date" id="confirmarVendaData"
+                                         style="width:100%;padding:10px 12px;border:1px solid #e2e8f0;
+                                                        border-radius:8px;font-size:0.95rem">
+                        </div>
+                    </div>
+
+                    <!-- Representante -->
+                    <div style="margin-bottom:16px">
+                        <label style="font-size:0.85rem;font-weight:600;color:#64748b;
+                                                    display:block;margin-bottom:5px">
+                            Representante
+                        </label>
+                        <select id="confirmarVendaRepresentante"
+                                        style="width:100%;padding:10px 12px;border:1px solid #e2e8f0;
+                                                     border-radius:8px;font-size:0.95rem">
+                            <option value="">Selecione...</option>
+                            <option value="KOLTE">KOLTE</option>
+                            <option value="ISA">ISA</option>
+                            <option value="LC">LC</option>
+                            <option value="ADES">ADES</option>
+                            <option value="FL">FL</option>
+                            <option value="IMBEL">IMBEL (Venda Direta)</option>
+                        </select>
+                    </div>
+
+                    <!-- Observações -->
+                    <div style="margin-bottom:16px">
+                        <label style="font-size:0.85rem;font-weight:600;color:#64748b;
+                                                    display:block;margin-bottom:5px">
+                            Observações
+                        </label>
+                        <textarea id="confirmarVendaObs" rows="3"
+                                            style="width:100%;padding:10px 12px;border:1px solid #e2e8f0;
+                                                         border-radius:8px;font-size:0.9rem;resize:vertical"
+                                            placeholder="Observações adicionais..."></textarea>
+                    </div>
+
+                    <!-- Items summary -->
+                    <div>
+                        <div style="font-size:0.8rem;font-weight:600;color:#64748b;
+                                                text-transform:uppercase;letter-spacing:0.5px;
+                                                margin-bottom:8px">
+                            Itens da Proposta
+                        </div>
+                        <div id="confirmarVendaItens"
+                                 style="background:#f8fafc;border-radius:8px;
+                                                border:1px solid #e2e8f0;overflow:hidden">
+                        </div>
+                    </div>
+
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-outline"
+                                    onclick="fecharModal('modalConfirmarVenda')">
+                        Cancelar
+                    </button>
+                    <button class="btn btn-success" onclick="confirmarConversaoVenda()"
+                                    style="font-size:1rem;padding:10px 24px">
+                        ✅ Confirmar e Salvar Venda
+                    </button>
+                </div>
+            </div>
+        </div>
 
     <div id="modalICMS" class="modal">
         <div class="modal-content modal-lg">

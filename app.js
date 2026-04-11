@@ -9519,7 +9519,7 @@ function resetarPrecoManual(nomeProduto) {
 
 // ── SUB-TAB NAVIGATION FOR PRECIFICAÇÃO ─────────────────────────
 function trocarSubabaPrecif(subaba) {
-    ['produtos','federais','icms','porcliente','comparativo','rastreabilidade'].forEach(s => {
+    ['produtos','federais','icms','porcliente','comparativo','consulta','rastreabilidade'].forEach(s => {
                 const el = document.getElementById('subaba-precif-' + s);
                 if (el) el.style.display = (s === subaba) ? 'block' : 'none';
                 const btn = document.getElementById('sbtn-' + s);
@@ -9533,6 +9533,9 @@ function trocarSubabaPrecif(subaba) {
         if (subaba === 'comparativo') {
             try { popularSelectsComparativo(); } catch (e) {}
             try { calcularComparativo(); } catch (e) {}
+        }
+        if (subaba === 'consulta') {
+            try { renderizarConsultaPrecificacao(); } catch (e) {}
         }
         if (subaba === 'rastreabilidade') {
             try { renderizarRastreabilidade(); } catch (e) {}
@@ -9566,6 +9569,194 @@ function popularSelectsComparativo() {
                         }).join('');
                 if (valorAtual) sel.value = valorAtual;
         });
+}
+
+function renderizarConsultaPrecificacao() {
+    // Populate selects
+    const selCliente = document.getElementById('consultaFiltroCliente');
+    if (selCliente && selCliente.options.length <= 1) {
+        (clientes||[]).slice().sort((a,b)=> (a.nome||'').localeCompare(b.nome||'')).forEach(c => {
+            const opt = document.createElement('option');
+            opt.value = c.id;
+            opt.textContent = (c.nome || '') + ' (' + (c.uf||'??') + ')';
+            selCliente.appendChild(opt);
+        });
+    }
+
+    const selProd = document.getElementById('consultaFiltroProduto');
+    if (selProd && selProd.options.length <= 1) {
+        (estoque.produtos||[]).slice().sort((a,b)=> (a.nome||'').localeCompare(b.nome||'')).forEach(p => {
+            const opt = document.createElement('option');
+            opt.value = p.nome;
+            opt.textContent = p.nome;
+            selProd.appendChild(opt);
+        });
+    }
+
+    const filtroClienteId = document.getElementById('consultaFiltroCliente')?.value || '';
+    const filtroStatus    = document.getElementById('consultaFiltroStatus')?.value || '';
+    const filtroProduto   = document.getElementById('consultaFiltroProduto')?.value || '';
+
+    const fmt = v => 'R$ ' + parseFloat(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+    const pct = v => parseFloat(v||0).toFixed(2) + '%';
+    const corMargem = m => m >= 30 ? '#16a34a' : m >= 15 ? '#d97706' : '#dc2626';
+
+    const statusColors = {
+        ativa:      { bg:'#f0fdf4', text:'#16a34a' },
+        expirada:   { bg:'#fff8f0', text:'#d97706' },
+        convertida: { bg:'#eff6ff', text:'#1d4ed8' },
+        arquivada:  { bg:'#f1f5f9', text:'#94a3b8' },
+    };
+
+    const rows = [];
+
+    (precificacoesCliente||[])
+        .filter(p => {
+            if (filtroClienteId && String(p.clienteId) !== String(filtroClienteId)) return false;
+            if (filtroStatus && p.status !== filtroStatus) return false;
+            return true;
+        })
+        .sort((a,b) => new Date(b.dataCriacao||0) - new Date(a.dataCriacao||0))
+        .forEach(precif => {
+            const cliente = (clientes||[]).find(c => String(c.id) === String(precif.clienteId));
+            const cnpjLimpo = (cliente?.cnpj||'').replace(/\D/g,'');
+            const tipo = cnpjLimpo.length === 14 ? 'PJ' : 'PF';
+            const sc = statusColors[precif.status] || { bg:'#f1f5f9', text:'#64748b' };
+            const proposta = precif.propostaId ? (propostas||[]).find(p => p.id === precif.propostaId) : null;
+
+            const itensFiltrados = (precif.itens||[]).filter(it => !filtroProduto || it.produto === filtroProduto);
+            if (!itensFiltrados.length && filtroProduto) return;
+
+            const itensParaExibir = itensFiltrados.length ? itensFiltrados : (precif.itens||[]);
+
+            itensParaExibir.forEach((item, idx) => {
+                const margem = item.margem ?? (
+                    item.precoFinal > 0 ? ((item.precoFinal - item.ci) / item.precoFinal * 100) : 0
+                );
+
+                rows.push({
+                    clienteNome: precif.clienteNome || cliente?.nome || '—',
+                    uf: precif.clienteUF || cliente?.uf || '—',
+                    tipo,
+                    versao: 'v' + (precif.versao || 1),
+                    data: new Date(precif.dataCriacao||new Date()).toLocaleDateString('pt-BR'),
+                    status: precif.status,
+                    sc,
+                    produto: item.produto || '—',
+                    ncm: item.ncm || '—',
+                    ci: item.ci || 0,
+                    taxa: item.taxa || 0,
+                    roi: item.roi || 0,
+                    valorBase: item.valorBase || 0,
+                    icms: item.icms || 0, icmsR: item.icmsR || 0,
+                    pis: item.pis || 0, pisR: item.pisR || 0,
+                    cofins: item.cofins || 0, cofinsR: item.cofinsR || 0,
+                    ipi: item.ipi || 0, ipiR: item.ipiR || 0,
+                    valorImpostos: item.valorImpostos || 0,
+                    comissao: item.comissao || 0, comissaoR: item.comissaoR || 0,
+                    precoFinal: item.precoFinal || 0,
+                    margem,
+                    propostaNum: proposta?.numero || (precif.propostaId ? '—' : ''),
+                });
+            });
+        });
+
+    const tbody = document.getElementById('tabelaConsultaPrecifBody');
+    if (!tbody) return;
+
+    if (!rows.length) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="26" style="text-align:center;color:#94a3b8;padding:60px;font-size:0.9rem">
+                    <div style="font-size:2rem;margin-bottom:8px">🔍</div>
+                    Nenhuma precificação encontrada com os filtros selecionados
+                </td>
+            </tr>`;
+        return;
+    }
+
+    tbody.innerHTML = rows.map((r, i) => `
+        <tr style="background:${i%2===0?'#fff':'#f8fafc'};border-bottom:1px solid #f1f5f9">
+            <td style="font-weight:600;color:#1e3a5f;padding:8px 12px;position:sticky;left:0;background:${i%2===0?'#fff':'#f8fafc'};z-index:1;border-right:1px solid #e2e8f0">${r.clienteNome}</td>
+            <td style="text-align:center;font-size:0.8rem">${r.uf}</td>
+            <td style="text-align:center;font-size:0.75rem;font-weight:600;color:${r.tipo==='PJ'?'#1d4ed8':'#7c3aed'}">${r.tipo}</td>
+            <td style="text-align:center;font-weight:700;color:#1e3a5f">${r.versao}</td>
+            <td style="font-size:0.78rem;color:#64748b">${r.data}</td>
+            <td style="text-align:center"><span style="background:${r.sc.bg};color:${r.sc.text};font-size:0.72rem;font-weight:600;padding:2px 8px;border-radius:20px">${r.status}</span></td>
+            <td style="font-weight:500;max-width:180px;overflow:hidden;text-overflow:ellipsis" title="${r.produto}">${r.produto}</td>
+            <td style="font-size:0.75rem;color:#64748b">${r.ncm}</td>
+            <td style="text-align:right;font-weight:600;color:#1e3a5f">${fmt(r.ci)}</td>
+            <td style="text-align:center">${pct(r.taxa)}</td>
+            <td style="text-align:center">${pct(r.roi)}</td>
+            <td style="text-align:right;color:#475569">${fmt(r.valorBase)}</td>
+            <td style="text-align:center;color:#0369a1;font-weight:600">${pct(r.icms)}</td>
+            <td style="text-align:right;color:#0369a1">${fmt(r.icmsR)}</td>
+            <td style="text-align:center;color:#dc2626;font-weight:600">${pct(r.pis)}</td>
+            <td style="text-align:right;color:#dc2626">${fmt(r.pisR)}</td>
+            <td style="text-align:center;color:#dc2626;font-weight:600">${pct(r.cofins)}</td>
+            <td style="text-align:right;color:#dc2626">${fmt(r.cofinsR)}</td>
+            <td style="text-align:center;color:#7c3aed;font-weight:600">${pct(r.ipi)}</td>
+            <td style="text-align:right;color:#7c3aed">${fmt(r.ipiR)}</td>
+            <td style="text-align:right;font-weight:600;color:#1e293b">${fmt(r.valorImpostos)}</td>
+            <td style="text-align:center;color:#d97706;font-weight:600">${pct(r.comissao)}</td>
+            <td style="text-align:right;color:#d97706">${fmt(r.comissaoR)}</td>
+            <td style="text-align:right;font-weight:800;color:#16a34a;font-size:0.9rem">${fmt(r.precoFinal)}</td>
+            <td style="text-align:center;font-weight:700;color:${corMargem(r.margem)}">${r.margem.toFixed(1)}%</td>
+            <td style="text-align:center;font-size:0.8rem">${r.propostaNum ? `<span style="color:#1d4ed8;font-weight:600">${r.propostaNum}</span>` : '<span style="color:#94a3b8">—</span>'}</td>
+        </tr>
+    `).join('');
+}
+
+function exportarConsultaPrecificacao() {
+    const rows = [];
+    (precificacoesCliente||[]).forEach(precif => {
+        const cliente = (clientes||[]).find(c => String(c.id) === String(precif.clienteId));
+        const cnpjLimpo = (cliente?.cnpj||'').replace(/\D/g,'');
+        const tipo = cnpjLimpo.length === 14 ? 'PJ' : 'PF';
+        const proposta = precif.propostaId ? (propostas||[]).find(p => p.id === precif.propostaId) : null;
+
+        (precif.itens||[]).forEach(item => {
+            rows.push({
+                'Cliente':       precif.clienteNome || cliente?.nome || '',
+                'UF':            precif.clienteUF   || cliente?.uf   || '',
+                'Tipo':          tipo,
+                'Versão':        'v' + (precif.versao||1),
+                'Data':          new Date(precif.dataCriacao||new Date()).toLocaleDateString('pt-BR'),
+                'Status':        precif.status,
+                'Proposta':      proposta?.numero || '',
+                'Produto':       item.produto   || '',
+                'NCM':           item.ncm       || '',
+                'CI (R$)':       item.ci        || 0,
+                'Taxa (%)':      item.taxa      || 0,
+                'ROI (%)':       item.roi       || 0,
+                'Valor Base':    item.valorBase || 0,
+                'ICMS (%)':      item.icms      || 0,
+                'ICMS (R$)':     item.icmsR     || 0,
+                'PIS (%)':       item.pis       || 0,
+                'PIS (R$)':      item.pisR      || 0,
+                'COFINS (%)':    item.cofins    || 0,
+                'COFINS (R$)':   item.cofinsR   || 0,
+                'IPI (%)':       item.ipi       || 0,
+                'IPI (R$)':      item.ipiR      || 0,
+                'c/ Impostos':   item.valorImpostos || 0,
+                'Comissão (%)':  item.comissao  || 0,
+                'Comissão (R$)': item.comissaoR || 0,
+                'Preço Final':   item.precoFinal || 0,
+                'Margem (%)':    item.margem ? item.margem.toFixed(2) : item.precoFinal > 0 ? (((item.precoFinal - item.ci) / item.precoFinal)*100).toFixed(2) : 0,
+            });
+        });
+    });
+
+    if (!rows.length) {
+        mostrarNotificacao('Nenhuma precificação para exportar.', 'warning');
+        return;
+    }
+
+    const ws = XLSX.utils.json_to_sheet(rows);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Consulta Precificação');
+    XLSX.writeFile(wb, 'consulta_precificacao_' + new Date().toISOString().split('T')[0] + '.xlsx');
+    mostrarNotificacao('Exportado com sucesso!', 'success');
 }
 
 function _obterCenarioComparativo(n) {
@@ -11840,58 +12031,162 @@ function salvarPropostaRascunho() {
     salvarProposta(null);
 }
 
+let _propostaParaConverter = null;
+
 function converterPropostaEmVenda(propostaId) {
-    const proposta = propostas.find(p => p.id === propostaId);
+    const proposta = (propostas||[]).find(p => p.id === propostaId);
     if (!proposta) { mostrarNotificacao('Proposta não encontrada.', 'error'); return; }
 
-    if (!confirm('Converter proposta ' + proposta.numero + ' em venda?\nSerá gerado o próximo número de contrato.')) return;
+    _propostaParaConverter = proposta;
 
+    // Calculate next contract number
     const ultimoContrato = estoque.registroVendas.length > 0
         ? Math.max(...estoque.registroVendas.map(v => parseInt(v.contrato) || 0))
         : 0;
-    const nextContractNumber = ultimoContrato + 1;
+    const nextNum = ultimoContrato + 1;
 
-    const itensVenda = (proposta.itens || []).map(it => ({
-        produtoId: it.produtoId,
-        produtoNome: it.produtoNome,
-        quantidade: it.quantidade,
-        valorUnitario: it.valorUnitario,
-        valorTotal: it.valorTotal
+    // Populate modal
+    const contratoEl = document.getElementById('confirmarVendaContrato');
+    if (contratoEl) contratoEl.value = nextNum;
+    const dataEl = document.getElementById('confirmarVendaData');
+    if (dataEl) dataEl.value = new Date().toISOString().split('T')[0];
+
+    // Set representante from proposta
+    const selRep = document.getElementById('confirmarVendaRepresentante');
+    if (selRep && proposta.representante) selRep.value = proposta.representante;
+
+    // Pre-fill observations
+    const obsEl = document.getElementById('confirmarVendaObs');
+    if (obsEl) obsEl.value = proposta.observacoes
+        ? 'Gerado da proposta ' + proposta.numero + '\n' + proposta.observacoes
+        : 'Gerado da proposta ' + proposta.numero;
+
+    // Info banner
+    const fmt = v => 'R$ ' + (v||0).toLocaleString('pt-BR',{minimumFractionDigits:2});
+    const infoEl = document.getElementById('confirmarVendaInfo');
+    if (infoEl) infoEl.innerHTML = `
+        <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:10px">
+            <div>
+                <div style="font-size:0.75rem;color:#64748b">Proposta</div>
+                <div style="font-weight:700;color:#1e3a5f;font-size:1rem">${proposta.numero}</div>
+            </div>
+            <div>
+                <div style="font-size:0.75rem;color:#64748b">Cliente</div>
+                <div style="font-weight:600;color:#1e293b">${proposta.cliente}</div>
+            </div>
+            <div>
+                <div style="font-size:0.75rem;color:#64748b">Valor Total</div>
+                <div style="font-weight:800;color:#16a34a;font-size:1.1rem">
+                    ${fmt(proposta.valorTotal)}
+                </div>
+            </div>
+        </div>
+    `;
+
+    // Items table
+    const itensEl = document.getElementById('confirmarVendaItens');
+    if (itensEl) itensEl.innerHTML = `
+        <table style="width:100%;border-collapse:collapse;font-size:0.85rem">
+            <thead>
+                <tr style="background:#1e3a5f;color:#fff">
+                    <th style="padding:8px 12px;text-align:left">Produto</th>
+                    <th style="padding:8px 12px;text-align:center">Qtd</th>
+                    <th style="padding:8px 12px;text-align:right">Valor Unit.</th>
+                    <th style="padding:8px 12px;text-align:right">Total</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${(proposta.itens||[]).map((it,i) => `
+                    <tr style="background:${i%2===0?'#fff':'#f8fafc'}">
+                        <td style="padding:8px 12px;font-weight:500">
+                            ${it.produtoNome || it.produto || '—'}
+                        </td>
+                        <td style="padding:8px 12px;text-align:center">${it.quantidade}</td>
+                        <td style="padding:8px 12px;text-align:right">
+                            ${fmt(it.valorUnitario || it.valorUnit || 0)}
+                        </td>
+                        <td style="padding:8px 12px;text-align:right;font-weight:600;color:#16a34a">
+                            ${fmt(it.valorTotal || (it.quantidade*(it.valorUnitario||it.valorUnit||0)))}
+                        </td>
+                    </tr>
+                `).join('')}
+            </tbody>
+        </table>
+    `;
+
+    document.getElementById('modalConfirmarVenda').style.display = 'flex';
+}
+
+function confirmarConversaoVenda() {
+    const proposta = _propostaParaConverter;
+    if (!proposta) return;
+
+    const contrato = document.getElementById('confirmarVendaContrato').value?.trim();
+    const data     = document.getElementById('confirmarVendaData').value;
+    const rep      = document.getElementById('confirmarVendaRepresentante').value;
+    const obs      = document.getElementById('confirmarVendaObs').value;
+
+    if (!contrato) {
+        mostrarNotificacao('Informe o número do contrato.', 'warning');
+        document.getElementById('confirmarVendaContrato').focus();
+        return;
+    }
+
+    // Check if contract number already exists
+    const jaExiste = (estoque.registroVendas||[])
+        .some(v => v.contrato === contrato.toString());
+    if (jaExiste) {
+        if (!confirm(`Contrato nº ${contrato} já existe.\nDeseja usar este número mesmo assim?`))
+            return;
+    }
+
+    const itensVenda = (proposta.itens||[]).map(it => ({
+        produtoId:    it.produtoId   || null,
+        produtoNome:  it.produtoNome || it.produto || '',
+        quantidade:   it.quantidade  || 0,
+        valorUnitario: it.valorUnitario || it.valorUnit || 0,
+        valorTotal:   it.valorTotal  || 0,
     }));
 
-    const totalQtd = itensVenda.reduce((s, i) => s + i.quantidade, 0);
-
     const novaVenda = {
-        id: Date.now(),
-        contrato: nextContractNumber.toString(),
-        loja: proposta.cliente,
-        representante: proposta.representante,
-        items: itensVenda,
-        quantidadeTotal: totalQtd,
-        valorTotal: proposta.valorTotal,
-        observacoes: 'Gerado a partir da proposta ' + proposta.numero + (proposta.observacoes ? '\n' + proposta.observacoes : ''),
-        data: new Date().toISOString()
+        id:             Date.now(),
+        contrato:       contrato.toString(),
+        loja:           proposta.cliente,
+        representante:  rep || proposta.representante || '',
+        data:           data || new Date().toISOString().split('T')[0],
+        items:          itensVenda,
+        itens:          itensVenda,
+        quantidadeTotal: itensVenda.reduce((s,i) => s+i.quantidade, 0),
+        valorTotal:     proposta.valorTotal,
+        observacoes:    obs,
+        propostaId:     proposta.id,
+        propostaNumero: proposta.numero,
     };
 
     estoque.registroVendas.push(novaVenda);
-
-    proposta.status = 'aceita';
-    proposta.contratoNumero = nextContractNumber;
-    proposta.vendaId = novaVenda.id;
-
+    proposta.status         = 'aceita';
+    proposta.contratoNumero = contrato;
+    proposta.vendaId        = novaVenda.id;
     estoque.propostas = propostas;
-    salvarDados();
-    renderizarRegistroVendas();
-    renderizarPropostas();
-    atualizarKPIsPropostas();
-    renderizarTabela();
-    renderizarDashboard();
 
-    mostrarNotificacao('Proposta convertida! Contrato nº ' + nextContractNumber + ' criado.', 'success');
+    salvarDados();
+    fecharModal('modalConfirmarVenda');
+    _propostaParaConverter = null;
+
+    try { renderizarRegistroVendas(); } catch(e) {}
+    try { renderizarPropostas(); } catch(e) {}
+    try { atualizarKPIsPropostas(); } catch(e) {}
+    try { renderizarTabela(); } catch(e) {}
+    try { renderizarDashboard(); } catch(e) {}
     try {
-        const clienteObj = (clientes || []).find(c => c.nome === proposta.cliente);
-        if (clienteObj) atualizarStatusPropostaNaPrecif(clienteObj.id);
-    } catch (e) {}
+        const c = (clientes||[]).find(x => x.nome === proposta.cliente);
+        if (c) atualizarStatusPropostaNaPrecif(c.id);
+    } catch(e) {}
+
+    mostrarNotificacao(
+        `✅ Contrato nº ${contrato} criado! Venda registrada com sucesso.`,
+        'success'
+    );
     trocarAba('vendas');
 }
 
