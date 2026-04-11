@@ -881,6 +881,7 @@ async function inicializar() {
     try { popularSelectRepresentantes('filtroRepresentante', true); } catch (e) {}
     try { popularSelectRepresentantes('filtroControleEnvioRep', true); } catch (e) {}
     try { popularSelectRepresentantes('filtroRelatoriosRep', true); } catch (e) {}
+    
 
     // Check proposal alerts every hour
     if (!window.__PROPOSTA_ALERTAS_INTERVALO__) {
@@ -4183,10 +4184,226 @@ function saveImbel(data) {
     try { localStorage.setItem(IMBEL_KEY, JSON.stringify(data)); } catch (e) { console.error('Erro salvando IMBEL', e); }
 }
 
+// Migrar movimentações antigas para novos tipos (executar uma vez no carregamento)
+function migrateImbelTipos() {
+    const data = loadImbel();
+    let changed = false;
+    (data.movimentacoes||[]).forEach(m => {
+        const tipo = (m.tipo||'').toString().trim();
+        if (tipo === 'Entrada' || tipo === 'ENTRADA') {
+            m.tipo = 'RECEBIMENTO_FABRICA';
+            changed = true;
+        } else if (tipo === 'Saída' || tipo === 'SAÍDA' || tipo === 'Saida' || tipo === 'SAIDA') {
+            m.tipo = 'VENDA';
+            changed = true;
+        }
+    });
+    if (changed) {
+        saveImbel(data);
+        console.info('IMBEL: tipos migrados para novo formato');
+    }
+}
+
+// ===================== IMBEL: Tabela de Preços =====================
+function getImbelPrecoAtual(produtoId) {
+    const data = loadImbel();
+    const anoAtual = new Date().getFullYear();
+    const precos = (data.precos || []).filter(p => p.produtoId === produtoId)
+        .slice().sort((a,b) => (b.ano - a.ano) || (new Date(b.criadoEm||0) - new Date(a.criadoEm||0)));
+    if (!precos.length) return null;
+    const porAno = precos.find(p => Number(p.ano) === Number(anoAtual));
+    return porAno || precos[0] || null;
+}
+
+function abrirModalPrecoImbel(editId = null) {
+    const data = loadImbel();
+    const prodSelect = document.getElementById('imbel_preco_produto');
+    if (prodSelect) {
+        prodSelect.innerHTML = '<option value="">Selecione o produto</option>' + (data.produtos||[]).map(p => `
+            <option value="${p.id}">${p.nome || p.descricao || p.codigo || p.id}</option>
+        `).join('');
+    }
+    const editField = document.getElementById('imbel_preco_edit_id'); if (editField) editField.value = '';
+    const anoField = document.getElementById('imbel_preco_ano'); if (anoField) anoField.value = new Date().getFullYear();
+    const valorField = document.getElementById('imbel_preco_valor'); if (valorField) valorField.value = '';
+    const obsField = document.getElementById('imbel_preco_obs'); if (obsField) obsField.value = '';
+
+    if (editId) {
+        const existing = (data.precos||[]).find(x => x.id === editId);
+        if (existing) {
+            if (editField) editField.value = existing.id;
+            if (prodSelect) prodSelect.value = existing.produtoId;
+            if (anoField) anoField.value = existing.ano;
+            if (valorField) valorField.value = existing.valor;
+            if (obsField) obsField.value = existing.obs || '';
+        }
+    }
+
+    const modal = document.getElementById('imbel_preco_modal');
+    if (modal) modal.style.display = 'flex';
+}
+
+function fecharModalPrecoImbel() {
+    const modal = document.getElementById('imbel_preco_modal');
+    if (modal) modal.style.display = 'none';
+    const editField = document.getElementById('imbel_preco_edit_id'); if (editField) editField.value = '';
+}
+
+function renderControleImbelPrecos() {
+    const data = loadImbel();
+    const container = document.getElementById('controleImbelPrecosContainer');
+    if (!container) return;
+    container.innerHTML = '';
+
+    const byProduto = {};
+    (data.precos || []).forEach(p => {
+        if (!byProduto[p.produtoId]) byProduto[p.produtoId] = { produto: (data.produtos||[]).find(x => x.id === p.produtoId) || { id: p.produtoId, nome: '(Produto não encontrado)' }, precos: [] };
+        byProduto[p.produtoId].precos.push(p);
+    });
+
+    const anoAtual = new Date().getFullYear();
+    if (Object.keys(byProduto).length === 0) {
+        container.innerHTML = '<div class="muted">Nenhum preço cadastrado ainda.</div>';
+        return;
+    }
+
+    container.innerHTML = Object.entries(byProduto).map(([prodId, grupo]) => {
+        const precosOrdenados = grupo.precos.slice().sort((a,b) => b.ano - a.ano);
+        const produtoNome = grupo.produto.nome || grupo.produto.descricao || prodId;
+        return `
+          <div class="card" style="margin-bottom:12px">
+            <div class="card-header" style="display:flex;justify-content:space-between;align-items:center">
+              <strong>${produtoNome}</strong>
+              <div style="display:flex;gap:8px">
+                <button class="btn btn-outline" onclick="abrirModalPrecoImbel()">Novo</button>
+              </div>
+            </div>
+            <div class="card-body" style="padding:8px 12px">
+              <table style="width:100%;border-collapse:collapse">
+                <thead><tr><th style="text-align:left">Ano</th><th style="text-align:right">Valor (R$)</th><th style="text-align:left">Obs</th><th></th></tr></thead>
+                <tbody>
+                  ${precosOrdenados.map(pr => {
+                     const isAtual = Number(pr.ano) === Number(anoAtual);
+                     return `
+                       <tr style="${isAtual ? 'background:#f8fafc' : ''}">
+                         <td style="padding:8px 6px">${pr.ano}</td>
+                         <td style="padding:8px 6px;text-align:right">${(Number(pr.valor)||0).toFixed(2).replace('.',',')}</td>
+                         <td style="padding:8px 6px">${pr.obs||''}</td>
+                         <td style="padding:8px 6px;text-align:right">
+                           <button class="btn btn-outline" onclick="abrirModalPrecoImbel('${pr.id}')">Editar</button>
+                           <button class="btn btn-danger" onclick="excluirPrecoImbel('${pr.id}')">Excluir</button>
+                         </td>
+                       </tr>`;
+                  }).join('')}
+                </tbody>
+              </table>
+            </div>
+          </div>`;
+    }).join('');
+
+    const btnSalvar = document.getElementById('imbel_preco_salvar');
+    if (btnSalvar) {
+        btnSalvar.onclick = function() {
+            const editId = (document.getElementById('imbel_preco_edit_id')||{value:''}).value || null;
+            const produtoId = (document.getElementById('imbel_preco_produto')||{value:''}).value;
+            const ano = parseInt((document.getElementById('imbel_preco_ano')||{value:''}).value,10) || new Date().getFullYear();
+            const valor = parseFloat((document.getElementById('imbel_preco_valor')||{value:'0'}).value) || 0;
+            const obs = (document.getElementById('imbel_preco_obs')||{value:''}).value || '';
+            if (!produtoId) { try { mostrarNotificacao('Selecione um produto antes de salvar', 'error'); } catch(e) {} return; }
+            const d = loadImbel(); d.precos = d.precos || [];
+            if (editId) {
+                const idx = d.precos.findIndex(x => x.id === editId);
+                if (idx >= 0) {
+                    d.precos[idx].produtoId = produtoId;
+                    d.precos[idx].ano = ano;
+                    d.precos[idx].valor = valor;
+                    d.precos[idx].obs = obs;
+                }
+            } else {
+                d.precos.push({ id: 'p_' + Date.now(), produtoId, ano, valor, obs, criadoEm: new Date().toISOString() });
+            }
+            saveImbel(d);
+            fecharModalPrecoImbel();
+            renderControleImbelPrecos();
+            try { mostrarNotificacao('Preço salvo', 'success'); } catch(e) {}
+        };
+    }
+}
+
+function excluirPrecoImbel(id) {
+    if (!confirm('Excluir este preço?')) return;
+    const d = loadImbel(); d.precos = (d.precos||[]).filter(x => x.id !== id);
+    saveImbel(d);
+    renderControleImbelPrecos();
+    try { mostrarNotificacao('Preço excluído', 'success'); } catch(e) {}
+}
+
+// Definições de tipos de movimentação IMBEL
+const IMBEL_TIPOS = {
+    RECEBIMENTO_FABRICA: {
+        label: 'Recebimento Fábrica', categoria: 'entrada', icon: '📦', cor: '#16a34a', bg: '#f0fdf4', contaReceita: false,
+        descricao: 'Produto recebido da Fábrica de Itajubá'
+    },
+    RETORNO_MARKETING: {
+        label: 'Retorno Marketing', categoria: 'entrada', icon: '↩️', cor: '#0369a1', bg: '#eff6ff', contaReceita: false,
+        descricao: 'Produto devolvido pelo setor de marketing'
+    },
+    AJUSTE_ENTRADA: {
+        label: 'Ajuste de Inventário (+)', categoria: 'entrada', icon: '🔧', cor: '#64748b', bg: '#f8fafc', contaReceita: false,
+        descricao: 'Correção de estoque — entrada'
+    },
+    VENDA: {
+        label: 'Venda', categoria: 'saida', icon: '💰', cor: '#d97706', bg: '#fffbeb', contaReceita: true,
+        descricao: 'Venda ao cliente final'
+    },
+    SAIDA_MARKETING: {
+        label: 'Saída Marketing', categoria: 'saida', icon: '📣', cor: '#7c3aed', bg: '#faf5ff', contaReceita: false,
+        descricao: 'Produto cedido para ação de marketing ou evento'
+    },
+    DEVOLUCAO_FABRICA: {
+        label: 'Devolução à Fábrica', categoria: 'saida', icon: '🔙', cor: '#dc2626', bg: '#fef2f2', contaReceita: false,
+        descricao: 'Produto devolvido à Fábrica de Itajubá'
+    },
+    AJUSTE_SAIDA: {
+        label: 'Ajuste de Inventário (-)', categoria: 'saida', icon: '🔧', cor: '#64748b', bg: '#f8fafc', contaReceita: false,
+        descricao: 'Correção de estoque — saída'
+    }
+};
+
+function getImbelTipo(tipoKey) {
+    return IMBEL_TIPOS[tipoKey]
+        || IMBEL_TIPOS[(tipoKey||'').toString().toUpperCase().replace(/\s+/g,'_')]
+        || { label: tipoKey, categoria: 'saida', icon: '•', cor: '#64748b', bg: '#f8fafc', contaReceita: false };
+}
+
+function imbelTipoAumentaEstoque(tipoKey) {
+    try { const t = getImbelTipo(tipoKey); return t.categoria === 'entrada'; } catch(e) { return false; }
+}
+
+// Migrar movimentações antigas para novos tipos (executar uma vez no carregamento)
+function migrateImbelTipos() {
+    const data = loadImbel();
+    let changed = false;
+    (data.movimentacoes||[]).forEach(m => {
+        const tipo = (m.tipo||'').toString().trim();
+        if (tipo === 'Entrada' || tipo === 'ENTRADA') {
+            m.tipo = 'RECEBIMENTO_FABRICA';
+            changed = true;
+        } else if (tipo === 'Saída' || tipo === 'SAÍDA' || tipo === 'Saida' || tipo === 'SAIDA') {
+            m.tipo = 'VENDA';
+            changed = true;
+        }
+    });
+    if (changed) {
+        saveImbel(data);
+        console.info('IMBEL: tipos migrados para novo formato');
+    }
+}
+
 function initControleImbel() {
-    // mostrar estoques por padrão quando a aba for aberta
-    // hook: chamar trocarSubAbaControleImbel('estoque') para inicializar
-    try { trocarSubAbaControleImbel('estoque'); } catch(e) {}
+    // mostrar dashboard por padrão quando a aba for aberta
+    // hook: chamar trocarSubAbaControleImbel('dashboard') para inicializar
+    try { trocarSubAbaControleImbel('dashboard'); } catch(e) {}
 }
 
 function trocarSubAbaControleImbel(sub) {
@@ -4205,6 +4422,7 @@ function trocarSubAbaControleImbel(sub) {
     else if (sub === 'cadastro') renderControleImbelCadastro();
     else if (sub === 'movimentacao') renderControleImbelMovimentacao();
     else if (sub === 'dashboard') renderControleImbelDashboard();
+    else if (sub === 'precos') renderControleImbelPrecos();
 }
 
 // ========== MODAL FUNCTIONS ==========
@@ -4228,6 +4446,7 @@ function closeImbelProdModal() {
 function openImbelMovModal() {
     const modal = document.getElementById('imbel_mov_modal');
     if (modal) modal.classList.add('open');
+    try { onImbelTipoChange(); } catch(e) {}
 }
 
 function closeImbelMovModal() {
@@ -4235,7 +4454,7 @@ function closeImbelMovModal() {
     if (modal) modal.classList.remove('open');
     // limpar formulário
     document.getElementById('imbel_mov_prod').value = '';
-    document.getElementById('imbel_mov_tipo').value = 'Entrada';
+    try { document.getElementById('imbel_mov_tipo').value = 'ENTRADA'; } catch(e) {}
     const hoje = new Date().toISOString().slice(0,10);
     document.getElementById('imbel_mov_data').value = hoje;
     document.getElementById('imbel_mov_qtd').value = '1';
@@ -4250,6 +4469,43 @@ function closeImbelMovModal() {
     document.getElementById('imbel_mov_salvar').textContent = 'Registrar Movimentação';
 }
 
+function onImbelTipoChange() {
+    const tipo = document.getElementById('imbel_mov_tipo')?.value || '';
+    const produtoId = document.getElementById('imbel_mov_prod')?.value || '';
+    const cfg = getImbelTipo(tipo);
+
+    // Show/hide marketing context
+    const mktCtx = document.getElementById('imbel_mov_marketing_ctx');
+    if (mktCtx) {
+        mktCtx.style.display = (tipo === 'SAIDA_MARKETING' || tipo === 'RETORNO_MARKETING') ? 'block' : 'none';
+    }
+
+    // Show/hide destinatario (only for VENDA)
+    const destGroup = document.getElementById('imbel_mov_dest')?.closest('.form-group');
+    if (destGroup) { destGroup.style.display = tipo === 'VENDA' ? 'block' : 'none'; }
+
+    // Show/hide CPF (only for VENDA)
+    const cpfGroup = document.getElementById('imbel_mov_cpf')?.closest('.form-group');
+    if (cpfGroup) { cpfGroup.style.display = tipo === 'VENDA' ? 'block' : 'none'; }
+
+    // Show reference price if type counts as revenue
+    const precoRef = document.getElementById('imbel_mov_preco_ref');
+    if (precoRef) {
+        if (tipo === 'VENDA' && produtoId) {
+            const p = getImbelPrecoAtual(produtoId);
+            if (p) {
+                precoRef.style.display = 'block';
+                precoRef.innerHTML = `\n          💰 Preço de referência ${p.ano}: \n          <strong>R$ ${Number(p.valor).toLocaleString('pt-BR', {minimumFractionDigits:2})}</strong>\n          ${p.obs ? `<span style="color:#b45309"> — ${p.obs}</span>` : ''}\n          <br>\n          <span style="font-size:0.78rem;color:#b45309">\n            Deixe o campo Valor em branco para usar este preço.\n          </span>`;
+            } else {
+                precoRef.style.display = 'block';
+                precoRef.innerHTML = `\n          ⚠️ Nenhum preço de referência definido para este produto.\n          <a href="#" onclick="trocarSubAbaControleImbel('precos'); fecharModalPrecoImbel();return false;" style="color:#d97706">\n            Definir preço →\n          </a>`;
+            }
+        } else {
+            precoRef.style.display = 'none';
+        }
+    }
+}
+
 // Bind modal close buttons to modals
 document.addEventListener('DOMContentLoaded', function(){
     // Fechar modal ao clicar no backdrop
@@ -4259,6 +4515,13 @@ document.addEventListener('DOMContentLoaded', function(){
     // Fechar modal ao clicar no X
     document.getElementById('imbel_prod_modal').querySelector('.imbel-modal-close').onclick = closeImbelProdModal;
     document.getElementById('imbel_mov_modal').querySelector('.imbel-modal-close').onclick = closeImbelMovModal;
+    // Fechar modal de preços (se existir)
+    const imbelPrecoModal = document.getElementById('imbel_preco_modal');
+    if (imbelPrecoModal) {
+        const backdrop = imbelPrecoModal.querySelector('.imbel-modal-backdrop'); if (backdrop) backdrop.onclick = fecharModalPrecoImbel;
+        const closeX = imbelPrecoModal.querySelector('.imbel-modal-close'); if (closeX) closeX.onclick = fecharModalPrecoImbel;
+        imbelPrecoModal.querySelectorAll('.imbel-modal-cancel').forEach(btn => { btn.onclick = fecharModalPrecoImbel; });
+    }
     
     // Fechar modal ao clicar em Cancelar
     document.querySelectorAll('#imbel_prod_modal .imbel-modal-cancel').forEach(btn => {
@@ -4273,11 +4536,13 @@ document.addEventListener('DOMContentLoaded', function(){
         if (e.key === 'Escape') {
             closeImbelProdModal();
             closeImbelMovModal();
+            fecharModalPrecoImbel();
         }
     });
 
     // Tentar migrar dados IMBEL de chaves antigas (se houver)
     try { migrateImbelStorage(); } catch(e) {}
+    try { migrateImbelTipos(); } catch(e) {}
 }, { once: true });
 
 function renderControleImbelDashboard() {
@@ -4288,8 +4553,8 @@ function renderControleImbelDashboard() {
 
     // Top indicators
     const movimentacoes = (data.movimentacoes || []).slice();
-    // Considerar apenas SAÍDA como venda para faturamento
-    const vendas = movimentacoes.filter(m => ((m.tipo||'').toString().toUpperCase() === 'SAÍDA' || (m.tipo||'').toString().toUpperCase() === 'SAÍDA'));
+    // Considerar apenas tipos que marcam receita como vendas para faturamento
+    const vendas = movimentacoes.filter(m => getImbelTipo(m.tipo).contaReceita);
     const receitaTotal = vendas.reduce((s,m) => s + (Number(m.valor)||0), 0);
     const unidadesVendidas = vendas.reduce((s,m) => s + (Number(m.quantidade)||0), 0);
     const clientes = new Set(vendas.filter(v=> (v.destinatario||'').trim() ).map(v => (v.destinatario||'').toString().toUpperCase()));
@@ -4375,12 +4640,14 @@ function renderControleImbelDashboard() {
     const tb = tabela.querySelector('tbody');
 
     const produtos = data.produtos || [];
-    // função auxiliar para calcular saldo atual
+    // função auxiliar para calcular saldo atual (usa categoria dos tipos)
     const calcSaldo = (prodId) => {
-        const totE = (data.movimentacoes||[]).filter(m=>m.produtoId===prodId && (m.tipo||'').toString().toUpperCase()==='ENTRADA').reduce((s,m)=>s + (Number(m.quantidade)||0),0);
-        const totS = (data.movimentacoes||[]).filter(m=>m.produtoId===prodId && ((m.tipo||'').toString().toUpperCase()==='SAÍDA' || (m.tipo||'').toString().toUpperCase()==='SAÍDA')).reduce((s,m)=>s + (Number(m.quantidade)||0),0);
-        const inicial = Number((data.produtos||[]).find(p=>p.id===prodId)?.quantidadeInicial) || 0;
-        return inicial + totE - totS;
+        return (data.movimentacoes||[]).reduce((saldo, m) => {
+            if (m.produtoId !== prodId) return saldo;
+            const q = Number(m.quantidade) || 0;
+            const cfg = getImbelTipo(m.tipo);
+            return saldo + (cfg.categoria === 'entrada' ? q : -q);
+        }, Number((data.produtos||[]).find(p=>p.id===prodId)?.quantidadeInicial) || 0);
     };
 
     // calcula tempo para zerar lote anterior (último ciclo completo)
@@ -4391,12 +4658,11 @@ function renderControleImbelDashboard() {
         let lastEntradaDate = null;
         let lastZeroCycleDays = null;
         movs.forEach(m => {
-            const tipo = (m.tipo||'').toString().toUpperCase();
             const q = Number(m.quantidade)||0;
-            if (tipo === 'ENTRADA') {
+            if (imbelTipoAumentaEstoque(m.tipo)) {
                 balance += q;
                 lastEntradaDate = m.data || null;
-            } else if (tipo === 'SAÍDA' || tipo === 'SAÍDA') {
+            } else {
                 balance -= q;
             }
             if (lastEntradaDate && balance <= 0) {
@@ -4473,7 +4739,7 @@ function renderControleImbelDashboard() {
     tableP.innerHTML = `<thead><tr style="background:#1e3a5f;color:#fff"><th style="padding:8px">Nº</th><th style="padding:8px">Produto</th><th style="padding:8px">Data</th><th style="padding:8px">Cliente</th><th style="padding:8px">Pipeline</th><th style="padding:8px">Ações</th></tr></thead><tbody></tbody>`;
     const tpb = tableP.querySelector('tbody');
 
-    const vendasLista = movimentacoes.filter(m => ((m.tipo||'').toString().toUpperCase()==='SAÍDA' || (m.tipo||'').toString().toUpperCase()==='SAÍDA')).slice().reverse();
+    const vendasLista = movimentacoes.filter(m => getImbelTipo(m.tipo).contaReceita).slice().reverse();
     vendasLista.forEach((v, idx) => {
         const prod = (data.produtos||[]).find(p=>p.id===v.produtoId) || {nome: v.descricao || '-'};
         const dateFmt = formatDateToDDMMYYYY(v.data || '');
@@ -4533,8 +4799,8 @@ function renderControleImbelDashboard() {
         const unidadesPorProduto = {};
         (data.movimentacoes||[]).forEach(m => {
             if (!m.produtoId) return;
-            const tipo = (m.tipo||'').toString().toUpperCase();
-            if (tipo !== 'SAÍDA') return;
+            const tipoCfg = getImbelTipo(m.tipo);
+                if (!tipoCfg.contaReceita) return;
             const id = m.produtoId;
             receitaPorProduto[id] = (receitaPorProduto[id]||0) + (Number(m.valor)||0);
             unidadesPorProduto[id] = (unidadesPorProduto[id]||0) + (Number(m.quantidade)||0);
@@ -4645,9 +4911,8 @@ function renderControleImbelEstoque() {
     (data.movimentacoes||[]).forEach(m => {
         if (!m.produtoId) return;
         const q = Number(m.quantidade) || 0;
-        const tipo = (m.tipo || '').toString().toLowerCase();
-        if (tipo === 'entrada') totEntrada[m.produtoId] = (totEntrada[m.produtoId]||0) + q;
-        else if (tipo === 'saída' || tipo === 'saida') totSaida[m.produtoId] = (totSaida[m.produtoId]||0) + q;
+        if (imbelTipoAumentaEstoque(m.tipo)) totEntrada[m.produtoId] = (totEntrada[m.produtoId]||0) + q;
+        else totSaida[m.produtoId] = (totSaida[m.produtoId]||0) + q;
     });
 
     const produtos = data.produtos || [];
@@ -4929,7 +5194,7 @@ function renderControleImbelMovimentacao() {
     btnAdd.onclick = () => {
         // Limpar campos do modal
         document.getElementById('imbel_mov_prod').value = '';
-        document.getElementById('imbel_mov_tipo').value = 'Entrada';
+        try { document.getElementById('imbel_mov_tipo').value = 'ENTRADA'; } catch(e) {}
         const hoje = new Date().toISOString().slice(0,10);
         document.getElementById('imbel_mov_data').value = hoje;
         document.getElementById('imbel_mov_qtd').value = '1';
@@ -4987,11 +5252,37 @@ function renderControleImbelMovimentacao() {
     `;
     container.appendChild(filtrosWrap);
 
+    // Popular select de tipos do modal com os tipos definidos em IMBEL_TIPOS
+    try {
+        const tipoSelect = document.getElementById('imbel_mov_tipo');
+        if (tipoSelect) {
+            tipoSelect.innerHTML = '';
+            const optEmpty = document.createElement('option'); optEmpty.value = ''; optEmpty.textContent = '— selecione o tipo —'; tipoSelect.appendChild(optEmpty);
+            // incluir opções 'ENTRADA'/'SAIDA' como categorias rápidas
+            const optE = document.createElement('option'); optE.value = 'ENTRADA'; optE.textContent = 'Entrada (categoria)'; tipoSelect.appendChild(optE);
+            const optS = document.createElement('option'); optS.value = 'SAIDA'; optS.textContent = 'Saída (categoria)'; tipoSelect.appendChild(optS);
+            Object.keys(IMBEL_TIPOS).forEach(key => {
+                const opt = document.createElement('option'); opt.value = key; opt.textContent = IMBEL_TIPOS[key].label || key; tipoSelect.appendChild(opt);
+            });
+        }
+    } catch(e) { console.warn('Não foi possível popular select de tipos IMBEL', e); }
+
     // popular opções de produto no filtro
     const selFilterProd = filtrosWrap.querySelector('#imbel_filter_prod');
     (data.produtos||[]).forEach(p=>{
         const o = document.createElement('option'); o.value = p.id; o.textContent = p.nome; selFilterProd.appendChild(o);
     });
+    // popular opções de tipo no filtro com categorias e tipos específicos
+    try {
+        const selTipoFilter = filtrosWrap.querySelector('#imbel_filter_tipo');
+        if (selTipoFilter) {
+            selTipoFilter.innerHTML = '';
+            const oAll = document.createElement('option'); oAll.value = ''; oAll.textContent = 'Todos os tipos'; selTipoFilter.appendChild(oAll);
+            const oE = document.createElement('option'); oE.value = 'ENTRADA'; oE.textContent = 'Entrada (categoria)'; selTipoFilter.appendChild(oE);
+            const oS = document.createElement('option'); oS.value = 'SAIDA'; oS.textContent = 'Saída (categoria)'; selTipoFilter.appendChild(oS);
+            Object.keys(IMBEL_TIPOS).forEach(k => { const o = document.createElement('option'); o.value = k; o.textContent = IMBEL_TIPOS[k].label || k; selTipoFilter.appendChild(o); });
+        }
+    } catch(e) { console.warn('Não foi possível popular filtro de tipos IMBEL', e); }
 
     // ---- Tabela histórico ----
     const tabelaWrap = document.createElement('div');
@@ -5042,8 +5333,13 @@ function renderControleImbelMovimentacao() {
             if (fProd && String(m.produtoId) !== String(fProd)) return;
             const tipoNorm = (m.tipo||'').toString().toUpperCase();
             if (fTipo) {
-                if (fTipo === 'ENTRADA' && tipoNorm !== 'ENTRADA') return;
-                if (fTipo === 'SAIDA' && tipoNorm !== 'SAIDA' && tipoNorm !== 'SAÍDA') return;
+                if (fTipo === 'ENTRADA') {
+                    if (!imbelTipoAumentaEstoque(m.tipo)) return;
+                } else if (fTipo === 'SAIDA' || fTipo === 'SAÍDA') {
+                    if (imbelTipoAumentaEstoque(m.tipo)) return;
+                } else {
+                    if (String(m.tipo||'').toUpperCase() !== String(fTipo).toUpperCase()) return;
+                }
             }
             const mDateNorm = parseDateToYYYYMMDD(m.data) || '';
             if (fStart && mDateNorm && mDateNorm < fStart) return;
@@ -5071,20 +5367,26 @@ function renderControleImbelMovimentacao() {
             tr.style.background = bg;
 
             // decidir se mostramos checkboxes (não mostrar para Entradas)
-            const tipoUpper = ((m.tipo||'').toString().toUpperCase());
+            const tipoCfg = getImbelTipo(m.tipo);
+            const tipoIsEntrada = imbelTipoAumentaEstoque(m.tipo);
             let pagCell = `<td style="${tdCenter}"><input type=\"checkbox\" class=\"imbel_table_chk_pag\" data-id=\"${m.id}\" ${((m.pagamento||'').toString().toUpperCase()==='SIM')? 'checked' : ''}></td>`;
             let entCell = `<td style="${tdCenter}"><input type=\"checkbox\" class=\"imbel_table_chk_ent\" data-id=\"${m.id}\" ${((m.entregue||'').toString().toUpperCase()==='SIM')? 'checked' : ''}></td>`;
             let fiCell = `<td style="${tdCenter}"><input type=\"checkbox\" class=\"imbel_table_chk_fi\" data-id=\"${m.id}\" ${((m.fi||'').toString().toUpperCase()==='SIM')? 'checked' : ''}></td>`;
-            if (tipoUpper === 'ENTRADA' || ((m.destinatario||'').toString().toUpperCase().includes('DVMK'))) {
+            if (tipoIsEntrada || ((m.destinatario||'').toString().toUpperCase().includes('DVMK'))) {
                 pagCell = `<td style="${tdCenter}"></td>`;
                 entCell = `<td style="${tdCenter}"></td>`;
                 fiCell = `<td style="${tdCenter}"></td>`;
             }
 
+            const tipoLabel = tipoCfg.label || (m.tipo||'-');
+            const tipoColor = tipoCfg.cor || '#333';
+            const tipoBg = tipoCfg.bg || 'transparent';
+            const tipoIcon = tipoCfg.icon ? tipoCfg.icon + ' ' : '';
+
             tr.innerHTML = `
                 <td style="${tdCenter};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:70px">${seqNum}</td>
                 <td style="${tdStyle}">${produto.nome}</td>
-                <td style="${tdCenter};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:110px"><span style="padding:2px 8px;border-radius:12px;font-size:.75rem;font-weight:600;color:${(m.tipo||'').toString().toUpperCase()==='ENTRADA' ? '#155724' : ((m.tipo||'').toString().toUpperCase()==='SAIDA' || (m.tipo||'').toString().toUpperCase()==='SAÍDA' ? '#721c24' : '#333')};">${((m.tipo||'').toString().toUpperCase()==='ENTRADA' ? 'Entrada' : (((m.tipo||'').toString().toUpperCase()==='SAIDA' || (m.tipo||'').toString().toUpperCase()==='SAÍDA') ? 'Saída' : (m.tipo||'-')))}</span></td>
+                <td style="${tdCenter};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:110px"><span style="padding:2px 8px;border-radius:12px;font-size:.75rem;font-weight:600;color:${tipoColor};background:${tipoBg}">${tipoIcon}${tipoLabel}</span></td>
                 <td style="${tdCenter};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:110px">${dataFmt}</td>
                 <td style="${tdCenter}">${m.quantidade||'-'}</td>
                 <td style="${tdStyle}">${m.destinatario||'-'}</td>
@@ -5123,10 +5425,10 @@ function renderControleImbelMovimentacao() {
                 if (!mov) return;
                 const hoje = new Date().toISOString().slice(0,10);
                 document.getElementById('imbel_mov_prod').value = mov.produtoId || '';
-                const tipoLower = (mov.tipo||'').toString().toLowerCase();
-                if (tipoLower === 'entrada') document.getElementById('imbel_mov_tipo').value = 'Entrada';
-                else if (tipoLower === 'saída' || tipoLower === 'saida') document.getElementById('imbel_mov_tipo').value = 'Saída';
-                else document.getElementById('imbel_mov_tipo').value = mov.tipo || 'Entrada';
+                    const tipoLower = (mov.tipo||'').toString().toLowerCase();
+                    if (tipoLower === 'entrada') document.getElementById('imbel_mov_tipo').value = 'ENTRADA';
+                    else if (tipoLower === 'saída' || tipoLower === 'saida') document.getElementById('imbel_mov_tipo').value = 'SAIDA';
+                    else document.getElementById('imbel_mov_tipo').value = mov.tipo || 'ENTRADA';
                 document.getElementById('imbel_mov_data').value = mov.data || hoje;
                 document.getElementById('imbel_mov_qtd').value = mov.quantidade || 1;
                 document.getElementById('imbel_mov_dest').value = mov.destinatario || '';
@@ -5202,17 +5504,26 @@ function renderControleImbelMovimentacao() {
 
                 const filtered = all.filter(m => {
                     if (fProd && String(m.produtoId) !== String(fProd)) return false;
-                    if (fTipo && (m.tipo||'').toUpperCase() !== fTipo.toUpperCase()) return false;
+                    if (fTipo) {
+                        const fTipoU = (fTipo||'').toString().toUpperCase();
+                        if (fTipoU === 'ENTRADA') {
+                            if (!imbelTipoAumentaEstoque(m.tipo)) return false;
+                        } else if (fTipoU === 'SAIDA' || fTipoU === 'SAÍDA') {
+                            if (imbelTipoAumentaEstoque(m.tipo)) return false;
+                        } else {
+                            if ((m.tipo||'').toString().toUpperCase() !== fTipoU) return false;
+                        }
+                    }
                     if (fStart && (m.data||'') < fStart) return false;
                     if (fEnd   && (m.data||'') > fEnd)   return false;
                     return true;
                 });
 
                 const totalEntradas = filtered
-                    .filter(m => (m.tipo||'').toUpperCase() === 'ENTRADA')
+                    .filter(m => imbelTipoAumentaEstoque(m.tipo))
                     .reduce((s,m) => s + (Number(m.quantidade)||0), 0);
                 const totalSaidas = filtered
-                    .filter(m => ['SAÍDA','SAIDA'].includes((m.tipo||'').toUpperCase()))
+                    .filter(m => !imbelTipoAumentaEstoque(m.tipo))
                     .reduce((s,m) => s + (Number(m.quantidade)||0), 0);
                 const totalValor = filtered
                     .reduce((s,m) => s + (Number(m.valor)||0), 0);
@@ -5251,12 +5562,19 @@ function renderControleImbelMovimentacao() {
     document.getElementById('imbel_mov_salvar').onclick = function(){
         const hoje = new Date().toISOString().slice(0,10);
         const produtoId = document.getElementById('imbel_mov_prod').value;
-        const tipo = document.getElementById('imbel_mov_tipo').value;
+        const tipoKey = document.getElementById('imbel_mov_tipo').value;
+        const cfg = getImbelTipo(tipoKey);
         const quantidade = Number(document.getElementById('imbel_mov_qtd').value) || 0;
         const dataStr = document.getElementById('imbel_mov_data').value || hoje;
         const destinatario = document.getElementById('imbel_mov_dest').value.trim();
         const cpfCnpj = document.getElementById('imbel_mov_cpf').value.trim();
-        const valor = parseCurrencyBRLToNumber(document.getElementById('imbel_mov_valor').value);
+        const evento = (document.getElementById('imbel_mov_evento')||{value:''}).value.trim() || '';
+        let valor = parseFloat((document.getElementById('imbel_mov_valor')||{value:''}).value) || 0;
+        // Se não informou valor e é venda, tentar usar preço de referência
+        if ((!valor || valor === 0) && tipoKey === 'VENDA' && produtoId) {
+            const precoRef = getImbelPrecoAtual(produtoId);
+            if (precoRef) valor = Number(precoRef.valor) * quantidade;
+        }
         // pagamento/entregue/fi are managed in the table; default to not paid/not delivered/not FI on new records
         const pagamento = false;
         const endereco = document.getElementById('imbel_mov_endereco').value.trim();
@@ -5270,14 +5588,12 @@ function renderControleImbelMovimentacao() {
         if (!produtoId) { mostrarNotificacao('Selecione um produto.', 'warning'); return; }
         if (quantidade <= 0) { mostrarNotificacao('Informe uma quantidade válida.', 'warning'); return; }
 
-        // Bloquear saída se saldo insuficiente (aceita variações maiúsculas/minúsculas/sem acento)
-        const tipoNorm = (tipo||'').toString().toLowerCase();
-        if (tipoNorm === 'saída' || tipoNorm === 'saida') {
+        // Bloquear saída se saldo insuficiente (usa categoria dos tipos)
+        if (!imbelTipoAumentaEstoque(tipoKey)) {
             const saldos = {};
             (data.movimentacoes||[]).forEach(m2 => {
                 const q = Number(m2.quantidade)||0;
-                const t = (m2.tipo||'').toString().toLowerCase();
-                const s = (t === 'entrada') ? 1 : (t === 'saída' || t === 'saida' ? -1 : 0);
+                const s = imbelTipoAumentaEstoque(m2.tipo) ? 1 : -1;
                 saldos[m2.produtoId] = (saldos[m2.produtoId]||0) + s * q;
             });
             const saldoAtual = saldos[produtoId] || 0;
@@ -5292,12 +5608,16 @@ function renderControleImbelMovimentacao() {
             const mov = data.movimentacoes.find(m => m.id === editId);
             if (mov) {
                 mov.produtoId = produtoId;
-                mov.tipo = (tipo||'').toString().toUpperCase();
+                mov.tipo = (tipoKey||'').toString();
+                mov.tipoLabel = cfg.label || mov.tipoLabel;
+                mov.categoria = cfg.categoria || mov.categoria;
+                mov.contaReceita = cfg.contaReceita || mov.contaReceita;
                 mov.quantidade = quantidade;
                 mov.data = dataStr;
                 mov.destinatario = (destinatario||'').toUpperCase();
                 mov.cpfCnpj = (cpfCnpj||'').toUpperCase();
                 mov.valor = valor;
+                mov.evento = evento;
                 mov.endereco = (endereco||'').toUpperCase();
                 mov.telefone = (telefone||'').toUpperCase();
                 mov.email = (email||'').toUpperCase();
@@ -5316,9 +5636,10 @@ function renderControleImbelMovimentacao() {
         }
 
         data.movimentacoes.push({
-            id: 'm' + Date.now(), produtoId, tipo: (tipo||'').toString().toUpperCase(), quantidade, data: dataStr,
+            id: 'm' + Date.now(), produtoId, tipo: (tipoKey||'').toString(), tipoLabel: cfg.label || '', categoria: cfg.categoria || '', contaReceita: cfg.contaReceita || false,
+            quantidade, data: dataStr,
             destinatario: (destinatario||'').toUpperCase(), cpfCnpj: (cpfCnpj||'').toUpperCase(), valor,
-            pagamento: 'NÃO', endereco: (endereco||'').toUpperCase(),
+            evento: evento || '', pagamento: 'NÃO', endereco: (endereco||'').toUpperCase(),
             telefone: (telefone||'').toUpperCase(), email: (email||'').toUpperCase(), entregue: 'NÃO',
             fi: 'NÃO', observacoes: (obs||'').toUpperCase()
         });
@@ -5412,9 +5733,8 @@ function exportarImbel() {
     movimentacoes.forEach(m => {
         if (!m.produtoId) return;
         const q = Number(m.quantidade) || 0;
-        const t = (m.tipo||'').toString().toLowerCase();
-        if (t === 'entrada') totE[m.produtoId] = (totE[m.produtoId]||0) + q;
-        else if (t === 'saída' || t === 'saida') totS[m.produtoId] = (totS[m.produtoId]||0) + q;
+        if (imbelTipoAumentaEstoque(m.tipo)) totE[m.produtoId] = (totE[m.produtoId]||0) + q;
+        else totS[m.produtoId] = (totS[m.produtoId]||0) + q;
     });
 
     let csv = `ID${sep}DESCRICAO${sep}OBSERVACAO${sep}QUANTIDADE_INICIAL${sep}ENTRADA${sep}SAIDA${sep}ESTOQUE_ATUAL\n`;

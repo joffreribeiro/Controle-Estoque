@@ -1483,43 +1483,31 @@
                 <div class="imbel-label">IMBEL</div>
             </div>
             <!-- Sub-navegação (mesmo padrão do sistema principal) -->
-            <div class="tabs-navigation imbel-subnav" id="imbelSubNav" style="border-top: 1px solid var(--border-color);">
-                <button class="tab-btn active" data-imbeltab="estoque" onclick="trocarSubAbaControleImbel('estoque')">
-                    <span>🔪</span> Estoque Facas 
-                </button>
-                <button class="tab-btn" data-imbeltab="cadastro" onclick="trocarSubAbaControleImbel('cadastro')">
-                    <span>📋</span> Cadastro de Produtos
-                </button>
-                <button class="tab-btn" data-imbeltab="movimentacao" onclick="trocarSubAbaControleImbel('movimentacao')">
-                    <span>🔄</span> Movimentação
-                </button>
-                <button class="tab-btn" data-imbeltab="dashboard" onclick="trocarSubAbaControleImbel('dashboard')">
-                    <span>📊</span> Dashboard
-                </button>
-            </div>
+            <div class="tabs-navigation imbel-subnav" id="imbelSubNav" style="border-top:1px solid var(--border-color)">
+
+  <button class="tab-btn active" data-imbeltab="dashboard"
+          onclick="trocarSubAbaControleImbel('dashboard')">
+    <span>📊</span> Dashboard
+  </button>
+
+  <button class="tab-btn" data-imbeltab="movimentacao"
+          onclick="trocarSubAbaControleImbel('movimentacao')">
+    <span>🔄</span> Movimentação
+  </button>
+
+  <button class="tab-btn" data-imbeltab="precos"
+          onclick="trocarSubAbaControleImbel('precos')">
+    <span>💰</span> Tabela de Preços
+  </button>
+
+  <button class="tab-btn" data-imbeltab="cadastro"
+          onclick="trocarSubAbaControleImbel('cadastro')">
+    <span>📋</span> Cadastro
+  </button>
+
+</div>
 
             <div class="content-area">
-                <!-- Sub-aba: Estoque -->
-                <div id="controleImbel-estoque" class="controleimbel-subtab">
-                    <div class="section-header">
-                        <h2 class="section-title">Estoque atual — Facas IMBEL (Sede)</h2>
-                        <div class="header-actions">
-                            <div class="imbel-toolbar">
-                                <button class="btn btn-outline" onclick="renderControleImbelEstoque()">
-                                    <span class="btn-icon">🔄</span> Atualizar
-                                </button>
-                                <button class="btn btn-info" onclick="document.getElementById('inputImportarImbel').click()" style="margin-left:6px">
-                                    <span class="btn-icon">📥</span> Importar Excel
-                                </button>
-                                <input type="file" id="inputImportarImbel" accept=".csv,.xlsx,.xls" style="display:none" onchange="importarImbel(event)">
-                                <button class="btn btn-outline" onclick="exportarImbel()" style="margin-left:6px">
-                                    <span class="btn-icon">📤</span> Exportar Excel
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                    <div id="controleImbelEstoqueContainer"></div>
-                </div>
 
                 <!-- Sub-aba: Cadastro -->
                 <div id="controleImbel-cadastro" class="controleimbel-subtab" style="display:none">
@@ -1538,6 +1526,19 @@
                         </div>
                     </div>
                     <div id="controleImbelCadastroContainer"></div>
+                </div>
+
+                <!-- Sub-aba: Preços -->
+                <div id="controleImbel-precos" class="controleimbel-subtab" style="display:none">
+                    <div class="section-header" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+                        <h2 class="section-title" style="margin:0">Tabela de Preços — IMBEL Sede</h2>
+                        <div class="header-actions">
+                            <button class="btn btn-primary" onclick="abrirModalPrecoImbel()" style="display:inline-flex;align-items:center;gap:8px">
+                                <span class="btn-icon">➕</span> Novo Período
+                            </button>
+                        </div>
+                    </div>
+                    <div id="controleImbelPrecosContainer"></div>
                 </div>
 
                 <!-- Sub-aba: Movimentação -->
@@ -2387,17 +2388,31 @@
             <div class="imbel-modal-body" style="max-height:70vh;overflow-y:auto">
                 <input type="hidden" id="imbel_mov_edit_id" />
                 <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;align-items:end">
-                    <div>
-                        <label style="font-size:.82rem;font-weight:600;color:#555;display:block;margin-bottom:4px">Descrição (Produto)</label>
-                        <select id="imbel_mov_prod" style="width:100%;padding:7px 8px;border:1px solid #ddd;border-radius:6px;font-size:.85rem"></select>
-                    </div>
-                    <div>
-                        <label style="font-size:.82rem;font-weight:600;color:#555;display:block;margin-bottom:4px">Tipo</label>
-                        <select id="imbel_mov_tipo" style="width:100%;padding:7px 8px;border:1px solid #ddd;border-radius:6px;font-size:.85rem">
-                            <option value="Entrada">Entrada</option>
-                            <option value="Saída">Saída</option>
-                        </select>
-                    </div>
+                                        <div>
+                                                <label style="font-size:.82rem;font-weight:600;color:#555;display:block;margin-bottom:4px">Descrição (Produto)</label>
+                                                <select id="imbel_mov_prod" onchange="onImbelTipoChange()" style="width:100%;padding:7px 8px;border:1px solid #ddd;border-radius:6px;font-size:.85rem"></select>
+                                        </div>
+                                        <div>
+                                                <label style="font-size:.82rem;font-weight:600;color:#555;display:block;margin-bottom:4px">Tipo</label>
+                                                <select id="imbel_mov_tipo" onchange="onImbelTipoChange()"
+                                                                style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;border-radius:6px;font-size:0.9rem">
+
+    <optgroup label="── ENTRADAS (aumentam estoque) ──">
+        <option value="RECEBIMENTO_FABRICA">📦 Recebimento Fábrica</option>
+        <option value="RETORNO_MARKETING">↩️ Retorno Marketing</option>
+        <option value="AJUSTE_ENTRADA">🔧 Ajuste de Inventário (+)</option>
+    </optgroup>
+
+    <optgroup label="── SAÍDAS (reduzem estoque) ──">
+        <option value="VENDA">💰 Venda</option>
+        <option value="SAIDA_MARKETING">📣 Saída Marketing</option>
+        <option value="DEVOLUCAO_FABRICA">🔙 Devolução à Fábrica</option>
+        <option value="AJUSTE_SAIDA">🔧 Ajuste de Inventário (-)</option>
+    </optgroup>
+
+</select>
+                                        </div>
+                                        <div id="imbel_mov_preco_ref" style="display:none;background:#fffbf0;border:1px solid #fcd34d;border-radius:6px;padding:8px 12px;font-size:0.85rem;color:#92400e"></div>
                     <div>
                         <label style="font-size:.82rem;font-weight:600;color:#555;display:block;margin-bottom:4px">Data</label>
                         <input type="date" id="imbel_mov_data" style="width:100%;padding:7px 8px;border:1px solid #ddd;border-radius:6px;font-size:.85rem"/>
@@ -2406,18 +2421,30 @@
                         <label style="font-size:.82rem;font-weight:600;color:#555;display:block;margin-bottom:4px">Quantidade</label>
                         <input type="number" id="imbel_mov_qtd" value="1" min="1" style="width:100%;padding:7px 8px;border:1px solid #ddd;border-radius:6px;font-size:.85rem"/>
                     </div>
-                    <div>
-                        <label style="font-size:.82rem;font-weight:600;color:#555;display:block;margin-bottom:4px">Destinatário</label>
-                        <input type="text" id="imbel_mov_dest" placeholder="Nome" style="width:100%;padding:7px 8px;border:1px solid #ddd;border-radius:6px;font-size:.85rem"/>
-                    </div>
-                    <div>
-                        <label style="font-size:.82rem;font-weight:600;color:#555;display:block;margin-bottom:4px">CPF / CNPJ</label>
-                        <input type="text" id="imbel_mov_cpf" placeholder="000.000.000-00" style="width:100%;padding:7px 8px;border:1px solid #ddd;border-radius:6px;font-size:.85rem"/>
-                    </div>
-                    <div>
-                        <label style="font-size:.82rem;font-weight:600;color:#555;display:block;margin-bottom:4px">Valor (R$)</label>
-                        <input type="text" inputmode="decimal" id="imbel_mov_valor" placeholder="0,00" style="width:100%;padding:7px 8px;border:1px solid #ddd;border-radius:6px;font-size:.85rem"/>
-                    </div>
+                                        <div class="form-group">
+                                                <label style="font-size:.82rem;font-weight:600;color:#555;display:block;margin-bottom:4px">Destinatário</label>
+                                                <input type="text" id="imbel_mov_dest" placeholder="Nome" style="width:100%;padding:7px 8px;border:1px solid #ddd;border-radius:6px;font-size:.85rem"/>
+                                        </div>
+                                        <div class="form-group">
+                                                <label style="font-size:.82rem;font-weight:600;color:#555;display:block;margin-bottom:4px">CPF / CNPJ</label>
+                                                <input type="text" id="imbel_mov_cpf" placeholder="000.000.000-00" style="width:100%;padding:7px 8px;border:1px solid #ddd;border-radius:6px;font-size:.85rem"/>
+                                        </div>
+
+                                        <div id="imbel_mov_marketing_ctx" style="display:none">
+                                            <div class="form-group">
+                                                <label>Ação / Evento de Marketing</label>
+                                                <input type="text" id="imbel_mov_evento" placeholder="Ex: Feira de Caça e Pesca 2026, Demonstração PMMG..." style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;border-radius:6px;font-size:0.9rem">
+                                            </div>
+                                        </div>
+                                        <div id="imbel_mov_valor_ctx">
+                                            <div class="form-group">
+                                                <label style="font-size:.82rem;font-weight:600;color:#555;display:block;margin-bottom:4px">
+                                                    Valor (R$)
+                                                    <span style="font-size:0.75rem;color:#94a3b8;font-weight:400"> — deixe em branco para usar o preço de referência</span>
+                                                </label>
+                                                <input type="number" id="imbel_mov_valor" step="0.01" min="0" placeholder="Usar preço de referência" style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;border-radius:6px;font-size:0.9rem" />
+                                            </div>
+                                        </div>
                     <div style="grid-column:span 2">
                         <label style="font-size:.82rem;font-weight:600;color:#555;display:block;margin-bottom:4px">Endereço</label>
                         <input type="text" id="imbel_mov_endereco" placeholder="Rua, número, cidade" style="width:100%;padding:7px 8px;border:1px solid #ddd;border-radius:6px;font-size:.85rem"/>
@@ -2442,6 +2469,48 @@
             </div>
         </div>
     </div>
+
+            <div id="imbel_preco_modal" class="imbel-modal" style="display:none">
+                <div class="imbel-modal-backdrop"></div>
+                <div class="imbel-modal-content" style="max-width:480px">
+                    <div class="imbel-modal-header">
+                        <span class="imbel-modal-title">💰 Definir Preço</span>
+                        <button class="imbel-modal-close">×</button>
+                    </div>
+                    <div class="imbel-modal-body" style="padding:20px;display:flex;flex-direction:column;gap:14px">
+
+                        <input type="hidden" id="imbel_preco_edit_id">
+
+                        <div class="form-group">
+                            <label>Produto</label>
+                            <select id="imbel_preco_produto" style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;border-radius:6px;font-size:0.9rem">
+                                <option value="">Selecione o produto</option>
+                            </select>
+                        </div>
+
+                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+                            <div class="form-group">
+                                <label>Ano</label>
+                                <input type="number" id="imbel_preco_ano" min="2020" max="2099" step="1" placeholder="2026" style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;border-radius:6px;font-size:0.9rem;text-align:center">
+                            </div>
+                            <div class="form-group">
+                                <label>Valor (R$)</label>
+                                <input type="number" id="imbel_preco_valor" min="0" step="0.01" placeholder="0,00" style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;border-radius:6px;font-size:0.9rem;text-align:right">
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Observação (opcional)</label>
+                            <input type="text" id="imbel_preco_obs" placeholder="Ex: Preço aprovado em reunião jan/2026" style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;border-radius:6px;font-size:0.9rem">
+                        </div>
+
+                    </div>
+                    <div class="imbel-modal-footer">
+                        <button class="btn btn-outline imbel-modal-cancel">Cancelar</button>
+                        <button class="btn btn-primary" id="imbel_preco_salvar">💾 Salvar Preço</button>
+                    </div>
+                </div>
+            </div>
 
     <!-- Modal Cliente -->
     <div id="modalCliente" class="modal">
