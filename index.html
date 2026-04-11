@@ -2445,6 +2445,16 @@
                                                 <input type="number" id="imbel_mov_valor" step="0.01" min="0" placeholder="Usar preço de referência" style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;border-radius:6px;font-size:0.9rem" />
                                             </div>
                                         </div>
+                    
+                    <div id="imbel_mov_itens_container" style="grid-column:1/-1">
+                        <label style="font-size:.82rem;font-weight:600;color:#555;display:block;margin-bottom:6px">Itens da movimentação</label>
+                        <div id="imbel_mov_itens" style="display:flex;flex-direction:column;gap:8px;margin-bottom:8px"></div>
+                        <div style="display:flex;gap:8px;align-items:center">
+                            <button type="button" id="imbel_mov_add_item" class="btn btn-outline">➕ Adicionar item</button>
+                            <button type="button" id="imbel_mov_clear_items" class="btn btn-outline">🧹 Limpar itens</button>
+                            <small style="margin-left:auto;color:#94a3b8">Use os campos Produto / Quantidade / Valor e clique em "Adicionar item" para incluir múltiplos produtos nesta movimentação.</small>
+                        </div>
+                    </div>
                     <div style="grid-column:span 2">
                         <label style="font-size:.82rem;font-weight:600;color:#555;display:block;margin-bottom:4px">Endereço</label>
                         <input type="text" id="imbel_mov_endereco" placeholder="Rua, número, cidade" style="width:100%;padding:7px 8px;border:1px solid #ddd;border-radius:6px;font-size:.85rem"/>
