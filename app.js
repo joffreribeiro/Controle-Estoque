@@ -13538,7 +13538,7 @@ function calcularPrecificacaoPorCliente(opcoes = {}) {
             return `
                 <tr id="precif_row_${nomeId}" style="opacity:0.45">
                     <td style="text-align:left; padding-left:15px; font-weight:500; position:sticky; left:0; background:#fff; z-index:1">${_escapeHtml(produto.nome)}<span style="font-size:0.7rem; color:#94a3b8; margin-left:6px">sem CI</span></td>
-                    <td colspan="14" style="text-align:center; color:#94a3b8; font-size:0.85rem">CI não configurado — acesse a aba Produtos para definir</td>
+                    <td colspan="10" style="text-align:center; color:#94a3b8; font-size:0.85rem">CI não configurado — acesse a aba Produtos para definir</td>
                 </tr>
             `;
         }
@@ -13596,46 +13596,30 @@ function calcularPrecificacaoPorCliente(opcoes = {}) {
         if (retidAtivo) prodBadge = '<span style="font-size:0.68rem; background:#dbeafe; color:#1d4ed8; padding:1px 6px; border-radius:10px; margin-left:6px; font-weight:700">RETID</span>';
         else if ((beneficiosPorProduto[produto.nome] && beneficiosPorProduto[produto.nome].isentoTotal)) prodBadge = '<span style="font-size:0.68rem; background:#dcfce7; color:#166534; padding:1px 6px; border-radius:10px; margin-left:6px; font-weight:700">ISENTO</span>';
 
-        // RETID cell
-        const retidCell = `<td style="text-align:center">
-          <label style="display:flex; flex-direction:column; align-items:center; gap:4px; cursor:pointer">
-            <input type="checkbox" id="retid_${nomeId}" ${retidAtivo ? 'checked' : ''} onchange="toggleRetid('${safeNome}', this.checked)" style="width:16px; height:16px; cursor:pointer; accent-color:#1e3a5f">
-            <span style="font-size:0.65rem; color:${retidAtivo ? '#16a34a' : '#94a3b8'}; font-weight:${retidAtivo ? '700' : '400'}">${retidAtivo ? 'Ativo' : '—'}</span>
-          </label>
+        const impostoPctStyle = 'font-size:0.75rem;color:#64748b';
+        const impostoValStyle = 'font-weight:600';
+        const taxaRoiCell = `<td style="text-align:center;color:#475569">
+            <div style="font-size:0.75rem;color:#64748b">Taxa: ${(Number(taxaProd)).toFixed(2)}%</div>
+            <div style="font-size:0.75rem;color:#64748b">ROI: ${(Number(roiProd)).toFixed(2)}%</div>
         </td>`;
-
-        // PIS / COFINS / IPI cells with visual indicators
-        const pisZero = pisEfetivo === 0;
-        const pisOver = pisEfetivo !== pisPadrao && !pisZero;
-        let pisCell = '';
-        if (retidAtivo) pisCell = `<td style="text-decoration:line-through; color:#94a3b8; text-align:center; font-size:0.85rem">0% (RETID)</td>`;
-        else if (pisZero) pisCell = `<td style="text-align:center; background:#f0f9ff; color:#1e3a5f; font-weight:700">${Number(pisEfetivo).toFixed(2)}%<div style="font-size:0.65rem; background:#dcfce7; color:#166534; padding:1px 5px; border-radius:10px; margin-top:2px">ISENTO</div></td>`;
-        else if (pisOver) pisCell = `<td style="text-align:center; background:#f0fdf4; color:#16a34a; font-weight:700">${Number(pisEfetivo).toFixed(2)}%<div style="font-size:0.65rem; background:#dcfce7; color:#166534; padding:1px 5px; border-radius:10px; margin-top:2px">BENEFÍCIO</div></td>`;
-        else pisCell = `<td style="text-align:center; color:#dc2626; font-size:0.85rem">${Number(pisEfetivo).toFixed(2)}%</td>`;
-
-        const cofZero = cofinsEfetivo === 0;
-        const cofOver = cofinsEfetivo !== cofinsPadrao && !cofZero;
-        let cofCell = '';
-        if (retidAtivo) cofCell = `<td style="text-decoration:line-through; color:#94a3b8; text-align:center; font-size:0.85rem">0% (RETID)</td>`;
-        else if (cofZero) cofCell = `<td style="text-align:center; background:#f0f9ff; color:#1e3a5f; font-weight:700">${Number(cofinsEfetivo).toFixed(2)}%<div style="font-size:0.65rem; background:#dcfce7; color:#166534; padding:1px 5px; border-radius:10px; margin-top:2px">ISENTO</div></td>`;
-        else if (cofOver) cofCell = `<td style="text-align:center; background:#f0fdf4; color:#16a34a; font-weight:700">${Number(cofinsEfetivo).toFixed(2)}%<div style="font-size:0.65rem; background:#dcfce7; color:#166534; padding:1px 5px; border-radius:10px; margin-top:2px">BENEFÍCIO</div></td>`;
-        else cofCell = `<td style="text-align:center; color:#dc2626; font-size:0.85rem">${Number(cofinsEfetivo).toFixed(2)}%</td>`;
-
-        const ipiZero = ipiEfetivo === 0;
-        const ipiOver = ipiEfetivo !== ipiPadrao && !ipiZero;
-        let ipiCell = '';
-        if (retidAtivo) ipiCell = `<td style="text-decoration:line-through; color:#94a3b8; text-align:center; font-size:0.85rem">0% (RETID)</td>`;
-        else if (ipiZero) ipiCell = `<td style="text-align:center; background:#f0f9ff; color:#1e3a5f; font-weight:700">${Number(ipiEfetivo).toFixed(2)}%<div style="font-size:0.65rem; background:#dcfce7; color:#166534; padding:1px 5px; border-radius:10px; margin-top:2px">ISENTO</div></td>`;
-        else if (ipiOver) ipiCell = `<td style="text-align:center; background:#f0fdf4; color:#16a34a; font-weight:700">${Number(ipiEfetivo).toFixed(2)}%<div style="font-size:0.65rem; background:#dcfce7; color:#166534; padding:1px 5px; border-radius:10px; margin-top:2px">BENEFÍCIO</div></td>`;
-        else ipiCell = `<td style="text-align:center; color:#dc2626; font-size:0.85rem">${Number(ipiEfetivo).toFixed(2)}%</td>`;
-
-        // ICMS cell visuals
-        const icmsZero = icmsEfetivo === 0;
-        const icmsOver = icmsEfetivo !== icmsPadrao && !icmsZero;
-        let icmsCell = '';
-        if (icmsZero) icmsCell = `<td style="text-align:center; background:#f0f9ff; color:#1e3a5f; font-weight:700">${Number(icmsEfetivo).toFixed(2)}%<div style="font-size:0.65rem; background:#dcfce7; color:#166534; padding:1px 5px; border-radius:10px; margin-top:2px">ISENTO</div><div style="font-size:0.65rem; font-weight:400; color:#94a3b8">${uf} / ${tipoPessoa}</div></td>`;
-        else if (icmsOver) icmsCell = `<td style="text-align:center; background:#f0fdf4; color:#16a34a; font-weight:700">${Number(icmsEfetivo).toFixed(2)}%<div style="font-size:0.65rem; background:#dcfce7; color:#166534; padding:1px 5px; border-radius:10px; margin-top:2px">BENEFÍCIO</div><div style="font-size:0.65rem; font-weight:400; color:#94a3b8">${uf} / ${tipoPessoa}</div></td>`;
-        else icmsCell = `<td style="text-align:center; font-weight:700; background:${icmsBg}; color:${icmsColor}">${Number(icmsEfetivo).toFixed(2)}%<div style="font-size:0.65rem; font-weight:400; color:#94a3b8">${uf} / ${tipoPessoa}</div></td>`;
+        const pisCofinsCell = `<td style="text-align:center">
+            <div style="${impostoPctStyle}">PIS: ${Number(pisEfetivo).toFixed(2)}%</div>
+            <div style="${impostoValStyle}">${fmt(pisR)}</div>
+            <div style="${impostoPctStyle};margin-top:4px">COFINS: ${Number(cofinsEfetivo).toFixed(2)}%</div>
+            <div style="${impostoValStyle}">${fmt(cofinsR)}</div>
+        </td>`;
+        const icmsCell = `<td style="text-align:center;background:${icmsBg}">
+            <div style="${impostoPctStyle};color:${icmsColor}">${Number(icmsEfetivo).toFixed(2)}%</div>
+            <div style="${impostoValStyle}">${fmt(icmsR)}</div>
+        </td>`;
+        const ipiCell = `<td style="text-align:center">
+            <div style="${impostoPctStyle}">${Number(ipiEfetivo).toFixed(2)}%</div>
+            <div style="${impostoValStyle}">${fmt(ipiR)}</div>
+        </td>`;
+        const comissaoCell = `<td style="text-align:center;color:#d97706">
+            <div style="${impostoPctStyle}">${(Number(comissaoProd)).toFixed(2)}%</div>
+            <div style="${impostoValStyle}">${fmt(comissaoR)}</div>
+        </td>`;
 
         // row left border if margin below minimum (priority) or RETID active
         const rowStyle = abaixo ? 'border-left:3px solid #dc2626' : (retidAtivo ? 'border-left:3px solid #1e3a5f' : '');
@@ -13646,31 +13630,28 @@ function calcularPrecificacaoPorCliente(opcoes = {}) {
                 ${abaixo ? `<div style="font-size:0.68rem;color:#dc2626;margin-top:2px">↑ R$ ${Math.abs(delta).toFixed(2)} abaixo do mín.</div>` : ''}
             </td>
         `;
+        const margemCor = margem >= 30 ? '#16a34a' : (margem >= 15 ? '#d97706' : '#dc2626');
         const margemCell = abaixo
-            ? `<td style="font-weight:700;color:#dc2626;background:#fef2f2">
+            ? `<td style="font-weight:700;color:#dc2626;background:#fef2f2;text-align:center">
                    ${margem.toFixed(1)}%
                    <div style="font-size:0.65rem;background:#fecaca;color:#991b1b;
                                padding:1px 5px;border-radius:10px;margin-top:2px">
                      Mín: ${margemMinima}%
                    </div>
                </td>`
-            : `<td style="font-weight:700; color:${corMargem(margem)}">${margem.toFixed(1)}%</td>`;
+            : `<td style="font-weight:700; color:${margemCor};text-align:center">${margem.toFixed(1)}%</td>`;
 
         return `
             <tr id="precif_row_${nomeId}" style="${rowStyle}">
-                <td style="text-align:left; padding-left:15px; font-weight:500; position:sticky; left:0; background:#fff; z-index:1; border-right:1px solid #e2e8f0">${_escapeHtml(produto.nome)} ${prodBadge}</td>
-                ${retidCell}
-                <td style="font-family:monospace; font-size:0.75rem; color:#64748b; text-align:center">${_escapeHtml(ncm)}</td>
-                <td style="font-weight:600; color:#1e3a5f">${fmt(ci)} ${ciBadge}</td>
-                <td style="text-align:center; color:#475569">${(Number(taxaProd)).toFixed(2)}%</td>
-                <td style="text-align:center; color:#475569">${(Number(roiProd)).toFixed(2)}%</td>
+                <td style="text-align:left; padding-left:15px; font-weight:500; position:sticky; left:0; background:#fff; z-index:1; border-right:1px solid #e2e8f0">${_escapeHtml(produto.nome)} ${prodBadge}${ciBadge}</td>
+                <td style="font-weight:600; color:#1e3a5f">${fmt(ci)}</td>
+                ${taxaRoiCell}
                 <td style="font-weight:600; color:#1e3a5f">${fmt(valorBase)}</td>
-                ${pisCell}
-                ${cofCell}
+                ${pisCofinsCell}
                 ${icmsCell}
                 ${ipiCell}
                 <td style="font-weight:600; color:#475569">${fmt(valorImpostos)}</td>
-                <td style="text-align:center; color:#d97706; font-size:0.85rem">${fmt(comissaoR)}</td>
+                ${comissaoCell}
                 ${precoFinalCell}
                 ${margemCell}
             </tr>
@@ -15057,13 +15038,30 @@ function _coletarItensProposta() {
         const quantidade = parseInt(row.querySelector('.item-quantidade')?.value) || 0;
         const valorStr = (row.querySelector('.item-valor')?.value || '').replace(/\./g, '').replace(',', '.');
         const valorUnitario = parseFloat(valorStr) || 0;
-        itens.push({
-            produtoId,
-            produtoNome: produto ? produto.nome : '',
-            quantidade,
-            valorUnitario,
-            valorTotal: quantidade * valorUnitario
-        });
+                const impostoPctStyle = 'font-size:0.75rem;color:#64748b';
+                const impostoValStyle = 'font-weight:600';
+                const taxaRoiCell = `<td style="text-align:center;color:#475569">
+                    <div style="font-size:0.75rem;color:#64748b">Taxa: ${(Number(taxaProd)).toFixed(2)}%</div>
+                    <div style="font-size:0.75rem;color:#64748b">ROI: ${(Number(roiProd)).toFixed(2)}%</div>
+                </td>`;
+                const pisCofinsCell = `<td style="text-align:center">
+                    <div style="${impostoPctStyle}">PIS: ${Number(pisEfetivo).toFixed(2)}%</div>
+                    <div style="${impostoValStyle}">${fmt(pisR)}</div>
+                    <div style="${impostoPctStyle};margin-top:4px">COFINS: ${Number(cofinsEfetivo).toFixed(2)}%</div>
+                    <div style="${impostoValStyle}">${fmt(cofinsR)}</div>
+                </td>`;
+                const icmsCell = `<td style="text-align:center;background:${icmsBg}">
+                    <div style="${impostoPctStyle};color:${icmsColor}">${Number(icmsEfetivo).toFixed(2)}%</div>
+                    <div style="${impostoValStyle}">${fmt(icmsR)}</div>
+                </td>`;
+                const ipiCell = `<td style="text-align:center">
+                    <div style="${impostoPctStyle}">${Number(ipiEfetivo).toFixed(2)}%</div>
+                    <div style="${impostoValStyle}">${fmt(ipiR)}</div>
+                </td>`;
+                const comissaoCell = `<td style="text-align:center;color:#d97706">
+                    <div style="${impostoPctStyle}"> ${(Number(comissaoProd)).toFixed(2)}%</div>
+                    <div style="${impostoValStyle}">${fmt(comissaoR)}</div>
+                </td>`;
     });
     return itens;
 }
@@ -15699,17 +15697,16 @@ function abrirHistorico() {
 }
 
 function limparHistorico() {
-    if (!confirm('Deseja limpar todo o histórico de alterações?')) return;
     localStorage.removeItem('estoqueHistorico');
-    mostrarNotificacao('Histórico limpo com sucesso!', 'success');
+    const container = document.getElementById('historicoConteudo');
+    if (container) {
+        container.innerHTML = '<p style="text-align:center;color:var(--text-secondary);padding:20px">Nenhuma alteração registrada.</p>';
+    }
 }
-
-// ========================================
-// VALIDAÇÃO ROBUSTA
 // ========================================
 
 function validarContratoUnico(contrato, vendaIdEditando) {
-    const existente = estoque.registroVendas.find(v =>
+    const existente = (estoque.registroVendas || []).some(v =>
         v.contrato === contrato && v.id !== vendaIdEditando
     );
     return !existente;
