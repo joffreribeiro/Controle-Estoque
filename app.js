@@ -1195,7 +1195,10 @@ async function carregarDoCloud({confirmOverwrite=true} = {}) {
         const data = doc.data();
         // Restaurar precificações salvas por cliente (se houver)
         try {
-            precificacoesCliente = normalizarPrecificacoesCliente(data.precificacoesCliente || []);
+            const precifsCloud = (data.precificacoesCliente && data.precificacoesCliente.length)
+                ? data.precificacoesCliente
+                : ((data.estado && data.estado.precificacoesCliente) || []);
+            precificacoesCliente = normalizarPrecificacoesCliente(precifsCloud);
             estoque.precificacoesCliente = precificacoesCliente;
             try {
                 const isConsultaVis = document.getElementById('subaba-precif-consulta')?.style.display !== 'none';
@@ -1219,6 +1222,7 @@ async function carregarDoCloud({confirmOverwrite=true} = {}) {
         }
         estoque = data.estado;
         estoque.precificacoesCliente = normalizarPrecificacoesCliente(estoque.precificacoesCliente);
+        precificacoesCliente = estoque.precificacoesCliente;
         if (!Array.isArray(estoque.auditoriaVendas)) estoque.auditoriaVendas = [];
         if (!Array.isArray(estoque.fechamentosComissoes)) estoque.fechamentosComissoes = [];
         if (!Array.isArray(estoque.clientes)) estoque.clientes = [];
@@ -1337,6 +1341,12 @@ async function carregarDoCloudAuto() {
             if (abaAtiva === 'precificacao') renderizarPrecificacao();
             atualizarSelectsProdutos();
             atualizarSelectsRelatorios();
+            try {
+                const isConsultaVis = document.getElementById('subaba-precif-consulta')?.style.display !== 'none';
+                const isRastreaVis  = document.getElementById('subaba-precif-rastreabilidade')?.style.display !== 'none';
+                if (isConsultaVis) renderizarConsultaPrecificacao();
+                if (isRastreaVis)  renderizarRastreabilidade();
+            } catch (e) {}
             console.debug('Dados carregados automaticamente do Firestore (remoto mais recente).');
             return true;
         }
@@ -12645,8 +12655,14 @@ function renderizarConsultaPrecificacao() {
     };
 
     const rows = [];
+    const listaPrecificacoes = (precificacoesCliente && precificacoesCliente.length)
+        ? precificacoesCliente
+        : normalizarPrecificacoesCliente(estoque?.precificacoesCliente || []);
+    if ((!precificacoesCliente || !precificacoesCliente.length) && listaPrecificacoes.length) {
+        precificacoesCliente = listaPrecificacoes;
+    }
 
-    (precificacoesCliente||[])
+    (listaPrecificacoes||[])
         .filter(p => {
             if (filtroClienteId && String(p.clienteId) !== String(filtroClienteId)) return false;
             if (filtroStatus && p.status !== filtroStatus) return false;
