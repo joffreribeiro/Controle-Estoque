@@ -9693,6 +9693,93 @@ function imprimirClientes() {
     win.document.close();
 }
 
+function exportarClientesExcel() {
+    const lista = clientes || [];
+    if (!lista.length) {
+        mostrarNotificacao('Nenhum cliente para exportar.', 'warning');
+        return;
+    }
+
+    // Pre-calculate purchases for each client
+    const vendas = estoque.registroVendas || [];
+
+    const rows = lista
+        .slice()
+        .sort((a, b) => (a.nome || '').localeCompare(b.nome || '', 'pt-BR'))
+        .map(c => {
+            const cnpjLimpo = (c.cnpj || '').replace(/\D/g, '');
+            const tipo = c.tipoPessoa || (cnpjLimpo.length === 14 ? 'PJ' : 'PF');
+
+            const vendasCliente = vendas.filter(v =>
+                (v.loja || '').toLowerCase() === (c.nome || '').toLowerCase()
+            );
+            const totalFaturado = vendasCliente.reduce((s, v) => s + (Number(v.valorTotal) || 0), 0);
+            const totalContratos = vendasCliente.length;
+            const ultimaCompra = vendasCliente.length > 0
+                ? (vendasCliente.slice().sort((a, b) => new Date(b.data || 0) - new Date(a.data || 0))[0].data || '')
+                : '';
+
+            return {
+                'Nome / Razão Social':  c.nome        || '',
+                'Tipo':                 tipo,
+                'CNPJ / CPF':           c.cnpj        || '',
+                'Endereço':             c.endereco     || '',
+                'Cidade':               c.cidade       || '',
+                'UF':                   c.uf           || '',
+                'Telefone':             c.telefone     || '',
+                'E-mail':               c.email        || '',
+                'Contato':              c.contato      || '',
+                'Representante':        c.representante || '',
+                'Observações':          c.observacoes  || '',
+                'Contratos Fechados':   totalContratos,
+                'Total Faturado (R$)':  parseFloat(totalFaturado.toFixed(2)),
+                'Última Compra':        ultimaCompra
+                  ? new Date(ultimaCompra).toLocaleDateString('pt-BR')
+                  : '',
+                'Data Cadastro':        c.dataCadastro
+                  ? new Date(c.dataCadastro).toLocaleDateString('pt-BR')
+                  : '',
+            };
+        });
+
+    try {
+        const ws = XLSX.utils.json_to_sheet(rows);
+
+        // Column widths
+        ws['!cols'] = [
+            { wch: 35 }, // Nome
+            { wch: 6  }, // Tipo
+            { wch: 20 }, // CNPJ
+            { wch: 35 }, // Endereço
+            { wch: 20 }, // Cidade
+            { wch: 5  }, // UF
+            { wch: 18 }, // Telefone
+            { wch: 30 }, // Email
+            { wch: 25 }, // Contato
+            { wch: 14 }, // Representante
+            { wch: 40 }, // Observações
+            { wch: 10 }, // Contratos
+            { wch: 18 }, // Total Faturado
+            { wch: 14 }, // Última Compra
+            { wch: 14 }, // Data Cadastro
+        ];
+
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, 'Clientes');
+        XLSX.writeFile(
+            wb,
+            'clientes_' + new Date().toISOString().split('T')[0] + '.xlsx'
+        );
+        mostrarNotificacao(
+            `${rows.length} cliente(s) exportado(s) com sucesso!`,
+            'success'
+        );
+    } catch (e) {
+        console.error('Erro ao exportar clientes:', e);
+        mostrarNotificacao('Erro ao gerar arquivo Excel.', 'error');
+    }
+}
+
 let _clienteHistoricoAtual = null;
 
 function abrirHistoricoCliente(clienteId) {
