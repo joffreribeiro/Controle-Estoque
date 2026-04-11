@@ -1807,6 +1807,9 @@ function ajustarStickyHeader() {
 // ========================================
 
 function prepararRelatorioInventario() {
+    // Only render if the relatorios tab is currently active
+    const tabEl = document.getElementById('tab-relatorios');
+    if (!tabEl || !tabEl.classList.contains('active')) return;
     const preview = document.getElementById('relatoriosPreview');
     if (!preview) return;
 
@@ -2024,6 +2027,9 @@ function recusarAprovacaoProposta(id) {
 // RELATÓRIO DE RENTABILIDADE
 // ==============================
 function gerarRelatorioRentabilidade() {
+    // Only render if the relatorios tab is currently active
+    const tabEl = document.getElementById('tab-relatorios');
+    if (!tabEl || !tabEl.classList.contains('active')) return;
     try {
         const periodo = document.getElementById('filtroRentabilidadePeriodo')?.value || 'todos';
         const hoje = new Date();
