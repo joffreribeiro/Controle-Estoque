@@ -4716,6 +4716,8 @@ function renderControleImbelCadastro() {
         document.getElementById('imbel_prod_nome').value = '';
         document.getElementById('imbel_prod_codigo').value = '';
         document.getElementById('imbel_prod_qtd_inicial').value = '0';
+        document.getElementById('imbel_prod_valor_unit') && (document.getElementById('imbel_prod_valor_unit').value = '');
+        document.getElementById('imbel_prod_ponto_reposicao') && (document.getElementById('imbel_prod_ponto_reposicao').value = '');
         document.getElementById('imbel_prod_obs').value = '';
         const editField = document.getElementById('imbel_prod_edit_id'); if (editField) editField.value = '';
         document.getElementById('imbel_prod_salvar').textContent = 'Salvar';
@@ -4734,6 +4736,8 @@ function renderControleImbelCadastro() {
         <th style="${thStyle}">Nome</th>
         <th style="${thStyle}">Código</th>
         <th style="${thStyle}">Quantidade Inicial</th>
+        <th style="${thStyle}">Valor Unit.</th>
+        <th style="${thStyle}">Ponto Reposição</th>
         <th style="${thStyle}">Observação</th>
         <th style="${thStyle}">Ações</th>
     </tr></thead><tbody></tbody>`;
@@ -4745,6 +4749,8 @@ function renderControleImbelCadastro() {
             <td style="${tdBase}">${p.nome}</td>
             <td style="${tdBase}">${p.codigo||'-'}</td>
             <td style="${tdBase};text-align:center">${(p.quantidadeInicial||p.quantidadeInicial===0)?p.quantidadeInicial:'-'}</td>
+            <td style="${tdBase};text-align:right">${p.valorUnitario ? 'R$ ' + Number(p.valorUnitario).toLocaleString('pt-BR',{minimumFractionDigits:2}) : '—'}</td>
+            <td style="${tdBase};text-align:center">${(p.pontoReposicao!==undefined && p.pontoReposicao!==null) ? p.pontoReposicao : '—'}</td>
             <td style="${tdBase}">${p.observacao||'-'}</td>
             <td style="${tdBase}"><button class="btn btn-outline" data-editid="${p.id}" style="margin-right:6px">Editar</button><button class="btn btn-outline" data-id="${p.id}">Remover</button></td>`;
         tbody.appendChild(tr);
@@ -4759,13 +4765,20 @@ function renderControleImbelCadastro() {
         const nome = document.getElementById('imbel_prod_nome').value.trim().toUpperCase();
         const codigo = document.getElementById('imbel_prod_codigo').value.trim().toUpperCase();
         const quantidadeInicial = parseInt(document.getElementById('imbel_prod_qtd_inicial').value) || 0;
+        const valorUnitario = parseFloat(document.getElementById('imbel_prod_valor_unit')?.value) || 0;
+        const pontoReposicao = parseInt(document.getElementById('imbel_prod_ponto_reposicao')?.value) || 0;
         const observacao = document.getElementById('imbel_prod_obs').value.trim().toUpperCase();
         if (!nome) { alert('Informe o nome do produto'); return; }
         data.produtos = data.produtos || [];
         if (editId) {
             const prod = data.produtos.find(p => p.id === editId);
             if (prod) {
-                prod.nome = nome; prod.codigo = codigo; prod.observacao = observacao; prod.quantidadeInicial = quantidadeInicial;
+                prod.nome = nome;
+                prod.codigo = codigo;
+                prod.observacao = observacao;
+                prod.quantidadeInicial = quantidadeInicial;
+                prod.valorUnitario = valorUnitario;
+                prod.pontoReposicao = pontoReposicao;
                 saveImbel(data);
                 // reset edit state
                 editIdField.value = '';
@@ -4776,7 +4789,7 @@ function renderControleImbelCadastro() {
                 return;
             }
         }
-        const novo = { id: 'p' + Date.now(), nome, codigo, observacao, quantidadeInicial };
+        const novo = { id: 'p' + Date.now(), nome, codigo, observacao, quantidadeInicial, valorUnitario, pontoReposicao };
         data.produtos.push(novo);
         saveImbel(data);
         closeImbelProdModal();
@@ -4801,6 +4814,8 @@ function renderControleImbelCadastro() {
         document.getElementById('imbel_prod_nome').value = prod.nome || '';
         document.getElementById('imbel_prod_codigo').value = prod.codigo || '';
         document.getElementById('imbel_prod_qtd_inicial').value = prod.quantidadeInicial || 0;
+        document.getElementById('imbel_prod_valor_unit') && (document.getElementById('imbel_prod_valor_unit').value = (prod.valorUnitario !== undefined && prod.valorUnitario !== null) ? prod.valorUnitario : '');
+        document.getElementById('imbel_prod_ponto_reposicao') && (document.getElementById('imbel_prod_ponto_reposicao').value = (prod.pontoReposicao !== undefined && prod.pontoReposicao !== null) ? prod.pontoReposicao : '');
         document.getElementById('imbel_prod_obs').value = prod.observacao || '';
         const editField = document.getElementById('imbel_prod_edit_id'); if (editField) editField.value = id;
         document.getElementById('imbel_prod_salvar').textContent = 'Atualizar';

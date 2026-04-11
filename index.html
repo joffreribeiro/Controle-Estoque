@@ -1485,7 +1485,7 @@
             <!-- Sub-navegação (mesmo padrão do sistema principal) -->
             <div class="tabs-navigation imbel-subnav" id="imbelSubNav" style="border-top: 1px solid var(--border-color);">
                 <button class="tab-btn active" data-imbeltab="estoque" onclick="trocarSubAbaControleImbel('estoque')">
-                    <span>🔪</span> Estoque Facas <span class="imbel-badge">0</span>
+                    <span>🔪</span> Estoque Facas 
                 </button>
                 <button class="tab-btn" data-imbeltab="cadastro" onclick="trocarSubAbaControleImbel('cadastro')">
                     <span>📋</span> Cadastro de Produtos
@@ -2344,6 +2344,25 @@
                     <div>
                         <label style="font-size:.82rem;font-weight:600;color:#555;display:block;margin-bottom:4px">Quantidade Inicial</label>
                         <input type="number" id="imbel_prod_qtd_inicial" value="0" min="0" style="width:100%;padding:7px 8px;border:1px solid #ddd;border-radius:6px;font-size:.85rem"/>
+                    </div>
+                    <div class="form-group">
+                        <label for="imbel_prod_valor_unit">Valor Unitário (R$)</label>
+                        <input type="number" id="imbel_prod_valor_unit"
+                               step="0.01" min="0" placeholder="0,00"
+                               style="width:100%;padding:8px;border:1px solid #e2e8f0;border-radius:6px">
+                        <small style="color:#64748b;font-size:0.75rem">
+                            Usado para calcular o valor total em estoque
+                        </small>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="imbel_prod_ponto_reposicao">Ponto de Reposição (Qtd mínima)</label>
+                        <input type="number" id="imbel_prod_ponto_reposicao"
+                               step="1" min="0" placeholder="Ex: 10"
+                               style="width:100%;padding:8px;border:1px solid #e2e8f0;border-radius:6px">
+                        <small style="color:#64748b;font-size:0.75rem">
+                            Alerta amarelo quando estoque atingir este valor
+                        </small>
                     </div>
                     <div>
                         <label style="font-size:.82rem;font-weight:600;color:#555;display:block;margin-bottom:4px">Observação</label>
