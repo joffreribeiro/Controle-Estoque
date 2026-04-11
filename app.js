@@ -4579,6 +4579,18 @@ function renderControleImbelDashboard() {
 
     container.appendChild(indicadores);
 
+    // Inserir container da tabela detalhada de estoque logo após os KPIs
+    try {
+        let detalheEstoqueWrapper = document.getElementById('controleImbelEstoqueContainer');
+        if (!detalheEstoqueWrapper) {
+            detalheEstoqueWrapper = document.createElement('div');
+            detalheEstoqueWrapper.id = 'controleImbelEstoqueContainer';
+            detalheEstoqueWrapper.style.cssText = 'margin-top:16px';
+            container.appendChild(detalheEstoqueWrapper);
+        }
+        try { renderControleImbelEstoque(); } catch(e) { console.warn('Erro ao renderizar tabela de estoque dentro do Dashboard', e); }
+    } catch(e) { console.warn('Erro ao inserir container de estoque no Dashboard', e); }
+
     // Controle financeiro: pendentes e comparação
     const pendentes = vendas.filter(v => (v.pagamento||'').toString().toUpperCase() !== 'SIM');
     const valorPendentes = pendentes.reduce((s,m) => s + (Number(m.valor)||0), 0);
@@ -4768,15 +4780,7 @@ function renderControleImbelDashboard() {
     pipelineWrap.appendChild(tableP);
     container.appendChild(pipelineWrap);
 
-    // Inserir container da tabela detalhada de estoque dentro do Dashboard
-    try {
-        const detalheEstoqueWrapper = document.createElement('div');
-        detalheEstoqueWrapper.id = 'controleImbelEstoqueContainer';
-        detalheEstoqueWrapper.style.cssText = 'margin-top:16px';
-        container.appendChild(detalheEstoqueWrapper);
-        // Renderizar tabela detalhada (reaproveita função existente)
-        try { renderControleImbelEstoque(); } catch(e) { console.warn('Erro ao renderizar tabela de estoque dentro do Dashboard', e); }
-    } catch(e) { console.warn('Erro ao inserir container de estoque no Dashboard', e); }
+    
 
     // bind action buttons (toggle status)
     tpb.querySelectorAll('button[data-toggle-pag]').forEach(btn => btn.onclick = function(){
