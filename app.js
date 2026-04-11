@@ -8868,6 +8868,16 @@ function verificarAlertasEstoque() {
                 proposta: p, cor: '#7c3aed', urgencia: 'AGUARD. APROVAÇÃO', tipo: 'aprovacao'
             }));
 
+        // Propostas recusadas recentemente (até 7 dias) — avisar time para follow-up
+        (propostas || []).forEach(p => {
+            if (p && p.status === 'recusada' && p.dataRecusa) {
+                const diasDesde = Math.ceil((agora - new Date(p.dataRecusa)) / 86400000);
+                if (diasDesde >= 0 && diasDesde <= 7) {
+                    alertasPropostas.push({ proposta: p, cor: '#ef4444', urgencia: 'RECUSADA', tipo: 'recusa' });
+                }
+            }
+        });
+
         if (mudouStatusProposta) {
             try { estoque.propostas = propostas; } catch (e) {}
             try { salvarDados(); } catch (e) {}
@@ -8890,28 +8900,30 @@ function verificarAlertasEstoque() {
                     const fmt = v => 'R$' + (v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
                     const div = document.createElement('div');
                     div.style.cssText = `padding:10px;margin-bottom:8px;border-radius:8px; border-left:3px solid ${alerta.cor};background:${alerta.cor}10`;
-                    div.innerHTML = `
-          <div style="display:flex;justify-content:space-between;align-items:flex-start">
-            <div style="font-weight:600;font-size:0.88rem;color:#1e293b">
-              ${alerta.tipo === 'aprovacao' ? '⏳' : '📋'} Proposta ${p.numero}
-            </div>
-            <span style="font-size:0.68rem;font-weight:700;color:${alerta.cor};
-                         background:${alerta.cor}20;padding:1px 7px;
-                         border-radius:20px;white-space:nowrap">
-              ${alerta.urgencia}
-            </span>
-          </div>
-          <div style="font-size:0.78rem;color:#64748b;margin-top:3px">
-            ${p.cliente} · ${fmt(p.valorTotal)}
-          </div>
-          ${alerta.tipo === 'aprovacao' && p.motivoAprovacao
-                            ? `<div style="font-size:0.75rem;color:#7c3aed;margin-top:3px">Motivo: ${_escapeHtml(String(p.motivoAprovacao))}</div>` : ''}
-          <button onclick="trocarAba('propostas');fecharPainelAlertas();"
-                  style="font-size:0.75rem;color:${alerta.cor};background:none;
-                         border:none;cursor:pointer;text-decoration:underline;
-                         padding:4px 0 0">
-            Ver proposta →
-          </button>`;
+                                        div.innerHTML = `
+                    <div style="display:flex;justify-content:space-between;align-items:flex-start">
+                        <div style="font-weight:600;font-size:0.88rem;color:#1e293b">
+                            ${alerta.tipo === 'aprovacao' ? '⏳' : (alerta.tipo === 'recusa' ? '❌' : '📋')} Proposta ${p.numero}
+                        </div>
+                        <span style="font-size:0.68rem;font-weight:700;color:${alerta.cor};
+                                                 background:${alerta.cor}20;padding:1px 7px;
+                                                 border-radius:20px;white-space:nowrap">
+                            ${alerta.urgencia}
+                        </span>
+                    </div>
+                    <div style="font-size:0.78rem;color:#64748b;margin-top:3px">
+                        ${p.cliente} · ${fmt(p.valorTotal)}
+                    </div>
+                    ${alerta.tipo === 'aprovacao' && p.motivoAprovacao
+                                                        ? `<div style="font-size:0.75rem;color:#7c3aed;margin-top:3px">Motivo: ${_escapeHtml(String(p.motivoAprovacao))}</div>` : ''}
+                    ${alerta.tipo === 'recusa' && p.motivoRecusa
+                                                        ? `<div style="font-size:0.75rem;color:#dc2626;margin-top:3px">Motivo: ${_escapeHtml(String(p.motivoRecusa))}</div>` : ''}
+                    <button onclick="trocarAba('propostas');fecharPainelAlertas();"
+                                    style="font-size:0.75rem;color:${alerta.cor};background:none;
+                                                 border:none;cursor:pointer;text-decoration:underline;
+                                                 padding:4px 0 0">
+                        Ver proposta →
+                    </button>`;
                     lista.appendChild(div);
                 });
             }
@@ -12366,6 +12378,29 @@ function excluirProposta(id) {
     mostrarNotificacao('Proposta excluída.', 'success');
 }
 
+function recusarProposta(id) {
+    if (!requireAdminOrNotify()) return;
+    const p = (propostas || []).find(x => x.id === id);
+    if (!p) return;
+    const motivo = prompt(
+        `Recusar proposta ${p.numero}?\n\n` +
+        `Informe o motivo da recusa (aparecerá no histórico do cliente):\n` +
+        `(Ex: "Preço acima do orçamento", "Concorrente venceu", ` +
+        `"Cliente desistiu", "Prazo de entrega")`
+    );
+    if (motivo === null) return; // user cancelled
+
+    p.status = 'recusada';
+    p.motivoRecusa = motivo || 'Sem motivo informado';
+    p.dataRecusa = new Date().toISOString();
+    try { estoque.propostas = propostas; } catch (e) {}
+    salvarDados();
+    try { renderizarPropostas(); } catch (e) {}
+    try { atualizarKPIsPropostas(); } catch (e) {}
+    mostrarNotificacao(`Proposta ${p.numero} marcada como recusada.`, 'warning');
+    try { registrarHistorico('proposta_recusada', `Proposta ${p.numero} recusada: ${p.motivoRecusa}`); } catch (e) {}
+}
+
 function renderizarPropostas(filtro, statusFiltro) {
     const tbody = document.getElementById('tabelaPropostasBody');
     if (!tbody) return;
@@ -12411,15 +12446,19 @@ function renderizarPropostas(filtro, statusFiltro) {
 
         const podeConverter = p.status === 'rascunho' || p.status === 'enviada';
 
+        const motivoRecusaEsc = p.motivoRecusa ? _escapeHtml(String(p.motivoRecusa)) : '';
+        const motivoRecusaSmall = (p.status === 'recusada' && p.motivoRecusa) ? `<div style="font-size:0.75rem;color:#dc2626;margin-top:2px;max-width:200px;overflow:hidden;text-overflow:ellipsis" title="${motivoRecusaEsc}">↳ ${motivoRecusaEsc}</div>` : '';
+
         return `<tr>
-            <td><span style="background:#0ea5e9; color:#fff; padding:2px 10px; border-radius:12px; font-size:0.82rem; font-weight:600;">${p.numero}</span></td>
-            <td style="text-align:left">${p.cliente || '-'}</td>
-            <td><span class="badge-rep ${repClass}">${p.representante || '-'}</span></td>
+            <td><span style="background:#0ea5e9; color:#fff; padding:2px 10px; border-radius:12px; font-size:0.82rem; font-weight:600;">${_escapeHtml(String(p.numero || ''))}</span></td>
+            <td style="text-align:left">${_escapeHtml(p.cliente || '-')}</td>
+            <td><span class="badge-rep ${repClass}">${_escapeHtml(p.representante || '-')}</span></td>
             <td style="color:#16a34a; font-weight:600">${formatarMoedaValor(p.valorTotal || 0)}</td>
             <td>${dataProposta}</td>
             <td style="${validadeExpirada ? 'color:#ef4444; font-weight:600' : ''}">${dataValidade}</td>
-            <td><span style="background:${statusConf.bg}; color:#fff; padding:2px 10px; border-radius:12px; font-size:0.8rem;">${statusConf.label}</span></td>
-            <td style="font-weight:600">${contratoDisplay}</td>
+            <td><span style="background:${statusConf.bg}; color:#fff; padding:2px 10px; border-radius:12px; font-size:0.8rem;">${statusConf.label}</span>${motivoRecusaSmall}</td>
+            <td style="font-weight:600">${_escapeHtml(String(contratoDisplay))}</td>
+            <td style="font-size:0.78rem;color:#dc2626;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${motivoRecusaEsc}">${p.status === 'recusada' && p.motivoRecusa ? motivoRecusaEsc : '—'}</td>
             <td>
                                 <div style="position:relative;display:inline-block">
                                     <button class="btn btn-outline btn-sm" onclick="toggleMenuPDF('${p.id}')" id="btnPDF_${p.id}">
@@ -12436,6 +12475,7 @@ function renderizarPropostas(filtro, statusFiltro) {
                                 </div>
                 <button class="btn btn-outline btn-sm" data-admin="true" onclick="abrirModalProposta('${p.id}')" title="Editar">✏️</button>
                 ${podeConverter ? `<button class="btn btn-success btn-sm" data-admin="true" onclick="converterPropostaEmVenda('${p.id}')" title="Converter em Venda" style="font-size:0.78rem;">🔄</button>` : ''}
+                ${p.status === 'enviada' ? `<button class="btn btn-outline btn-sm" data-admin="true" onclick="recusarProposta('${p.id}')" title="Recusar" style="color:#dc2626">❌</button>` : ''}
                 <button class="btn btn-outline btn-sm" data-admin="true" onclick="excluirProposta('${p.id}')" title="Excluir" style="color:#ef4444">🗑️</button>
             </td>
         </tr>`;
