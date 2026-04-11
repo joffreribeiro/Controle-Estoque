@@ -5194,6 +5194,65 @@ function salvarPontoReposicaoImbel(prodId, valor) {
     } catch (e) { console.error('Erro ao salvar ponto de reposição:', e); }
 }
 
+// Toggle selecionar todos os checkboxes de movimentação IMBEL
+// Toggle selecionar todos os checkboxes de movimentação IMBEL
+function imbelToggleSelectAll(checked) {
+        try {
+                document.querySelectorAll('.imbel-mov-check').forEach(cb => { cb.checked = !!checked; });
+        } catch (e) { console.warn('imbelToggleSelectAll erro', e); }
+}
+
+// Alterna exibição de detalhes de uma movimentação (insere/remove linha de detalhe abaixo da linha)
+function imbelToggleDetalhes(tr, m) {
+    // Remove any existing detail row
+    const existing = tr.nextSibling;
+    if (existing && existing.classList && existing.classList.contains('imbel-detalhe-row')) {
+        existing.remove();
+        tr.style.filter = '';
+        return;
+    }
+    // Remove all other open detail rows
+    document.querySelectorAll('.imbel-detalhe-row').forEach(r => r.remove());
+    document.querySelectorAll('[data-mov-id]').forEach(r => {
+        r.style.filter = '';
+    });
+
+    tr.style.filter = 'brightness(0.96)';
+
+    const cfg = getImbelTipo(m.tipo);
+    const detRow = document.createElement('tr');
+    detRow.className = 'imbel-detalhe-row';
+    detRow.style.cssText =
+        `background:${cfg.bg};border-bottom:2px solid ${cfg.cor}44`;
+
+    const fields = [
+        ['📍 Endereço',   m.endereco],
+        ['📞 Telefone',   m.telefone],
+        ['📧 E-mail',     m.email],
+        ['📣 Evento',     m.evento],
+        ['💬 Observações',m.observacoes],
+        ['🏛️ FI',         m.fi],
+        ['💳 Pagamento',  m.pagamento],
+        ['🚚 Entregue',   m.entregue],
+    ].filter(([, v]) => v && v.toString().trim());
+
+    const content = fields.length
+        ? fields.map(([label, val]) =>
+                `<span style="margin-right:20px;font-size:0.82rem;color:#475569">
+                     <strong style="color:#1e293b">${label}:</strong> ${_escapeHtml(val)}
+                 </span>`
+            ).join('')
+        : '<span style="color:#94a3b8;font-size:0.82rem">Sem informações adicionais</span>';
+
+    detRow.innerHTML = `
+        <td colspan="11"
+                style="padding:10px 16px 12px 52px;border-left:4px solid ${cfg.cor}">
+            ${content}
+        </td>`;
+
+    tr.after(detRow);
+}
+
 function renderControleImbelMovimentacao() {
     const data = loadImbel();
     const container = document.getElementById('controleImbelMovContainer');
@@ -5240,6 +5299,13 @@ function renderControleImbelMovimentacao() {
         renderControleImbelCadastro();
     };
     topActions.appendChild(btnClearTable);
+
+    const btnRelatorio = document.createElement('button');
+    btnRelatorio.className = 'btn btn-primary';
+    btnRelatorio.innerHTML = '<span class="btn-icon">📋</span> Gerar Relatório';
+    btnRelatorio.onclick = () => gerarRelatorioVendasImbel();
+    topActions.appendChild(btnRelatorio);
+
     container.appendChild(topActions);
 
     // ---- Filtros ----
@@ -5303,31 +5369,31 @@ function renderControleImbelMovimentacao() {
     const tabelaWrap = document.createElement('div');
     tabelaWrap.style.cssText = 'overflow-x:auto;background:#fff;border-radius:10px;padding:16px;box-shadow:0 1px 4px rgba(0,0,0,.08)';
 
-    const thStyle = 'padding:8px 10px;border:1px solid #ddd;background:#1e3a5f;color:#fff;font-size:.8rem;white-space:nowrap;text-align:center';
-    const tabela = document.createElement('table');
-    tabela.style.cssText = 'width:100%;border-collapse:collapse;font-size:.78rem';
-    tabela.innerHTML = `<thead><tr>
-        <th style="${thStyle}">ID</th>
-        <th style="${thStyle}">Descrição</th>
-        <th style="${thStyle}">Tipo</th>
+        const thStyle = 'padding:8px 10px;border:1px solid #ddd;background:#1e3a5f;color:#fff;font-size:.8rem;white-space:nowrap;text-align:center';
+        const tabela = document.createElement('table');
+        tabela.style.cssText = 'width:100%;border-collapse:collapse;font-size:.78rem';
+        tabela.innerHTML = `<thead><tr>
+        <th style="${thStyle};width:36px">
+            <input type="checkbox" id="imbelSelectAll"
+                         onchange="imbelToggleSelectAll(this.checked)"
+                         title="Selecionar todos">
+        </th>
         <th style="${thStyle}">Data</th>
-        <th style="${thStyle}">Quant.</th>
+        <th style="${thStyle}">Tipo</th>
+        <th style="${thStyle}">Produto</th>
+        <th style="${thStyle}">Qtd</th>
         <th style="${thStyle}">Destinatário</th>
         <th style="${thStyle}">CPF/CNPJ</th>
-        <th style="${thStyle}">Observações</th>
         <th style="${thStyle}">Valor</th>
-        <th style="${thStyle}">Endereço</th>
-        <th style="${thStyle}">Telefone</th>
-        <th style="${thStyle}">E-mail</th>
-        <th style="${thStyle}">Pagamento</th>
-        <th style="${thStyle}">Entregue</th>
-        <th style="${thStyle}">FI</th>
+        <th style="${thStyle};width:50px">FI</th>
+        <th style="${thStyle};width:50px">Pago</th>
         <th style="${thStyle}">Ações</th>
     </tr></thead><tbody></tbody>`;
 
-    const tbody = tabela.querySelector('tbody');
-    const tdStyle = 'padding:6px 8px;border:1px solid #ddd;vertical-align:middle;white-space:normal;word-break:break-word;max-width:260px';
-    const tdCenter = tdStyle + ';text-align:center';
+        const tbody = tabela.querySelector('tbody');
+        const tdStyle = 'padding:6px 8px;border:1px solid #ddd;vertical-align:middle;white-space:normal;word-break:break-word;max-width:260px';
+        const tdCenter = tdStyle + ';text-align:center';
+        const tdBase = tdStyle + ';text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis';
 
     // função para popular tbody com filtros
     function populateTbody() {
@@ -5365,58 +5431,77 @@ function renderControleImbelMovimentacao() {
             if (fEnt && (m.entregue||'').toString().toUpperCase() !== 'SIM') return;
             if (fFi && (m.fi||'').toString().toUpperCase() !== 'SIM') return;
 
-            const produto = (data.produtos||[]).find(p => p.id === m.produtoId) || {nome: m.descricao || '-'};
-            const dataFmt = formatDateToDDMMYYYY(m.data);
-            const valorFmt = m.valor ? 'R$ ' + Number(m.valor).toLocaleString('pt-BR', {minimumFractionDigits:2}) : '-';
-            const seqNum = (data.movimentacoes.length - idx);
+                        const cfg = getImbelTipo(m.tipo);
+                        const prodNome = (data.produtos||[]).find(p=>p.id===m.produtoId)?.nome || '—';
+                        const dataFmt = m.data
+                                ? new Date(m.data).toLocaleDateString('pt-BR') : '—';
+                        const valorFmt = m.valor
+                                ? 'R$ ' + Number(m.valor).toLocaleString('pt-BR',{minimumFractionDigits:2})
+                                : '—';
+                        const isFI   = !!(m.fi && m.fi.toString().toUpperCase() === 'SIM');
+                        const isPago = !!(m.pagamento && m.pagamento.toString().toUpperCase() === 'SIM');
 
-            const tr = document.createElement('tr');
-            // cor padrão alternada
-            let bg = rowIndex % 2 === 0 ? '#fff' : '#f7f9fc';
-            // destacar linhas cujo destinatário contenha DVMK (case-insensitive)
-            try {
-                if ((m.destinatario||'').toString().toUpperCase().includes('DVMK')) {
-                    bg = '#fff3cd'; // tom claro amarelo
-                }
-            } catch(e) {}
-            tr.style.background = bg;
+                        const tr = document.createElement('tr');
+                        tr.dataset.movId = m.id;
+                        tr.style.cssText =
+                                `background:${cfg.bg};border-bottom:1px solid #f1f5f9;cursor:pointer;
+                                 transition:filter 0.1s`;
 
-            // decidir se mostramos checkboxes (não mostrar para Entradas)
-            const tipoCfg = getImbelTipo(m.tipo);
-            const tipoIsEntrada = imbelTipoAumentaEstoque(m.tipo);
-            let pagCell = `<td style="${tdCenter}"><input type=\"checkbox\" class=\"imbel_table_chk_pag\" data-id=\"${m.id}\" ${((m.pagamento||'').toString().toUpperCase()==='SIM')? 'checked' : ''}></td>`;
-            let entCell = `<td style="${tdCenter}"><input type=\"checkbox\" class=\"imbel_table_chk_ent\" data-id=\"${m.id}\" ${((m.entregue||'').toString().toUpperCase()==='SIM')? 'checked' : ''}></td>`;
-            let fiCell = `<td style="${tdCenter}"><input type=\"checkbox\" class=\"imbel_table_chk_fi\" data-id=\"${m.id}\" ${((m.fi||'').toString().toUpperCase()==='SIM')? 'checked' : ''}></td>`;
-            if (tipoIsEntrada || ((m.destinatario||'').toString().toUpperCase().includes('DVMK'))) {
-                pagCell = `<td style="${tdCenter}"></td>`;
-                entCell = `<td style="${tdCenter}"></td>`;
-                fiCell = `<td style="${tdCenter}"></td>`;
-            }
+                        tr.innerHTML = `
+        <td style="${tdCenter};width:36px" onclick="event.stopPropagation()">
+            <input type="checkbox" class="imbel-mov-check"
+                         data-id="${m.id}" data-tipo="${m.tipo}"
+                         data-fi="${isFI}"
+                         style="width:15px;height:15px;cursor:pointer">
+        </td>
+        <td style="${tdCenter};white-space:nowrap;font-size:0.8rem;color:#475569">
+            ${dataFmt}
+        </td>
+        <td style="${tdCenter}">
+            <span style="background:${cfg.cor}22;color:${cfg.cor};
+                                     padding:2px 8px;border-radius:20px;
+                                     font-size:0.75rem;font-weight:700;white-space:nowrap">
+                ${cfg.icon} ${cfg.label}
+            </span>
+        </td>
+        <td style="${tdBase};font-weight:500">${prodNome}</td>
+        <td style="${tdCenter};font-weight:700;
+                             color:${cfg.categoria==='entrada'?'#16a34a':'#dc2626'}">
+            ${cfg.categoria==='entrada'?'+':'−'}${m.quantidade||0}
+        </td>
+        <td style="${tdBase};max-width:160px;overflow:hidden;
+                             text-overflow:ellipsis;white-space:nowrap"
+                title="${m.destinatario||''}">
+            ${m.destinatario || '<span style="color:#94a3b8">—</span>'}
+        </td>
+        <td style="${tdBase};font-size:0.8rem;color:#475569">
+            ${m.cpfCnpj || '<span style="color:#94a3b8">—</span>'}
+        </td>
+        <td style="${tdBase};text-align:right;font-weight:600;
+                             color:${m.valor?'#16a34a':'#94a3b8'}">
+            ${valorFmt}
+        </td>
+        <td style="${tdCenter}">
+            ${isFI
+                ? '<span style="color:#16a34a;font-size:1rem">✅</span>'
+                : '<span style="color:#94a3b8;font-size:0.9rem">—</span>'}
+        </td>
+        <td style="${tdCenter}">
+            ${isPago
+                ? '<span style="color:#16a34a;font-size:1rem">✅</span>'
+                : '<span style="color:#d97706;font-size:0.9rem">⏳</span>'}
+        </td>
+        <td style="${tdCenter}">
+            <button class="btn btn-outline btn-sm" data-editid="${m.id}"
+                            onclick="event.stopPropagation()">✎</button>
+            <button class="btn btn-outline btn-sm" data-delid="${m.id}"
+                            onclick="event.stopPropagation()"
+                            style="color:#dc2626;border-color:#fca5a5">🗑</button>
+        </td>`;
 
-            const tipoLabel = tipoCfg.label || (m.tipo||'-');
-            const tipoColor = tipoCfg.cor || '#333';
-            const tipoBg = tipoCfg.bg || 'transparent';
-            const tipoIcon = tipoCfg.icon ? tipoCfg.icon + ' ' : '';
-
-            tr.innerHTML = `
-                <td style="${tdCenter};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:70px">${seqNum}</td>
-                <td style="${tdStyle}">${produto.nome}</td>
-                <td style="${tdCenter};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:110px"><span style="padding:2px 8px;border-radius:12px;font-size:.75rem;font-weight:600;color:${tipoColor};background:${tipoBg}">${tipoIcon}${tipoLabel}</span></td>
-                <td style="${tdCenter};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:110px">${dataFmt}</td>
-                <td style="${tdCenter}">${m.quantidade||'-'}</td>
-                <td style="${tdStyle}">${m.destinatario||'-'}</td>
-                <td style="${tdStyle};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:140px">${m.cpfCnpj||'-'}</td>
-                <td style="${tdStyle}">${m.observacoes||'-'}</td>
-                <td style="${tdCenter};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:120px">${valorFmt}</td>
-                <td style="${tdStyle}">${m.endereco||'-'}</td>
-                <td style="${tdStyle}">${m.telefone||'-'}</td>
-                <td style="${tdStyle}">${m.email||'-'}</td>
-                ${pagCell}
-                ${entCell}
-                ${fiCell}
-                <td style="${tdCenter}"><button class="btn btn-outline" style="padding:3px 8px;font-size:.75rem;margin-right:6px" data-editmov="${m.id}">Editar</button><button class="btn btn-outline" style="padding:3px 8px;font-size:.75rem" data-delid="${m.id}">🗑️</button></td>
-            `;
-            tbody.appendChild(tr);
+                        // Click row to expand details
+                        tr.addEventListener('click', () => imbelToggleDetalhes(tr, m));
+                        tbody.appendChild(tr);
             rowIndex++;
         });
 
@@ -5433,9 +5518,9 @@ function renderControleImbelMovimentacao() {
             };
         });
 
-        tbody.querySelectorAll('button[data-editmov]').forEach(btn => {
+        tbody.querySelectorAll('button[data-editmov], button[data-editid]').forEach(btn => {
             btn.onclick = function(){
-                const id = this.getAttribute('data-editmov');
+                const id = this.getAttribute('data-editmov') || this.getAttribute('data-editid');
                 const mov = (data.movimentacoes||[]).find(m => m.id === id);
                 if (!mov) return;
                 const hoje = new Date().toISOString().slice(0,10);
@@ -10631,6 +10716,214 @@ const ESTADOS_BR = [
 
 function _nomeProdutoId(nome) {
     return String(nome || '').replace(/[^a-zA-Z0-9]/g, '_');
+}
+
+function gerarRelatorioVendasImbel() {
+    const data   = loadImbel();
+    const prods  = data.produtos || [];
+    const checks = document.querySelectorAll('.imbel-mov-check:checked');
+
+    if (!checks.length) {
+        mostrarNotificacao(
+            'Selecione ao menos uma movimentação para gerar o relatório.',
+            'warning'
+        );
+        return;
+    }
+
+    // Build rows from selected checkboxes
+    const rows = [];
+    checks.forEach(cb => {
+        const id  = cb.dataset.id;
+        const mov = (data.movimentacoes||[]).find(m => m.id === id);
+        if (!mov) return;
+        const prod = prods.find(p => p.id === mov.produtoId);
+        rows.push({
+            produto:     prod?.nome     || '—',
+            quantidade:  mov.quantidade || 0,
+            nome:        mov.destinatario || '—',
+            cpf:         mov.cpfCnpj    || '—',
+            valor:       Number(mov.valor) || 0,
+            endereco:    mov.endereco   || '—',
+            email:       mov.email      || '—',
+        });
+    });
+
+    if (!rows.length) {
+        mostrarNotificacao('Nenhuma movimentação válida selecionada.', 'warning');
+        return;
+    }
+
+    const fmt = v => 'R$ ' + Number(v || 0).toLocaleString('pt-BR',{minimumFractionDigits:2});
+    const totalValor = rows.reduce((s,r) => s+r.valor, 0);
+    const totalQtd   = rows.reduce((s,r) => s+Number(r.quantidade), 0);
+    const dataGeracao = new Date().toLocaleDateString('pt-BR');
+
+    const win = window.open('', '_blank', 'width=1100,height=700');
+    if (!win) {
+        mostrarNotificacao(
+            'Não foi possível abrir a janela. Permita popups.', 'error'
+        );
+        return;
+    }
+
+    win.document.write(`
+        <!DOCTYPE html>
+        <html lang="pt-BR">
+        <head>
+            <meta charset="utf-8">
+            <title>Relatório de Vendas IMBEL</title>
+            <style>
+                @page { size: A4 landscape; margin: 12mm; }
+                * { box-sizing: border-box; margin: 0; padding: 0; }
+                body {
+                    font-family: 'Segoe UI', Arial, sans-serif;
+                    font-size: 11px;
+                    color: #1e293b;
+                }
+                .header {
+                    background: #1e3a5f;
+                    color: #fff;
+                    padding: 14px 20px;
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    margin-bottom: 16px;
+                    border-radius: 6px;
+                }
+                .header h1 { font-size: 16px; font-weight: 700; }
+                .header .meta { font-size: 11px; opacity: 0.8; text-align: right; }
+                table {
+                    width: 100%;
+                    border-collapse: collapse;
+                    font-size: 11px;
+                }
+                thead tr {
+                    background: #1e3a5f;
+                    color: #fff;
+                }
+                th {
+                    padding: 9px 10px;
+                    text-align: left;
+                    font-weight: 600;
+                    font-size: 10px;
+                    text-transform: uppercase;
+                    letter-spacing: 0.5px;
+                    white-space: nowrap;
+                }
+                td {
+                    padding: 8px 10px;
+                    border-bottom: 1px solid #e2e8f0;
+                    vertical-align: top;
+                }
+                tr:nth-child(even) td { background: #f8fafc; }
+                tr:hover td { background: #eff6ff; }
+                .col-qtd { text-align: center; font-weight: 700; }
+                .col-valor { text-align: right; font-weight: 700; color: #16a34a; }
+                .footer-row td {
+                    background: #1e3a5f !important;
+                    color: #fff;
+                    font-weight: 700;
+                    font-size: 12px;
+                    padding: 10px;
+                    border: none;
+                }
+                .footer-row .col-valor { color: #7ee787; font-size: 13px; }
+                .summary {
+                    display: flex;
+                    gap: 16px;
+                    margin-top: 14px;
+                    font-size: 11px;
+                    color: #64748b;
+                }
+                @media print {
+                    body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+                    .no-print { display: none !important; }
+                }
+            </style>
+        </head>
+        <body>
+
+            <div class="header">
+                <div>
+                    <h1>🔪 IMBEL — Relatório de Vendas</h1>
+                    <div style="font-size:11px;opacity:0.8;margin-top:3px">
+                        Fábrica de Itajubá · Sede
+                    </div>
+                </div>
+                <div class="meta">
+                    Gerado em: ${dataGeracao}<br>
+                    ${rows.length} venda(s) · ${totalQtd} unidade(s)
+                </div>
+            </div>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th style="width:25%">Produto</th>
+                        <th class="col-qtd" style="width:5%">Qtd</th>
+                        <th style="width:16%">Nome / Destinatário</th>
+                        <th style="width:12%">CPF / CNPJ</th>
+                        <th class="col-valor" style="width:9%">Valor</th>
+                        <th style="width:22%">Endereço</th>
+                        <th style="width:11%">E-mail</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${rows.map(r => `
+                        <tr>
+                            <td>${_escapeHtml(r.produto)}</td>
+                            <td class="col-qtd">${_escapeHtml(String(r.quantidade))}</td>
+                            <td>${_escapeHtml(r.nome)}</td>
+                            <td style="font-size:10px;color:#475569">${_escapeHtml(r.cpf)}</td>
+                            <td class="col-valor">${fmt(r.valor)}</td>
+                            <td style="font-size:10px;color:#475569">${_escapeHtml(r.endereco)}</td>
+                            <td style="font-size:10px;color:#475569">${_escapeHtml(r.email)}</td>
+                        </tr>`).join('')}
+                </tbody>
+                <tfoot>
+                    <tr class="footer-row">
+                        <td colspan="4">
+                            Total — ${rows.length} venda(s) · ${totalQtd} unidade(s)
+                        </td>
+                        <td class="col-valor">${fmt(totalValor)}</td>
+                        <td colspan="2"></td>
+                    </tr>
+                </tfoot>
+            </table>
+
+            <div class="summary">
+                <span>📅 Gerado em ${dataGeracao}</span>
+                <span>·</span>
+                <span>📦 ${totalQtd} unidades</span>
+                <span>·</span>
+                <span>💰 Total: ${fmt(totalValor)}</span>
+            </div>
+
+            <div class="no-print" style="margin-top:20px;text-align:center">
+                <button onclick="window.print()"
+                                style="background:#1e3a5f;color:#fff;border:none;
+                                             padding:10px 28px;border-radius:8px;font-size:14px;
+                                             cursor:pointer;margin-right:10px">
+                    🖨️ Imprimir
+                </button>
+                <button onclick="window.close()"
+                                style="background:#f1f5f9;color:#475569;border:none;
+                                             padding:10px 20px;border-radius:8px;font-size:14px;
+                                             cursor:pointer">
+                    Fechar
+                </button>
+            </div>
+
+            <script>
+                window.onload = function() {
+                    // Auto-focus print dialog
+                };
+            <\/script>
+        </body>
+        </html>
+    `);
+    win.document.close();
 }
 
 function _escapeHtml(texto) {
