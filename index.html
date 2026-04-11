@@ -1927,10 +1927,17 @@
                             </div>
                         </div>
 
-                        <div style="font-size:0.76rem; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:0.7px; margin:10px 0 8px;">Observações</div>
-                        <div class="form-group">
-                            <textarea id="produtoObservacoes" rows="3" placeholder="Observações internas do produto"></textarea>
-                        </div>
+                                                <div style="font-size:0.76rem; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:0.7px; margin:10px 0 8px;">Observações</div>
+                                                <div class="form-group">
+                                                        <label for="produtoObservacoes">
+                                                            Observações Internas
+                                                            <span style="font-size:0.75rem;color:#94a3b8;font-weight:400;margin-left:6px">
+                                                                (não aparece para o cliente)
+                                                            </span>
+                                                        </label>
+                                                        <textarea id="produtoObservacoes" rows="3"
+                                                                            placeholder="Ex: Fornecedor preferencial, prazo de entrega 30 dias, restrição para PF, substituído pelo modelo X..."></textarea>
+                                                </div>
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn btn-outline" onclick="fecharModal('modalProduto')">Cancelar</button>

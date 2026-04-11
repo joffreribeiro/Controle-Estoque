@@ -1817,6 +1817,13 @@ function renderizarTabela() {
         const tr = document.createElement('tr');
         tr.dataset.id = produto.id;
         let produtoHtml = produto.nome;
+        // Incluir observações internas junto ao nome (exibidas em pequena linha)
+        const obs = produto.observacoes ? String(produto.observacoes).trim() : '';
+        const obsHtml = obs
+            ? `<div style="font-size:0.72rem;color:#94a3b8;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:200px" title="${_escapeHtml(obs)}">📝 ${_escapeHtml(obs)}</div>`
+            : '';
+        // Produto HTML com escape para evitar XSS
+        produtoHtml = `${_escapeHtml(String(produto.nome || ''))}${obsHtml}`;
         const metricaImbel = obterMetricasImbelProduto(produto);
 
         const produtoId = produto.id;
@@ -1944,7 +1951,10 @@ function renderizarTabela() {
         const consolidadoVenda = metricaImbel.consolidadoVenda;
         const consolidadoSaldo = metricaImbel.consolidadoSaldo;
 
-        tr.innerHTML = `<td class="produto-nome col-produto" title="${produto.nome}" onclick="abrirModalEditarProduto(${produtoId})" style="cursor:pointer">${produtoHtml}</td>` + tr.innerHTML;
+        tr.innerHTML = `<td class="produto-nome col-produto" title="${_escapeHtml(String(produto.nome || ''))}" onclick="abrirModalEditarProduto(${produtoId})" style="cursor:pointer">${produtoHtml}</td>` + tr.innerHTML;
+        // armazenar observações no dataset para buscas e mostrar tooltip ao passar o mouse sobre a linha
+        try { tr.dataset.observacoes = obs; } catch (e) {}
+        tr.title = obs ? `📝 ${obs}` : (tr.title || '');
 
         const saldoGeralClass = consolidadoSaldo > 0 ? 'saldo-positivo' : 'negativo';
         tr.innerHTML += `
@@ -8677,7 +8687,9 @@ function filtrarTabelaEstoque(termo) {
 
     rows.forEach(row => {
         const nome = (row.querySelector('.produto-nome')?.textContent || '').toLowerCase();
-        row.style.display = (!termoLower || nome.includes(termoLower)) ? '' : 'none';
+        const obs = (row.dataset.observacoes || '').toLowerCase();
+        const match = (!termoLower) || nome.includes(termoLower) || obs.includes(termoLower);
+        row.style.display = match ? '' : 'none';
     });
 }
 
@@ -9975,11 +9987,14 @@ function renderizarPrecificacao() {
                 : '—';
             const temCI = parseFloat(ci) > 0;
 
+            const obs = produto.observacoes ? String(produto.observacoes) : '';
+            const obsPreview = obs ? `${_escapeHtml(obs.slice(0, 50))}${obs.length > 50 ? '...' : ''}` : '';
             return `
                 <tr>
                     <td style="text-align:left; padding-left:15px; font-weight:500; position:sticky; left:0; background:#fff; z-index:1; border-right:1px solid #e2e8f0">
-                        ${_escapeHtml(produto.nome)}
-                        <div style="font-size:0.72rem; font-family:monospace; color:#94a3b8; margin-top:2px">${_escapeHtml(ncm)}</div>
+                            ${_escapeHtml(produto.nome)}
+                            ${obs ? `<div style="font-size:0.68rem;color:#94a3b8;margin-top:2px;font-style:italic" title="${_escapeHtml(obs)}">${obsPreview}</div>` : ''}
+                            <div style="font-size:0.72rem; font-family:monospace; color:#94a3b8; margin-top:2px">${_escapeHtml(ncm)}</div>
                     </td>
                     <td style="text-align:center">
                         <span style="font-size:0.75rem; font-family:monospace; color:#64748b; background:#f1f5f9; padding:2px 8px; border-radius:4px">${_escapeHtml(ncm)}</span>
