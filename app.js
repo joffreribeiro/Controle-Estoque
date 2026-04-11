@@ -50,6 +50,7 @@ Shape:
         icmsBase: 12
     }
 }
+*/
 
 // ========================================
 // GRÁFICO: COMISSÕES POR REPRESENTANTE
