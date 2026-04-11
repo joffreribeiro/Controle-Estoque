@@ -854,6 +854,8 @@ async function salvarNoCloud() {
         console.warn('Firestore não inicializado. Impossível salvar no cloud.');
         return false;
     }
+    const indicator = document.getElementById('cloudSaveIndicator');
+    if (indicator) { indicator.textContent = '☁️ Salvando...'; indicator.style.color = '#d97706'; }
     try {
         const docRef = window.firestoreDB.collection('app_data').doc('latest');
         await docRef.set({
@@ -869,7 +871,7 @@ async function salvarNoCloud() {
             updatedAt: firebase.firestore.FieldValue.serverTimestamp()
         });
         // ler o documento para obter o updatedAt do servidor
-        try {
+            try {
             const savedDoc = await docRef.get();
             const d = savedDoc && savedDoc.exists ? savedDoc.data() : null;
             const updatedAt = d && d.updatedAt ? d.updatedAt.toDate() : new Date();
@@ -877,11 +879,17 @@ async function salvarNoCloud() {
         } catch (inner) {
             updateFirestoreStatus(true, new Date(), 'Cloud: salvo');
         }
+        if (indicator) {
+            indicator.textContent = '✅ Salvo';
+            indicator.style.color = '#16a34a';
+            setTimeout(() => { if (indicator) indicator.textContent = ''; }, 3000);
+        }
         console.log('Dados salvos no Firestore (coleção app_data / doc latest)');
         return true;
     } catch (e) {
         console.error('Erro salvando no Firestore:', e);
         updateFirestoreStatus(false, null, 'Cloud: erro ao salvar');
+        if (indicator) { indicator.textContent = '❌ Erro ao salvar'; indicator.style.color = '#dc2626'; }
         return false;
     }
 }
