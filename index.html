@@ -2466,7 +2466,9 @@
                                                 <input type="text" id="clienteCnpj"
                                                              placeholder="00.000.000/0001-00"
                                                              maxlength="18"
-                                                             oninput="aplicarMascaraDocumento(this)"
+                                                             oninput="limparValidacaoDocumento(); aplicarMascaraDocumento(this)"
+                                                             onblur="validarDocumentoCliente()"
+                                                             onpaste="setTimeout(() => { aplicarMascaraDocumento(this); validarDocumentoCliente(); }, 0)"
                                                              autocomplete="off">
                                             </div>
                                         </div>

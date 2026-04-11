@@ -1534,6 +1534,104 @@ function formatCpfCnpjMask(value) {
     return `${digits.slice(0,2)}.${digits.slice(2,5)}.${digits.slice(5,8)}/${digits.slice(8,12)}-${digits.slice(12)}`;
 }
 
+// Validação de CPF/CNPJ (dígitos verificadores)
+function validarCPF(cpf) {
+    const digits = String(cpf || '').replace(/\D/g, '');
+    if (digits.length !== 11) return false;
+    if (/^(\d)\1{10}$/.test(digits)) return false;
+
+    let sum = 0;
+    for (let i = 0; i < 9; i++) sum += parseInt(digits[i], 10) * (10 - i);
+    let rest = (sum * 10) % 11;
+    if (rest === 10 || rest === 11) rest = 0;
+    if (rest !== parseInt(digits[9], 10)) return false;
+
+    sum = 0;
+    for (let i = 0; i < 10; i++) sum += parseInt(digits[i], 10) * (11 - i);
+    rest = (sum * 10) % 11;
+    if (rest === 10 || rest === 11) rest = 0;
+    if (rest !== parseInt(digits[10], 10)) return false;
+
+    return true;
+}
+
+function validarCNPJ(cnpj) {
+    const digits = String(cnpj || '').replace(/\D/g, '');
+    if (digits.length !== 14) return false;
+    if (/^(\d)\1{13}$/.test(digits)) return false;
+
+    let len = digits.length - 2;
+    let nums = digits.substring(0, len);
+    const digs = digits.substring(len);
+    let sum = 0;
+    let pos = len - 7;
+
+    for (let i = len; i >= 1; i--) {
+        sum += parseInt(nums.charAt(len - i), 10) * pos--;
+        if (pos < 2) pos = 9;
+    }
+    let result = sum % 11 < 2 ? 0 : 11 - (sum % 11);
+    if (result !== parseInt(digs.charAt(0), 10)) return false;
+
+    len = digits.length - 1;
+    nums = digits.substring(0, len);
+    sum = 0;
+    pos = len - 7;
+
+    for (let i = len; i >= 1; i--) {
+        sum += parseInt(nums.charAt(len - i), 10) * pos--;
+        if (pos < 2) pos = 9;
+    }
+    result = sum % 11 < 2 ? 0 : 11 - (sum % 11);
+    if (result !== parseInt(digs.charAt(1), 10)) return false;
+
+    return true;
+}
+
+function validarDocumentoCliente() {
+    const cnpjEl = document.getElementById('clienteCnpj');
+    const tipoEl = document.getElementById('clienteTipoPessoa');
+    if (!cnpjEl) return true;
+
+    const valor = String(cnpjEl.value || '').trim();
+    if (!valor) return true;
+
+    const tipo = tipoEl?.value || 'PJ';
+    const digits = valor.replace(/\D/g, '');
+    const valido = tipo === 'PF' ? validarCPF(digits) : validarCNPJ(digits);
+
+    if (!valido) {
+        cnpjEl.style.borderColor = '#dc2626';
+        cnpjEl.style.background = '#fef2f2';
+        let errEl = document.getElementById('erroCnpj');
+        if (!errEl) {
+            errEl = document.createElement('div');
+            errEl.id = 'erroCnpj';
+            errEl.style.cssText = 'color:#dc2626;font-size:0.78rem;margin-top:4px;font-weight:500';
+            cnpjEl.parentNode.appendChild(errEl);
+        }
+        errEl.textContent = tipo === 'PF' ? '❌ CPF inválido — verifique os dígitos' : '❌ CNPJ inválido — verifique os dígitos';
+        cnpjEl.focus();
+        return false;
+    }
+
+    cnpjEl.style.borderColor = '#22c55e';
+    cnpjEl.style.background = '#f0fdf4';
+    const errEl = document.getElementById('erroCnpj');
+    if (errEl) errEl.textContent = '✅ ' + (tipo === 'PF' ? 'CPF válido' : 'CNPJ válido');
+    return true;
+}
+
+function limparValidacaoDocumento() {
+    const cnpjEl = document.getElementById('clienteCnpj');
+    if (cnpjEl) {
+        cnpjEl.style.borderColor = '';
+        cnpjEl.style.background = '';
+    }
+    const errEl = document.getElementById('erroCnpj');
+    if (errEl) errEl.textContent = '';
+}
+
 function formatPhoneMask(value) {
     const digits = String(value || '').replace(/\D/g, '').slice(0, 11);
     if (!digits) return '';
@@ -9425,6 +9523,7 @@ function abrirModalCliente(id = null) {
     }
 
     document.getElementById('modalCliente').style.display = 'block';
+    try { if (typeof limparValidacaoDocumento === 'function') limparValidacaoDocumento(); } catch(e) {}
 }
 
 function fecharModalCliente() {
@@ -9496,6 +9595,14 @@ function salvarCliente(event) {
         representante: document.getElementById('clienteRepresentante').value,
         observacoes: document.getElementById('clienteObservacoes').value.trim()
     };
+
+    // Valida o CPF/CNPJ antes de salvar
+    try {
+        if (!validarDocumentoCliente()) {
+            mostrarNotificacao('Documento inválido. Corrija antes de salvar.', 'error');
+            return;
+        }
+    } catch (e) {}
 
     if (editId) {
         const idx = clientes.findIndex(c => c.id === editId);
