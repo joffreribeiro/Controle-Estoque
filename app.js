@@ -4204,6 +4204,33 @@ function migrateImbelTipos() {
     }
 }
 
+// Migrar registro que estão sem `produtoNome` para garantir compatibilidade
+function migrarProdutoNomeImbel() {
+    const data = loadImbel();
+    let changed = false;
+    (data.movimentacoes||[]).forEach(m => {
+        try {
+            if (!m.produtoNome && m.produtoId) {
+                const prod = (data.produtos||[]).find(p => p.id === m.produtoId);
+                if (prod?.nome) { m.produtoNome = prod.nome; changed = true; }
+            }
+            // migrar também itens internos, se houver
+            if (m.items && (m.items||[]).length) {
+                m.items.forEach(it => {
+                    if (!it.produtoNome && it.produtoId) {
+                        const prod2 = (data.produtos||[]).find(p => p.id === it.produtoId);
+                        if (prod2?.nome) { it.produtoNome = prod2.nome; changed = true; }
+                    }
+                });
+            }
+        } catch(e) {}
+    });
+    if (changed) {
+        saveImbel(data);
+        console.info('IMBEL: produtoNome migrado em registros existentes');
+    }
+}
+
 // ===================== IMBEL: Tabela de Preços =====================
 function getImbelPrecoAtual(produtoId) {
     const data = loadImbel();
@@ -4751,6 +4778,7 @@ document.addEventListener('DOMContentLoaded', function(){
     // Tentar migrar dados IMBEL de chaves antigas (se houver)
     try { migrateImbelStorage(); } catch(e) {}
     try { migrateImbelTipos(); } catch(e) {}
+    try { migrarProdutoNomeImbel(); } catch(e) {}
 }, { once: true });
 
 function renderControleImbelDashboard() {
@@ -5475,6 +5503,7 @@ function imbelToggleDetalhes(tr, m) {
 
 function renderControleImbelMovimentacao() {
     const data = loadImbel();
+    try { migrarProdutoNomeImbel(); } catch(e) {}
     const container = document.getElementById('controleImbelMovContainer');
     container.innerHTML = '';
 
@@ -5680,7 +5709,12 @@ function renderControleImbelMovimentacao() {
                 trGroup.title = 'Clique para ver os produtos';
 
                                 // resumo de produtos do grupo
-                                const names = (itens||[]).map(it => (data.produtos||[]).find(p=>p.id===it.produtoId)?.nome || it.produtoNome || it.produtoId).filter(Boolean);
+                                                const names = (itens||[]).map(it =>
+                                                    it.produtoNome
+                                                    || (data.produtos||[]).find(p => p.id === it.produtoId)?.nome
+                                                    || it.descricao
+                                                    || it.produtoId
+                                                ).filter(Boolean);
                                 const prodNome = names.length ? (names.length>1 ? (names[0] + ' +' + (names.length-1)) : names[0]) : '—';
                                 const cfgSafe = (typeof getImbelTipo === 'function') ? getImbelTipo(first.tipo) : { label: first.tipo||'—', cor:'#64748b', bg:'#f8fafc', icon:'' };
 
@@ -5789,7 +5823,11 @@ function renderControleImbelMovimentacao() {
                 </td>
                 <td></td>
                 <td style="${tdBase};color:#1e293b;font-weight:500">
-                    ${m.produtoNome || m.produtoId || '—'}
+                    ${m.produtoNome
+                        || (data.produtos||[]).find(p=>p.id===m.produtoId)?.nome
+                        || m.descricao
+                        || m.produtoId
+                        || '—'}
                 </td>
                 <td style="${tdCenter};font-weight:600">
                     ${m.quantidade||0}
@@ -6063,6 +6101,13 @@ function renderControleImbelMovimentacao() {
         // coletar itens da modal (agora obrigatório)
         const items = collectImbelMovItensFromDOM();
         if (!items || !items.length) { mostrarNotificacao('Adicione ao menos um item à movimentação.', 'warning'); return; }
+        // garantir que cada item traga `produtoNome` (migrar para novo formato local)
+        (items||[]).forEach(it => {
+            try {
+                const prod = (data.produtos||[]).find(p => p.id === it.produtoId);
+                it.produtoNome = it.produtoNome || prod?.nome || '';
+            } catch(e) {}
+        });
         let totalQuantidade = items.reduce((s,it) => s + (Number(it.quantidade)||0), 0);
         let totalValor = items.reduce((s,it) => s + (Number(it.valor)||0), 0);
 
@@ -6104,6 +6149,10 @@ function renderControleImbelMovimentacao() {
                 // sempre gravar itens (novo formato). Para compatibilidade, manter produtoId/quantidade/valor agregados
                 mov.items = items;
                 mov.produtoId = (items && items.length) ? items[0].produtoId : (mov.produtoId||'');
+                try {
+                    const prod = (data.produtos||[]).find(p => p.id === mov.produtoId);
+                    mov.produtoNome = prod?.nome || (mov.produtoNome || '');
+                } catch(e) {}
                 mov.quantidade = totalQuantidade;
                 mov.valor = totalValor;
                 mov.tipo = (tipoKey||'').toString();
@@ -6141,6 +6190,10 @@ function renderControleImbelMovimentacao() {
         // gravar sempre em novo formato (itens), preencher agregados para compatibilidade
         novo.items = items;
         novo.produtoId = (items && items.length) ? items[0].produtoId : '';
+        try {
+            const prodNew = (data.produtos||[]).find(p => p.id === novo.produtoId);
+            novo.produtoNome = prodNew?.nome || '';
+        } catch(e) { novo.produtoNome = '' }
         novo.quantidade = totalQuantidade;
         novo.valor = totalValor;
         data.movimentacoes.push(novo);
