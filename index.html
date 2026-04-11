@@ -391,6 +391,7 @@
                             <thead>
                                 <tr>
                                     <th>Nome / Razão Social</th>
+                                    <th>Tipo</th>
                                     <th>CNPJ / CPF</th>
                                     <th>Cidade / UF</th>
                                     <th>Telefone</th>
@@ -2407,17 +2408,43 @@
             </div>
             <form id="formCliente" onsubmit="salvarCliente(event)">
                 <div class="modal-body">
-                    <input type="hidden" id="clienteEditId">
-                    <div class="form-row">
-                        <div class="form-group" style="flex:2">
-                            <label>Nome Fantasia / Razão Social <span class="required">*</span></label>
-                            <input type="text" id="clienteNome" required placeholder="Ex: Armas & Cia LTDA">
-                        </div>
-                        <div class="form-group">
-                            <label>CNPJ / CPF</label>
-                            <input type="text" id="clienteCnpj" placeholder="00.000.000/0001-00">
-                        </div>
-                    </div>
+                                        <input type="hidden" id="clienteEditId">
+                                        <div class="form-row">
+                                            <div class="form-group" style="flex:2">
+                                                <label>Nome Fantasia / Razão Social <span class="required">*</span></label>
+                                                <input type="text" id="clienteNome" required
+                                                             placeholder="Ex: Armas & Cia LTDA ou João Silva">
+                                            </div>
+
+                                            <div class="form-group" style="flex:1">
+                                                <label>Tipo de Pessoa</label>
+                                                <div style="display:flex;gap:0;border:1px solid #e2e8f0;
+                                                                        border-radius:6px;overflow:hidden;height:38px">
+                                                    <button type="button" id="btnTipoPJ"
+                                                                    onclick="selecionarTipoPessoa('PJ')"
+                                                                    style="flex:1;border:none;background:#1e3a5f;color:#fff;
+                                                                                 font-weight:700;font-size:0.85rem;cursor:pointer">
+                                                        PJ
+                                                    </button>
+                                                    <button type="button" id="btnTipoPF"
+                                                                    onclick="selecionarTipoPessoa('PF')"
+                                                                    style="flex:1;border:none;background:#f1f5f9;color:#64748b;
+                                                                                 font-weight:600;font-size:0.85rem;cursor:pointer">
+                                                        PF
+                                                    </button>
+                                                </div>
+                                                <input type="hidden" id="clienteTipoPessoa" value="PJ">
+                                            </div>
+
+                                            <div class="form-group" style="flex:2">
+                                                <label id="labelClienteDocumento">CNPJ</label>
+                                                <input type="text" id="clienteCnpj"
+                                                             placeholder="00.000.000/0001-00"
+                                                             maxlength="18"
+                                                             oninput="aplicarMascaraDocumento(this)"
+                                                             autocomplete="off">
+                                            </div>
+                                        </div>
                     <div class="form-row">
                         <div class="form-group" style="flex:2">
                             <label>Endereço</label>

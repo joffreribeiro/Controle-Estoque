@@ -9258,6 +9258,7 @@ function abrirModalCliente(id = null) {
     document.getElementById('clienteRepresentante').value = '';
     document.getElementById('clienteObservacoes').value = '';
     document.getElementById('modalClienteTitulo').textContent = 'Novo Cliente';
+    try { if (typeof selecionarTipoPessoa === 'function') selecionarTipoPessoa('PJ'); } catch(e) {}
 
     if (id) {
         const cliente = clientes.find(c => c.id === id);
@@ -9274,6 +9275,11 @@ function abrirModalCliente(id = null) {
             document.getElementById('clienteRepresentante').value = cliente.representante || '';
             document.getElementById('clienteObservacoes').value = cliente.observacoes || '';
             document.getElementById('modalClienteTitulo').textContent = 'Editar Cliente';
+            // determinar tipo de pessoa a partir do registro salvo ou do formato do documento
+            try {
+                const tipoPessoa = cliente.tipoPessoa || (((cliente.cnpj||'').replace(/\D/g,'').length <= 11) ? 'PF' : 'PJ');
+                if (typeof selecionarTipoPessoa === 'function') selecionarTipoPessoa(tipoPessoa);
+            } catch(e) {}
         }
     }
 
@@ -9284,6 +9290,54 @@ function fecharModalCliente() {
     fecharModal('modalCliente');
 }
 
+// Seleciona tipo de pessoa e ajusta rótulo/placeholder/styles
+function selecionarTipoPessoa(tipo) {
+    const hiddenInput = document.getElementById('clienteTipoPessoa');
+    const label = document.getElementById('labelClienteDocumento');
+    const input = document.getElementById('clienteCnpj');
+    const btnPJ = document.getElementById('btnTipoPJ');
+    const btnPF = document.getElementById('btnTipoPF');
+
+    if (hiddenInput) hiddenInput.value = tipo;
+
+    if (tipo === 'PJ') {
+        if (label) label.textContent = 'CNPJ';
+        if (input) {
+            input.placeholder = '00.000.000/0001-00';
+            input.maxLength = 18;
+        }
+        if (btnPJ) { btnPJ.style.background = '#1e3a5f'; btnPJ.style.color = '#fff'; }
+        if (btnPF) { btnPF.style.background = '#f1f5f9'; btnPF.style.color = '#64748b'; }
+    } else {
+        if (label) label.textContent = 'CPF';
+        if (input) {
+            input.placeholder = '000.000.000-00';
+            input.maxLength = 14;
+        }
+        if (btnPJ) { btnPJ.style.background = '#f1f5f9'; btnPJ.style.color = '#64748b'; }
+        if (btnPF) { btnPF.style.background = '#1e3a5f'; btnPF.style.color = '#fff'; }
+    }
+
+    // Clear the field when switching type
+    if (input) input.value = '';
+}
+
+function aplicarMascaraDocumento(input) {
+    // Uses the existing formatCpfCnpjMask() function
+    const tipo = document.getElementById('clienteTipoPessoa')?.value || 'PJ';
+    const digits = (input.value || '').replace(/\D/g, '');
+
+    if (tipo === 'PF') {
+        // Force CPF mask (max 11 digits)
+        const cpfDigits = digits.slice(0, 11);
+        input.value = formatCpfCnpjMask(cpfDigits + 'xxx');
+        input.value = formatCpfCnpjMask(cpfDigits);
+    } else {
+        // CNPJ mask (max 14 digits)
+        input.value = formatCpfCnpjMask(digits.slice(0, 14));
+    }
+}
+
 function salvarCliente(event) {
     event.preventDefault();
 
@@ -9291,6 +9345,7 @@ function salvarCliente(event) {
     const dados = {
         nome: document.getElementById('clienteNome').value.trim(),
         cnpj: document.getElementById('clienteCnpj').value.trim(),
+        tipoPessoa: document.getElementById('clienteTipoPessoa')?.value || 'PJ',
         endereco: document.getElementById('clienteEndereco').value.trim(),
         cidade: document.getElementById('clienteCidade').value.trim(),
         uf: document.getElementById('clienteUf').value.trim().toUpperCase(),
@@ -9361,7 +9416,7 @@ function renderizarClientes(filtro = '') {
     );
 
     if (clientesFiltrados.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:24px;color:var(--text-secondary)">Nenhum cliente encontrado.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;padding:24px;color:var(--text-secondary)">Nenhum cliente encontrado.</td></tr>';
         return;
     }
 
@@ -9373,6 +9428,15 @@ function renderizarClientes(filtro = '') {
             ? `<span class="badge-rep ${repClass}">${c.representante}</span>`
             : '-';
 
+        const tipo = c.tipoPessoa || (((c.cnpj||'').replace(/\D/g,'').length <= 11) ? 'PF' : 'PJ');
+        const tipoBadge = `
+            <span style="font-size:0.72rem;font-weight:700;padding:2px 7px;
+                         border-radius:20px;
+                         background:${tipo==='PJ'?"#eff6ff":"#faf5ff"};
+                         color:${tipo==='PJ'?"#1d4ed8":"#7c3aed"}">
+              ${tipo}
+            </span>`;
+
         // Contar vendas que referenciam este cliente pelo nome
         const totalCompras = vendas.filter(v =>
             (v.loja || '').toLowerCase() === (c.nome || '').toLowerCase()
@@ -9382,6 +9446,7 @@ function renderizarClientes(filtro = '') {
 
         return `<tr>
             <td>${c.nome || '-'}</td>
+            <td style="text-align:center">${tipoBadge}</td>
             <td>${c.cnpj || '-'}</td>
             <td>${cidadeUf || '-'}</td>
             <td>${c.telefone || '-'}</td>
