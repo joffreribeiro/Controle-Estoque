@@ -12581,10 +12581,10 @@ function trocarSubabaPrecif(subaba) {
             try { calcularComparativo(); } catch (e) {}
         }
         if (subaba === 'consulta') {
-            try { renderizarConsultaPrecificacao(); } catch (e) {}
+            try { renderizarConsultaPrecificacao(); } catch (e) { console.error('Erro ao renderizar consulta de precificação:', e); }
         }
         if (subaba === 'rastreabilidade') {
-            try { renderizarRastreabilidade(); } catch (e) {}
+            try { renderizarRastreabilidade(); } catch (e) { console.error('Erro ao renderizar rastreabilidade:', e); }
         }
         if (subaba === 'porcliente') {
                 // preparar dropdown e estado inicial da sub-aba
@@ -12664,9 +12664,23 @@ function renderizarConsultaPrecificacao(forceSemFiltros = false) {
     const rows = [];
     const listaClientes = Array.isArray(clientes) ? clientes : [];
     const listaPropostas = Array.isArray(propostas) ? propostas : [];
-    const listaPrecificacoes = (precificacoesCliente && precificacoesCliente.length)
+    let listaPrecificacoes = (precificacoesCliente && precificacoesCliente.length)
         ? precificacoesCliente
         : normalizarPrecificacoesCliente(estoque?.precificacoesCliente || []);
+    if (!listaPrecificacoes.length) {
+        try {
+            const raw = localStorage.getItem('estoqueArmasV2');
+            const parsed = raw ? JSON.parse(raw) : null;
+            const fromLS = normalizarPrecificacoesCliente(parsed?.precificacoesCliente || []);
+            if (fromLS.length) {
+                listaPrecificacoes = fromLS;
+                precificacoesCliente = fromLS;
+                try { if (estoque) estoque.precificacoesCliente = fromLS; } catch (e) {}
+            }
+        } catch (e) {
+            console.warn('Falha ao recuperar precificações do localStorage para consulta:', e);
+        }
+    }
     if ((!precificacoesCliente || !precificacoesCliente.length) && listaPrecificacoes.length) {
         precificacoesCliente = listaPrecificacoes;
     }
@@ -12764,6 +12778,48 @@ function renderizarConsultaPrecificacao(forceSemFiltros = false) {
     if (!rows.length) {
         if (!forceSemFiltros && (listaPrecificacoes || []).length > 0) {
             return renderizarConsultaPrecificacao(true);
+        }
+        try {
+            const podeTentarCloud = !forceSemFiltros
+                && (!listaPrecificacoes || !listaPrecificacoes.length)
+                && !!window.firestoreDB
+                && !!(firebase && firebase.auth && firebase.auth().currentUser)
+                && !window.__consultaCloudSyncRunning;
+            if (podeTentarCloud) {
+                window.__consultaCloudSyncRunning = true;
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="26" style="text-align:center;color:#64748b;padding:40px;font-size:0.9rem">
+                            Sincronizando precificações do cloud...
+                        </td>
+                    </tr>`;
+                window.firestoreDB.collection('app_data').doc('latest').get()
+                    .then(doc => {
+                        if (!doc || !doc.exists) return;
+                        const data = doc.data() || {};
+                        const precifsCloud = (data.precificacoesCliente && data.precificacoesCliente.length)
+                            ? data.precificacoesCliente
+                            : ((data.estado && data.estado.precificacoesCliente) || []);
+                        const normalizadas = normalizarPrecificacoesCliente(precifsCloud);
+                        if (normalizadas.length) {
+                            precificacoesCliente = normalizadas;
+                            try {
+                                if (estoque && typeof estoque === 'object') estoque.precificacoesCliente = normalizadas;
+                            } catch (e) {}
+                            try { salvarDados(); } catch (e) {}
+                        }
+                    })
+                    .catch(e => {
+                        console.warn('Consulta: falha ao sincronizar do cloud:', e);
+                    })
+                    .finally(() => {
+                        window.__consultaCloudSyncRunning = false;
+                        try { renderizarConsultaPrecificacao(true); } catch (e) {}
+                    });
+                return;
+            }
+        } catch (e) {
+            console.warn('Consulta: fallback cloud indisponível:', e);
         }
         tbody.innerHTML = `
             <tr>
