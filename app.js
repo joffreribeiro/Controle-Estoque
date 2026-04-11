@@ -5709,14 +5709,20 @@ function renderControleImbelMovimentacao() {
                 trGroup.title = 'Clique para ver os produtos';
 
                                 // resumo de produtos do grupo
-                                                const names = (itens||[]).map(it =>
-                                                    it.produtoNome
-                                                    || (data.produtos||[]).find(p => p.id === it.produtoId)?.nome
-                                                    || it.descricao
-                                                    || it.produtoId
-                                                ).filter(Boolean);
-                                const prodNome = names.length ? (names.length>1 ? (names[0] + ' +' + (names.length-1)) : names[0]) : '—';
+                                const produtosUnicos = [...new Set((itens||[]).map(m => m.produtoId))];
+                                const temMultiplosProdutos = produtosUnicos.length > 1;
                                 const cfgSafe = (typeof getImbelTipo === 'function') ? getImbelTipo(first.tipo) : { label: first.tipo||'—', cor:'#64748b', bg:'#f8fafc', icon:'' };
+
+                                // nome do produto (quando todos os itens forem do mesmo produto)
+                                const prodNome = itens[0]?.produtoNome
+                                    || (data.produtos||[]).find(p => p.id === itens[0]?.produtoId)?.nome
+                                    || '—';
+
+                                const produtoCell = temMultiplosProdutos
+                                    ? `<td style="${tdBase};color:#1d4ed8;font-weight:600;cursor:pointer" onclick="imbelToggleGrupo('${groupKey}',event)">
+                                         <span data-expand-ind>▸</span> ${itens.length} produto(s)
+                                       </td>`
+                                    : `<td style="${tdBase};font-weight:500">${prodNome}</td>`;
 
                                 const entCell = `<td style="${tdCenter}">
                                     <input type="checkbox" class="imbel_table_chk_ent"
@@ -5766,10 +5772,7 @@ function renderControleImbelMovimentacao() {
                 ${cfgSafe.icon||''} ${cfgSafe.label||first.tipo||'—'}
             </span>
         </td>
-        <td style="${tdStyle};font-weight:500">
-            ${prodNome}
-            <div style="font-size:0.82rem;color:#1d4ed8;cursor:pointer;margin-top:4px" onclick="imbelToggleGrupo('${groupKey}')">▸ ${itens.length} item(ns)</div>
-        </td>
+        ${produtoCell}
         <td style="${tdCenter};font-weight:700">${totalQtd}</td>
         <td style="${tdCenter};font-weight:700;color:#16a34a">${fmt(totalVal)}</td>
         ${entCell}
@@ -5780,69 +5783,43 @@ function renderControleImbelMovimentacao() {
             <button class="btn btn-outline" style="padding:3px 8px;font-size:.75rem;color:#dc2626;border-color:#fca5a5" data-delid="${itens[0].id}" title="Excluir">🗑️</button>
         </td>`;
 
-                                // manter toggle dos produtos do grupo (clicando no contador)
-                                trGroup.addEventListener('click', () => imbelToggleGrupo(groupKey));
-
-                                // Click para expandir detalhes secundários (telefone, email, endereço, observações)
+                                // Click no cabeçalho do grupo: toggle apenas a linha de detalhes (CPF/contato/endereço/obs)
                                 trGroup.style.cursor = 'pointer';
                                 trGroup.addEventListener('click', function(e){
-                                        if (e.target.tagName === 'INPUT' || e.target.tagName === 'BUTTON') return;
-                                        const existing = this.nextSibling;
-                                        if (existing && existing.classList && existing.classList.contains('imbel-detail-expand')) { existing.remove(); return; }
-                                        document.querySelectorAll('.imbel-detail-expand').forEach(r => r.remove());
-                                        const campos = [
-                                            first.telefone ? `📞 ${first.telefone}` : null,
-                                            first.email ? `📧 ${first.email}` : null,
-                                            first.endereco ? `📍 ${first.endereco}` : null,
-                                            first.observacoes ? `💬 ${first.observacoes}` : null,
-                                        ].filter(Boolean);
-                                        if (!campos.length) return;
-                                        const detail = document.createElement('tr');
-                                        detail.className = 'imbel-detail-expand';
-                                        detail.style.cssText = 'background:#fffbf0;border-bottom:1px solid #fcd34d';
-                                        detail.innerHTML = `
-                                            <td colspan="11" style="padding:8px 12px 8px 48px;border-left:3px solid #fcd34d;font-size:0.82rem">
-                                                ${campos.map(c => `<span style="margin-right:20px;color:#475569">${c}</span>`).join('')}
-                                            </td>`;
-                                        this.after(detail);
+                                    if (e.target.closest('input,button,[onclick]')) return;
+                                    const detailRow = document.querySelector(`[data-group-detail="${groupKey}"]`);
+                                    if (!detailRow) return;
+                                    const isOpen = detailRow.style.display !== 'none';
+                                    // fechar outras linhas de detalhe
+                                    document.querySelectorAll('[data-group-detail]').forEach(r => { if (r.dataset.groupDetail !== groupKey) r.style.display = 'none'; });
+                                    detailRow.style.display = isOpen ? 'none' : '';
                                 });
                 tbody.appendChild(trGroup);
 
                 // ── PRODUCT DETAIL ROWS (hidden by default) ──
-                itens.forEach(m => {
-                    const trItem = document.createElement('tr');
-                    trItem.dataset.groupChild = groupKey;
-                    trItem.style.cssText =
-                        'display:none;background:#f0f9ff;' +
-                        'border-bottom:1px solid #e2e8f0;font-size:0.82rem';
-                    trItem.innerHTML = `
-                <td style="${tdCenter}"></td>
-                <td colspan="2"
-                        style="${tdBase};padding-left:32px;color:#64748b">
-                    └
-                </td>
-                <td></td>
-                <td style="${tdBase};color:#1e293b;font-weight:500">
-                    ${m.produtoNome
-                        || (data.produtos||[]).find(p=>p.id===m.produtoId)?.nome
-                        || m.descricao
-                        || m.produtoId
-                        || '—'}
-                </td>
-                <td style="${tdCenter};font-weight:600">
-                    ${m.quantidade||0}
-                </td>
-                <td style="${tdCenter};color:#16a34a;font-weight:600">
-                    ${fmt(m.valor)}
-                </td>
-                <td colspan="4"
-                        style="${tdBase};font-size:0.78rem;color:#94a3b8">
-                    ${m.valorUnit
-                        ? 'Unit: ' + fmt(m.valorUnit)
-                        : ''}
-                </td>`;
-                    tbody.appendChild(trItem);
-                });
+                if (temMultiplosProdutos) {
+                    itens.forEach(m => {
+                        const pNome = m.produtoNome
+                            || (data.produtos||[]).find(p=>p.id===m.produtoId)?.nome
+                            || '—';
+                        const trItem = document.createElement('tr');
+                        trItem.dataset.groupChild = groupKey;
+                        trItem.style.cssText =
+                            'display:none;background:#f0f9ff;' +
+                            'border-bottom:1px solid #e2e8f0;font-size:0.85rem';
+                        trItem.innerHTML = `
+                    <td style="${tdCenter}"></td>
+                    <td colspan="2" style="${tdBase};padding-left:32px;\n                                    color:#64748b;font-size:0.8rem">
+                      └
+                    </td>
+                    <td></td>
+                    <td style="${tdBase};font-weight:500;color:#1e293b">${pNome}</td>
+                    <td style="${tdCenter};font-weight:600">${m.quantidade||0}</td>
+                    <td style="${tdCenter};font-weight:600;color:#16a34a">R$ ${Number(m.valor||0).toLocaleString('pt-BR',{minimumFractionDigits:2})}</td>
+                    <td colspan="4"></td>`;
+                        tbody.appendChild(trItem);
+                    });
+                }
 
                 // ── DETAIL EXPAND ROW (person info) ──
                 const trDetail = document.createElement('tr');
@@ -5850,25 +5827,20 @@ function renderControleImbelMovimentacao() {
                 trDetail.style.display = 'none';
 
                 const campos = [
-                    ['📞', first.telefone],
-                    ['📧', first.email],
-                    ['📍', first.endereco],
-                    ['📣', first.evento],
-                    ['💬', first.observacoes],
-                ].filter(([,v]) => v && v.trim());
+                    first.cpfCnpj    ? `🪪 <strong>CPF/CNPJ:</strong> ${first.cpfCnpj}` : null,
+                    first.telefone   ? `📞 ${first.telefone}` : null,
+                    first.email      ? `📧 ${first.email}` : null,
+                    first.endereco   ? `📍 ${first.endereco}` : null,
+                    first.evento     ? `📣 ${first.evento}` : null,
+                    first.observacoes? `💬 ${first.observacoes}` : null,
+                ].filter(Boolean);
 
                 trDetail.innerHTML = `
             <td colspan="11"
-                    style="${tdBase};background:#fffbf0;
-                                 border-left:3px solid #fcd34d;
-                                 padding-left:52px">
+                    style="padding:10px 12px 10px 52px;background:#f8fafc;\n                           border-left:4px solid #1e3a5f;border-bottom:1px solid #e2e8f0;\n                           font-size:0.82rem">
                 ${campos.length
-                    ? campos.map(([icon, val]) =>
-                            `<span style="margin-right:20px;font-size:0.82rem">
-                                 ${icon} ${val}
-                             </span>`
-                        ).join('')
-                    : '<span style="color:#94a3b8;font-size:0.82rem">Sem detalhes adicionais</span>'}
+                    ? campos.map(c => `<span style="margin-right:24px;color:#475569">${c}</span>`).join('')
+                    : '<span style="color:#94a3b8">Sem informações adicionais</span>'}
             </td>`;
                 tbody.appendChild(trDetail);
             });
@@ -5933,27 +5905,26 @@ function renderControleImbelMovimentacao() {
         }
 
         // Funções públicas para manipular grupos (tornadas globais)
-        window.imbelToggleGrupo = function(groupKey) {
+        window.imbelToggleGrupo = function(groupKey, event) {
+            if (event) try { event.stopPropagation(); } catch(e) {}
+
             const children = document.querySelectorAll(
                 `[data-group-child="${groupKey}"],
                  [data-group-detail="${groupKey}"]`
             );
-            const isOpen = children[0]?.style.display !== 'none';
 
-            // Update expand indicator
-            const headerRow = document.querySelector(`[data-group-key="${groupKey}"]`);
-            const indicator = headerRow?.querySelector('td:nth-child(5)');
+            const isOpen = children.length > 0 && children[0].style.display !== 'none';
 
-            children.forEach(r => {
-                r.style.display = isOpen ? 'none' : '';
-            });
-            if (indicator) {
-                const txt = indicator.textContent.trim();
-                const count = txt.match(/\d+/)?.[0] || '';
-                indicator.innerHTML = `
-            <span style="color:#1d4ed8;font-weight:600;cursor:pointer">
-                ${isOpen ? '▸' : '▾'} ${count} item(ns)
-            </span>`;
+            if (isOpen) {
+                // Close all
+                children.forEach(r => { r.style.display = 'none'; });
+                const indEl = document.querySelector(`[data-group-key="${groupKey}"] [data-expand-ind]`);
+                if (indEl) indEl.textContent = '▸';
+            } else {
+                // Open all
+                children.forEach(r => { r.style.display = ''; });
+                const indEl = document.querySelector(`[data-group-key="${groupKey}"] [data-expand-ind]`);
+                if (indEl) indEl.textContent = '▾';
             }
         };
 
