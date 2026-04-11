@@ -2497,8 +2497,63 @@
             </form>
         </div>
     </div>
+    
+        <!-- Modal Histórico do Cliente -->
+        <div id="modalHistoricoCliente" class="modal" style="display:none">
+            <div class="modal-content modal-lg">
+                <div class="modal-header" style="background:#1e3a5f">
+                    <h2 style="color:#fff"><span>📋</span> Histórico do Cliente</h2>
+                    <span class="close" onclick="fecharModal('modalHistoricoCliente')" style="color:#fff">&times;</span>
+                </div>
+                <div class="modal-body" style="padding:20px">
 
-        <!-- Modal: Confirmar Conversão em Venda -->
+                    <!-- Client summary cards -->
+                    <div id="historicoClienteHeader"
+                             style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));
+                                            gap:12px;margin-bottom:20px">
+                    </div>
+
+                    <!-- Tabs: Contratos | Propostas | Precificações -->
+                    <div style="display:flex;border-bottom:2px solid #e2e8f0;margin-bottom:16px;gap:0">
+                        <button onclick="trocarAbaHistoricoCliente('contratos')"
+                                        id="hcTab-contratos"
+                                        style="padding:8px 20px;border:none;background:transparent;
+                                                     font-size:0.9rem;font-weight:600;cursor:pointer;
+                                                     color:#1e3a5f;border-bottom:2px solid #1e3a5f;
+                                                     margin-bottom:-2px">
+                            📄 Contratos
+                        </button>
+                        <button onclick="trocarAbaHistoricoCliente('propostas')"
+                                        id="hcTab-propostas"
+                                        style="padding:8px 20px;border:none;background:transparent;
+                                                     font-size:0.9rem;font-weight:600;cursor:pointer;
+                                                     color:#64748b;border-bottom:2px solid transparent;
+                                                     margin-bottom:-2px">
+                            📋 Propostas
+                        </button>
+                        <button onclick="trocarAbaHistoricoCliente('precificacoes')"
+                                        id="hcTab-precificacoes"
+                                        style="padding:8px 20px;border:none;background:transparent;
+                                                     font-size:0.9rem;font-weight:600;cursor:pointer;
+                                                     color:#64748b;border-bottom:2px solid transparent;
+                                                     margin-bottom:-2px">
+                            💰 Precificações
+                        </button>
+                    </div>
+
+                    <div id="hcContent-contratos"></div>
+                    <div id="hcContent-propostas" style="display:none"></div>
+                    <div id="hcContent-precificacoes" style="display:none"></div>
+
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-outline" onclick="fecharModal('modalHistoricoCliente')">Fechar</button>
+                    <button class="btn btn-primary" onclick="trocarAba('propostas')">Ver Propostas →</button>
+                </div>
+            </div>
+        </div>
+
+                <!-- Modal: Confirmar Conversão em Venda -->
         <div id="modalConfirmarVenda" class="modal" style="display:none">
             <div class="modal-content" style="max-width:560px">
                 <div class="modal-header" style="background:#1e3a5f">

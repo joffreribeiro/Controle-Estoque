@@ -9192,6 +9192,10 @@ function renderizarClientes(filtro = '') {
             <td>${repBadge}</td>
             <td style="text-align:center">${totalCompras}</td>
             <td class="col-acoes">
+                <button class="btn-action" onclick="abrirHistoricoCliente('${c.id}')" title="Ver histórico de compras"
+                    style="background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;border-radius:6px;padding:3px 8px;cursor:pointer;font-size:0.8rem">
+                    📋 Histórico
+                </button>
                 <button class="btn-action btn-edit" data-admin="true" onclick="abrirModalCliente('${c.id}')" title="Editar cliente">✎</button>
                 <button class="btn-action btn-delete" data-admin="true" onclick="excluirCliente('${c.id}')" title="Excluir cliente">🗑</button>
             </td>
@@ -9264,6 +9268,204 @@ function imprimirClientes() {
         <script>window.onload=function(){ setTimeout(function(){ window.print(); },200); }<\/script>
     </head><body><h2>Cadastro de Clientes</h2>${html}</body></html>`);
     win.document.close();
+}
+
+let _clienteHistoricoAtual = null;
+
+function abrirHistoricoCliente(clienteId) {
+    const cliente = (clientes||[]).find(c => String(c.id) === String(clienteId));
+    if (!cliente) return;
+    _clienteHistoricoAtual = cliente;
+
+    const vendas = (estoque.registroVendas||[])
+        .filter(v => (v.loja||'').toLowerCase() === (cliente.nome||'').toLowerCase())
+        .sort((a,b) => new Date(b.data||0) - new Date(a.data||0));
+
+    const propostasC = (propostas||[])
+        .filter(p => p.cliente === cliente.nome)
+        .sort((a,b) => new Date(b.dataCriacao||b.data||0) - new Date(a.dataCriacao||a.data||0));
+
+    const precifs = (precificacoesCliente||[])
+        .filter(p => String(p.clienteId) === String(clienteId))
+        .sort((a,b) => new Date(b.dataCriacao||0) - new Date(a.dataCriacao||0));
+
+    const fmt = v => 'R$ ' + (v||0).toLocaleString('pt-BR',{minimumFractionDigits:2});
+    const totalFaturado = vendas.reduce((s,v) => s+(v.valorTotal||0), 0);
+    const ticketMedio = vendas.length > 0 ? totalFaturado / vendas.length : 0;
+    const taxaConversao = propostasC.length > 0
+        ? Math.round(propostasC.filter(p=>p.status==='aceita').length / propostasC.length * 100)
+        : 0;
+    const ultimaCompra = vendas[0]?.data
+        ? new Date(vendas[0].data).toLocaleDateString('pt-BR')
+        : '—';
+
+    // Header cards
+    const headerEl = document.getElementById('historicoClienteHeader');
+    if (headerEl) headerEl.innerHTML = `
+        <div style="background:#eff6ff;border-radius:10px;padding:14px;
+                                border:1px solid #bfdbfe;text-align:center">
+            <div style="font-size:1.8rem;font-weight:800;color:#1d4ed8">
+                ${vendas.length}
+            </div>
+            <div style="font-size:0.78rem;color:#64748b;text-transform:uppercase;
+                                    letter-spacing:0.5px;margin-top:2px">Contratos</div>
+        </div>
+        <div style="background:#f0fdf4;border-radius:10px;padding:14px;
+                                border:1px solid #86efac;text-align:center">
+            <div style="font-size:1.4rem;font-weight:800;color:#16a34a">
+                ${fmt(totalFaturado)}
+            </div>
+            <div style="font-size:0.78rem;color:#64748b;text-transform:uppercase;
+                                    letter-spacing:0.5px;margin-top:2px">Total Faturado</div>
+        </div>
+        <div style="background:#fff7ed;border-radius:10px;padding:14px;
+                                border:1px solid #fdba74;text-align:center">
+            <div style="font-size:1.4rem;font-weight:800;color:#d97706">
+                ${fmt(ticketMedio)}
+            </div>
+            <div style="font-size:0.78rem;color:#64748b;text-transform:uppercase;
+                                    letter-spacing:0.5px;margin-top:2px">Ticket Médio</div>
+        </div>
+        <div style="background:#faf5ff;border-radius:10px;padding:14px;
+                                border:1px solid #d8b4fe;text-align:center">
+            <div style="font-size:1.8rem;font-weight:800;color:#7c3aed">
+                ${taxaConversao}%
+            </div>
+            <div style="font-size:0.78rem;color:#64748b;text-transform:uppercase;
+                                    letter-spacing:0.5px;margin-top:2px">Taxa Conversão</div>
+        </div>
+        <div style="background:#f1f5f9;border-radius:10px;padding:14px;
+                                border:1px solid #cbd5e1;text-align:center">
+            <div style="font-size:1rem;font-weight:700;color:#1e293b">
+                ${ultimaCompra}
+            </div>
+            <div style="font-size:0.78rem;color:#64748b;text-transform:uppercase;
+                                    letter-spacing:0.5px;margin-top:2px">Última Compra</div>
+        </div>
+    `;
+
+    // Contratos tab
+    const elContratos = document.getElementById('hcContent-contratos');
+    if (elContratos) {
+        elContratos.innerHTML = vendas.length === 0
+            ? `<div style="text-align:center;padding:40px;color:#94a3b8">Nenhum contrato registrado para este cliente</div>`
+            : `<table class="dashboard-table" style="font-size:0.85rem">
+                    <thead>
+                        <tr>
+                            <th>Contrato</th>
+                            <th>Data</th>
+                            <th>Representante</th>
+                            <th style="text-align:center">Itens</th>
+                            <th style="text-align:right">Valor Total</th>
+                            <th>Observações</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${vendas.map(v => `
+                            <tr>
+                                <td style="font-weight:700;color:#1e3a5f">#${v.contrato}</td>
+                                <td>${v.data ? new Date(v.data).toLocaleDateString('pt-BR') : '—'}</td>
+                                <td>${v.representante || '—'}</td>
+                                <td style="text-align:center">${(v.items||v.itens||[]).length}</td>
+                                <td style="text-align:right;font-weight:700;color:#16a34a">${fmt(v.valorTotal)}</td>
+                                <td style="font-size:0.78rem;color:#64748b;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${v.observacoes||''}">${v.observacoes || '—'}</td>
+                            </tr>`).join('')}
+                    </tbody>
+                    <tfoot>
+                        <tr style="background:#f8fafc;font-weight:700">
+                            <td colspan="4" style="padding:10px 12px;color:#64748b">Total (${vendas.length} contrato(s))</td>
+                            <td style="text-align:right;color:#16a34a;font-size:1rem">${fmt(totalFaturado)}</td>
+                            <td></td>
+                        </tr>
+                    </tfoot>
+                </table>`;
+    }
+
+    // Propostas tab
+    const elPropostas = document.getElementById('hcContent-propostas');
+    const statusColor = { rascunho:'#64748b', enviada:'#1d4ed8', aceita:'#16a34a', recusada:'#dc2626', expirada:'#d97706', convertida:'#0ea5e9' };
+    if (elPropostas) {
+        elPropostas.innerHTML = propostasC.length === 0
+            ? `<div style="text-align:center;padding:40px;color:#94a3b8">Nenhuma proposta para este cliente</div>`
+            : `<table class="dashboard-table" style="font-size:0.85rem">
+                    <thead>
+                        <tr>
+                            <th>Proposta</th>
+                            <th>Data</th>
+                            <th>Status</th>
+                            <th style="text-align:center">Itens</th>
+                            <th style="text-align:right">Valor</th>
+                            <th>Contrato</th>
+                            <th>Motivo Recusa</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${propostasC.map(p => {
+                            const sc = statusColor[p.status]||'#64748b';
+                            return `<tr>
+                                <td style="font-weight:700;color:#1e3a5f">${_escapeHtml(p.numero)}</td>
+                                <td>${new Date(p.dataCriacao||p.data||new Date()).toLocaleDateString('pt-BR')}</td>
+                                <td><span style="background:${sc}20;color:${sc};font-size:0.72rem;font-weight:600;padding:2px 8px;border-radius:20px">${p.status}</span></td>
+                                <td style="text-align:center">${(p.itens||[]).length}</td>
+                                <td style="text-align:right;font-weight:600;color:#16a34a">${fmt(p.valorTotal)}</td>
+                                <td style="font-weight:600;color:#1e3a5f">${p.contratoNumero ? '#'+p.contratoNumero : '—'}</td>
+                                <td style="font-size:0.78rem;color:#dc2626;max-width:180px;overflow:hidden;text-overflow:ellipsis" title="${p.motivoRecusa||''}">${p.motivoRecusa || '—'}</td>
+                            </tr>`;
+                        }).join('')}
+                    </tbody>
+                </table>`;
+    }
+
+    // Precificações tab
+    const elPrec = document.getElementById('hcContent-precificacoes');
+    if (elPrec) {
+        elPrec.innerHTML = precifs.length === 0
+            ? `<div style="text-align:center;padding:40px;color:#94a3b8">Nenhuma precificação salva para este cliente</div>`
+            : `<table class="dashboard-table" style="font-size:0.85rem">
+                    <thead>
+                        <tr>
+                            <th>Versão</th>
+                            <th>Data</th>
+                            <th>Descrição</th>
+                            <th>Taxa</th>
+                            <th>ROI</th>
+                            <th style="text-align:center">Produtos</th>
+                            <th>Status</th>
+                            <th>Proposta</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${precifs.map(p => `
+                            <tr>
+                                <td style="font-weight:700;color:#1e3a5f">v${p.versao||1}</td>
+                                <td>${new Date(p.dataCriacao||new Date()).toLocaleDateString('pt-BR')}</td>
+                                <td style="color:#475569">${_escapeHtml(p.descricao||'—')}</td>
+                                <td style="text-align:center">${p.taxa||0}%</td>
+                                <td style="text-align:center">${p.roi||0}%</td>
+                                <td style="text-align:center">${(p.itens||[]).length}</td>
+                                <td><span style="font-size:0.72rem;font-weight:600;padding:2px 8px;border-radius:20px;background:${p.status==='ativa'?'#f0fdf4':p.status==='convertida'?'#eff6ff':'#f1f5f9'};color:${p.status==='ativa'?'#16a34a':p.status==='convertida'?'#1d4ed8':'#64748b'}">${p.status}</span></td>
+                                <td style="color:#0ea5e9;font-weight:600">${p.propostaId ? ((propostas||[]).find(x=>x.id===p.propostaId)?.numero||'—') : '—'}</td>
+                            </tr>`).join('')}
+                    </tbody>
+                </table>`;
+    }
+
+    // Show first tab
+    trocarAbaHistoricoCliente('contratos');
+    const modal = document.getElementById('modalHistoricoCliente');
+    if (modal) modal.style.display = 'flex';
+}
+
+function trocarAbaHistoricoCliente(aba) {
+    ['contratos','propostas','precificacoes'].forEach(t => {
+        const content = document.getElementById('hcContent-' + t);
+        const btn = document.getElementById('hcTab-' + t);
+        if (content) content.style.display = t === aba ? 'block' : 'none';
+        if (btn) {
+            btn.style.color = t === aba ? '#1e3a5f' : '#64748b';
+            btn.style.borderBottomColor = t === aba ? '#1e3a5f' : 'transparent';
+        }
+    });
 }
 
 // ========================================
