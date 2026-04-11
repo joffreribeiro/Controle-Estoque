@@ -55,6 +55,52 @@
                         <div class="subtitle">FÁBRICA DE ITAJUBÁ</div>
                     </div>
                 </div>
+
+                                        <!-- Numeração de Contratos -->
+                                        <div style="background:#fff;border:1px solid #e2e8f0;border-radius:10px;
+                                                                padding:20px;margin-bottom:16px">
+                                            <div style="font-size:0.85rem;font-weight:700;color:#1e3a5f;
+                                                                    margin-bottom:14px;text-transform:uppercase;letter-spacing:0.5px">
+                                                📄 Numeração de Contratos
+                                            </div>
+                                            <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:end">
+                                                <div class="form-group" style="margin:0">
+                                                    <label style="font-size:0.82rem;color:#64748b">Ano do contrato</label>
+                                                    <input type="number" id="configContratoAno" oninput="atualizarPreviaContrato()"
+                                                                 min="2020" max="2099" step="1"
+                                                                 placeholder="2026"
+                                                                 style="width:100px;padding:8px 10px;border:1px solid #e2e8f0;
+                                                                                border-radius:6px;font-size:0.95rem;text-align:center">
+                                                </div>
+                                                <div class="form-group" style="margin:0">
+                                                    <label style="font-size:0.82rem;color:#64748b">
+                                                        Próximo número sequencial
+                                                    </label>
+                                                    <input type="number" id="configContratoProximo" oninput="atualizarPreviaContrato()"
+                                                                 min="1" step="1"
+                                                                 placeholder="1"
+                                                                 style="width:120px;padding:8px 10px;border:1px solid #e2e8f0;
+                                                                                border-radius:6px;font-size:0.95rem;text-align:center">
+                                                </div>
+                                                <div class="form-group" style="margin:0">
+                                                    <label style="font-size:0.82rem;color:#64748b">Prévia</label>
+                                                    <div id="configContratoPreviaPrev"
+                                                             style="padding:8px 14px;background:#1e3a5f;color:#c9a227;
+                                                                            border-radius:6px;font-weight:700;font-size:1rem;
+                                                                            min-width:100px;text-align:center">
+                                                        001/2026
+                                                    </div>
+                                                </div>
+                                                <button class="btn btn-primary btn-sm"
+                                                                onclick="salvarConfigContrato()">
+                                                    Salvar Configuração
+                                                </button>
+                                            </div>
+                                            <div style="font-size:0.78rem;color:#94a3b8;margin-top:8px">
+                                                O ano reinicia automaticamente em 1º de janeiro.
+                                                O número sequencial é incrementado a cada contrato gerado.
+                                            </div>
+                                        </div>
             </div>
 
             <nav class="sidebar-nav" aria-label="Navegação principal">
@@ -2568,8 +2614,8 @@
                                                         display:block;margin-bottom:5px">
                                 Número do Contrato
                             </label>
-                            <input type="number" id="confirmarVendaContrato"
-                                         min="1" step="1"
+                            <input type="text" id="confirmarVendaContrato"
+                                         placeholder="001/2026"
                                          style="width:100%;padding:10px 12px;border:2px solid #1e3a5f;
                                                         border-radius:8px;font-size:1.1rem;font-weight:700;
                                                         color:#1e3a5f;text-align:center">

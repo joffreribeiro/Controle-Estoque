@@ -644,6 +644,15 @@ function popularSelectRepresentantes(selectId, incluirImbel = true) {
 
 async function inicializar() {
     carregarDados();
+    // Load contract config into Configurações tab
+    try {
+        const cfg = carregarConfigContrato();
+        const anoEl = document.getElementById('configContratoAno');
+        const proxEl = document.getElementById('configContratoProximo');
+        if (anoEl) anoEl.value = cfg.ano;
+        if (proxEl) proxEl.value = cfg.proximo;
+        atualizarPreviaContrato();
+    } catch (e) {}
     try { verificarExpiracaoPrecificacoes(); } catch (e) {}
     try { inicializarImpostosPreDefinidos(); } catch (e) { console.warn('Inicialização de impostos predefinidos falhou:', e); }
 
@@ -5685,6 +5694,56 @@ function salvarEntradaEstoque(event) {
 // REGISTRO DE VENDAS DETALHADO
 // ========================================
 
+// Configuração de Numeração de Contratos (NNN/AAAA)
+function carregarConfigContrato() {
+    try {
+        const cfg = JSON.parse(localStorage.getItem('configContrato') || '{}');
+        return {
+            ano:     cfg.ano     || new Date().getFullYear(),
+            proximo: cfg.proximo || 1,
+        };
+    } catch(e) {
+        return { ano: new Date().getFullYear(), proximo: 1 };
+    }
+}
+
+function salvarConfigContrato() {
+    const ano     = parseInt(document.getElementById('configContratoAno')?.value)     || new Date().getFullYear();
+    const proximo = parseInt(document.getElementById('configContratoProximo')?.value)  || 1;
+    const cfg = { ano, proximo };
+    localStorage.setItem('configContrato', JSON.stringify(cfg));
+    try { atualizarPreviaContrato(); } catch(e) {}
+    try { mostrarNotificacao('Configuração de contrato salva!', 'success'); } catch(e) {}
+}
+
+function atualizarPreviaContrato() {
+    const ano     = parseInt(document.getElementById('configContratoAno')?.value)     || new Date().getFullYear();
+    const proximo = parseInt(document.getElementById('configContratoProximo')?.value)  || 1;
+    const previa  = document.getElementById('configContratoPreviaPrev');
+    if (previa) {
+        previa.textContent = String(proximo).padStart(3,'0') + '/' + ano;
+    }
+}
+
+function gerarNumeroContrato() {
+    const cfg = carregarConfigContrato();
+    const anoAtual = new Date().getFullYear();
+
+    if (cfg.ano !== anoAtual) {
+        // new year: reset sequence
+        cfg.ano = anoAtual;
+        cfg.proximo = 1;
+    }
+
+    const numero = String(cfg.proximo).padStart(3, '0') + '/' + cfg.ano;
+
+    // Increment and save
+    cfg.proximo++;
+    localStorage.setItem('configContrato', JSON.stringify(cfg));
+
+    return numero;
+}
+
 function abrirModalVendaDetalhada(vendaId = null, propostaId = null) {
     // vendaId: se fornecido, abre o modal em modo de edição para essa venda
     // propostaId: se fornecido, preenche campos a partir da proposta para revisão
@@ -5718,10 +5777,7 @@ function abrirModalVendaDetalhada(vendaId = null, propostaId = null) {
             vendaEditandoId = null;
             container.innerHTML = '';
 
-            const ultimoContrato = estoque.registroVendas.length > 0
-                ? Math.max(...estoque.registroVendas.map(v => parseInt(v.contrato) || 0))
-                : 0;
-            document.getElementById('contratoVenda').value = ultimoContrato + 1;
+            document.getElementById('contratoVenda').value = gerarNumeroContrato();
             document.getElementById('lojaVenda').value = proposta.cliente || '';
             document.getElementById('representanteVendaDet').value = proposta.representante || '';
             document.getElementById('observacoesVenda').value = 'Gerado a partir da proposta ' + proposta.numero + (proposta.observacoes ? '\n' + proposta.observacoes : '');
@@ -5746,10 +5802,7 @@ function abrirModalVendaDetalhada(vendaId = null, propostaId = null) {
         container.innerHTML = '';
         adicionarItemVendaRow();
 
-        const ultimoContrato = estoque.registroVendas.length > 0 
-            ? Math.max(...estoque.registroVendas.map(v => parseInt(v.contrato) || 0)) 
-            : 0;
-        document.getElementById('contratoVenda').value = ultimoContrato + 1;
+        document.getElementById('contratoVenda').value = gerarNumeroContrato();
         // Preencher data padrão como hoje
         try { document.getElementById('dataVenda').value = new Date().toISOString().slice(0,10); } catch (e) {}
         return;
@@ -12039,11 +12092,8 @@ function converterPropostaEmVenda(propostaId) {
 
     _propostaParaConverter = proposta;
 
-    // Calculate next contract number
-    const ultimoContrato = estoque.registroVendas.length > 0
-        ? Math.max(...estoque.registroVendas.map(v => parseInt(v.contrato) || 0))
-        : 0;
-    const nextNum = ultimoContrato + 1;
+    // Calculate next contract number (format NNN/AAAA)
+    const nextNum = gerarNumeroContrato();
 
     // Populate modal
     const contratoEl = document.getElementById('confirmarVendaContrato');
