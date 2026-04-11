@@ -1538,53 +1538,69 @@ function obterAuditoriaPorContrato(contrato) {
 // ========================================
 
 function trocarAba(aba) {
-    abaAtiva = aba;
-    // Atualizar botões de navegação (sidebar e fallback antigo)
-    document.querySelectorAll('.sidebar .nav-item, .tabs-navigation .tab-btn').forEach(btn => {
-        btn.classList.remove('active');
-    });
-    const activeSidebarBtn = document.querySelector(`.sidebar .nav-item[data-tab="${aba}"]`);
-    const activeLegacyBtn = document.querySelector(`.tabs-navigation .tab-btn[data-tab="${aba}"]`);
-    if (activeSidebarBtn) activeSidebarBtn.classList.add('active');
-    if (activeLegacyBtn) activeLegacyBtn.classList.add('active');
-    
-    // Atualizar conteúdo
-    document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
-    document.getElementById(`tab-${aba}`).classList.add('active');
-    
-    // Mostrar/ocultar barra de ações
-    const acoesEstoque = document.getElementById('acoesEstoque');
-    if (aba === 'estoque') {
-        acoesEstoque.style.display = 'flex';
-    } else {
-        acoesEstoque.style.display = 'none';
-    }
+    try {
+        const targetId = `tab-${aba}`;
+        const target = document.getElementById(targetId);
+        if (!target) {
+            const msg = `Aba não encontrada: ${targetId}`;
+            console.error(msg);
+            if (window.__showRuntimeErrorOverlay) window.__showRuntimeErrorOverlay(msg);
+            return;
+        }
 
-    if (aba === 'dashboard') {
-        try { renderizarDashboard(); } catch (e) { console.error('dashboard:', e); }
-    } else if (aba === 'cadastro-produtos') {
-        try { renderizarCadastroProdutos(); } catch (e) { console.error('cadastro-produtos:', e); }
-    } else if (aba === 'vendas') {
-        try { renderizarRegistroVendas(); } catch (e) { console.error('vendas:', e); }
-    } else if (aba === 'distribuicao') {
-        try { renderizarRegistroDistribuicao(); } catch (e) {}
-        try { atualizarSelectDistribuicaoProduto(); } catch (e) {}
-    } else if (aba === 'relatorios') {
-        try { prepararRelatorioInventario(); } catch (e) {}
-        try { gerarRelatorioRentabilidade(); } catch (e) {}
-    } else if (aba === 'controleenvio') {
-        try { renderizarControleEnvio(); } catch (e) {}
-    } else if (aba === 'controleimbel') {
-        try { trocarSubAbaControleImbel('estoque'); } catch (e) {}
-    } else if (aba === 'precificacao') {
-        try { trocarSubabaPrecif('federais'); } catch (e) {}
-        try { renderizarPrecificacao(); } catch (e) {}
-    } else if (aba === 'clientes') {
-        try { renderizarClientes(); } catch (e) {}
-    } else if (aba === 'propostas') {
-        try { renderizarPropostas(); } catch (e) {}
-    } else if (aba === 'estoque') {
-        try { renderizarTabela(); } catch (e) {}
+        abaAtiva = aba;
+        try { window.abaAtiva = aba; } catch (e) {}
+
+        // Atualizar botões de navegação (sidebar e fallback antigo)
+        document.querySelectorAll('.sidebar .nav-item, .tabs-navigation .tab-btn').forEach(btn => {
+            btn.classList.remove('active');
+        });
+        const activeSidebarBtn = document.querySelector(`.sidebar .nav-item[data-tab="${aba}"]`);
+        const activeLegacyBtn = document.querySelector(`.tabs-navigation .tab-btn[data-tab="${aba}"]`);
+        if (activeSidebarBtn) activeSidebarBtn.classList.add('active');
+        if (activeLegacyBtn) activeLegacyBtn.classList.add('active');
+
+        // Atualizar conteúdo de forma segura
+        document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+        target.classList.add('active');
+
+        // Mostrar/ocultar barra de ações
+        const acoesEstoque = document.getElementById('acoesEstoque');
+        if (acoesEstoque) acoesEstoque.style.display = (aba === 'estoque') ? 'flex' : 'none';
+
+        if (aba === 'dashboard') {
+            try { renderizarDashboard(); } catch (e) { console.error('dashboard:', e); if (window.__showRuntimeErrorOverlay) window.__showRuntimeErrorOverlay(e); }
+        } else if (aba === 'cadastro-produtos') {
+            try { renderizarCadastroProdutos(); } catch (e) { console.error('cadastro-produtos:', e); if (window.__showRuntimeErrorOverlay) window.__showRuntimeErrorOverlay(e); }
+        } else if (aba === 'vendas') {
+            try { renderizarRegistroVendas(); } catch (e) { console.error('vendas:', e); if (window.__showRuntimeErrorOverlay) window.__showRuntimeErrorOverlay(e); }
+        } else if (aba === 'distribuicao') {
+            try { renderizarRegistroDistribuicao(); } catch (e) { if (window.__showRuntimeErrorOverlay) window.__showRuntimeErrorOverlay(e); }
+            try { atualizarSelectDistribuicaoProduto(); } catch (e) { if (window.__showRuntimeErrorOverlay) window.__showRuntimeErrorOverlay(e); }
+        } else if (aba === 'relatorios') {
+            try { prepararRelatorioInventario(); } catch (e) { if (window.__showRuntimeErrorOverlay) window.__showRuntimeErrorOverlay(e); }
+            try { gerarRelatorioRentabilidade(); } catch (e) { if (window.__showRuntimeErrorOverlay) window.__showRuntimeErrorOverlay(e); }
+        } else if (aba === 'controleenvio') {
+            try { renderizarControleEnvio(); } catch (e) { if (window.__showRuntimeErrorOverlay) window.__showRuntimeErrorOverlay(e); }
+        } else if (aba === 'controleimbel') {
+            try { trocarSubAbaControleImbel('estoque'); } catch (e) { if (window.__showRuntimeErrorOverlay) window.__showRuntimeErrorOverlay(e); }
+        } else if (aba === 'precificacao') {
+            try { trocarSubabaPrecif('federais'); } catch (e) { if (window.__showRuntimeErrorOverlay) window.__showRuntimeErrorOverlay(e); }
+            try { renderizarPrecificacao(); } catch (e) { if (window.__showRuntimeErrorOverlay) window.__showRuntimeErrorOverlay(e); }
+        } else if (aba === 'clientes') {
+            try { renderizarClientes(); } catch (e) { if (window.__showRuntimeErrorOverlay) window.__showRuntimeErrorOverlay(e); }
+        } else if (aba === 'propostas') {
+            try { renderizarPropostas(); } catch (e) { if (window.__showRuntimeErrorOverlay) window.__showRuntimeErrorOverlay(e); }
+        } else if (aba === 'estoque') {
+            try { renderizarTabela(); } catch (e) { if (window.__showRuntimeErrorOverlay) window.__showRuntimeErrorOverlay(e); }
+        } else if (aba === 'configuracoes') {
+            try { atualizarPreviaContrato(); } catch (e) { if (window.__showRuntimeErrorOverlay) window.__showRuntimeErrorOverlay(e); }
+        }
+
+        try { if (window.__updateDebugPanel) window.__updateDebugPanel(); } catch (e) {}
+    } catch (err) {
+        console.error('trocarAba falhou:', err);
+        if (window.__showRuntimeErrorOverlay) window.__showRuntimeErrorOverlay(err);
     }
 }
 
