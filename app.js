@@ -5406,7 +5406,7 @@ function salvarPontoReposicaoImbel(prodId, valor) {
 // Toggle selecionar todos os checkboxes de movimentação IMBEL
 function imbelToggleSelectAll(checked) {
         try {
-                document.querySelectorAll('.imbel-mov-check').forEach(cb => { cb.checked = !!checked; });
+        document.querySelectorAll('.imbel_table_chk_sel').forEach(cb => { cb.checked = !!checked; });
         } catch (e) { console.warn('imbelToggleSelectAll erro', e); }
 }
 
@@ -5591,21 +5591,22 @@ function renderControleImbelMovimentacao() {
         const thStyle = 'padding:8px 10px;border:1px solid #ddd;background:#1e3a5f;color:#fff;font-size:.8rem;white-space:nowrap;text-align:center';
         const tabela = document.createElement('table');
         tabela.style.cssText = 'width:100%;border-collapse:collapse;font-size:.78rem';
-        tabela.innerHTML = `<thead><tr>
+                tabela.innerHTML = `<thead><tr>
         <th style="${thStyle};width:36px">
             <input type="checkbox" id="imbelSelectAll"
-                         onchange="imbelToggleSelectAll(this.checked)"
+                         onchange="document.querySelectorAll('.imbel_table_chk_sel')
+                             .forEach(c=>c.checked=this.checked)"
                          title="Selecionar todos">
         </th>
+        <th style="${thStyle}">Destinatário</th>
         <th style="${thStyle}">Data</th>
         <th style="${thStyle}">Tipo</th>
         <th style="${thStyle}">Produto</th>
         <th style="${thStyle}">Qtd</th>
-        <th style="${thStyle}">Destinatário</th>
-        <th style="${thStyle}">CPF/CNPJ</th>
         <th style="${thStyle}">Valor</th>
-        <th style="${thStyle};width:50px">FI</th>
-        <th style="${thStyle};width:50px">Pago</th>
+        <th style="${thStyle};width:50px" title="Entregue">Entregue</th>
+        <th style="${thStyle};width:50px" title="Pago">Pago</th>
+        <th style="${thStyle};width:50px" title="FI">FI</th>
         <th style="${thStyle}">Ações</th>
     </tr></thead><tbody></tbody>`;
 
@@ -5678,73 +5679,99 @@ function renderControleImbelMovimentacao() {
                     `font-weight:600`;
                 trGroup.title = 'Clique para ver os produtos';
 
-                trGroup.innerHTML = `
-            <td style="${tdCenter};width:36px" onclick="event.stopPropagation()">
-                <input type="checkbox" class="imbel-mov-check"
-                             data-group="${groupKey}"
-                             data-ids="${itens.map(m=>m.id).join(',')}"
-                             data-fi="${isFI}"
-                             style="width:15px;height:15px;cursor:pointer">
-            </td>
-            <td style="${tdBase};font-weight:600;color:#1e293b;max-width:180px">
-                ${first.destinatario ||
-                    '<span style="color:#94a3b8;font-weight:400">—</span>'}
-            </td>
-            <td style="${tdCenter};white-space:nowrap;font-size:0.8rem;color:#475569">
-                ${dataFmt}
-            </td>
-            <td style="${tdCenter}">
-                <span style="background:${cfg.cor}22;color:${cfg.cor};
-                                         padding:2px 8px;border-radius:20px;
-                                         font-size:0.75rem;font-weight:700;white-space:nowrap">
-                    ${cfg.icon} ${cfg.label}
-                </span>
-            </td>
-            <td style="${tdBase};color:#1d4ed8;font-weight:600;cursor:pointer"
-                    onclick="imbelToggleGrupo('${groupKey}')">
-                ▸ ${itens.length} item(ns)
-            </td>
-            <td style="${tdCenter};font-weight:700">${totalQtd}</td>
-            <td style="${tdCenter};font-weight:700;color:#16a34a">
-                ${fmt(totalVal)}
-            </td>
-            <td style="${tdCenter}">
-                <input type="checkbox" class="imbel-check-entregue"
-                             data-ids="${itens.map(m=>m.id).join(',')}"
-                             ${isEntregue?'checked':''}
-                             onchange="imbelSetGrupoField(this,'entregue')"
-                             onclick="event.stopPropagation()"
-                             style="width:16px;height:16px;cursor:pointer;
-                                            accent-color:#16a34a"
-                             title="Entregue">
-            </td>
-            <td style="${tdCenter}">
-                <input type="checkbox" class="imbel-check-pago"
-                             data-ids="${itens.map(m=>m.id).join(',')}"
-                             ${isPago?'checked':''}
-                             onchange="imbelSetGrupoField(this,'pagamento')"
-                             onclick="event.stopPropagation()"
-                             style="width:16px;height:16px;cursor:pointer;
-                                            accent-color:#16a34a"
-                             title="Pago">
-            </td>
-            <td style="${tdCenter}">
-                <input type="checkbox" class="imbel-check-fi"
-                             data-ids="${itens.map(m=>m.id).join(',')}"
-                             ${isFI?'checked':''}
-                             onchange="imbelSetGrupoField(this,'fi')"
-                             onclick="event.stopPropagation()"
-                             style="width:16px;height:16px;cursor:pointer;
-                                            accent-color:#1e3a5f"
-                             title="FI">
-            </td>
-            <td style="${tdCenter}" onclick="event.stopPropagation()">
-                <button class="btn btn-outline btn-sm" data-editid="${itens[0].id}" style="margin-right:3px">✎</button>
-                <button class="btn btn-outline btn-sm" onclick="imbelExcluirGrupo('${key}')" style="color:#dc2626;border-color:#fca5a5">🗑</button>
-            </td>`;
+                                // resumo de produtos do grupo
+                                const names = (itens||[]).map(it => (data.produtos||[]).find(p=>p.id===it.produtoId)?.nome || it.produtoNome || it.produtoId).filter(Boolean);
+                                const prodNome = names.length ? (names.length>1 ? (names[0] + ' +' + (names.length-1)) : names[0]) : '—';
+                                const cfgSafe = (typeof getImbelTipo === 'function') ? getImbelTipo(first.tipo) : { label: first.tipo||'—', cor:'#64748b', bg:'#f8fafc', icon:'' };
 
-                trGroup.addEventListener('click', () =>
-                    imbelToggleGrupo(groupKey));
+                                const entCell = `<td style="${tdCenter}">
+                                    <input type="checkbox" class="imbel_table_chk_ent"
+                                                 data-ids="${itens.map(m=>m.id).join(',')}"
+                                                 ${isEntregue?'checked':''}
+                                                 onchange="imbelSetGrupoField(this,'entregue')"
+                                                 onclick="event.stopPropagation()"
+                                                 style="width:16px;height:16px;cursor:pointer;accent-color:#16a34a"
+                                                 title="Entregue">
+                                </td>`;
+
+                                const pagCell = `<td style="${tdCenter}">
+                                    <input type="checkbox" class="imbel_table_chk_pag"
+                                                 data-ids="${itens.map(m=>m.id).join(',')}"
+                                                 ${isPago?'checked':''}
+                                                 onchange="imbelSetGrupoField(this,'pagamento')"
+                                                 onclick="event.stopPropagation()"
+                                                 style="width:16px;height:16px;cursor:pointer;accent-color:#16a34a"
+                                                 title="Pago">
+                                </td>`;
+
+                                const fiCell = `<td style="${tdCenter}">
+                                    <input type="checkbox" class="imbel_table_chk_fi"
+                                                 data-ids="${itens.map(m=>m.id).join(',')}"
+                                                 ${isFI?'checked':''}
+                                                 onchange="imbelSetGrupoField(this,'fi')"
+                                                 onclick="event.stopPropagation()"
+                                                 style="width:16px;height:16px;cursor:pointer;accent-color:#1e3a5f"
+                                                 title="FI">
+                                </td>`;
+
+                                trGroup.innerHTML = `
+        <td style="${tdCenter};width:36px" onclick="event.stopPropagation()">
+            <input type="checkbox" class="imbel_table_chk_sel"
+                         data-ids="${itens.map(m=>m.id).join(',')}"
+                         style="width:15px;height:15px;cursor:pointer">
+        </td>
+        <td style="${tdStyle};font-weight:600;color:#1e293b">
+            ${first.destinatario || '<span style="color:#94a3b8">—</span>'}
+            ${first.cpfCnpj ? `<div style="font-size:0.72rem;color:#94a3b8;font-weight:400;margin-top:1px">${first.cpfCnpj}</div>` : ''}
+        </td>
+        <td style="${tdCenter};white-space:nowrap;font-size:0.82rem;color:#475569">
+            ${dataFmt}
+        </td>
+        <td style="${tdCenter}">
+            <span style="background:${cfgSafe.bg||'#f8fafc'};color:${cfgSafe.cor||'#64748b'};padding:2px 8px;border-radius:20px;font-size:0.75rem;font-weight:700;white-space:nowrap">
+                ${cfgSafe.icon||''} ${cfgSafe.label||first.tipo||'—'}
+            </span>
+        </td>
+        <td style="${tdStyle};font-weight:500">
+            ${prodNome}
+            <div style="font-size:0.82rem;color:#1d4ed8;cursor:pointer;margin-top:4px" onclick="imbelToggleGrupo('${groupKey}')">▸ ${itens.length} item(ns)</div>
+        </td>
+        <td style="${tdCenter};font-weight:700">${totalQtd}</td>
+        <td style="${tdCenter};font-weight:700;color:#16a34a">${fmt(totalVal)}</td>
+        ${entCell}
+        ${pagCell}
+        ${fiCell}
+        <td style="${tdCenter}">
+            <button class="btn btn-outline" style="padding:3px 8px;font-size:.75rem;margin-right:4px" data-editmov="${itens[0].id}" data-editid="${itens[0].id}" title="Editar">✎</button>
+            <button class="btn btn-outline" style="padding:3px 8px;font-size:.75rem;color:#dc2626;border-color:#fca5a5" data-delid="${itens[0].id}" title="Excluir">🗑️</button>
+        </td>`;
+
+                                // manter toggle dos produtos do grupo (clicando no contador)
+                                trGroup.addEventListener('click', () => imbelToggleGrupo(groupKey));
+
+                                // Click para expandir detalhes secundários (telefone, email, endereço, observações)
+                                trGroup.style.cursor = 'pointer';
+                                trGroup.addEventListener('click', function(e){
+                                        if (e.target.tagName === 'INPUT' || e.target.tagName === 'BUTTON') return;
+                                        const existing = this.nextSibling;
+                                        if (existing && existing.classList && existing.classList.contains('imbel-detail-expand')) { existing.remove(); return; }
+                                        document.querySelectorAll('.imbel-detail-expand').forEach(r => r.remove());
+                                        const campos = [
+                                            first.telefone ? `📞 ${first.telefone}` : null,
+                                            first.email ? `📧 ${first.email}` : null,
+                                            first.endereco ? `📍 ${first.endereco}` : null,
+                                            first.observacoes ? `💬 ${first.observacoes}` : null,
+                                        ].filter(Boolean);
+                                        if (!campos.length) return;
+                                        const detail = document.createElement('tr');
+                                        detail.className = 'imbel-detail-expand';
+                                        detail.style.cssText = 'background:#fffbf0;border-bottom:1px solid #fcd34d';
+                                        detail.innerHTML = `
+                                            <td colspan="11" style="padding:8px 12px 8px 48px;border-left:3px solid #fcd34d;font-size:0.82rem">
+                                                ${campos.map(c => `<span style="margin-right:20px;color:#475569">${c}</span>`).join('')}
+                                            </td>`;
+                                        this.after(detail);
+                                });
                 tbody.appendChild(trGroup);
 
                 // ── PRODUCT DETAIL ROWS (hidden by default) ──
@@ -5807,6 +5834,61 @@ function renderControleImbelMovimentacao() {
             </td>`;
                 tbody.appendChild(trDetail);
             });
+
+                // rebind handlers for edit/delete buttons generated in the table
+                tbody.querySelectorAll('button[data-delid]').forEach(btn => {
+                    btn.onclick = function(){
+                        const id = this.getAttribute('data-delid');
+                        if (!confirm('Excluir esta movimentação?')) return;
+                        data.movimentacoes = (data.movimentacoes||[]).filter(m => m.id !== id);
+                        saveImbel(data);
+                        mostrarNotificacao('Movimentação excluída.', 'success');
+                        populateTbody();
+                        renderControleImbelEstoque();
+                    };
+                });
+
+                tbody.querySelectorAll('button[data-editmov], button[data-editid]').forEach(btn => {
+                    btn.onclick = function(){
+                        const id = this.getAttribute('data-editmov') || this.getAttribute('data-editid');
+                        const mov = (data.movimentacoes||[]).find(m => m.id === id);
+                        if (!mov) return;
+                        const hoje = new Date().toISOString().slice(0,10);
+                        const tipoLower = (mov.tipo||'').toString().toLowerCase();
+                        if (tipoLower === 'entrada') document.getElementById('imbel_mov_tipo').value = 'ENTRADA';
+                        else if (tipoLower === 'saída' || tipoLower === 'saida') document.getElementById('imbel_mov_tipo').value = 'SAIDA';
+                        else document.getElementById('imbel_mov_tipo').value = mov.tipo || 'VENDA';
+                        document.getElementById('imbel_mov_data').value = mov.data || hoje;
+                        document.getElementById('imbel_mov_dest').value = mov.destinatario || '';
+                        document.getElementById('imbel_mov_cpf').value = formatCpfCnpjMask(mov.cpfCnpj || '');
+                        document.getElementById('imbel_mov_endereco').value = mov.endereco || '';
+                        document.getElementById('imbel_mov_tel').value = formatPhoneMask(mov.telefone || '');
+                        document.getElementById('imbel_mov_email').value = mov.email || '';
+                        document.getElementById('imbel_mov_obs').value = mov.observacoes || '';
+                        // popular lista de itens (suporta registros antigos com produtoId/quantidade)
+                        try {
+                            if (mov.items && (mov.items||[]).length) {
+                                renderImbelMovItensDOM(mov.items);
+                            } else if (mov.produtoId) {
+                                renderImbelMovItensDOM([{ produtoId: mov.produtoId, quantidade: mov.quantidade || 1, valor: Number(mov.valor) || 0 }]);
+                            } else {
+                                renderImbelMovItensDOM([]);
+                            }
+                            // focar primeiro select de item, se houver
+                            setTimeout(() => {
+                                const wrap = document.getElementById('imbel_mov_itens') || document.getElementById('imbel_mov_itens_container');
+                                if (wrap) {
+                                    const firstSel = wrap.querySelector('.imbel_mov_item_prod');
+                                    if (firstSel) firstSel.focus();
+                                }
+                            }, 10);
+                        } catch(e) { console.warn('Erro ao popular itens no modal', e); }
+                        const editField = document.getElementById('imbel_mov_edit_id'); if (editField) editField.value = id;
+                        document.getElementById('imbel_mov_salvar').textContent = 'Atualizar Movimentação';
+                        openImbelMovModal();
+                        document.getElementById('imbel_mov_dest').focus();
+                    };
+                });
 
             // Update summary
             atualizarResumoMovimentacoes();
@@ -11051,7 +11133,7 @@ function _nomeProdutoId(nome) {
 function gerarRelatorioVendasImbel() {
     const data   = loadImbel();
     const prods  = data.produtos || [];
-    const checks = document.querySelectorAll('.imbel-mov-check:checked');
+    const checks = document.querySelectorAll('.imbel_table_chk_sel:checked');
 
     if (!checks.length) {
         mostrarNotificacao(
