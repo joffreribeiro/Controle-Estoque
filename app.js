@@ -4453,14 +4453,11 @@ function closeImbelMovModal() {
     const modal = document.getElementById('imbel_mov_modal');
     if (modal) modal.classList.remove('open');
     // limpar formulário
-    document.getElementById('imbel_mov_prod').value = '';
-    try { document.getElementById('imbel_mov_tipo').value = 'ENTRADA'; } catch(e) {}
+    try { document.getElementById('imbel_mov_tipo').value = 'VENDA'; } catch(e) {}
     const hoje = new Date().toISOString().slice(0,10);
     document.getElementById('imbel_mov_data').value = hoje;
-    document.getElementById('imbel_mov_qtd').value = '1';
     document.getElementById('imbel_mov_dest').value = '';
     document.getElementById('imbel_mov_cpf').value = '';
-    document.getElementById('imbel_mov_valor').value = '';
     document.getElementById('imbel_mov_endereco').value = '';
     document.getElementById('imbel_mov_tel').value = '';
     document.getElementById('imbel_mov_email').value = '';
@@ -4485,7 +4482,7 @@ function populateProductOptions(selectEl) {
 }
 
 function renderImbelMovItensDOM(items) {
-    const wrap = document.getElementById('imbel_mov_itens');
+    const wrap = document.getElementById('imbel_mov_itens') || document.getElementById('imbel_mov_itens_container');
     if (!wrap) return;
     wrap.innerHTML = '';
     const data = loadImbel();
@@ -4543,7 +4540,7 @@ function renderImbelMovItensDOM(items) {
 }
 
 function collectImbelMovItensFromDOM() {
-    const wrap = document.getElementById('imbel_mov_itens');
+    const wrap = document.getElementById('imbel_mov_itens') || document.getElementById('imbel_mov_itens_container');
     if (!wrap) return [];
     const rows = wrap.querySelectorAll('.imbel-mov-item');
     const items = [];
@@ -4558,7 +4555,7 @@ function collectImbelMovItensFromDOM() {
 }
 
 function clearImbelMovItensDOM() {
-    const wrap = document.getElementById('imbel_mov_itens'); if (wrap) wrap.innerHTML = ''; }
+    const wrap = document.getElementById('imbel_mov_itens') || document.getElementById('imbel_mov_itens_container'); if (wrap) wrap.innerHTML = ''; }
 
 function addImbelMovItemFromFields() {
     const prod = document.getElementById('imbel_mov_prod')?.value || '';
@@ -4577,6 +4574,108 @@ function addImbelMovItemFromFields() {
     renderImbelMovItensDOM(items);
     // keep the top-level inputs for convenience
 }
+
+// Adiciona uma linha de item vazia na lista (usado pelo botão + Adicionar Item no novo modal)
+function adicionarItemMovImbel(item = null) {
+    try {
+        const data = loadImbel();
+        const container = document.getElementById('imbel_mov_itens_container') || document.getElementById('imbel_mov_itens');
+        if (!container) return;
+
+        const rowId = 'imbel_item_' + Date.now() + '_' + Math.random().toString(36).slice(2,6);
+
+        const div = document.createElement('div');
+        div.id = rowId;
+        div.className = 'imbel-mov-item';
+        div.style.cssText = 'display:grid;grid-template-columns:1fr 80px 130px auto;gap:8px;align-items:center;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:8px 10px';
+
+        // produto (select)
+        const sel = document.createElement('select');
+        sel.className = 'imbel_mov_item_prod';
+        sel.style.cssText = 'padding:7px 8px;border:1px solid #e2e8f0;border-radius:6px;font-size:0.875rem;width:100%';
+        const emptyOpt = document.createElement('option'); emptyOpt.value = ''; emptyOpt.textContent = 'Selecione um produto'; sel.appendChild(emptyOpt);
+        (data.produtos||[]).forEach(p => {
+            const o = document.createElement('option'); o.value = p.id; o.textContent = p.nome || p.descricao || p.id; o.setAttribute('data-nome', p.nome || '');
+            if (item && item.produtoId === p.id) o.selected = true;
+            sel.appendChild(o);
+        });
+        sel.onchange = function(){ onImbelItemProdChange(this); };
+
+        // quantidade
+        const inpQtd = document.createElement('input'); inpQtd.type = 'number'; inpQtd.min = '1'; inpQtd.step = '1'; inpQtd.className = 'imbel_mov_item_qtd';
+        inpQtd.value = (item && item.quantidade) ? item.quantidade : 1;
+        inpQtd.style.cssText = 'padding:7px 8px;border:1px solid #e2e8f0;border-radius:6px;font-size:0.875rem;text-align:center;width:100%';
+        inpQtd.oninput = function(){ calcularTotalItemImbel(this); };
+
+        // valor unitário (texto formatado)
+        const inpVal = document.createElement('input'); inpVal.type = 'text'; inpVal.className = 'imbel_mov_item_valor';
+        inpVal.style.cssText = 'padding:7px 8px;border:1px solid #e2e8f0;border-radius:6px;font-size:0.875rem;text-align:right;width:100%';
+        if (item && item.valor) inpVal.value = Number(item.valor).toLocaleString('pt-BR',{minimumFractionDigits:2});
+        inpVal.addEventListener('input', function(){ this.value = formatCurrencyBRLInput(this.value); calcularTotalItemImbel(this); });
+
+        // total + remover
+        const rightWrap = document.createElement('div'); rightWrap.style.cssText = 'display:flex;align-items:center;gap:8px';
+        const totalSpan = document.createElement('span'); totalSpan.className = 'imbel-item-total'; totalSpan.style.cssText = 'font-weight:700;color:#16a34a;font-size:0.875rem;white-space:nowrap;min-width:80px;text-align:right';
+        totalSpan.textContent = 'R$ 0,00';
+        const btnRem = document.createElement('button'); btnRem.type = 'button'; btnRem.style.cssText = 'background:none;border:none;cursor:pointer;color:#dc2626;font-size:1rem;padding:2px 4px;line-height:1'; btnRem.title = 'Remover'; btnRem.innerHTML = '🗑';
+        btnRem.onclick = function(){ removerItemMovImbel(rowId); };
+        rightWrap.appendChild(totalSpan); rightWrap.appendChild(btnRem);
+
+        div.appendChild(sel);
+        div.appendChild(inpQtd);
+        div.appendChild(inpVal);
+        div.appendChild(rightWrap);
+
+        container.appendChild(div);
+
+        // calcular total inicial
+        if (item && item.valor && item.quantidade) {
+            const total = Number(item.valor) * Number(item.quantidade);
+            totalSpan.textContent = 'R$ ' + total.toLocaleString('pt-BR',{minimumFractionDigits:2});
+        } else {
+            calcularTotalItemImbel(inpVal);
+        }
+
+        setTimeout(()=> sel.focus(), 10);
+    } catch (e) { console.warn('adicionarItemMovImbel erro', e); }
+}
+
+function removerItemMovImbel(rowId) {
+    const el = document.getElementById(rowId);
+    if (el) el.remove();
+}
+
+function calcularTotalItemImbel(input) {
+    const row = input.closest('.imbel-mov-item');
+    if (!row) return;
+    const qtd = parseFloat(row.querySelector('.imbel_mov_item_qtd')?.value) || 0;
+    const val = parseCurrencyBRLToNumber(row.querySelector('.imbel_mov_item_valor')?.value || '');
+    const total = qtd * val;
+    const el = row.querySelector('.imbel-item-total');
+    if (el) el.textContent = 'R$ ' + Number(total).toLocaleString('pt-BR',{minimumFractionDigits:2});
+}
+
+function onImbelItemProdChange(sel) {
+    try {
+        const tipo = document.getElementById('imbel_mov_tipo')?.value;
+        if (tipo !== 'VENDA') return;
+        const prodId = sel.value;
+        if (!prodId) return;
+        const row = sel.closest('.imbel-mov-item');
+        const valorEl = row?.querySelector('.imbel_mov_item_valor');
+        if (!valorEl || (valorEl.value && valorEl.value.toString().trim() !== '')) return; // não sobrescrever
+        const preco = getImbelPrecoAtual(prodId);
+        if (preco) {
+            // preencher valor unitário
+            valorEl.value = Number(preco.valor).toLocaleString('pt-BR',{minimumFractionDigits:2});
+            calcularTotalItemImbel(valorEl);
+        }
+    } catch(e) { console.warn('onImbelItemProdChange erro', e); }
+}
+
+function limparItensMovImbel() { clearImbelMovItensDOM(); }
+
+function getItensMovImbel() { return collectImbelMovItensFromDOM(); }
 
 function onImbelTipoChange() {
     const tipo = document.getElementById('imbel_mov_tipo')?.value || '';
@@ -5387,24 +5486,22 @@ function renderControleImbelMovimentacao() {
     btnAdd.className = 'btn btn-primary';
     btnAdd.innerHTML = '<span class="btn-icon">➕</span> Adicionar Movimentação';
     btnAdd.onclick = () => {
-        // Limpar campos do modal
-        document.getElementById('imbel_mov_prod').value = '';
-        try { document.getElementById('imbel_mov_tipo').value = 'ENTRADA'; } catch(e) {}
+        // Limpar campos do modal (novo layout: dados do comprador + itens)
+        try { document.getElementById('imbel_mov_tipo').value = 'VENDA'; } catch(e) {}
         const hoje = new Date().toISOString().slice(0,10);
         document.getElementById('imbel_mov_data').value = hoje;
-        document.getElementById('imbel_mov_qtd').value = '1';
         document.getElementById('imbel_mov_dest').value = '';
         document.getElementById('imbel_mov_cpf').value = '';
-        document.getElementById('imbel_mov_valor').value = '';
         document.getElementById('imbel_mov_endereco').value = '';
         document.getElementById('imbel_mov_tel').value = '';
         document.getElementById('imbel_mov_email').value = '';
         document.getElementById('imbel_mov_obs').value = '';
         const editField = document.getElementById('imbel_mov_edit_id'); if (editField) editField.value = '';
         document.getElementById('imbel_mov_salvar').textContent = 'Registrar Movimentação';
-        document.getElementById('imbel_mov_prod').focus();
         try { clearImbelMovItensDOM(); } catch(e) {}
+        try { adicionarItemMovImbel(); } catch(e) {}
         openImbelMovModal();
+        document.getElementById('imbel_mov_dest').focus();
     };
     topActions.appendChild(btnAdd);
     
@@ -5517,200 +5614,255 @@ function renderControleImbelMovimentacao() {
         const tdCenter = tdStyle + ';text-align:center';
         const tdBase = tdStyle + ';text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis';
 
-    // função para popular tbody com filtros
-    function populateTbody() {
-        tbody.innerHTML = '';
-        const all = (data.movimentacoes||[]).slice().reverse();
-        const fProd = (document.getElementById('imbel_filter_prod')||{value:''}).value;
-        const fTipo = (document.getElementById('imbel_filter_tipo')||{value:''}).value;
-        const fStart = (document.getElementById('imbel_filter_date_start')||{value:''}).value;
-        const fEnd = (document.getElementById('imbel_filter_date_end')||{value:''}).value;
-        const fDest = (document.getElementById('imbel_filter_dest')||{value:''}).value.trim().toUpperCase();
-        const fCpf = (document.getElementById('imbel_filter_cpf')||{value:''}).value.trim().toUpperCase();
-        const fPago = !!(document.getElementById('imbel_filter_pago') && document.getElementById('imbel_filter_pago').checked);
-        const fEnt = !!(document.getElementById('imbel_filter_entregue_only') && document.getElementById('imbel_filter_entregue_only').checked);
-        const fFi = !!(document.getElementById('imbel_filter_fi_only') && document.getElementById('imbel_filter_fi_only').checked);
+        // função para popular tbody com filtros (agrupa por destinatário+data ou groupId)
+        function populateTbody() {
+            tbody.innerHTML = '';
+            const all = (data.movimentacoes||[]).slice().reverse();
 
-        let rowIndex = 0;
-        all.forEach((m, idx) => {
-            if (fProd && String(m.produtoId) !== String(fProd)) return;
-            const tipoNorm = (m.tipo||'').toString().toUpperCase();
-            if (fTipo) {
-                if (fTipo === 'ENTRADA') {
-                    if (!imbelTipoAumentaEstoque(m.tipo)) return;
-                } else if (fTipo === 'SAIDA' || fTipo === 'SAÍDA') {
-                    if (imbelTipoAumentaEstoque(m.tipo)) return;
-                } else {
-                    if (String(m.tipo||'').toUpperCase() !== String(fTipo).toUpperCase()) return;
-                }
+            // Apply filters
+            const fProd  = (document.getElementById('imbel_filter_prod')||{}).value||'';
+            const fTipo  = (document.getElementById('imbel_filter_tipo')||{}).value||'';
+            const fStart = (document.getElementById('imbel_filter_date_start')||{}).value||'';
+            const fEnd   = (document.getElementById('imbel_filter_date_end')||{}).value||'';
+            const fDest  = ((document.getElementById('imbel_filter_dest')||{}).value||'')
+                .trim().toUpperCase();
+            const fCpf   = ((document.getElementById('imbel_filter_cpf')||{}).value||'')
+                .trim().toUpperCase();
+            const fPago  = document.getElementById('imbel_filter_pago')?.checked;
+            const fFi    = document.getElementById('imbel_filter_fi_only')?.checked;
+
+            const filtered = all.filter(m => {
+                if (fProd && m.produtoId !== fProd) return false;
+                if (fTipo && (m.tipo||'').toUpperCase() !== fTipo.toUpperCase()) return false;
+                if (fStart && (m.data||'') < fStart) return false;
+                if (fEnd   && (m.data||'') > fEnd)   return false;
+                if (fDest  && !(m.destinatario||'').toUpperCase().includes(fDest)) return false;
+                if (fCpf   && !(m.cpfCnpj||'').replace(/\D/g,'').includes(fCpf.replace(/\D/g,''))) return false;
+                if (fPago  && (m.pagamento||'').toUpperCase() !== 'SIM') return false;
+                if (fFi    && (m.fi||'').toUpperCase() !== 'SIM') return false;
+                return true;
+            });
+
+            // Group by groupId OR by destinatario+data (for old records)
+            const groups = new Map();
+            filtered.forEach(m => {
+                const key = m.groupId || (m.destinatario||'') + '||' + (m.data||'') + '||' + m.tipo;
+                if (!groups.has(key)) groups.set(key, []);
+                groups.get(key).push(m);
+            });
+
+            const fmt = v => 'R$ ' + Number(v||0).toLocaleString('pt-BR',
+                {minimumFractionDigits:2});
+            let globalIdx = 0;
+
+            groups.forEach((itens, key) => {
+                const first   = itens[0];
+                const cfg     = getImbelTipo(first.tipo);
+                const dataFmt = first.data
+                    ? new Date(first.data + 'T12:00:00').toLocaleDateString('pt-BR')
+                    : '—';
+                const totalQtd = itens.reduce((s,m) => s+(Number(m.quantidade)||0), 0);
+                const totalVal = itens.reduce((s,m) => s+(Number(m.valor)||0), 0);
+                const isFI     = itens.every(m => (m.fi||'').toUpperCase() === 'SIM');
+                const isPago   = itens.every(m => (m.pagamento||'').toUpperCase() === 'SIM');
+                const isEntregue = itens.every(m => (m.entregue||'').toUpperCase() === 'SIM');
+                const groupKey = 'grp_' + globalIdx++;
+                const isEven   = globalIdx % 2 === 0;
+
+                // ── GROUP HEADER ROW ──
+                const trGroup = document.createElement('tr');
+                trGroup.dataset.groupKey = groupKey;
+                trGroup.style.cssText =
+                    `background:${isEven?'#f8fafc':'#fff'};` +
+                    `border-bottom:1px solid #e2e8f0;cursor:pointer;` +
+                    `font-weight:600`;
+                trGroup.title = 'Clique para ver os produtos';
+
+                trGroup.innerHTML = `
+            <td style="${tdCenter};width:36px" onclick="event.stopPropagation()">
+                <input type="checkbox" class="imbel-mov-check"
+                             data-group="${groupKey}"
+                             data-ids="${itens.map(m=>m.id).join(',')}"
+                             data-fi="${isFI}"
+                             style="width:15px;height:15px;cursor:pointer">
+            </td>
+            <td style="${tdBase};font-weight:600;color:#1e293b;max-width:180px">
+                ${first.destinatario ||
+                    '<span style="color:#94a3b8;font-weight:400">—</span>'}
+            </td>
+            <td style="${tdCenter};white-space:nowrap;font-size:0.8rem;color:#475569">
+                ${dataFmt}
+            </td>
+            <td style="${tdCenter}">
+                <span style="background:${cfg.cor}22;color:${cfg.cor};
+                                         padding:2px 8px;border-radius:20px;
+                                         font-size:0.75rem;font-weight:700;white-space:nowrap">
+                    ${cfg.icon} ${cfg.label}
+                </span>
+            </td>
+            <td style="${tdBase};color:#1d4ed8;font-weight:600;cursor:pointer"
+                    onclick="imbelToggleGrupo('${groupKey}')">
+                ▸ ${itens.length} item(ns)
+            </td>
+            <td style="${tdCenter};font-weight:700">${totalQtd}</td>
+            <td style="${tdCenter};font-weight:700;color:#16a34a">
+                ${fmt(totalVal)}
+            </td>
+            <td style="${tdCenter}">
+                <input type="checkbox" class="imbel-check-entregue"
+                             data-ids="${itens.map(m=>m.id).join(',')}"
+                             ${isEntregue?'checked':''}
+                             onchange="imbelSetGrupoField(this,'entregue')"
+                             onclick="event.stopPropagation()"
+                             style="width:16px;height:16px;cursor:pointer;
+                                            accent-color:#16a34a"
+                             title="Entregue">
+            </td>
+            <td style="${tdCenter}">
+                <input type="checkbox" class="imbel-check-pago"
+                             data-ids="${itens.map(m=>m.id).join(',')}"
+                             ${isPago?'checked':''}
+                             onchange="imbelSetGrupoField(this,'pagamento')"
+                             onclick="event.stopPropagation()"
+                             style="width:16px;height:16px;cursor:pointer;
+                                            accent-color:#16a34a"
+                             title="Pago">
+            </td>
+            <td style="${tdCenter}">
+                <input type="checkbox" class="imbel-check-fi"
+                             data-ids="${itens.map(m=>m.id).join(',')}"
+                             ${isFI?'checked':''}
+                             onchange="imbelSetGrupoField(this,'fi')"
+                             onclick="event.stopPropagation()"
+                             style="width:16px;height:16px;cursor:pointer;
+                                            accent-color:#1e3a5f"
+                             title="FI">
+            </td>
+            <td style="${tdCenter}" onclick="event.stopPropagation()">
+                <button class="btn btn-outline btn-sm" data-editid="${itens[0].id}" style="margin-right:3px">✎</button>
+                <button class="btn btn-outline btn-sm" onclick="imbelExcluirGrupo('${key}')" style="color:#dc2626;border-color:#fca5a5">🗑</button>
+            </td>`;
+
+                trGroup.addEventListener('click', () =>
+                    imbelToggleGrupo(groupKey));
+                tbody.appendChild(trGroup);
+
+                // ── PRODUCT DETAIL ROWS (hidden by default) ──
+                itens.forEach(m => {
+                    const trItem = document.createElement('tr');
+                    trItem.dataset.groupChild = groupKey;
+                    trItem.style.cssText =
+                        'display:none;background:#f0f9ff;' +
+                        'border-bottom:1px solid #e2e8f0;font-size:0.82rem';
+                    trItem.innerHTML = `
+                <td style="${tdCenter}"></td>
+                <td colspan="2"
+                        style="${tdBase};padding-left:32px;color:#64748b">
+                    └
+                </td>
+                <td></td>
+                <td style="${tdBase};color:#1e293b;font-weight:500">
+                    ${m.produtoNome || m.produtoId || '—'}
+                </td>
+                <td style="${tdCenter};font-weight:600">
+                    ${m.quantidade||0}
+                </td>
+                <td style="${tdCenter};color:#16a34a;font-weight:600">
+                    ${fmt(m.valor)}
+                </td>
+                <td colspan="4"
+                        style="${tdBase};font-size:0.78rem;color:#94a3b8">
+                    ${m.valorUnit
+                        ? 'Unit: ' + fmt(m.valorUnit)
+                        : ''}
+                </td>`;
+                    tbody.appendChild(trItem);
+                });
+
+                // ── DETAIL EXPAND ROW (person info) ──
+                const trDetail = document.createElement('tr');
+                trDetail.dataset.groupDetail = groupKey;
+                trDetail.style.display = 'none';
+
+                const campos = [
+                    ['📞', first.telefone],
+                    ['📧', first.email],
+                    ['📍', first.endereco],
+                    ['📣', first.evento],
+                    ['💬', first.observacoes],
+                ].filter(([,v]) => v && v.trim());
+
+                trDetail.innerHTML = `
+            <td colspan="11"
+                    style="${tdBase};background:#fffbf0;
+                                 border-left:3px solid #fcd34d;
+                                 padding-left:52px">
+                ${campos.length
+                    ? campos.map(([icon, val]) =>
+                            `<span style="margin-right:20px;font-size:0.82rem">
+                                 ${icon} ${val}
+                             </span>`
+                        ).join('')
+                    : '<span style="color:#94a3b8;font-size:0.82rem">Sem detalhes adicionais</span>'}
+            </td>`;
+                tbody.appendChild(trDetail);
+            });
+
+            // Update summary
+            atualizarResumoMovimentacoes();
+        }
+
+        // Funções públicas para manipular grupos (tornadas globais)
+        window.imbelToggleGrupo = function(groupKey) {
+            const children = document.querySelectorAll(
+                `[data-group-child="${groupKey}"],
+                 [data-group-detail="${groupKey}"]`
+            );
+            const isOpen = children[0]?.style.display !== 'none';
+
+            // Update expand indicator
+            const headerRow = document.querySelector(`[data-group-key="${groupKey}"]`);
+            const indicator = headerRow?.querySelector('td:nth-child(5)');
+
+            children.forEach(r => {
+                r.style.display = isOpen ? 'none' : '';
+            });
+            if (indicator) {
+                const txt = indicator.textContent.trim();
+                const count = txt.match(/\d+/)?.[0] || '';
+                indicator.innerHTML = `
+            <span style="color:#1d4ed8;font-weight:600;cursor:pointer">
+                ${isOpen ? '▸' : '▾'} ${count} item(ns)
+            </span>`;
             }
-            const mDateNorm = parseDateToYYYYMMDD(m.data) || '';
-            if (fStart && mDateNorm && mDateNorm < fStart) return;
-            if (fEnd && mDateNorm && mDateNorm > fEnd) return;
-            if (fDest && !(m.destinatario||'').toString().toUpperCase().includes(fDest)) return;
-            if (fCpf && !(m.cpfCnpj||'').toString().toUpperCase().includes(fCpf)) return;
-            if (fPago && (m.pagamento||'').toString().toUpperCase() !== 'SIM') return;
-            if (fEnt && (m.entregue||'').toString().toUpperCase() !== 'SIM') return;
-            if (fFi && (m.fi||'').toString().toUpperCase() !== 'SIM') return;
+        };
 
-                        const cfg = getImbelTipo(m.tipo);
-                        // suportar movimentações com múltiplos itens
-                        let prodNome = '—';
-                        let quantidadeDisplay = Number(m.quantidade) || 0;
-                        let valorTotalNum = Number(m.valor) || 0;
-                        if (m.items && (m.items||[]).length) {
-                            const names = (m.items||[]).map(it => (data.produtos||[]).find(p=>p.id===it.produtoId)?.nome || it.produtoId);
-                            prodNome = names.length > 1 ? (names[0] + ' +' + (names.length-1)) : (names[0] || '—');
-                            quantidadeDisplay = (m.items||[]).reduce((s,it) => s + (Number(it.quantidade)||0), 0);
-                            valorTotalNum = (m.items||[]).reduce((s,it) => s + (Number(it.valor)||0), 0);
-                        } else {
-                            prodNome = (data.produtos||[]).find(p=>p.id===m.produtoId)?.nome || '—';
-                        }
-                        const dataFmt = m.data ? new Date(m.data).toLocaleDateString('pt-BR') : '—';
-                        const valorFmt = valorTotalNum ? ('R$ ' + Number(valorTotalNum).toLocaleString('pt-BR',{minimumFractionDigits:2})) : '—';
-                        const isFI   = !!(m.fi && m.fi.toString().toUpperCase() === 'SIM');
-                        const isPago = !!(m.pagamento && m.pagamento.toString().toUpperCase() === 'SIM');
-
-                        const tr = document.createElement('tr');
-                        tr.dataset.movId = m.id;
-                        tr.style.cssText =
-                                `background:${cfg.bg};border-bottom:1px solid #f1f5f9;cursor:pointer;
-                                 transition:filter 0.1s`;
-
-                        tr.innerHTML = `
-        <td style="${tdCenter};width:36px" onclick="event.stopPropagation()">
-            <input type="checkbox" class="imbel-mov-check"
-                         data-id="${m.id}" data-tipo="${m.tipo}"
-                         data-fi="${isFI}"
-                         style="width:15px;height:15px;cursor:pointer">
-        </td>
-        <td style="${tdCenter};white-space:nowrap;font-size:0.8rem;color:#475569">
-            ${dataFmt}
-        </td>
-        <td style="${tdCenter}">
-            <span style="background:${cfg.cor}22;color:${cfg.cor};
-                                     padding:2px 8px;border-radius:20px;
-                                     font-size:0.75rem;font-weight:700;white-space:nowrap">
-                ${cfg.icon} ${cfg.label}
-            </span>
-        </td>
-        <td style="${tdBase};font-weight:500">${prodNome}</td>
-        <td style="${tdCenter};font-weight:700;
-                             color:${cfg.categoria==='entrada'?'#16a34a':'#dc2626'}">
-            ${cfg.categoria==='entrada'?'+':'−'}${quantidadeDisplay||0}
-        </td>
-        <td style="${tdBase};max-width:160px;overflow:hidden;
-                             text-overflow:ellipsis;white-space:nowrap"
-                title="${m.destinatario||''}">
-            ${m.destinatario || '<span style="color:#94a3b8">—</span>'}
-        </td>
-        <td style="${tdBase};font-size:0.8rem;color:#475569">
-            ${m.cpfCnpj || '<span style="color:#94a3b8">—</span>'}
-        </td>
-        <td style="${tdBase};text-align:right;font-weight:600;
-                             color:${m.valor?'#16a34a':'#94a3b8'}">
-            ${valorFmt}
-        </td>
-        <td style="${tdCenter}">
-            ${isFI
-                ? '<span style="color:#16a34a;font-size:1rem">✅</span>'
-                : '<span style="color:#94a3b8;font-size:0.9rem">—</span>'}
-        </td>
-        <td style="${tdCenter}">
-            ${isPago
-                ? '<span style="color:#16a34a;font-size:1rem">✅</span>'
-                : '<span style="color:#d97706;font-size:0.9rem">⏳</span>'}
-        </td>
-        <td style="${tdCenter}">
-            <button class="btn btn-outline btn-sm" data-editid="${m.id}"
-                            onclick="event.stopPropagation()">✎</button>
-            <button class="btn btn-outline btn-sm" data-delid="${m.id}"
-                            onclick="event.stopPropagation()"
-                            style="color:#dc2626;border-color:#fca5a5">🗑</button>
-        </td>`;
-
-                        // Click row to expand details
-                        tr.addEventListener('click', () => imbelToggleDetalhes(tr, m));
-                        tbody.appendChild(tr);
-            rowIndex++;
-        });
-
-        // rebind handlers
-        tbody.querySelectorAll('button[data-delid]').forEach(btn => {
-            btn.onclick = function(){
-                const id = this.getAttribute('data-delid');
-                if (!confirm('Excluir esta movimentação?')) return;
-                data.movimentacoes = (data.movimentacoes||[]).filter(m => m.id !== id);
-                saveImbel(data);
-                mostrarNotificacao('Movimentação excluída.', 'success');
-                populateTbody();
-                renderControleImbelEstoque();
-            };
-        });
-
-        tbody.querySelectorAll('button[data-editmov], button[data-editid]').forEach(btn => {
-            btn.onclick = function(){
-                const id = this.getAttribute('data-editmov') || this.getAttribute('data-editid');
+        window.imbelSetGrupoField = function(checkbox, field) {
+            const ids  = (checkbox.dataset.ids||'').split(',').filter(Boolean);
+            const val  = checkbox.checked ? 'SIM' : 'NÃO';
+            const data = loadImbel();
+            ids.forEach(id => {
                 const mov = (data.movimentacoes||[]).find(m => m.id === id);
-                if (!mov) return;
-                const hoje = new Date().toISOString().slice(0,10);
-                document.getElementById('imbel_mov_prod').value = mov.produtoId || '';
-                    const tipoLower = (mov.tipo||'').toString().toLowerCase();
-                    if (tipoLower === 'entrada') document.getElementById('imbel_mov_tipo').value = 'ENTRADA';
-                    else if (tipoLower === 'saída' || tipoLower === 'saida') document.getElementById('imbel_mov_tipo').value = 'SAIDA';
-                    else document.getElementById('imbel_mov_tipo').value = mov.tipo || 'ENTRADA';
-                document.getElementById('imbel_mov_data').value = mov.data || hoje;
-                document.getElementById('imbel_mov_qtd').value = mov.quantidade || 1;
-                document.getElementById('imbel_mov_dest').value = mov.destinatario || '';
-                document.getElementById('imbel_mov_cpf').value = formatCpfCnpjMask(mov.cpfCnpj || '');
-                document.getElementById('imbel_mov_valor').value = (Number(mov.valor) > 0)
-                    ? Number(mov.valor).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-                    : '';
-                // se o registro possuir múltiplos itens, popular lista de itens na modal
-                try {
-                    if (mov.items && (mov.items||[]).length) {
-                        renderImbelMovItensDOM(mov.items);
-                        // colocar campos superiores com o primeiro item como referência
-                        const first = mov.items[0];
-                        if (first) {
-                            document.getElementById('imbel_mov_prod').value = first.produtoId || '';
-                            document.getElementById('imbel_mov_qtd').value = first.quantidade || 1;
-                            document.getElementById('imbel_mov_valor').value = Number(first.valor || 0).toLocaleString('pt-BR',{minimumFractionDigits:2});
-                        }
-                    } else {
-                        renderImbelMovItensDOM([]);
-                    }
-                } catch(e) { console.warn('Erro ao popular itens no modal', e); }
-                document.getElementById('imbel_mov_endereco').value = mov.endereco || '';
-                document.getElementById('imbel_mov_tel').value = formatPhoneMask(mov.telefone || '');
-                document.getElementById('imbel_mov_email').value = mov.email || '';
-                document.getElementById('imbel_mov_obs').value = mov.observacoes || '';
-                const editField = document.getElementById('imbel_mov_edit_id'); if (editField) editField.value = id;
-                document.getElementById('imbel_mov_salvar').textContent = 'Atualizar Movimentação';
-                openImbelMovModal();
-                document.getElementById('imbel_mov_prod').focus();
-            };
-        });
+                if (mov) mov[field] = val;
+            });
+            saveImbel(data);
+        };
 
-        // bind checkboxes in table (pagamento / entregue / fi)
-        tbody.querySelectorAll('input.imbel_table_chk_pag').forEach(cb => cb.onchange = function(){
-            const id = this.getAttribute('data-id');
-            const mov = (data.movimentacoes||[]).find(m=>m.id===id);
-            if (!mov) return; mov.pagamento = this.checked ? 'SIM' : 'NÃO'; saveImbel(data); mostrarNotificacao('Pagamento atualizado.', 'success'); renderControleImbelEstoque();
-        });
-        tbody.querySelectorAll('input.imbel_table_chk_ent').forEach(cb => cb.onchange = function(){
-            const id = this.getAttribute('data-id');
-            const mov = (data.movimentacoes||[]).find(m=>m.id===id);
-            if (!mov) return; mov.entregue = this.checked ? 'SIM' : 'NÃO'; saveImbel(data); mostrarNotificacao('Status de entrega atualizado.', 'success'); renderControleImbelEstoque();
-        });
-        tbody.querySelectorAll('input.imbel_table_chk_fi').forEach(cb => cb.onchange = function(){
-            const id = this.getAttribute('data-id');
-            const mov = (data.movimentacoes||[]).find(m=>m.id===id);
-            if (!mov) return; mov.fi = this.checked ? 'SIM' : 'NÃO'; saveImbel(data); mostrarNotificacao('FI atualizado.', 'success'); renderControleImbelEstoque();
-        });
-        // Atualizar resumo abaixo da tabela (se a função existir)
-        try { if (typeof atualizarResumoMovimentacoes === 'function') atualizarResumoMovimentacoes(); } catch(e) {}
-    }
+        window.imbelExcluirGrupo = function(key) {
+            const data = loadImbel();
+            const grupoMovs = (data.movimentacoes||[]).filter(m =>
+                (m.groupId === key) ||
+                ((m.destinatario||'') + '||' + (m.data||'') + '||' + m.tipo) === key
+            );
+            if (!grupoMovs.length) return;
+            if (!confirm(`Excluir esta movimentação (${grupoMovs.length} item(ns))?`)) return;
+            const ids = grupoMovs.map(m => m.id);
+            data.movimentacoes = (data.movimentacoes||[]).filter(m => !ids.includes(m.id));
+            saveImbel(data);
+            renderControleImbelMovimentacao();
+            renderControleImbelDashboard();
+            mostrarNotificacao('Movimentação excluída.', 'warning');
+        };
 
     // conectar eventos dos filtros
     ['imbel_filter_prod','imbel_filter_tipo','imbel_filter_date_start','imbel_filter_date_end','imbel_filter_dest','imbel_filter_cpf','imbel_filter_pago','imbel_filter_entregue_only','imbel_filter_fi_only'].forEach(id=>{
@@ -5814,38 +5966,23 @@ function renderControleImbelMovimentacao() {
     // ---- Handler: Salvar (no modal) ----
     document.getElementById('imbel_mov_salvar').onclick = function(){
         const hoje = new Date().toISOString().slice(0,10);
-        const produtoId = document.getElementById('imbel_mov_prod').value;
         const tipoKey = document.getElementById('imbel_mov_tipo').value;
         const cfg = getImbelTipo(tipoKey);
-        const quantidade = Number(document.getElementById('imbel_mov_qtd').value) || 0;
         const dataStr = document.getElementById('imbel_mov_data').value || hoje;
         const destinatario = document.getElementById('imbel_mov_dest').value.trim();
         const cpfCnpj = document.getElementById('imbel_mov_cpf').value.trim();
         const evento = (document.getElementById('imbel_mov_evento')||{value:''}).value.trim() || '';
-        let valor = parseFloat((document.getElementById('imbel_mov_valor')||{value:''}).value) || 0;
         const endereco = document.getElementById('imbel_mov_endereco').value.trim();
         const telefone = document.getElementById('imbel_mov_tel').value.trim();
         const email = document.getElementById('imbel_mov_email').value.trim();
         const obs = document.getElementById('imbel_mov_obs').value.trim();
         const editId = (document.getElementById('imbel_mov_edit_id') || {value:''}).value || '';
 
-        // coletar itens da modal (se houver)
+        // coletar itens da modal (agora obrigatório)
         const items = collectImbelMovItensFromDOM();
-        let totalQuantidade = 0;
-        let totalValor = 0;
-        if (items && items.length) {
-            totalQuantidade = items.reduce((s,it) => s + (Number(it.quantidade)||0), 0);
-            totalValor = items.reduce((s,it) => s + (Number(it.valor)||0), 0);
-        }
-
-        // fallback: se não houver itens, manter comportamento antigo
-        if ((!items || !items.length)) {
-            // Se não informou valor e é venda, tentar usar preço de referência
-            if ((!valor || valor === 0) && tipoKey === 'VENDA' && produtoId) {
-                const precoRef = getImbelPrecoAtual(produtoId);
-                if (precoRef) valor = Number(precoRef.valor) * quantidade;
-            }
-        }
+        if (!items || !items.length) { mostrarNotificacao('Adicione ao menos um item à movimentação.', 'warning'); return; }
+        let totalQuantidade = items.reduce((s,it) => s + (Number(it.quantidade)||0), 0);
+        let totalValor = items.reduce((s,it) => s + (Number(it.valor)||0), 0);
 
         // validações
         if ((!items || !items.length) && !produtoId) { mostrarNotificacao('Selecione um produto.', 'warning'); return; }
@@ -5868,18 +6005,11 @@ function renderControleImbelMovimentacao() {
                     saldos[m2.produtoId] = (saldos[m2.produtoId]||0) + s * q;
                 }
             });
-            if (items && items.length) {
-                for (const it of items) {
-                    const saldoAtual = saldos[it.produtoId] || 0;
-                    if ((Number(it.quantidade)||0) > saldoAtual) {
-                        mostrarNotificacao(`Saldo insuficiente para ${it.produtoId}. Saldo atual: ${saldoAtual} un.`, 'error');
-                        return;
-                    }
-                }
-            } else {
-                const saldoAtual = saldos[produtoId] || 0;
-                if (quantidade > saldoAtual) {
-                    mostrarNotificacao(`Saldo insuficiente. Saldo atual: ${saldoAtual} un.`, 'error');
+            // validar apenas pelos itens presentes na modal
+            for (const it of items) {
+                const saldoAtual = saldos[it.produtoId] || 0;
+                if ((Number(it.quantidade)||0) > saldoAtual) {
+                    mostrarNotificacao(`Saldo insuficiente para ${it.produtoId}. Saldo atual: ${saldoAtual} un.`, 'error');
                     return;
                 }
             }
@@ -5889,17 +6019,11 @@ function renderControleImbelMovimentacao() {
         if (editId) {
             const mov = data.movimentacoes.find(m => m.id === editId);
             if (mov) {
-                if (items && items.length) {
-                    mov.items = items;
-                    mov.produtoId = items[0].produtoId;
-                    mov.quantidade = totalQuantidade;
-                    mov.valor = totalValor;
-                } else {
-                    mov.items = undefined;
-                    mov.produtoId = produtoId;
-                    mov.quantidade = quantidade;
-                    mov.valor = valor;
-                }
+                // sempre gravar itens (novo formato). Para compatibilidade, manter produtoId/quantidade/valor agregados
+                mov.items = items;
+                mov.produtoId = (items && items.length) ? items[0].produtoId : (mov.produtoId||'');
+                mov.quantidade = totalQuantidade;
+                mov.valor = totalValor;
                 mov.tipo = (tipoKey||'').toString();
                 mov.tipoLabel = cfg.label || mov.tipoLabel;
                 mov.categoria = cfg.categoria || mov.categoria;
@@ -5932,16 +6056,11 @@ function renderControleImbelMovimentacao() {
             destinatario: (destinatario||'').toUpperCase(), cpfCnpj: (cpfCnpj||'').toUpperCase(), evento: evento || '', pagamento: 'NÃO', endereco: (endereco||'').toUpperCase(),
             telefone: (telefone||'').toUpperCase(), email: (email||'').toUpperCase(), entregue: 'NÃO', fi: 'NÃO', observacoes: (obs||'').toUpperCase()
         };
-        if (items && items.length) {
-            novo.items = items;
-            novo.produtoId = items[0].produtoId;
-            novo.quantidade = totalQuantidade;
-            novo.valor = totalValor;
-        } else {
-            novo.produtoId = produtoId;
-            novo.quantidade = quantidade;
-            novo.valor = valor;
-        }
+        // gravar sempre em novo formato (itens), preencher agregados para compatibilidade
+        novo.items = items;
+        novo.produtoId = (items && items.length) ? items[0].produtoId : '';
+        novo.quantidade = totalQuantidade;
+        novo.valor = totalValor;
         data.movimentacoes.push(novo);
         saveImbel(data);
         mostrarNotificacao('Movimentação registrada!', 'success');
