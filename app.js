@@ -1026,7 +1026,7 @@ function carregarDados() {
         }
         // carregar precificações por cliente, se presente
         try { precificacoesCliente = normalizarPrecificacoesCliente(estoque.precificacoesCliente); } catch (e) { precificacoesCliente = []; }
-        if (!precificacoesCliente.length) {
+        if (!precificacoesCliente || !precificacoesCliente.length) {
             try {
                 const rawEspelho = localStorage.getItem('precificacoesClienteBackupV1');
                 const espelho = normalizarPrecificacoesCliente(rawEspelho ? JSON.parse(rawEspelho) : []);
@@ -1288,6 +1288,15 @@ async function carregarDoCloud({confirmOverwrite=true} = {}) {
         if (abaAtiva === 'precificacao') renderizarPrecificacao();
         atualizarSelectsProdutos();
         atualizarSelectsRelatorios();
+        try {
+            const subAbaAtiva = document.querySelector('#tab-precificacao [data-subaba].ativo')?.dataset?.subaba
+                             || document.querySelector('#tab-precificacao .tab-btn.active')?.dataset?.subaba;
+            if (subAbaAtiva === 'consulta') renderizarConsultaPrecificacao();
+            if (subAbaAtiva === 'comparativo') renderizarComparativoPrecificacao?.();
+            if (subAbaAtiva === 'rastreabilidade') renderizarRastreabilidade?.();
+            if (subAbaAtiva === 'imagem') renderizarImagemPrecificacao?.();
+            if (subAbaAtiva === 'impostos') renderizarImpostosFederais?.();
+        } catch(e) { console.error('Erro ao re-renderizar precificação após load:', e); }
         console.debug('Dados carregados do Firestore com sucesso.');
         return true;
     } catch (e) {
@@ -12643,6 +12652,13 @@ function popularSelectsComparativo() {
 }
 
 function renderizarConsultaPrecificacao(forceSemFiltros = false) {
+    if (!precificacoesCliente || precificacoesCliente.length === 0) {
+        const tbody = document.getElementById('tabelaConsultaPrecifBody')
+                   || document.querySelector('#tabelaConsultaPrecif tbody')
+                   || document.querySelector('[id*="consulta"] tbody');
+        if (tbody) tbody.innerHTML = '<tr><td colspan="99" style="text-align:center;padding:40px;color:#64748b;">Carregando dados do cloud... Se persistir, clique em Carregar do Cloud.</td></tr>';
+        return;
+    }
     // Populate selects
     const selCliente = document.getElementById('consultaFiltroCliente');
     if (selCliente) {
