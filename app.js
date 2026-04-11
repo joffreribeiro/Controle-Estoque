@@ -8,6 +8,21 @@ if (location.hostname !== 'localhost') {
     console.log = () => {};
     console.debug = () => {};
 }
+// Flag para indicar que há dados locais alterados que ainda não foram sincronizados com o cloud
+let _dadosAlterados = false;
+// Marca que houve sincronização recente com o cloud (evita warning ao fechar)
+let _cloudSyncedRecently = false;
+// Timer para resetar o estado de sincronização recente
+let __cloudSyncResetTimer = null;
+
+window.addEventListener('beforeunload', e => {
+    try {
+        if (_dadosAlterados && !_cloudSyncedRecently) {
+            e.preventDefault();
+            e.returnValue = 'Há dados não sincronizados com o cloud. Sair mesmo assim?';
+        }
+    } catch (err) {}
+});
 let estoque = {
     produtos: [],
     representantes: ['KOLTE', 'ISA', 'LC', 'ADES', 'FL', 'IMBEL'],
@@ -848,6 +863,9 @@ function salvarDados() {
 
     // agendar salvamento no cloud (debounced) se habilitado
     try { scheduleCloudSaveDebounced(); } catch (e) {}
+    try {
+        if (!_cloudSyncedRecently) _dadosAlterados = true;
+    } catch (e) {}
 }
 
 // =============================
@@ -888,6 +906,12 @@ async function salvarNoCloud() {
             indicator.style.color = '#16a34a';
             setTimeout(() => { if (indicator) indicator.textContent = ''; }, 3000);
         }
+        try {
+            _cloudSyncedRecently = true;
+            _dadosAlterados = false;
+            if (__cloudSyncResetTimer) clearTimeout(__cloudSyncResetTimer);
+            __cloudSyncResetTimer = setTimeout(() => { _cloudSyncedRecently = false; }, 30000);
+        } catch (e) {}
         console.debug('Dados salvos no Firestore (coleção app_data / doc latest)');
         return true;
     } catch (e) {
@@ -1967,6 +1991,32 @@ function imprimirInventario() {
         </html>
     `);
     win.document.close();
+}
+
+function aprovarProposta(id) {
+    const p = (propostas || []).find(x => x.id === id);
+    if (!p) return;
+    p.aguardandoAprovacao = false;
+    try {
+        p.aprovadoPor = (typeof auth !== 'undefined' && auth.currentUser && auth.currentUser.email) ? auth.currentUser.email : 'Admin';
+    } catch (e) { p.aprovadoPor = 'Admin'; }
+    p.dataAprovacao = new Date().toISOString();
+    p.status = 'rascunho';
+    salvarDados();
+    try { renderizarPropostas(); } catch (e) {}
+    mostrarNotificacao(`✅ Proposta ${p.numero} aprovada.`, 'success');
+}
+
+function recusarAprovacaoProposta(id) {
+    const p = (propostas || []).find(x => x.id === id);
+    if (!p) return;
+    const motivo = prompt('Motivo da recusa:') || 'Sem motivo';
+    p.aguardandoAprovacao = false;
+    p.status = 'rascunho';
+    p.observacoes = (p.observacoes || '') + `\n[RECUSADO: ${motivo} — ${new Date().toLocaleDateString('pt-BR')}]`;
+    salvarDados();
+    try { renderizarPropostas(); } catch (e) {}
+    mostrarNotificacao('Desconto recusado. Proposta voltou para rascunho.', 'warning');
 }
  
 
