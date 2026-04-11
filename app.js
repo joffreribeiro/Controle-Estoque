@@ -4767,6 +4767,16 @@ function renderControleImbelDashboard() {
     pipelineWrap.appendChild(tableP);
     container.appendChild(pipelineWrap);
 
+    // Inserir container da tabela detalhada de estoque dentro do Dashboard
+    try {
+        const detalheEstoqueWrapper = document.createElement('div');
+        detalheEstoqueWrapper.id = 'controleImbelEstoqueContainer';
+        detalheEstoqueWrapper.style.cssText = 'margin-top:16px';
+        container.appendChild(detalheEstoqueWrapper);
+        // Renderizar tabela detalhada (reaproveita função existente)
+        try { renderControleImbelEstoque(); } catch(e) { console.warn('Erro ao renderizar tabela de estoque dentro do Dashboard', e); }
+    } catch(e) { console.warn('Erro ao inserir container de estoque no Dashboard', e); }
+
     // bind action buttons (toggle status)
     tpb.querySelectorAll('button[data-toggle-pag]').forEach(btn => btn.onclick = function(){
         const id = this.getAttribute('data-toggle-pag');
