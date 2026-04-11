@@ -8840,23 +8840,23 @@ function renderizarClientes(filtro = '') {
     const tbody = document.getElementById('tabelaClientesBody');
     if (!tbody) return;
 
-    const filtroLower = (filtro || '').toLowerCase();
-    const lista = clientes.filter(c => {
-        if (!filtroLower) return true;
-        return (c.nome || '').toLowerCase().includes(filtroLower) ||
-               (c.cnpj || '').toLowerCase().includes(filtroLower) ||
-               (c.cidade || '').toLowerCase().includes(filtroLower) ||
-               (c.representante || '').toLowerCase().includes(filtroLower);
-    });
+    const termo = (filtro || '').toLowerCase();
+    const clientesFiltrados = (clientes || []).filter(c =>
+        !termo ||
+        (c.nome || '').toLowerCase().includes(termo) ||
+        (c.cnpj || '').includes(termo) ||
+        (c.uf || '').toLowerCase().includes(termo) ||
+        (c.contato || '').toLowerCase().includes(termo)
+    );
 
-    if (lista.length === 0) {
+    if (clientesFiltrados.length === 0) {
         tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:24px;color:var(--text-secondary)">Nenhum cliente encontrado.</td></tr>';
         return;
     }
 
     const vendas = estoque.registroVendas || [];
 
-    tbody.innerHTML = lista.map(c => {
+    tbody.innerHTML = clientesFiltrados.map(c => {
         const repClass = (c.representante || '').toLowerCase();
         const repBadge = c.representante
             ? `<span class="badge-rep ${repClass}">${c.representante}</span>`
