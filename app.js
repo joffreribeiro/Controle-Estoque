@@ -644,15 +644,6 @@ function popularSelectRepresentantes(selectId, incluirImbel = true) {
 
 async function inicializar() {
     carregarDados();
-    // Load contract config into Configurações tab
-    try {
-        const cfg = carregarConfigContrato();
-        const anoEl = document.getElementById('configContratoAno');
-        const proxEl = document.getElementById('configContratoProximo');
-        if (anoEl) anoEl.value = cfg.ano;
-        if (proxEl) proxEl.value = cfg.proximo;
-        atualizarPreviaContrato();
-    } catch (e) {}
     try { verificarExpiracaoPrecificacoes(); } catch (e) {}
     try { inicializarImpostosPreDefinidos(); } catch (e) { console.warn('Inicialização de impostos predefinidos falhou:', e); }
 
@@ -704,50 +695,6 @@ async function inicializar() {
     // Reativar auto-save: habilita salvamento automático (debounced + periódico)
     try { window.__AUTO_SAVE_CLOUD.enabled = true; } catch (e) {}
     try { iniciarAutoSaveCloud(); } catch (e) { console.warn('Falha ao iniciar auto-save:', e); }
-}
-
-// Contract numbering configuration (NNN/YYYY) stored in localStorage as 'configContrato'
-function carregarConfigContrato() {
-    try {
-        const cfg = JSON.parse(localStorage.getItem('configContrato') || '{}');
-        return {
-            ano: Number(cfg.ano) || new Date().getFullYear(),
-            proximo: Number(cfg.proximo) || 1,
-        };
-    } catch (e) {
-        return { ano: new Date().getFullYear(), proximo: 1 };
-    }
-}
-
-function salvarConfigContrato() {
-    const ano = parseInt(document.getElementById('configContratoAno')?.value) || new Date().getFullYear();
-    const proximo = parseInt(document.getElementById('configContratoProximo')?.value) || 1;
-    const cfg = { ano, proximo };
-    localStorage.setItem('configContrato', JSON.stringify(cfg));
-    atualizarPreviaContrato();
-    try { mostrarNotificacao('Configuração de contrato salva!', 'success'); } catch (e) {}
-}
-
-function atualizarPreviaContrato() {
-    const ano = parseInt(document.getElementById('configContratoAno')?.value) || new Date().getFullYear();
-    const proximo = parseInt(document.getElementById('configContratoProximo')?.value) || 1;
-    const previa = document.getElementById('configContratoPreviaPrev');
-    if (previa) {
-        previa.textContent = String(proximo).padStart(3, '0') + '/' + ano;
-    }
-}
-
-function gerarNumeroContrato() {
-    const cfg = carregarConfigContrato();
-    const anoAtual = new Date().getFullYear();
-    if (Number(cfg.ano) !== anoAtual) {
-        cfg.ano = anoAtual;
-        cfg.proximo = 1;
-    }
-    const numero = String(cfg.proximo).padStart(3, '0') + '/' + cfg.ano;
-    cfg.proximo = Number(cfg.proximo) + 1;
-    localStorage.setItem('configContrato', JSON.stringify(cfg));
-    return numero;
 }
 
 function normalizarPrecificacoesCliente(origem) {
@@ -5339,7 +5286,6 @@ function renderizarDashboard() {
         trTotalRep.innerHTML = htmlTotal;
         tabelaRep.appendChild(trTotalRep);
     }
-    try { renderizarGraficoComissoes(); } catch (e) {}
 }
 
 // ========================================
@@ -5772,7 +5718,10 @@ function abrirModalVendaDetalhada(vendaId = null, propostaId = null) {
             vendaEditandoId = null;
             container.innerHTML = '';
 
-            document.getElementById('contratoVenda').value = gerarNumeroContrato();
+            const ultimoContrato = estoque.registroVendas.length > 0
+                ? Math.max(...estoque.registroVendas.map(v => parseInt(v.contrato) || 0))
+                : 0;
+            document.getElementById('contratoVenda').value = ultimoContrato + 1;
             document.getElementById('lojaVenda').value = proposta.cliente || '';
             document.getElementById('representanteVendaDet').value = proposta.representante || '';
             document.getElementById('observacoesVenda').value = 'Gerado a partir da proposta ' + proposta.numero + (proposta.observacoes ? '\n' + proposta.observacoes : '');
@@ -5797,7 +5746,10 @@ function abrirModalVendaDetalhada(vendaId = null, propostaId = null) {
         container.innerHTML = '';
         adicionarItemVendaRow();
 
-        document.getElementById('contratoVenda').value = gerarNumeroContrato();
+        const ultimoContrato = estoque.registroVendas.length > 0 
+            ? Math.max(...estoque.registroVendas.map(v => parseInt(v.contrato) || 0)) 
+            : 0;
+        document.getElementById('contratoVenda').value = ultimoContrato + 1;
         // Preencher data padrão como hoje
         try { document.getElementById('dataVenda').value = new Date().toISOString().slice(0,10); } catch (e) {}
         return;
@@ -8751,16 +8703,6 @@ function verificarAlertasEstoque() {
                 proposta: p, cor: '#7c3aed', urgencia: 'AGUARD. APROVAÇÃO', tipo: 'aprovacao'
             }));
 
-        // Propostas recusadas recentemente (últimos 7 dias) — lembrete de follow-up
-        (propostas || []).filter(p => p.status === 'recusada' && p.dataRecusa).forEach(p => {
-            try {
-                const dias = Math.ceil((new Date() - new Date(p.dataRecusa)) / 86400000);
-                if (dias >= 0 && dias <= 7) {
-                    alertasPropostas.push({ proposta: p, cor: '#ef4444', urgencia: 'RECUSADA', tipo: 'recusada' });
-                }
-            } catch (e) {}
-        });
-
         if (mudouStatusProposta) {
             try { estoque.propostas = propostas; } catch (e) {}
             try { salvarDados(); } catch (e) {}
@@ -8778,7 +8720,7 @@ function verificarAlertasEstoque() {
                 header.textContent = `Propostas (${alertasPropostas.length})`;
                 lista.appendChild(header);
 
-                                alertasPropostas.forEach(alerta => {
+                alertasPropostas.forEach(alerta => {
                     const p = alerta.proposta;
                     const fmt = v => 'R$' + (v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
                     const div = document.createElement('div');
@@ -8797,10 +8739,8 @@ function verificarAlertasEstoque() {
           <div style="font-size:0.78rem;color:#64748b;margin-top:3px">
             ${p.cliente} · ${fmt(p.valorTotal)}
           </div>
-                    ${alerta.tipo === 'aprovacao' && p.motivoAprovacao
-                                                        ? `<div style="font-size:0.75rem;color:#7c3aed;margin-top:3px">Motivo: ${_escapeHtml(String(p.motivoAprovacao))}</div>` : ''}
-                    ${alerta.tipo === 'recusada' && p.motivoRecusa
-                                                        ? `<div style="font-size:0.75rem;color:#dc2626;margin-top:3px">Motivo: ${_escapeHtml(String(p.motivoRecusa))}</div>` : ''}
+          ${alerta.tipo === 'aprovacao' && p.motivoAprovacao
+                            ? `<div style="font-size:0.75rem;color:#7c3aed;margin-top:3px">Motivo: ${_escapeHtml(String(p.motivoAprovacao))}</div>` : ''}
           <button onclick="trocarAba('propostas');fecharPainelAlertas();"
                   style="font-size:0.75rem;color:${alerta.cor};background:none;
                          border:none;cursor:pointer;text-decoration:underline;
@@ -8842,7 +8782,6 @@ function verificarAlertasEstoque() {
 
 let _chartVendasRep = null;
 let _chartTopProdutos = null;
-let _chartComissoesRep = null;
 
 function renderizarGraficos() {
     if (typeof Chart === 'undefined') return;
@@ -8927,109 +8866,6 @@ function renderizarGraficos() {
 // ========================================
 // MÓDULO DE CLIENTES
 // ========================================
-
-// ========================================
-// GRÁFICO: Comissões por Representante
-// ========================================
-function renderizarGraficoComissoes() {
-        const periodo = document.getElementById('filtroComissoesGraficoPeriodo')?.value || 'todos';
-        const agora = new Date();
-
-        const inPeriod = d => {
-                if (!d || periodo === 'todos') return true;
-                const dt = new Date(d);
-                if (periodo === 'mes') return dt.getMonth() === agora.getMonth() && dt.getFullYear() === agora.getFullYear();
-                if (periodo === 'trimestre') return Math.floor(dt.getMonth()/3) === Math.floor(agora.getMonth()/3) && dt.getFullYear() === agora.getFullYear();
-                if (periodo === 'ano') return dt.getFullYear() === agora.getFullYear();
-                return true;
-        };
-
-        const reps = (estoque.representantes && estoque.representantes.length) ? estoque.representantes : ['KOLTE','ISA','LC','ADES','FL','IMBEL'];
-        const repColors = { KOLTE: '#79c0ff', ISA: '#7ee787', LC: '#58a6ff', ADES: '#ffa657', FL: '#d2a8ff', IMBEL: '#ff7b72' };
-
-        const comissoesPorRep = {};
-        reps.forEach(r => { comissoesPorRep[r] = 0; });
-
-        (estoque.registroVendas || []).filter(v => inPeriod(v.data)).forEach(venda => {
-                const rep = (venda.representante || '').toUpperCase();
-                if (!comissoesPorRep.hasOwnProperty(rep)) comissoesPorRep[rep] = 0;
-
-                const precifDoCliente = (precificacoesCliente || [])
-                        .filter(p => p.clienteNome === venda.loja || (clientes||[]).find(c => c.nome === venda.loja)?.id === p.clienteId)
-                        .sort((a,b) => new Date(b.dataCriacao||0) - new Date(a.dataCriacao||0))[0];
-
-                if (precifDoCliente) {
-                        const totalComissao = (precifDoCliente.itens || []).reduce((s, item) => {
-                                const vendaItem = (venda.items || venda.itens || []).find(vi => (vi.produtoNome||vi.produtoId) === item.produto);
-                                if (vendaItem) return s + ((item.comissaoR || 0) * (vendaItem.quantidade || 0));
-                                return s + (item.comissaoR || 0);
-                        }, 0);
-                        comissoesPorRep[rep] += totalComissao;
-                } else {
-                        comissoesPorRep[rep] += (venda.valorTotal || 0) * 0.05;
-                }
-        });
-
-        const repsComDados = reps.filter(r => comissoesPorRep[r] > 0);
-        const labels = repsComDados.length ? repsComDados : reps;
-        const valores = labels.map(r => comissoesPorRep[r] || 0);
-        const colors = labels.map(r => repColors[r] || '#94a3b8');
-        const totalGeral = valores.reduce((s,v) => s+v, 0);
-
-        const fmt = v => 'R$ ' + v.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
-
-        const ctx = document.getElementById('chartComissoesRep');
-        if (ctx && window.Chart) {
-                if (_chartComissoesRep) { try { _chartComissoesRep.destroy(); } catch(e) {} }
-                _chartComissoesRep = new Chart(ctx.getContext('2d'), {
-                        type: 'bar',
-                        data: { labels, datasets: [{ label: 'Comissão (R$)', data: valores, backgroundColor: colors.map(c => c + 'cc'), borderColor: colors, borderWidth: 2, borderRadius: 6 }] },
-                        options: {
-                                responsive: true,
-                                maintainAspectRatio: false,
-                                plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => fmt(ctx.raw) } } },
-                                scales: {
-                                        y: { beginAtZero: true, ticks: { callback: v => 'R$ ' + (v/1000).toFixed(0) + 'k', font: { size: 10 } }, grid: { color: '#f1f5f9' } },
-                                        x: { ticks: { font: { size: 11, weight: '600' } }, grid: { display: false } }
-                                }
-                        }
-                });
-        }
-
-        const tableDiv = document.getElementById('tabelaComissoesGrafico');
-        if (tableDiv) {
-                const sorted = labels.map((r,i) => ({ rep: r, valor: valores[i], cor: colors[i] })).sort((a,b) => b.valor - a.valor);
-                tableDiv.innerHTML = `
-                    <table style="width:100%;border-collapse:collapse">
-                        <thead>
-                            <tr style="background:#f8fafc">
-                                <th style="padding:6px 10px;text-align:left;font-size:0.75rem;color:#64748b;text-transform:uppercase">Rep</th>
-                                <th style="padding:6px 10px;text-align:right;font-size:0.75rem;color:#64748b;text-transform:uppercase">Comissão</th>
-                                <th style="padding:6px 10px;text-align:right;font-size:0.75rem;color:#64748b;text-transform:uppercase">%</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${sorted.map(row => {
-                                const pct = totalGeral > 0 ? (row.valor/totalGeral*100).toFixed(1) : '0';
-                                return `
-                                    <tr style="border-bottom:1px solid #f1f5f9">
-                                        <td style="padding:7px 10px;display:flex;align-items:center;gap:6px">
-                                            <span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${row.cor};flex-shrink:0"></span>
-                                            <span style="font-weight:600;color:#1e293b">${row.rep}</span>
-                                        </td>
-                                        <td style="padding:7px 10px;text-align:right;font-weight:700;color:#16a34a">${fmt(row.valor)}</td>
-                                        <td style="padding:7px 10px;text-align:right;color:#64748b;font-size:0.78rem">${pct}%</td>
-                                    </tr>`;
-                            }).join('')}
-                        </tbody>
-                    </table>`;
-        }
-
-        const totalEl = document.getElementById('totalComissoesGrafico');
-        if (totalEl) {
-                totalEl.innerHTML = `Total de comissões no período: <strong style="color:#16a34a;font-size:1rem;margin-left:6px">${fmt(totalGeral)}</strong>`;
-        }
-}
 
 let clientes = [];
 
@@ -9178,13 +9014,10 @@ function renderizarClientes(filtro = '') {
             <td>${c.contato || '-'}</td>
             <td>${repBadge}</td>
             <td style="text-align:center">${totalCompras}</td>
-                        <td class="col-acoes">
-                                <button class="btn-action" onclick="abrirHistoricoCliente('${c.id}')" title="Ver histórico de compras" style="background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;border-radius:6px;padding:3px 8px;cursor:pointer;font-size:0.8rem">
-                                    📋 Histórico
-                                </button>
-                                <button class="btn-action btn-edit" data-admin="true" onclick="abrirModalCliente('${c.id}')" title="Editar cliente">✎</button>
-                                <button class="btn-action btn-delete" data-admin="true" onclick="excluirCliente('${c.id}')" title="Excluir cliente">🗑</button>
-                        </td>
+            <td class="col-acoes">
+                <button class="btn-action btn-edit" data-admin="true" onclick="abrirModalCliente('${c.id}')" title="Editar cliente">✎</button>
+                <button class="btn-action btn-delete" data-admin="true" onclick="excluirCliente('${c.id}')" title="Excluir cliente">🗑</button>
+            </td>
         </tr>`;
     }).join('');
 
@@ -9255,236 +9088,6 @@ function imprimirClientes() {
     </head><body><h2>Cadastro de Clientes</h2>${html}</body></html>`);
     win.document.close();
 }
-
-// Histórico de cliente: variável e funções
-let _clienteHistoricoAtual = null;
-
-function abrirHistoricoCliente(clienteId) {
-    const cliente = (clientes||[]).find(c => String(c.id) === String(clienteId));
-    if (!cliente) return;
-    _clienteHistoricoAtual = cliente;
-
-    const vendas = (estoque.registroVendas||[])
-        .filter(v => (v.loja||'').toLowerCase() === (cliente.nome||'').toLowerCase())
-        .sort((a,b) => new Date(b.data||0) - new Date(a.data||0));
-
-    const propostasC = (propostas||[])
-        .filter(p => p.cliente === cliente.nome)
-        .sort((a,b) => new Date(b.dataCriacao||b.data||0) - new Date(a.dataCriacao||a.data||0));
-
-    const precifs = (precificacoesCliente||[])
-        .filter(p => String(p.clienteId) === String(clienteId))
-        .sort((a,b) => new Date(b.dataCriacao||0) - new Date(a.dataCriacao||0));
-
-    const fmt = v => 'R$ ' + (v||0).toLocaleString('pt-BR',{minimumFractionDigits:2});
-    const totalFaturado = vendas.reduce((s,v) => s+(v.valorTotal||0), 0);
-    const ticketMedio = vendas.length > 0 ? totalFaturado / vendas.length : 0;
-    const taxaConversao = propostasC.length > 0 ? Math.round(propostasC.filter(p=>p.status==='aceita').length / propostasC.length * 100) : 0;
-    const ultimaCompra = vendas[0]?.data ? new Date(vendas[0].data).toLocaleDateString('pt-BR') : '—';
-
-    // Header cards
-    document.getElementById('historicoClienteHeader').innerHTML = `
-        <div style="background:#eff6ff;border-radius:10px;padding:14px;
-                                border:1px solid #bfdbfe;text-align:center">
-            <div style="font-size:1.8rem;font-weight:800;color:#1d4ed8">
-                ${vendas.length}
-            </div>
-            <div style="font-size:0.78rem;color:#64748b;text-transform:uppercase;
-                                    letter-spacing:0.5px;margin-top:2px">Contratos</div>
-        </div>
-        <div style="background:#f0fdf4;border-radius:10px;padding:14px;
-                                border:1px solid #86efac;text-align:center">
-            <div style="font-size:1.4rem;font-weight:800;color:#16a34a">
-                ${fmt(totalFaturado)}
-            </div>
-            <div style="font-size:0.78rem;color:#64748b;text-transform:uppercase;
-                                    letter-spacing:0.5px;margin-top:2px">Total Faturado</div>
-        </div>
-        <div style="background:#fff7ed;border-radius:10px;padding:14px;
-                                border:1px solid #fdba74;text-align:center">
-            <div style="font-size:1.4rem;font-weight:800;color:#d97706">
-                ${fmt(ticketMedio)}
-            </div>
-            <div style="font-size:0.78rem;color:#64748b;text-transform:uppercase;
-                                    letter-spacing:0.5px;margin-top:2px">Ticket Médio</div>
-        </div>
-        <div style="background:#faf5ff;border-radius:10px;padding:14px;
-                                border:1px solid #d8b4fe;text-align:center">
-            <div style="font-size:1.8rem;font-weight:800;color:#7c3aed">
-                ${taxaConversao}%
-            </div>
-            <div style="font-size:0.78rem;color:#64748b;text-transform:uppercase;
-                                    letter-spacing:0.5px;margin-top:2px">Taxa Conversão</div>
-        </div>
-        <div style="background:#f1f5f9;border-radius:10px;padding:14px;
-                                border:1px solid #cbd5e1;text-align:center">
-            <div style="font-size:1rem;font-weight:700;color:#1e293b">
-                ${ultimaCompra}
-            </div>
-            <div style="font-size:0.78rem;color:#64748b;text-transform:uppercase;
-                                    letter-spacing:0.5px;margin-top:2px">Última Compra</div>
-        </div>
-    `;
-
-    // Contratos tab
-    document.getElementById('hcContent-contratos').innerHTML = vendas.length === 0
-        ? `<div style="text-align:center;padding:40px;color:#94a3b8">
-                 Nenhum contrato registrado para este cliente
-             </div>`
-        : `<table class="dashboard-table" style="font-size:0.85rem">
-                <thead>
-                    <tr>
-                        <th>Contrato</th>
-                        <th>Data</th>
-                        <th>Representante</th>
-                        <th style="text-align:center">Itens</th>
-                        <th style="text-align:right">Valor Total</th>
-                        <th>Observações</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    ${vendas.map(v => `
-                        <tr>
-                            <td style="font-weight:700;color:#1e3a5f">#${v.contrato}</td>
-                            <td>${v.data ? new Date(v.data).toLocaleDateString('pt-BR') : '—'}</td>
-                            <td>${v.representante || '—'}</td>
-                            <td style="text-align:center">
-                                ${(v.items||v.itens||[]).length}
-                            </td>
-                            <td style="text-align:right;font-weight:700;color:#16a34a">
-                                ${fmt(v.valorTotal)}
-                            </td>
-                            <td style="font-size:0.78rem;color:#64748b;max-width:200px;
-                                                 overflow:hidden;text-overflow:ellipsis;white-space:nowrap"
-                                    title="${v.observacoes||''}">
-                                ${v.observacoes || '—'}
-                            </td>
-                        </tr>`).join('')}
-                </tbody>
-                <tfoot>
-                    <tr style="background:#f8fafc;font-weight:700">
-                        <td colspan="4" style="padding:10px 12px;color:#64748b">
-                            Total (${vendas.length} contrato(s))
-                        </td>
-                        <td style="text-align:right;color:#16a34a;font-size:1rem">
-                            ${fmt(totalFaturado)}
-                        </td>
-                        <td></td>
-                    </tr>
-                </tfoot>
-            </table>`;
-
-    // Propostas tab
-    const statusColor = {
-        rascunho:'#64748b', enviada:'#1d4ed8', aceita:'#16a34a',
-        recusada:'#dc2626', expirada:'#d97706', convertida:'#0ea5e9'
-    };
-    document.getElementById('hcContent-propostas').innerHTML = propostasC.length === 0
-        ? `<div style="text-align:center;padding:40px;color:#94a3b8">
-                 Nenhuma proposta para este cliente
-             </div>`
-        : `<table class="dashboard-table" style="font-size:0.85rem">
-                <thead>
-                    <tr>
-                        <th>Proposta</th>
-                        <th>Data</th>
-                        <th>Status</th>
-                        <th style="text-align:center">Itens</th>
-                        <th style="text-align:right">Valor</th>
-                        <th>Contrato</th>
-                        <th>Motivo Recusa</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    ${propostasC.map(p => {
-                        const sc = statusColor[p.status]||'#64748b';
-                        return `<tr>
-                            <td style="font-weight:700;color:#1e3a5f">${p.numero}</td>
-                            <td>${new Date(p.dataCriacao||p.data||new Date()).toLocaleDateString('pt-BR')}</td>
-                            <td>
-                                <span style="background:${sc}20;color:${sc};font-size:0.72rem;
-                                                         font-weight:600;padding:2px 8px;border-radius:20px">
-                                    ${p.status}
-                                </span>
-                            </td>
-                            <td style="text-align:center">${(p.itens||[]).length}</td>
-                            <td style="text-align:right;font-weight:600;color:#16a34a">
-                                ${fmt(p.valorTotal)}
-                            </td>
-                            <td style="font-weight:600;color:#1e3a5f">
-                                ${p.contratoNumero ? '#'+p.contratoNumero : '—'}
-                            </td>
-                            <td style="font-size:0.78rem;color:#dc2626;max-width:180px;
-                                                 overflow:hidden;text-overflow:ellipsis" 
-                                    title="${p.motivoRecusa||''}">
-                                ${p.motivoRecusa || '—'}
-                            </td>
-                        </tr>`;
-                    }).join('')}
-                </tbody>
-            </table>`;
-
-    // Precificações tab
-    document.getElementById('hcContent-precificacoes').innerHTML = precifs.length === 0
-        ? `<div style="text-align:center;padding:40px;color:#94a3b8">
-                 Nenhuma precificação salva para este cliente
-             </div>`
-        : `<table class="dashboard-table" style="font-size:0.85rem">
-                <thead>
-                    <tr>
-                        <th>Versão</th>
-                        <th>Data</th>
-                        <th>Descrição</th>
-                        <th>Taxa</th>
-                        <th>ROI</th>
-                        <th style="text-align:center">Produtos</th>
-                        <th>Status</th>
-                        <th>Proposta</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    ${precifs.map(p => `
-                        <tr>
-                            <td style="font-weight:700;color:#1e3a5f">v${p.versao||1}</td>
-                            <td>${new Date(p.dataCriacao||new Date()).toLocaleDateString('pt-BR')}</td>
-                            <td style="color:#475569">${p.descricao||'—'}</td>
-                            <td style="text-align:center">${p.taxa||0}%</td>
-                            <td style="text-align:center">${p.roi||0}%</td>
-                            <td style="text-align:center">${(p.itens||[]).length}</td>
-                            <td>
-                                <span style="font-size:0.72rem;font-weight:600;
-                                                         padding:2px 8px;border-radius:20px;
-                                                         background:${p.status==='ativa'?'#f0fdf4':p.status==='convertida'?'#eff6ff':'#f1f5f9'};
-                                                         color:${p.status==='ativa'?'#16a34a':p.status==='convertida'?'#1d4ed8':'#64748b'}">
-                                    ${p.status}
-                                </span>
-                            </td>
-                            <td style="color:#0ea5e9;font-weight:600">
-                                ${p.propostaId
-                                    ? ((propostas||[]).find(x=>x.id===p.propostaId)?.numero||'—')
-                                    : '—'}
-                            </td>
-                        </tr>`).join('')}
-                </tbody>
-            </table>`;
-
-    // Show first tab
-    trocarAbaHistoricoCliente('contratos');
-    document.getElementById('modalHistoricoCliente').style.display = 'flex';
-}
-
-function trocarAbaHistoricoCliente(aba) {
-    ['contratos','propostas','precificacoes'].forEach(t => {
-        const content = document.getElementById('hcContent-' + t);
-        const btn = document.getElementById('hcTab-' + t);
-        if (content) content.style.display = t === aba ? 'block' : 'none';
-        if (btn) {
-            btn.style.color = t === aba ? '#1e3a5f' : '#64748b';
-            btn.style.borderBottomColor = t === aba ? '#1e3a5f' : 'transparent';
-        }
-    });
-}
-
 
 // ========================================
 // MÓDULO DE PRECIFICAÇÃO
@@ -12436,12 +12039,15 @@ function converterPropostaEmVenda(propostaId) {
 
     _propostaParaConverter = proposta;
 
-    // Calculate next contract number using configurable generator
-    const nextContractNumber = gerarNumeroContrato();
+    // Calculate next contract number
+    const ultimoContrato = estoque.registroVendas.length > 0
+        ? Math.max(...estoque.registroVendas.map(v => parseInt(v.contrato) || 0))
+        : 0;
+    const nextNum = ultimoContrato + 1;
 
     // Populate modal
     const contratoEl = document.getElementById('confirmarVendaContrato');
-    if (contratoEl) contratoEl.value = nextContractNumber;
+    if (contratoEl) contratoEl.value = nextNum;
     const dataEl = document.getElementById('confirmarVendaData');
     if (dataEl) dataEl.value = new Date().toISOString().split('T')[0];
 
@@ -12640,8 +12246,8 @@ function renderizarPropostas(filtro, statusFiltro) {
         const dataValidade = p.dataExpiracao ? new Date(p.dataExpiracao).toLocaleDateString('pt-BR') : '-';
         const validadeExpirada = p.dataExpiracao && new Date(p.dataExpiracao) < agora;
         const contratoDisplay = p.contratoNumero ? p.contratoNumero : '-';
+
         const podeConverter = p.status === 'rascunho' || p.status === 'enviada';
-        const podeRecusar = !['recusada','aceita','expirada'].includes(p.status);
 
         return `<tr>
             <td><span style="background:#0ea5e9; color:#fff; padding:2px 10px; border-radius:12px; font-size:0.82rem; font-weight:600;">${p.numero}</span></td>
@@ -12650,12 +12256,7 @@ function renderizarPropostas(filtro, statusFiltro) {
             <td style="color:#16a34a; font-weight:600">${formatarMoedaValor(p.valorTotal || 0)}</td>
             <td>${dataProposta}</td>
             <td style="${validadeExpirada ? 'color:#ef4444; font-weight:600' : ''}">${dataValidade}</td>
-            <td><span style="background:${statusConf.bg}; color:#fff; padding:2px 10px; border-radius:12px; font-size:0.8rem;">${statusConf.label}</span>
-                ${p.status === 'recusada' && p.motivoRecusa ? `<div style="font-size:0.75rem;color:#dc2626;margin-top:4px;max-width:200px;overflow:hidden;text-overflow:ellipsis" title="${_escapeHtml(p.motivoRecusa)}">↳ ${_escapeHtml(p.motivoRecusa)}</div>` : ''}
-            </td>
-            <td style="font-size:0.78rem;color:#dc2626;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${_escapeHtml(p.motivoRecusa || '')}">
-              ${p.status === 'recusada' && p.motivoRecusa ? _escapeHtml(p.motivoRecusa) : '—'}
-            </td>
+            <td><span style="background:${statusConf.bg}; color:#fff; padding:2px 10px; border-radius:12px; font-size:0.8rem;">${statusConf.label}</span></td>
             <td style="font-weight:600">${contratoDisplay}</td>
             <td>
                                 <div style="position:relative;display:inline-block">
@@ -12673,7 +12274,6 @@ function renderizarPropostas(filtro, statusFiltro) {
                                 </div>
                 <button class="btn btn-outline btn-sm" data-admin="true" onclick="abrirModalProposta('${p.id}')" title="Editar">✏️</button>
                 ${podeConverter ? `<button class="btn btn-success btn-sm" data-admin="true" onclick="converterPropostaEmVenda('${p.id}')" title="Converter em Venda" style="font-size:0.78rem;">🔄</button>` : ''}
-                ${podeRecusar ? `<button class="btn btn-outline btn-sm" data-admin="true" onclick="recusarProposta('${p.id}')" title="Recusar proposta" style="color:#ef4444">Recusar</button>` : ''}
                 <button class="btn btn-outline btn-sm" data-admin="true" onclick="excluirProposta('${p.id}')" title="Excluir" style="color:#ef4444">🗑️</button>
             </td>
         </tr>`;
@@ -12716,32 +12316,6 @@ function atualizarKPIsPropostas() {
     if (elAceitas) elAceitas.textContent = aceitas;
     if (elRecusadas) elRecusadas.textContent = recusadas;
     if (elTaxa) elTaxa.textContent = taxa + '%';
-}
-
-function recusarProposta(id) {
-    const p = (propostas || []).find(x => x.id === id);
-    if (!p) return;
-
-    const motivo = prompt(
-        `Recusar proposta ${p.numero}?\n\n` +
-        `Informe o motivo da recusa (aparecerá no histórico do cliente):\n` +
-        `(Ex: "Preço acima do orçamento", "Concorrente venceu", ` +
-        `"Cliente desistiu", "Prazo de entrega")`
-    );
-
-    if (motivo === null) return; // user cancelled
-
-    p.status = 'recusada';
-    p.motivoRecusa = motivo || 'Sem motivo informado';
-    p.dataRecusa = new Date().toISOString();
-
-    try { salvarDados(); } catch (e) { console.error('salvarDados erro', e); }
-    try { renderizarPropostas(); } catch (e) { console.warn('renderizarPropostas erro', e); }
-    try { atualizarKPIsPropostas(); } catch (e) { console.warn('atualizarKPIsPropostas erro', e); }
-
-    try { registrarHistorico('proposta_recusada', `Proposta ${p.numero} recusada: ${p.motivoRecusa}`); } catch(e) {}
-
-    mostrarNotificacao(`Proposta ${p.numero} marcada como recusada.`, 'warning');
 }
 
 function preencherDadosCliente(nomeCliente) {
@@ -13386,100 +12960,95 @@ async function signOut() {
 }
 
 // Atualiza UI conforme estado de autenticação
-if (typeof firebase !== 'undefined' && firebase.auth) {
-    firebase.auth().onAuthStateChanged(async function(user) {
-        const formEl = document.getElementById('authPanelForm');
-        const signedEl = document.getElementById('authSignedIn');
-        const userDisplay = document.getElementById('authUserDisplay');
-        const loggedEmailEl = document.getElementById('loggedAccountEmail');
-        const loggedBadgeEl = document.getElementById('loggedAccountBadge');
-        if (user) {
-            if (formEl) formEl.style.display = 'none';
-            if (signedEl) signedEl.style.display = 'flex';
-            if (userDisplay) userDisplay.textContent = user.email || user.uid;
+firebase.auth().onAuthStateChanged(async function(user) {
+    const formEl = document.getElementById('authPanelForm');
+    const signedEl = document.getElementById('authSignedIn');
+    const userDisplay = document.getElementById('authUserDisplay');
+    const loggedEmailEl = document.getElementById('loggedAccountEmail');
+    const loggedBadgeEl = document.getElementById('loggedAccountBadge');
+    if (user) {
+        if (formEl) formEl.style.display = 'none';
+        if (signedEl) signedEl.style.display = 'flex';
+        if (userDisplay) userDisplay.textContent = user.email || user.uid;
 
-            // Verifica claims para habilitar controles de admin
-            let isAdmin = false;
-            try {
-                const idt = await user.getIdTokenResult();
-                isAdmin = !!idt.claims && !!idt.claims.admin;
-            } catch (e) { /* ignore */ }
+        // Verifica claims para habilitar controles de admin
+        let isAdmin = false;
+        try {
+            const idt = await user.getIdTokenResult();
+            isAdmin = !!idt.claims && !!idt.claims.admin;
+        } catch (e) { /* ignore */ }
 
-            // Fallback por email (temporário) — remove se preferir depender apenas da claim
-            if (!isAdmin && user.email === 'joffre.ribeiro@gmail.com') isAdmin = true;
+        // Fallback por email (temporário) — remove se preferir depender apenas da claim
+        if (!isAdmin && user.email === 'joffre.ribeiro@gmail.com') isAdmin = true;
 
-            if (isAdmin) {
-                document.body.classList.add('is-admin');
-                if (loggedBadgeEl) loggedBadgeEl.style.display = 'inline-block';
-            } else {
-                document.body.classList.remove('is-admin');
-                if (loggedBadgeEl) loggedBadgeEl.style.display = 'none';
-            }
-            // Toggle UI controls marked as admin-only
-            try {
-                const adminControls = document.querySelectorAll('[data-admin="true"]');
-                adminControls.forEach(el => {
-                    if (isAdmin) {
-                        el.removeAttribute('disabled');
-                        el.style.pointerEvents = '';
-                        el.style.opacity = '';
+        if (isAdmin) {
+            document.body.classList.add('is-admin');
+            if (loggedBadgeEl) loggedBadgeEl.style.display = 'inline-block';
+        } else {
+            document.body.classList.remove('is-admin');
+            if (loggedBadgeEl) loggedBadgeEl.style.display = 'none';
+        }
+        // Toggle UI controls marked as admin-only
+        try {
+            const adminControls = document.querySelectorAll('[data-admin="true"]');
+            adminControls.forEach(el => {
+                if (isAdmin) {
+                    el.removeAttribute('disabled');
+                    el.style.pointerEvents = '';
+                    el.style.opacity = '';
+                } else {
+                    el.setAttribute('disabled','disabled');
+                    el.style.pointerEvents = 'none';
+                    el.style.opacity = '0.55';
+                }
+            });
+        } catch(e) {}
+        if (loggedEmailEl) loggedEmailEl.textContent = user.email || '';
+
+        // Persist a short record of current user in localStorage for quick reference
+        try {
+            localStorage.setItem('currentUser', JSON.stringify({ email: user.email || null, uid: user.uid || null, isAdmin }));
+        } catch(e) {}
+
+        // Após autenticar, atualizar status do cloud e tentar auto-load 1x por usuário
+        try {
+            if (window.firestoreDB) {
+                try {
+                    const doc = await window.firestoreDB.collection('app_data').doc('latest').get();
+                    if (doc && doc.exists) {
+                        const data = doc.data();
+                        const updatedAt = data && data.updatedAt ? data.updatedAt.toDate() : null;
+                        updateFirestoreStatus(true, updatedAt, 'Cloud: pronto');
                     } else {
-                        el.setAttribute('disabled','disabled');
-                        el.style.pointerEvents = 'none';
-                        el.style.opacity = '0.55';
+                        updateFirestoreStatus(true, null, 'Cloud: pronto (sem backup)');
                     }
-                });
-            } catch(e) {}
-            if (loggedEmailEl) loggedEmailEl.textContent = user.email || '';
+                } catch (e) {
+                    updateFirestoreStatus(true, null, 'Cloud: sem permissão de leitura');
+                }
 
-            // Persist a short record of current user in localStorage for quick reference
-            try {
-                localStorage.setItem('currentUser', JSON.stringify({ email: user.email || null, uid: user.uid || null, isAdmin }));
-            } catch(e) {}
-
-            // Após autenticar, atualizar status do cloud e tentar auto-load 1x por usuário
-            try {
-                if (window.firestoreDB) {
-                    try {
-                        const doc = await window.firestoreDB.collection('app_data').doc('latest').get();
-                        if (doc && doc.exists) {
-                            const data = doc.data();
-                            const updatedAt = data && data.updatedAt ? data.updatedAt.toDate() : null;
-                            updateFirestoreStatus(true, updatedAt, 'Cloud: pronto');
-                        } else {
-                            updateFirestoreStatus(true, null, 'Cloud: pronto (sem backup)');
-                        }
-                    } catch (e) {
-                        updateFirestoreStatus(true, null, 'Cloud: sem permissão de leitura');
-                    }
-
-                    // Auto-load somente uma vez por usuário autenticado
-                    if (window.__cloudAutoLoadDoneForUid !== user.uid) {
-                        const autoLoaded = await carregarDoCloudAuto();
-                        window.__cloudAutoLoadDoneForUid = user.uid;
-                        if (autoLoaded) {
-                            try { mostrarNotificacao('Dados carregados automaticamente do Cloud (remoto mais recente).', 'success'); } catch (e) {}
-                        }
+                // Auto-load somente uma vez por usuário autenticado
+                if (window.__cloudAutoLoadDoneForUid !== user.uid) {
+                    const autoLoaded = await carregarDoCloudAuto();
+                    window.__cloudAutoLoadDoneForUid = user.uid;
+                    if (autoLoaded) {
+                        try { mostrarNotificacao('Dados carregados automaticamente do Cloud (remoto mais recente).', 'success'); } catch (e) {}
                     }
                 }
-            } catch (e) { /* ignore */ }
+            }
+        } catch (e) { /* ignore */ }
 
-        } else {
-            if (formEl) formEl.style.display = 'flex';
-            if (signedEl) signedEl.style.display = 'none';
-            if (userDisplay) userDisplay.textContent = '';
-            document.body.classList.remove('is-admin');
-            if (loggedEmailEl) loggedEmailEl.textContent = '';
-            if (loggedBadgeEl) loggedBadgeEl.style.display = 'none';
-            try { localStorage.removeItem('currentUser'); } catch(e) {}
-            try { window.__cloudAutoLoadDoneForUid = null; } catch (e) {}
-            try { updateFirestoreStatus(true, null, 'Cloud: aguardando login'); } catch (e) {}
-        }
-    });
-} else {
-    // Firebase/Auth não disponível — marcar status e manter UI funcional offline
-    try { updateFirestoreStatus(false, null, 'SDK não carregado'); } catch (e) {}
-}
+    } else {
+        if (formEl) formEl.style.display = 'flex';
+        if (signedEl) signedEl.style.display = 'none';
+        if (userDisplay) userDisplay.textContent = '';
+        document.body.classList.remove('is-admin');
+        if (loggedEmailEl) loggedEmailEl.textContent = '';
+        if (loggedBadgeEl) loggedBadgeEl.style.display = 'none';
+        try { localStorage.removeItem('currentUser'); } catch(e) {}
+        try { window.__cloudAutoLoadDoneForUid = null; } catch (e) {}
+        try { updateFirestoreStatus(true, null, 'Cloud: aguardando login'); } catch (e) {}
+    }
+});
 
 // Helper to check admin state synchronously from localStorage/cache
 function isCurrentUserAdmin() {
