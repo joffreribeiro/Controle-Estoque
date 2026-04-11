@@ -13273,6 +13273,107 @@ function imprimirPropostas() {
     win.document.close();
 }
 
+function exportarPropostasExcel() {
+    const filtroTexto = (document.getElementById('filtroProposta')?.value || '').trim().toLowerCase();
+    const filtroStatus = document.getElementById('filtroStatusProposta')?.value || '';
+
+    let lista = propostas || [];
+    if (filtroTexto) {
+        lista = lista.filter(p =>
+            (p.numero || '').toLowerCase().includes(filtroTexto) ||
+            (p.cliente || '').toLowerCase().includes(filtroTexto) ||
+            (p.representante || '').toLowerCase().includes(filtroTexto)
+        );
+    }
+    if (filtroStatus) {
+        lista = lista.filter(p => p.status === filtroStatus);
+    }
+
+    if (!lista.length) {
+        mostrarNotificacao('Nenhuma proposta para exportar com os filtros atuais.', 'warning');
+        return;
+    }
+
+    const agora = new Date();
+    const fmt = v => parseFloat((v || 0).toFixed(2));
+    const fmtDate = iso => iso ? new Date(iso).toLocaleDateString('pt-BR') : '';
+
+    const statusLabel = {
+        rascunho:  'Rascunho',
+        enviada:   'Enviada',
+        aceita:    'Aceita',
+        recusada:  'Recusada',
+        expirada:  'Expirada',
+        convertida: 'Convertida',
+        aguardando_aprovacao: 'Aguardando Aprovação',
+    };
+
+    const rowsResumo = lista
+        .slice()
+        .sort((a, b) => new Date(b.dataCriacao || b.data || 0) - new Date(a.dataCriacao || a.data || 0))
+        .map(p => {
+            const exp = p.dataExpiracao ? new Date(p.dataExpiracao) : null;
+            const diasParaVencer = exp ? Math.ceil((exp - agora) / 86400000) : null;
+            return {
+                'Proposta':          p.numero       || '',
+                'Cliente':           p.cliente      || '',
+                'Representante':     p.representante || '',
+                'Status':            statusLabel[p.status] || p.status || '',
+                'Valor Total (R$)':  fmt(p.valorTotal),
+                'Data Criação':      fmtDate(p.dataCriacao || p.data),
+                'Data Validade':     fmtDate(p.dataExpiracao),
+                'Dias p/ Vencer':    diasParaVencer !== null ? (diasParaVencer < 0 ? 'Expirada' : diasParaVencer + 'd') : '',
+                'Contrato Gerado':   p.contratoNumero || '',
+                'Qtd Itens':         (p.itens || []).length,
+                'Motivo Recusa':     p.motivoRecusa  || '',
+                'Observações':       p.observacoes   || '',
+            };
+        });
+
+    const rowsItens = [];
+    lista.forEach(p => {
+        (p.itens || []).forEach(item => {
+            rowsItens.push({
+                'Proposta':         p.numero       || '',
+                'Cliente':          p.cliente      || '',
+                'Representante':    p.representante || '',
+                'Status':           statusLabel[p.status] || p.status || '',
+                'Data Criação':     fmtDate(p.dataCriacao || p.data),
+                'Produto':          item.produtoNome || item.produto || '',
+                'Quantidade':       item.quantidade  || 0,
+                'Valor Unitário (R$)': fmt(item.valorUnitario || item.valorUnit || 0),
+                'Total Item (R$)':  fmt(item.valorTotal || (item.quantidade || 0) * (item.valorUnitario || item.valorUnit || 0)),
+                'Total Proposta (R$)': fmt(p.valorTotal),
+            });
+        });
+    });
+
+    try {
+        const wsResumo = XLSX.utils.json_to_sheet(rowsResumo);
+        const wsItens = XLSX.utils.json_to_sheet(rowsItens.length ? rowsItens : [{ 'Info': 'Nenhum item detalhado disponível' }]);
+
+        wsResumo['!cols'] = [
+            { wch: 10 }, { wch: 30 }, { wch: 14 }, { wch: 20 }, { wch: 18 }, { wch: 14 }, { wch: 14 }, { wch: 12 }, { wch: 16 }, { wch: 10 }, { wch: 35 }, { wch: 40 }
+        ];
+
+        wsItens['!cols'] = [
+            { wch: 10 }, { wch: 30 }, { wch: 14 }, { wch: 18 }, { wch: 14 }, { wch: 35 }, { wch: 10 }, { wch: 18 }, { wch: 16 }, { wch: 18 }
+        ];
+
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, wsResumo, 'Propostas');
+        XLSX.utils.book_append_sheet(wb, wsItens, 'Itens Detalhados');
+
+        const sufixo = filtroStatus ? '_' + filtroStatus : '';
+        XLSX.writeFile(wb, 'propostas' + sufixo + '_' + new Date().toISOString().split('T')[0] + '.xlsx');
+
+        mostrarNotificacao(`${rowsResumo.length} proposta(s) exportada(s) com sucesso!`, 'success');
+    } catch (e) {
+        console.error('Erro ao exportar propostas:', e);
+        mostrarNotificacao('Erro ao gerar arquivo Excel.', 'error');
+    }
+}
+
 // ========================================
 // PROGRESS BAR (CLOUD OPERATIONS)
 // ========================================
