@@ -13002,8 +13002,6 @@ function renderizarRastreabilidade() {
                         .filter(v => v.loja === cliente.nome && inPeriod(v.data))
                         .sort((a, b) => new Date(b.data || 0) - new Date(a.data || 0));
 
-                if (!precifs.length && !propostasC.length && !vendasC.length) return '';
-
                 const totalFat = vendasC.reduce((s, v) => s + (v.valorTotal || 0), 0);
                 const eventos = [
                         ...precifs.map(p => ({ ...p, _tipo: 'precif', _date: p.dataCriacao })),
