@@ -12618,7 +12618,7 @@ function popularSelectsComparativo() {
         });
 }
 
-function renderizarConsultaPrecificacao() {
+function renderizarConsultaPrecificacao(forceSemFiltros = false) {
     // Populate selects
     const selCliente = document.getElementById('consultaFiltroCliente');
     if (selCliente) {
@@ -12642,9 +12642,13 @@ function renderizarConsultaPrecificacao() {
         });
     }
 
-    const filtroClienteId = document.getElementById('consultaFiltroCliente')?.value || '';
-    const filtroStatus    = document.getElementById('consultaFiltroStatus')?.value || '';
-    const filtroProduto   = document.getElementById('consultaFiltroProduto')?.value || '';
+    const filtroClienteId = forceSemFiltros ? '' : (document.getElementById('consultaFiltroCliente')?.value || '');
+    const filtroStatus    = forceSemFiltros ? '' : (document.getElementById('consultaFiltroStatus')?.value || '');
+    const filtroProduto   = forceSemFiltros ? '' : (document.getElementById('consultaFiltroProduto')?.value || '');
+    if (forceSemFiltros) {
+        const selStatus = document.getElementById('consultaFiltroStatus');
+        if (selStatus) selStatus.value = '';
+    }
 
     const fmt = v => 'R$ ' + parseFloat(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
     const pct = v => parseFloat(v||0).toFixed(2) + '%';
@@ -12758,6 +12762,9 @@ function renderizarConsultaPrecificacao() {
     if (!tbody) return;
 
     if (!rows.length) {
+        if (!forceSemFiltros && (listaPrecificacoes || []).length > 0) {
+            return renderizarConsultaPrecificacao(true);
+        }
         tbody.innerHTML = `
             <tr>
                 <td colspan="26" style="text-align:center;color:#94a3b8;padding:60px;font-size:0.9rem">
@@ -13885,6 +13892,12 @@ function salvarPrecificacaoCliente() {
     if (infoEl) infoEl.innerHTML = `<span style="color:#16a34a; font-size:0.82rem">✅ Precificação salva v${registro.versao} em ${new Date(registro.dataCriacao).toLocaleString('pt-BR')}</span> <button onclick="carregarVersaoPrecif('${registro.id}')" class="btn btn-outline btn-sm" style="margin-left:8px">↩ Carregar versão</button> <button onclick="renderizarHistoricoPrecif('${cId}')" class="btn btn-outline btn-sm" style="margin-left:8px">🕘 Histórico</button>`;
     mostrarNotificacao('Precificação salva para o cliente.', 'success');
     try { renderizarHistoricoPrecif(cId); } catch (e) {}
+    try {
+        const isConsultaVis = document.getElementById('subaba-precif-consulta')?.style.display !== 'none';
+        const isRastreaVis  = document.getElementById('subaba-precif-rastreabilidade')?.style.display !== 'none';
+        if (isConsultaVis) renderizarConsultaPrecificacao();
+        if (isRastreaVis)  renderizarRastreabilidade();
+    } catch (e) {}
 }
 
 function carregarPrecificacaoSalva(clienteId) {
