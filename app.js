@@ -1298,6 +1298,22 @@ async function carregarDoCloud({confirmOverwrite=true} = {}) {
             if (subAbaAtiva === 'impostos') renderizarImpostosFederais?.();
         } catch(e) { console.error('Erro ao re-renderizar precificação após load:', e); }
         console.debug('Dados carregados do Firestore com sucesso.');
+        // Forçar re-render das abas de precificação após carregamento completo
+        try {
+            precificacoesCliente = Array.isArray(estoque.precificacoesCliente)
+                ? estoque.precificacoesCliente
+                : [];
+            setTimeout(() => {
+                try {
+                    const abaAtiva = document.querySelector(
+                        '#subaba-precif-consulta, #subaba-precif-rastreabilidade, ' +
+                        '#subaba-precif-comparativo, #subaba-precif-imagem'
+                    );
+                    renderizarConsultaPrecificacao && renderizarConsultaPrecificacao();
+                    renderizarRastreabilidade && renderizarRastreabilidade();
+                } catch(e) {}
+            }, 400);
+        } catch(e) {}
         return true;
     } catch (e) {
         console.error('Erro carregando do Firestore:', e);
@@ -12653,11 +12669,24 @@ function popularSelectsComparativo() {
 
 function renderizarConsultaPrecificacao(forceSemFiltros = false) {
     if (!precificacoesCliente || precificacoesCliente.length === 0) {
-        const tbody = document.getElementById('tabelaConsultaPrecifBody')
-                   || document.querySelector('#tabelaConsultaPrecif tbody')
-                   || document.querySelector('[id*="consulta"] tbody');
-        if (tbody) tbody.innerHTML = '<tr><td colspan="99" style="text-align:center;padding:40px;color:#64748b;">Carregando dados do cloud... Se persistir, clique em Carregar do Cloud.</td></tr>';
-        return;
+        try {
+            const backup = localStorage.getItem('precificacoesClienteBackupV1');
+            if (backup) {
+                const parsed = JSON.parse(backup);
+                if (Array.isArray(parsed) && parsed.length > 0) {
+                    precificacoesCliente = parsed;
+                    if (estoque) estoque.precificacoesCliente = precificacoesCliente;
+                }
+            }
+        } catch(e) {}
+        if (!precificacoesCliente || precificacoesCliente.length === 0) {
+            const tbody = document.querySelector('#tabelaConsultaPrecificacao tbody')
+                       || document.querySelector('[id*="consulta"] tbody');
+            if (tbody) tbody.innerHTML =
+                '<tr><td colspan="99" style="text-align:center;padding:40px;color:#64748b;">' +
+                'Nenhuma precificação salva ainda. Calcule e salve uma precificação primeiro.</td></tr>';
+            return;
+        }
     }
     // Populate selects
     const selCliente = document.getElementById('consultaFiltroCliente');
@@ -13184,6 +13213,23 @@ function exportarComparativo() {
 }
 
 function renderizarRastreabilidade() {
+    if (!precificacoesCliente || precificacoesCliente.length === 0) {
+        try {
+            const backup = localStorage.getItem('precificacoesClienteBackupV1');
+            if (backup) {
+                const parsed = JSON.parse(backup);
+                if (Array.isArray(parsed) && parsed.length > 0) {
+                    precificacoesCliente = parsed;
+                    if (estoque) estoque.precificacoesCliente = precificacoesCliente;
+                }
+            }
+        } catch(e) {}
+        if (!precificacoesCliente || precificacoesCliente.length === 0) {
+            const container = document.getElementById('painelRastreabilidade') || document.querySelector('[id*="rastreab"]');
+            if (container) container.innerHTML = '<div style="padding:20px;color:#64748b;text-align:center">Nenhuma precificação salva ainda. Calcule e salve uma precificação primeiro.</div>';
+            return;
+        }
+    }
         const selCliente = document.getElementById('rastreaCliente');
         if (selCliente) {
                 const currentVal = selCliente.value;
