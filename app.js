@@ -12822,7 +12822,8 @@ function trocarSubabaPrecif(subaba) {
             try { calcularComparativo(); } catch (e) {}
         }
         if (subaba === 'consulta') {
-            try { renderizarConsultaPrecificacao(); } catch (e) { console.error('Erro ao renderizar consulta de precificação:', e); }
+                try { carregarPrecificacoesSalvas(); } catch (e) {}
+                try { renderizarConsultaPrecificacao(); } catch (e) { console.error('Erro ao renderizar consulta de precificação:', e); }
             setTimeout(function() {
                 try {
                     if (typeof renderizarConsultaPrecificacao === 'function') {
@@ -12875,10 +12876,15 @@ function popularSelectsComparativo() {
 }
 
 function renderizarConsultaPrecificacao(forceSemFiltros = false) {
-    // Tentar recuperar do localStorage se estiver vazio
-    let _dadosPrecif = (Array.isArray(precificacoesCliente) && precificacoesCliente.length > 0)
-        ? precificacoesCliente
-        : null;
+    try {
+        console.debug('[precif] renderizarConsultaPrecificacao start', {
+            precificacoesClienteLen: (precificacoesCliente || []).length,
+            estoquePrecifLen: (estoque && Array.isArray(estoque.precificacoesCliente)) ? estoque.precificacoesCliente.length : 0
+        });
+        // Tentar recuperar do localStorage se estiver vazio
+        let _dadosPrecif = (Array.isArray(precificacoesCliente) && precificacoesCliente.length > 0)
+            ? precificacoesCliente
+            : null;
 
     if (!_dadosPrecif) {
         try {
@@ -13205,6 +13211,13 @@ function renderizarConsultaPrecificacao(forceSemFiltros = false) {
             <td style="text-align:center;font-size:0.8rem">${r.propostaNum ? `<span style="color:#1d4ed8;font-weight:600">${r.propostaNum}</span>` : '<span style="color:#94a3b8">—</span>'}</td>
         </tr>
     `).join('');
+    } catch (e) {
+        console.error('renderizarConsultaPrecificacao error:', e);
+        try {
+            const tb = document.getElementById('tabelaConsultaPrecifBody');
+            if (tb) tb.innerHTML = `<tr><td colspan="26" style="text-align:center;color:#dc2626;padding:40px;">Erro ao renderizar Consulta. Verifique o console para mais detalhes.</td></tr>`;
+        } catch (inner) {}
+    }
 }
 
 function exportarConsultaPrecificacao() {
