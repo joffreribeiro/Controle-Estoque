@@ -524,9 +524,6 @@
                                     <button class="precif-subtab-btn" onclick="trocarSubabaPrecif('consulta')" id="sbtn-consulta" style="padding:10px 20px;border:none;background:transparent; font-size:0.9rem;font-weight:600;color:#64748b; border-bottom:2px solid transparent;margin-bottom:-2px; cursor:pointer">🔍 Consulta</button>
                                     <button class="precif-subtab-btn active" onclick="trocarSubabaPrecif('federais')" id="sbtn-federais" style="padding:10px 20px; border:none; background:transparent; font-size:0.9rem; font-weight:600; color:#1e3a5f; border-bottom:2px solid #1e3a5f; margin-bottom:-2px; cursor:pointer">📋 Impostos Federais</button>
                                     <button class="precif-subtab-btn" onclick="trocarSubabaPrecif('rastreabilidade')" id="sbtn-rastreabilidade" style="padding:10px 20px;border:none;background:transparent; font-size:0.9rem;font-weight:600;color:#64748b; border-bottom:2px solid transparent;margin-bottom:-2px; cursor:pointer">🔗 Rastreabilidade</button>
-                                    <button class="tab-btn" onclick="trocarSubabaPrecif('subaba-precif-consulta1', this)">
-                                        📊 Consulta1
-                                    </button>
                                 </div>
 
                                 <!-- Sub-aba Impostos Federais -->
@@ -933,62 +930,78 @@
 
                 </div>
 
-                                                                                                                                                                                                                                                                <!-- Sub-aba: Consulta (Lista completa de precificações) -->
-                                                                                                                                                                                                                                                                <div id="subaba-precif-consulta" style="display:none">
+                                                                <!-- Sub-aba: Consulta (Lista completa de precificações) -->
+                                                                <div id="subaba-precif-consulta" style="display:none">
 
-<div style="padding:20px;">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px;">
-        <h3 style="margin:0;font-size:1rem;font-weight:700;color:#1e3a5f;display:flex;align-items:center;gap:8px;">
-            <span style="width:4px;height:20px;background:#c9a227;border-radius:2px;display:inline-block;"></span>
-            Precificações Salvas
-        </h3>
-        <div style="display:flex;gap:8px;flex-wrap:wrap;">
-            <select id="filtroClienteConsulta" onchange="renderizarConsultaSimples()"
-                style="padding:6px 10px;border:1px solid #d0d7de;border-radius:6px;font-size:12px;min-width:160px;">
+    <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;align-items:end">
+        <div class="form-group" style="margin:0;min-width:220px">
+            <label style="font-size:0.82rem;color:#64748b">Cliente</label>
+            <select id="consultaFiltroCliente" onchange="renderizarConsultaPrecificacao()" style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;border-radius:6px;font-size:0.85rem">
                 <option value="">Todos os clientes</option>
             </select>
-            <select id="filtroStatusConsulta" onchange="renderizarConsultaSimples()"
-                style="padding:6px 10px;border:1px solid #d0d7de;border-radius:6px;font-size:12px;">
-                <option value="">Todos os status</option>
+        </div>
+        <div class="form-group" style="margin:0;min-width:160px">
+            <label style="font-size:0.82rem;color:#64748b">Status</label>
+            <select id="consultaFiltroStatus" onchange="renderizarConsultaPrecificacao()" style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;border-radius:6px;font-size:0.85rem">
+                <option value="">Todos</option>
                 <option value="ativa">Ativa</option>
                 <option value="expirada">Expirada</option>
                 <option value="convertida">Convertida</option>
                 <option value="arquivada">Arquivada</option>
             </select>
-            <button onclick="exportarConsultaSimples()"
-                style="padding:6px 12px;border:1px solid #d0d7de;border-radius:6px;font-size:12px;background:#fff;cursor:pointer;">
-                📤 Exportar CSV
-            </button>
+        </div>
+        <div class="form-group" style="margin:0;min-width:160px">
+            <label style="font-size:0.82rem;color:#64748b">Produto</label>
+            <select id="consultaFiltroProduto" onchange="renderizarConsultaPrecificacao()" style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;border-radius:6px;font-size:0.85rem">
+                <option value="">Todos os produtos</option>
+            </select>
+        </div>
+        <button class="btn btn-outline btn-sm" onclick="exportarConsultaPrecificacao()">📤 Exportar Excel</button>
+    </div>
+
+    <div class="table-container">
+        <div class="table-wrapper" style="overflow-x:auto">
+            <table class="dashboard-table" id="tabelaConsultaPrecif" style="font-size:0.8rem;white-space:nowrap">
+                <thead>
+                    <tr>
+                        <th style="position:sticky;left:0;z-index:3;min-width:160px;text-align:left;padding-left:12px">Cliente</th>
+                        <th>UF</th>
+                        <th>Tipo</th>
+                        <th>Versão</th>
+                        <th>Data</th>
+                        <th>Status</th>
+                        <th>Produto</th>
+                        <th>NCM</th>
+                        <th style="text-align:right">CI (R$)</th>
+                        <th style="text-align:center">Taxa %</th>
+                        <th style="text-align:center">ROI %</th>
+                        <th style="text-align:right">Valor Base</th>
+                        <th style="text-align:center">ICMS %</th>
+                        <th style="text-align:right">ICMS R$</th>
+                        <th style="text-align:center">PIS %</th>
+                        <th style="text-align:right">PIS R$</th>
+                        <th style="text-align:center">COFINS %</th>
+                        <th style="text-align:right">COFINS R$</th>
+                        <th style="text-align:center">IPI %</th>
+                        <th style="text-align:right">IPI R$</th>
+                        <th style="text-align:right">s/ Impostos</th>
+                        <th style="text-align:center">Comissão %</th>
+                        <th style="text-align:right">Comissão R$</th>
+                        <th style="text-align:right;color:#c9a227">Preço Final</th>
+                        <th style="text-align:center">Margem %</th>
+                        <th>Proposta</th>
+                    </tr>
+                </thead>
+                <tbody id="tabelaConsultaPrecifBody">
+                    <tr>
+                        <td colspan="26" style="text-align:center;color:#94a3b8;padding:40px">Selecione um cliente ou aguarde o carregamento</td>
+                    </tr>
+                </tbody>
+            </table>
         </div>
     </div>
 
-    <div id="consultaSimplesResumo" style="display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap;"></div>
-
-    <div style="overflow-x:auto;">
-        <table id="tabelaConsultaSimples" style="width:100%;border-collapse:collapse;font-size:13px;">
-            <thead>
-                <tr style="background:#1e3a5f;color:#fff;">
-                    <th style="padding:10px 12px;text-align:left;">Cliente</th>
-                    <th style="padding:10px 8px;">UF</th>
-                    <th style="padding:10px 8px;">Tipo</th>
-                    <th style="padding:10px 8px;">Data</th>
-                    <th style="padding:10px 8px;">Validade</th>
-                    <th style="padding:10px 8px;">Status</th>
-                    <th style="padding:10px 8px;">Produtos</th>
-                    <th style="padding:10px 8px;">Proposta</th>
-                </tr>
-            </thead>
-            <tbody id="tabelaConsultaSimplesBody">
-                <tr><td colspan="8" style="text-align:center;padding:40px;color:#888;">
-                    Carregando precificações...
-                </td></tr>
-            </tbody>
-        </table>
-    </div>
-    <div id="consultaSimplesTotal" style="margin-top:10px;font-size:12px;color:#64748b;text-align:right;"></div>
-</div>
-
-                                                                                                                                                                                                                                                                </div>
+                                                                </div>
 
                                                                 <div id="subaba-precif-comparativo" style="display:none">
                                                                     <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;
@@ -1091,93 +1104,29 @@
                                                                     </div>
                                                                 </div>
 
-                                                                                                                                <div id="subaba-precif-rastreabilidade" style="display:none">
-                                                                                                                                        <div style="display:flex;gap:10px;margin-bottom:16px;align-items:end;flex-wrap:wrap">
-                                                                                                                                                <div class="form-group" style="margin:0;min-width:240px">
-                                                                                                                                                        <label style="font-size:0.85rem">Filtrar por cliente</label>
-                                                                                                                                                        <select id="rastreaCliente" onchange="renderizarRastreabilidade()" style="width:100%;padding:8px 10px;border:1px solid #e2e8f0; border-radius:6px;font-size:0.9rem">
-                                                                                                                                                                <option value="">Todos os clientes</option>
-                                                                                                                                                        </select>
-                                                                                                                                                </div>
-                                                                                                                                                <div class="form-group" style="margin:0">
-                                                                                                                                                        <label style="font-size:0.85rem">Período</label>
-                                                                                                                                                        <select id="rastreaPeriodo" onchange="renderizarRastreabilidade()" style="padding:8px 10px;border:1px solid #e2e8f0; border-radius:6px;font-size:0.9rem">
-                                                                                                                                                                <option value="todos">Todo o período</option>
-                                                                                                                                                                <option value="mes">Este mês</option>
-                                                                                                                                                                <option value="trimestre">Este trimestre</option>
-                                                                                                                                                                <option value="ano">Este ano</option>
-                                                                                                                                                        </select>
-                                                                                                                                                </div>
-                                                                                                                                                <button class="btn btn-outline btn-sm" onclick="exportarRastreabilidade()">
-                                                                                                                                                        📤 Exportar Excel
-                                                                                                                                                </button>
-                                                                                                                                        </div>
-                                                                                                                                        <div id="painelRastreabilidade"></div>
-                                                                                                                                </div>
-
-                                                                                                                                <div id="subaba-precif-consulta1" class="subaba-precif" style="display:none;">
-                                                                                                                                    <div style="padding: 20px;">
-
-                                                                                                                                        <!-- Filtros -->
-                                                                                                                                        <div style="display:flex; gap:12px; align-items:flex-end; flex-wrap:wrap; margin-bottom:16px;">
-                                                                                                                                            <div>
-                                                                                                                                                <label style="font-size:12px;color:#64748b;display:block;margin-bottom:4px;">CLIENTE</label>
-                                                                                                                                                <select id="c1FiltroCliente" onchange="renderizarConsulta1()"
-                                                                                                                                                    style="padding:8px 12px;border:1px solid #d0d7de;border-radius:6px;font-size:13px;min-width:180px;">
-                                                                                                                                                    <option value="">Todos os clientes</option>
-                                                                                                                                                </select>
-                                                                                                                                            </div>
-                                                                                                                                            <div>
-                                                                                                                                                <label style="font-size:12px;color:#64748b;display:block;margin-bottom:4px;">STATUS</label>
-                                                                                                                                                <select id="c1FiltroStatus" onchange="renderizarConsulta1()"
-                                                                                                                                                    style="padding:8px 12px;border:1px solid #d0d7de;border-radius:6px;font-size:13px;">
-                                                                                                                                                    <option value="">Todos</option>
-                                                                                                                                                    <option value="ativa">Ativa</option>
-                                                                                                                                                    <option value="expirada">Expirada</option>
-                                                                                                                                                    <option value="convertida">Convertida</option>
-                                                                                                                                                    <option value="arquivada">Arquivada</option>
-                                                                                                                                                </select>
-                                                                                                                                            </div>
-                                                                                                                                            <button onclick="exportarConsulta1Excel()"
-                                                                                                                                                style="padding:8px 14px;background:#1e3a5f;color:#fff;border:none;border-radius:6px;
-                                                                                                                                                             font-size:12px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;">
-                                                                                                                                                📤 Exportar Excel
-                                                                                                                                            </button>
-                                                                                                                                            <span id="c1TotalRegistros"
-                                                                                                                                                style="font-size:12px;color:#64748b;align-self:center;margin-left:4px;"></span>
-                                                                                                                                        </div>
-
-                                                                                                                                        <!-- Tabela -->
-                                                                                                                                        <div style="overflow-x:auto;border-radius:8px;border:1px solid #e2e8f0;">
-                                                                                                                                            <table id="tabelaConsulta1" style="width:100%;border-collapse:collapse;font-size:13px;">
-                                                                                                                                                <thead>
-                                                                                                                                                    <tr style="background:#1e3a5f;color:#fff;">
-                                                                                                                                                        <th style="padding:10px 12px;text-align:left;white-space:nowrap;">Cliente</th>
-                                                                                                                                                        <th style="padding:10px 12px;text-align:center;">UF</th>
-                                                                                                                                                        <th style="padding:10px 12px;text-align:center;">Tipo</th>
-                                                                                                                                                        <th style="padding:10px 12px;text-align:center;">Versão</th>
-                                                                                                                                                        <th style="padding:10px 12px;text-align:center;">Data</th>
-                                                                                                                                                        <th style="padding:10px 12px;text-align:center;">Validade</th>
-                                                                                                                                                        <th style="padding:10px 12px;text-align:center;">Status</th>
-                                                                                                                                                        <th style="padding:10px 12px;text-align:left;">Produto</th>
-                                                                                                                                                        <th style="padding:10px 12px;text-align:right;">CI (R$)</th>
-                                                                                                                                                        <th style="padding:10px 12px;text-align:right;">Preço Final</th>
-                                                                                                                                                        <th style="padding:10px 12px;text-align:right;">Margem %</th>
-                                                                                                                                                        <th style="padding:10px 12px;text-align:center;">Proposta</th>
-                                                                                                                                                    </tr>
-                                                                                                                                                </thead>
-                                                                                                                                                <tbody id="tabelaConsulta1Body">
-                                                                                                                                                    <tr>
-                                                                                                                                                        <td colspan="12" style="text-align:center;padding:40px;color:#94a3b8;">
-                                                                                                                                                            Carregando dados...
-                                                                                                                                                        </td>
-                                                                                                                                                    </tr>
-                                                                                                                                                </tbody>
-                                                                                                                                            </table>
-                                                                                                                                        </div>
-
-                                                                                                                                    </div>
-                                                                                                                                </div>
+                                                                <div id="subaba-precif-rastreabilidade" style="display:none">
+                                                                    <div style="display:flex;gap:10px;margin-bottom:16px;align-items:end;flex-wrap:wrap">
+                                                                        <div class="form-group" style="margin:0;min-width:240px">
+                                                                            <label style="font-size:0.85rem">Filtrar por cliente</label>
+                                                                            <select id="rastreaCliente" onchange="renderizarRastreabilidade()" style="width:100%;padding:8px 10px;border:1px solid #e2e8f0; border-radius:6px;font-size:0.9rem">
+                                                                                <option value="">Todos os clientes</option>
+                                                                            </select>
+                                                                        </div>
+                                                                        <div class="form-group" style="margin:0">
+                                                                            <label style="font-size:0.85rem">Período</label>
+                                                                            <select id="rastreaPeriodo" onchange="renderizarRastreabilidade()" style="padding:8px 10px;border:1px solid #e2e8f0; border-radius:6px;font-size:0.9rem">
+                                                                                <option value="todos">Todo o período</option>
+                                                                                <option value="mes">Este mês</option>
+                                                                                <option value="trimestre">Este trimestre</option>
+                                                                                <option value="ano">Este ano</option>
+                                                                            </select>
+                                                                        </div>
+                                                                        <button class="btn btn-outline btn-sm" onclick="exportarRastreabilidade()">
+                                                                            📤 Exportar Excel
+                                                                        </button>
+                                                                    </div>
+                                                                    <div id="painelRastreabilidade"></div>
+                                                                </div>
 
                                                 </div>
                                 </div>
