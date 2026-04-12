@@ -3919,6 +3919,25 @@ th.sortable.sort-desc .sort-icon::after { content: ' ▼'; opacity: 1; }
     transform: none !important;
 }
 
+/* Correções para a aba Precificação (evita colapso da tabela em viewports menores) */
+#tab-precificacao,
+#tab-precificacao .content-area,
+#tab-precificacao .table-container {
+    overflow: visible !important;
+}
+
+#tab-precificacao .table-wrapper {
+    overflow-x: auto !important;
+    overflow-y: auto !important;
+    width: 100% !important;
+    max-height: calc(100vh - 260px) !important;
+}
+
+/* Garante altura mínima para a sub-aba Consulta de precificação */
+#subaba-precif-consulta {
+    min-height: 320px !important;
+}
+
 /* 4. Apenas o th.col-produto fica sticky à esquerda */
 #tab-estoque #tabelaEstoque th.col-produto {
     position: sticky !important;
