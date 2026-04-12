@@ -12782,7 +12782,7 @@ function resetarPrecoManual(nomeProduto) {
 
 // ── SUB-TAB NAVIGATION FOR PRECIFICAÇÃO ─────────────────────────
 function trocarSubabaPrecif(subaba) {
-    ['produtos','federais','icms','porcliente','comparativo','consulta','rastreabilidade'].forEach(s => {
+    ['produtos','federais','icms','porcliente','comparativo','consulta','rastreabilidade','consulta1'].forEach(s => {
                 const el = document.getElementById('subaba-precif-' + s);
                 if (el) el.style.display = (s === subaba) ? 'block' : 'none';
                 const btn = document.getElementById('sbtn-' + s);
@@ -12814,6 +12814,14 @@ function trocarSubabaPrecif(subaba) {
             if (typeof renderizarConsultaSimples === 'function') {
                 setTimeout(renderizarConsultaSimples, 80);
             }
+        }
+
+        if (subaba === 'consulta1') {
+            setTimeout(function() {
+                if (typeof renderizarConsulta1 === 'function') {
+                    renderizarConsulta1();
+                }
+            }, 80);
         }
         if (subaba === 'rastreabilidade') {
             try { renderizarRastreabilidade(); } catch (e) { console.error('Erro ao renderizar rastreabilidade:', e); }
@@ -16844,146 +16852,205 @@ try { if (firebase && firebase.auth) firebase.auth().currentUser; } catch(e) {}
 // ============================================================
 
 function renderizarConsulta1() {
-    const tbody = document.getElementById('tabelaConsulta1Body');
-    const totalEl = document.getElementById('c1TotalRegistros');
-    const selCliente = document.getElementById('c1FiltroCliente');
-    const selStatus = document.getElementById('c1FiltroStatus');
+    const container = document.getElementById('subaba-precif-consulta1');
+    if (!container) return;
 
-    if (!tbody) return;
-
-    // Ler dados direto do array global
+    // Pegar dados diretamente do array global
     const dados = (typeof precificacoesCliente !== 'undefined' && Array.isArray(precificacoesCliente))
         ? precificacoesCliente
         : [];
 
-    if (dados.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="12" style="text-align:center;padding:40px;color:#94a3b8;">Nenhuma precificação salva encontrada.</td></tr>';
-        if (totalEl) totalEl.textContent = '';
-        return;
-    }
+    // Filtros
+    const filtroCliente = (document.getElementById('c1FiltroCliente') || {}).value || '';
+    const filtroStatus  = (document.getElementById('c1FiltroStatus')  || {}).value || '';
 
-    // Preencher filtro de clientes dinamicamente (apenas na primeira vez ou se vazio)
+    // Popular select de clientes
+    const selCliente = document.getElementById('c1FiltroCliente');
     if (selCliente && selCliente.options.length <= 1) {
-        const clientes = [...new Set(dados.map(p => p.clienteNome || p.cliente || '').filter(Boolean))].sort();
-        clientes.forEach(c => {
+        const nomes = [...new Set(dados.map(p => p.clienteNome || p.cliente || '').filter(Boolean))].sort();
+        nomes.forEach(n => {
             const opt = document.createElement('option');
-            opt.value = c;
-            opt.textContent = c;
+            opt.value = n; opt.textContent = n;
             selCliente.appendChild(opt);
         });
     }
 
-    // Aplicar filtros
-    const filtroCliente = selCliente ? selCliente.value : '';
-    const filtroStatus  = selStatus  ? selStatus.value  : '';
-
-    // Expandir linhas: cada precificação pode ter múltiplos produtos (array itens ou produtos)
-    const linhas = [];
-    dados.forEach(p => {
-        // Normalizar campos de nome de cliente
-        const nomeCliente = p.clienteNome || p.cliente || p.nomeCliente || '—';
-        const uf          = p.uf || p.estado || p.clienteUF || '—';
-        const tipo        = p.tipoPessoa || p.tipo || '—';
-        const versao      = p.versao || p.version || '1';
-        const data        = p.data || p.dataCriacao || p.dataCalculo || '';
-        const validade    = p.validadeDias || p.validade || '—';
-        const status      = (p.status || 'ativa').toLowerCase();
-        const proposta    = p.propostaNumero || p.numeroProposta || '';
-
-        // Filtros
-        if (filtroCliente && nomeCliente !== filtroCliente) return;
-        if (filtroStatus  && status !== filtroStatus)       return;
-
-        // Produtos dentro da precificação
-        const produtos = p.itens || p.produtos || p.resultados || [];
-
-        if (produtos.length === 0) {
-            // Precificação sem itens detalhados — exibe linha única
-            linhas.push({ nomeCliente, uf, tipo, versao, data, validade, status, proposta,
-                produto: '—', ci: '—', precoFinal: '—', margem: '—', primeiraLinha: true, totalLinhas: 1 });
-        } else {
-            produtos.forEach((item, idx) => {
-                const produto    = item.nome || item.produto || item.nomeProduto || '—';
-                const ci         = item.ci != null ? item.ci : (item.custoInicial != null ? item.custoInicial : '—');
-                const precoFinal = item.precoFinal != null ? item.precoFinal : (item.preco != null ? item.preco : '—');
-                const margem     = item.margemPercent != null ? item.margemPercent
-                                                 : (item.margem != null ? item.margem : '—');
-                linhas.push({ nomeCliente, uf, tipo, versao, data, validade, status, proposta,
-                    produto, ci, precoFinal, margem,
-                    primeiraLinha: idx === 0, totalLinhas: produtos.length });
-            });
-        }
+    // Filtrar
+    let lista = dados.filter(p => {
+        const nomeCliente = p.clienteNome || p.cliente || '';
+        if (filtroCliente && nomeCliente !== filtroCliente) return false;
+        if (filtroStatus && (p.status || 'ativa') !== filtroStatus) return false;
+        return true;
     });
 
-    if (linhas.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="12" style="text-align:center;padding:40px;color:#94a3b8;">Nenhum registro encontrado para os filtros selecionados.</td></tr>';
-        if (totalEl) totalEl.textContent = '';
+    // Encontrar o tbody da tabela dentro do painel consulta1
+    const tbody = container.querySelector('tbody');
+    if (!tbody) {
+        // Se não tem tabela ainda, criar estrutura básica
+        container.innerHTML = `
+        <div style="padding:20px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:8px;">
+                <h3 style="margin:0;font-size:1rem;font-weight:700;color:#1e3a5f;">
+                    <span style="display:inline-block;width:4px;height:18px;background:#c9a227;border-radius:2px;vertical-align:middle;margin-right:8px;"></span>
+                    Precificações Salvas
+                </h3>
+                <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                    <select id="c1FiltroCliente" onchange="renderizarConsulta1()"
+                        style="padding:6px 10px;border:1px solid #d0d7de;border-radius:6px;font-size:12px;">
+                        <option value="">Todos os clientes</option>
+                    </select>
+                    <select id="c1FiltroStatus" onchange="renderizarConsulta1()"
+                        style="padding:6px 10px;border:1px solid #d0d7de;border-radius:6px;font-size:12px;">
+                        <option value="">Todos os status</option>
+                        <option value="ativa">Ativa</option>
+                        <option value="expirada">Expirada</option>
+                        <option value="convertida">Convertida</option>
+                        <option value="arquivada">Arquivada</option>
+                    </select>
+                </div>
+            </div>
+            <div style="overflow-x:auto;">
+                <table id="tabelaConsulta1" style="width:100%;border-collapse:collapse;font-size:0.82rem;">
+                    <thead>
+                        <tr style="background:#1e3a5f;color:#fff;">
+                            <th style="padding:10px 12px;text-align:left;">Cliente</th>
+                            <th style="padding:10px 12px;">UF</th>
+                            <th style="padding:10px 12px;">Tipo</th>
+                            <th style="padding:10px 12px;">Versão</th>
+                            <th style="padding:10px 12px;">Data</th>
+                            <th style="padding:10px 12px;">Validade</th>
+                            <th style="padding:10px 12px;">Status</th>
+                            <th style="padding:10px 12px;">Produtos</th>
+                            <th style="padding:10px 12px;">Preço Mín.</th>
+                            <th style="padding:10px 12px;">Preço Máx.</th>
+                            <th style="padding:10px 12px;">Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody id="c1Tbody"></tbody>
+                </table>
+            </div>
+            <div id="c1Vazio" style="display:none;text-align:center;padding:40px;color:#94a3b8;">
+                <div style="font-size:2rem;margin-bottom:10px;">📋</div>
+                <div>Nenhuma precificação encontrada</div>
+            </div>
+        </div>`;
+        // Chamar novamente após criar a estrutura
+        setTimeout(renderizarConsulta1, 50);
         return;
     }
 
-    // Montar HTML
+    // Limpar tbody
+    tbody.innerHTML = '';
+
+    if (lista.length === 0) {
+        const vazio = container.querySelector('#c1Vazio');
+        if (vazio) vazio.style.display = 'block';
+        const tabela = container.querySelector('#tabelaConsulta1');
+        if (tabela) tabela.style.display = 'none';
+        return;
+    }
+
+    const vazio = container.querySelector('#c1Vazio');
+    if (vazio) vazio.style.display = 'none';
+    const tabela = container.querySelector('#tabelaConsulta1');
+    if (tabela) tabela.style.display = '';
+
     const statusCores = {
-        ativa:      'background:#dcfce7;color:#15803d;',
-        expirada:   'background:#fee2e2;color:#b91c1c;',
-        convertida: 'background:#dbeafe;color:#1d4ed8;',
-        arquivada:  'background:#f1f5f9;color:#64748b;'
+        'ativa': '#16a34a', 'expirada': '#dc2626',
+        'convertida': '#0284c7', 'arquivada': '#94a3b8'
     };
 
-    const fmt = (v) => {
-        if (v === '—' || v == null || v === '') return '—';
-        const n = parseFloat(v);
-        return isNaN(n) ? v : n.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-    };
+    lista.forEach(function(p, idx) {
+        const itens = p.itens || p.produtos || [];
+        const precos = itens.map(function(i) {
+            return parseFloat(i.precoFinal || i.preco || 0);
+        }).filter(function(v) { return v > 0; });
 
-    const fmtData = (v) => {
-        if (!v) return '—';
-        try {
-            const d = new Date(v);
-            if (isNaN(d)) return v;
-            return d.toLocaleDateString('pt-BR');
-        } catch { return v; }
-    };
+        const precoMin = precos.length ? Math.min.apply(null, precos) : 0;
+        const precoMax = precos.length ? Math.max.apply(null, precos) : 0;
+        const status = p.status || 'ativa';
+        const cor = statusCores[status] || '#94a3b8';
+        const data = p.data ? new Date(p.data).toLocaleDateString('pt-BR') : '—';
+        const validade = (p.validade || p.validadeDias || '—');
+        const bg = idx % 2 === 0 ? '#ffffff' : '#f8fafc';
 
-    let html = '';
-    linhas.forEach((l, i) => {
-        const bgRow = i % 2 === 0 ? '#ffffff' : '#f8fafc';
-        const statusEstilo = statusCores[l.status] || 'background:#f1f5f9;color:#64748b;';
-        const borderTop = l.primeiraLinha && i > 0 ? 'border-top:2px solid #e2e8f0;' : '';
-
-        html += `<tr style="background:${bgRow};${borderTop}">`;
-
-        if (l.primeiraLinha) {
-            const rs = l.totalLinhas > 1 ? ` rowspan="${l.totalLinhas}"` : '';
-            html += `<td${rs} style="padding:8px 12px;font-weight:600;color:#1e3a5f;">${l.nomeCliente}</td>`;
-            html += `<td${rs} style="padding:8px 12px;text-align:center;">${l.uf}</td>`;
-            html += `<td${rs} style="padding:8px 12px;text-align:center;font-size:11px;">${l.tipo}</td>`;
-            html += `<td${rs} style="padding:8px 12px;text-align:center;">${l.versao}</td>`;
-            html += `<td${rs} style="padding:8px 12px;text-align:center;">${fmtData(l.data)}</td>`;
-            html += `<td${rs} style="padding:8px 12px;text-align:center;">${l.validade}</td>`;
-            html += `<td${rs} style="padding:8px 12px;text-align:center;">
-                                 <span style="padding:3px 9px;border-radius:12px;font-size:11px;font-weight:700;${statusEstilo}">
-                                     ${l.status}
-                                 </span>
-                             </td>`;
-        }
-
-        html += `<td style="padding:8px 12px;">${l.produto}</td>`;
-        html += `<td style="padding:8px 12px;text-align:right;font-variant-numeric:tabular-nums;">R$ ${fmt(l.ci)}</td>`;
-        html += `<td style="padding:8px 12px;text-align:right;font-weight:600;color:#15803d;font-variant-numeric:tabular-nums;">R$ ${fmt(l.precoFinal)}</td>`;
-        html += `<td style="padding:8px 12px;text-align:right;">${l.margem !== '—' ? fmt(l.margem) + '%' : '—'}</td>`;
-
-        if (l.primeiraLinha) {
-            const rs = l.totalLinhas > 1 ? ` rowspan="${l.totalLinhas}"` : '';
-            html += `<td${rs} style="padding:8px 12px;text-align:center;font-size:12px;color:#0284c7;">
-                                 ${l.proposta ? l.proposta : '—'}
-                             </td>`;
-        }
-
-        html += `</tr>`;
+        const tr = document.createElement('tr');
+        tr.style.background = bg;
+        tr.innerHTML = `
+            <td style="padding:9px 12px;font-weight:600;color:#1e3a5f;text-align:left;border-bottom:1px solid #e2e8f0;">
+                ${p.clienteNome || p.cliente || '—'}
+            </td>
+            <td style="padding:9px 12px;text-align:center;border-bottom:1px solid #e2e8f0;">${p.uf || p.estado || '—'}</td>
+            <td style="padding:9px 12px;text-align:center;border-bottom:1px solid #e2e8f0;">${p.tipoPessoa || p.tipo || '—'}</td>
+            <td style="padding:9px 12px;text-align:center;border-bottom:1px solid #e2e8f0;">v${p.versao || p.version || (idx+1)}</td>
+            <td style="padding:9px 12px;text-align:center;border-bottom:1px solid #e2e8f0;">${data}</td>
+            <td style="padding:9px 12px;text-align:center;border-bottom:1px solid #e2e8f0;">${validade} dias</td>
+            <td style="padding:9px 12px;text-align:center;border-bottom:1px solid #e2e8f0;">
+                <span style="display:inline-block;padding:3px 10px;border-radius:12px;font-size:0.72rem;font-weight:700;
+                    background:${cor}22;color:${cor};text-transform:uppercase;">
+                    ${status}
+                </span>
+            </td>
+            <td style="padding:9px 12px;text-align:center;border-bottom:1px solid #e2e8f0;">${itens.length}</td>
+            <td style="padding:9px 12px;text-align:right;border-bottom:1px solid #e2e8f0;font-family:monospace;">
+                ${precoMin > 0 ? 'R$ ' + precoMin.toFixed(2).replace('.',',') : '—'}
+            </td>
+            <td style="padding:9px 12px;text-align:right;border-bottom:1px solid #e2e8f0;font-family:monospace;font-weight:700;color:#16a34a;">
+                ${precoMax > 0 ? 'R$ ' + precoMax.toFixed(2).replace('.',',') : '—'}
+            </td>
+            <td style="padding:9px 12px;text-align:center;border-bottom:1px solid #e2e8f0;">
+                <button onclick="verDetalheConsulta1(${idx})"
+                    style="padding:4px 10px;border:1px solid #d0d7de;border-radius:6px;
+                    background:#fff;color:#1e3a5f;font-size:11px;cursor:pointer;">
+                    👁 Ver
+                </button>
+            </td>`;
+        tbody.appendChild(tr);
     });
+}
 
-    tbody.innerHTML = html;
-    if (totalEl) totalEl.textContent = `${linhas.length} linha(s) encontrada(s)`;
+function verDetalheConsulta1(idx) {
+    const dados = (typeof precificacoesCliente !== 'undefined' && Array.isArray(precificacoesCliente))
+        ? precificacoesCliente : [];
+    const p = dados[idx];
+    if (!p) return;
+    const itens = p.itens || p.produtos || [];
+    const fmt = v => 'R$ ' + parseFloat(v||0).toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2});
+    const linhas = itens.map(i => `
+        <tr>
+            <td style="text-align:left;padding:8px 12px;">${i.produto || i.nome || '—'}</td>
+            <td style="padding:8px 12px;">${i.ncm || '—'}</td>
+            <td style="padding:8px 12px;">${fmt(i.ci || i.custoInicial || 0)}</td>
+            <td style="padding:8px 12px;">${fmt(i.precoFinal || i.preco || 0)}</td>
+            <td style="padding:8px 12px;">${parseFloat(i.margem || 0).toFixed(1)}%</td>
+        </tr>`).join('');
+
+    const html = `<div style="font-family:var(--font-primary,sans-serif);padding:4px;">
+        <p style="margin:0 0 12px;"><strong>Cliente:</strong> ${p.clienteNome || p.cliente || '—'} &nbsp;|&nbsp;
+           <strong>UF:</strong> ${p.uf || '—'} &nbsp;|&nbsp;
+           <strong>Data:</strong> ${p.data ? new Date(p.data).toLocaleDateString('pt-BR') : '—'}</p>
+        <table style="width:100%;border-collapse:collapse;font-size:13px;">
+            <thead><tr style="background:#1e3a5f;color:#fff;">
+                <th style="text-align:left;padding:8px 12px;">Produto</th>
+                <th style="padding:8px 12px;">NCM</th>
+                <th style="padding:8px 12px;">CI (R$)</th>
+                <th style="padding:8px 12px;">Preço Final</th>
+                <th style="padding:8px 12px;">Margem %</th>
+            </tr></thead>
+            <tbody>${linhas || '<tr><td colspan="5" style="text-align:center;padding:20px;color:#8c959f;">Sem itens detalhados</td></tr>'}</tbody>
+        </table>
+    </div>`;
+
+    // Usar modal genérico se existir, senão alert simples
+    const modalBody = document.getElementById('modalHistoricoBody') || document.getElementById('modalGeralBody');
+    if (modalBody) {
+        modalBody.innerHTML = html;
+        const modal = modalBody.closest('.modal') || document.getElementById('modalHistorico') || document.getElementById('modalGeral');
+        if (modal) { modal.style.display = 'flex'; return; }
+    }
+    // Fallback: janela popup
+    const w = window.open('', '_blank', 'width=700,height=500');
+    if (w) { w.document.write('<html><body style="font-family:sans-serif;padding:20px;">' + html + '</body></html>'); w.document.close(); }
 }
 
 function exportarConsulta1Excel() {
