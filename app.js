@@ -1289,14 +1289,23 @@ async function carregarDoCloud({confirmOverwrite=true} = {}) {
         atualizarSelectsProdutos();
         atualizarSelectsRelatorios();
         try {
-            const subAbaAtiva = document.querySelector('#tab-precificacao [data-subaba].ativo')?.dataset?.subaba
-                             || document.querySelector('#tab-precificacao .tab-btn.active')?.dataset?.subaba;
-            if (subAbaAtiva === 'consulta') renderizarConsultaPrecificacao();
-            if (subAbaAtiva === 'comparativo') renderizarComparativoPrecificacao?.();
-            if (subAbaAtiva === 'rastreabilidade') renderizarRastreabilidade?.();
-            if (subAbaAtiva === 'imagem') renderizarImagemPrecificacao?.();
-            if (subAbaAtiva === 'impostos') renderizarImpostosFederais?.();
-        } catch(e) { console.error('Erro ao re-renderizar precificação após load:', e); }
+            // Detectar se a aba de Precificação está visível
+            const tabPrecif = document.querySelector('#tab-precificacao');
+            const tabPrecifVisivel = tabPrecif && (
+                tabPrecif.style.display !== 'none' &&
+                tabPrecif.classList.contains('active') ||
+                tabPrecif.offsetParent !== null
+            );
+
+            if (tabPrecifVisivel) {
+                // Tentar renderizar todas as subabas de precificação que possam estar ativas
+                try { renderizarConsultaPrecificacao && renderizarConsultaPrecificacao(); } catch(e) {}
+                try { renderizarRastreabilidade && renderizarRastreabilidade(); } catch(e) {}
+            } else {
+                // Marcar flag para renderizar quando a aba for aberta
+                window._precificacaoPendenteRender = true;
+            }
+        } catch(e) { console.error('Erro re-render precif:', e); }
         console.debug('Dados carregados do Firestore com sucesso.');
         // Forçar re-render das abas de precificação após carregamento completo
         try {
@@ -1997,6 +2006,16 @@ function trocarAba(aba) {
             try { trocarSubabaPrecif('federais'); } catch (e) { if (window.__showRuntimeErrorOverlay) window.__showRuntimeErrorOverlay(e); }
             try { renderizarPrecificacao(); } catch (e) { if (window.__showRuntimeErrorOverlay) window.__showRuntimeErrorOverlay(e); }
             try { popularSelectProdutosPrecif(); } catch (e) {}
+            // Se o carregamento anterior deixou uma render pendente, disparar agora
+            try {
+                if (window._precificacaoPendenteRender) {
+                    window._precificacaoPendenteRender = false;
+                    setTimeout(() => {
+                        try { renderizarConsultaPrecificacao && renderizarConsultaPrecificacao(); } catch(e) {}
+                        try { renderizarRastreabilidade && renderizarRastreabilidade(); } catch(e) {}
+                    }, 100);
+                }
+            } catch(e) {}
         } else if (aba === 'clientes') {
             try { renderizarClientes(); } catch (e) { if (window.__showRuntimeErrorOverlay) window.__showRuntimeErrorOverlay(e); }
         } else if (aba === 'propostas') {
@@ -12631,9 +12650,15 @@ function trocarSubabaPrecif(subaba) {
         }
         if (subaba === 'consulta') {
             try { renderizarConsultaPrecificacao(); } catch (e) { console.error('Erro ao renderizar consulta de precificação:', e); }
+            setTimeout(() => {
+                try { renderizarConsultaPrecificacao && renderizarConsultaPrecificacao(); } catch(e) {}
+            }, 50);
         }
         if (subaba === 'rastreabilidade') {
             try { renderizarRastreabilidade(); } catch (e) { console.error('Erro ao renderizar rastreabilidade:', e); }
+            setTimeout(() => {
+                try { renderizarRastreabilidade && renderizarRastreabilidade(); } catch(e) {}
+            }, 50);
         }
         if (subaba === 'porcliente') {
                 // preparar dropdown e estado inicial da sub-aba
@@ -12681,11 +12706,12 @@ function renderizarConsultaPrecificacao(forceSemFiltros = false) {
         } catch(e) {}
         if (!precificacoesCliente || precificacoesCliente.length === 0) {
             const tbody = document.querySelector('#tabelaConsultaPrecificacao tbody')
+                       || document.querySelector('[id*="tabela"][id*="onsulta"] tbody')
                        || document.querySelector('[id*="consulta"] tbody');
-            if (tbody) tbody.innerHTML =
-                '<tr><td colspan="99" style="text-align:center;padding:40px;color:#64748b;">' +
-                'Nenhuma precificação salva ainda. Calcule e salve uma precificação primeiro.</td></tr>';
-            return;
+            if (tbody) {
+                tbody.innerHTML = '<tr><td colspan="99" style="text-align:center;padding:40px;color:#64748b;font-size:0.9rem;">Nenhuma precificação salva. Calcule e salve uma precificação na aba Por Cliente.</td></tr>';
+            }
+            // NÃO retornar — continuar para popular os selects de filtro
         }
     }
     // Populate selects
@@ -13226,8 +13252,8 @@ function renderizarRastreabilidade() {
         } catch(e) {}
         if (!precificacoesCliente || precificacoesCliente.length === 0) {
             const container = document.getElementById('painelRastreabilidade') || document.querySelector('[id*="rastreab"]');
-            if (container) container.innerHTML = '<div style="padding:20px;color:#64748b;text-align:center">Nenhuma precificação salva ainda. Calcule e salve uma precificação primeiro.</div>';
-            return;
+            if (container) container.innerHTML = '<div style="padding:20px;color:#64748b;text-align:center">Nenhuma precificação salva. Calcule e salve uma precificação na aba Por Cliente.</div>';
+            // NÃO retornar — continuar para popular filtros/visualização
         }
     }
         const selCliente = document.getElementById('rastreaCliente');
