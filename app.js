@@ -12877,10 +12877,6 @@ function popularSelectsComparativo() {
 
 function renderizarConsultaPrecificacao(forceSemFiltros = false) {
     try {
-        console.debug('[precif] renderizarConsultaPrecificacao start', {
-            precificacoesClienteLen: (precificacoesCliente || []).length,
-            estoquePrecifLen: (estoque && Array.isArray(estoque.precificacoesCliente)) ? estoque.precificacoesCliente.length : 0
-        });
         // Tentar recuperar do localStorage se estiver vazio
         let _dadosPrecif = (Array.isArray(precificacoesCliente) && precificacoesCliente.length > 0)
             ? precificacoesCliente
@@ -13212,20 +13208,7 @@ function renderizarConsultaPrecificacao(forceSemFiltros = false) {
         </tr>
     `).join('');
 
-    try {
-        const sub = document.getElementById('subaba-precif-consulta');
-        if (sub && getComputedStyle(sub).display === 'none') {
-            sub.style.display = 'block';
-            const btn = document.getElementById('sbtn-consulta');
-            if (btn) { btn.style.color = '#1e3a5f'; btn.style.borderBottomColor = '#1e3a5f'; }
-        }
-        const table = document.getElementById('tabelaConsultaPrecif');
-        if (table) {
-            try { table.scrollIntoView({behavior:'smooth', block:'center'}); } catch(e) {}
-            table.style.outline = '3px solid #94a3b8';
-            setTimeout(() => { try { table.style.outline = ''; } catch(e) {} }, 1200);
-        }
-    } catch (e) {}
+    
     } catch (e) {
         console.error('renderizarConsultaPrecificacao error:', e);
         try {
