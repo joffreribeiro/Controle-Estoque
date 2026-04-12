@@ -208,6 +208,93 @@ let ultimaPrecificacaoCalculada = null;
 let ultimaVersaoSalva = null;
 let exibindoPrecifSalva = false;
 let precifSalvaCarregada = null;
+// INÍCIO AJUSTE PRECIFICAÇÃO
+// Funções auxiliares para carregar normalizar e atualizar indicadores
+// Carrega precificações de várias chaves possíveis no localStorage
+function carregarPrecificacoesSalvas() {
+    try {
+        let dados = [];
+        // chaves legadas / possíveis onde o usuário pode ter salvo precificações
+        const chaves = ['precificacoesCliente', 'precificacoesClienteBackupV1', 'estoque_precificacoesCliente', 'estoque_precificacoesCliente'];
+        for (let i = 0; i < chaves.length; i++) {
+            try {
+                const raw = localStorage.getItem(chaves[i]);
+                if (!raw) continue;
+                const parsed = JSON.parse(raw);
+                if (Array.isArray(parsed)) { dados = parsed; break; }
+                if (parsed && Array.isArray(parsed.precificacoesCliente)) { dados = parsed.precificacoesCliente; break; }
+                // se for objeto mapeado por id
+                if (parsed && typeof parsed === 'object') {
+                    const vals = Object.values(parsed);
+                    if (vals && vals.length && vals[0] && (vals[0].itens || vals[0].items)) { dados = vals; break; }
+                }
+            } catch (e) { /* ignore parse errors */ }
+        }
+
+        // tentar chave principal (estrutura completa do app)
+        if (!dados.length) {
+            try {
+                const rawMain = localStorage.getItem('estoqueArmasV2');
+                if (rawMain) {
+                    const parsedMain = JSON.parse(rawMain);
+                    if (Array.isArray(parsedMain.precificacoesCliente)) dados = parsedMain.precificacoesCliente;
+                    else if (parsedMain && parsedMain.precificacoesCliente && typeof parsedMain.precificacoesCliente === 'object') dados = Object.values(parsedMain.precificacoesCliente);
+                }
+            } catch (e) { }
+        }
+
+        // fallback final: espelho antigo
+        if (!dados.length) {
+            try {
+                const rawBack = localStorage.getItem('precificacoesClienteBackupV1');
+                if (rawBack) {
+                    const parsedBack = JSON.parse(rawBack);
+                    if (Array.isArray(parsedBack)) dados = parsedBack;
+                }
+            } catch (e) {}
+        }
+
+        precificacoesCliente = normalizarPrecificacoesCliente(dados || []);
+        try { if (estoque && typeof estoque === 'object') estoque.precificacoesCliente = precificacoesCliente; } catch (e) {}
+    } catch (e) {
+        console.warn('carregarPrecificacoesSalvas: falha ao carregar', e);
+        precificacoesCliente = precificacoesCliente || [];
+    }
+    try { atualizarIndicadoresPrecificacao(); } catch (e) {}
+    try { renderizarConsultaPrecificacao(); } catch (e) {}
+}
+
+// Atualiza contadores/badges relacionados às precificações (sidebar + elementos opcionais)
+function atualizarIndicadoresPrecificacao() {
+    try {
+        const total = Array.isArray(precificacoesCliente) ? precificacoesCliente.length : 0;
+        // atualizar badge na sidebar (botão Precificação)
+        const navBtn = document.querySelector('.nav-item[data-tab="precificacao"]');
+        if (navBtn) {
+            let badge = document.getElementById('badgePrecificacoes');
+            if (!badge) {
+                badge = document.createElement('span');
+                badge.id = 'badgePrecificacoes';
+                badge.style.background = '#1e3a5f';
+                badge.style.color = '#fff';
+                badge.style.fontSize = '0.72rem';
+                badge.style.padding = '2px 6px';
+                badge.style.borderRadius = '999px';
+                badge.style.marginLeft = '8px';
+                badge.style.display = 'inline-block';
+                badge.className = 'badge';
+                navBtn.appendChild(badge);
+            }
+            badge.textContent = String(total);
+            badge.style.display = total > 0 ? 'inline-block' : 'none';
+        }
+
+        // elementos opcionais na página (se existirem)
+        const el1 = document.getElementById('precifTotalCount') || document.getElementById('precifCount');
+        if (el1) el1.textContent = String(total);
+    } catch (e) { console.warn('atualizarIndicadoresPrecificacao', e); }
+}
+// FIM AJUSTE PRECIFICAÇÃO
 // RETID + Benefícios fiscais (estado por sessão de precificação)
 let retidPorProduto = {};
 let beneficioFiscalAtivo = false;
@@ -842,6 +929,7 @@ function popularSelectRepresentantes(selectId, incluirImbel = true) {
 
 async function inicializar() {
     carregarDados();
+    try { carregarPrecificacoesSalvas(); } catch (e) {}
     // Load contract config into Configurações tab
     try {
         const cfg = carregarConfigContrato();
@@ -906,33 +994,80 @@ async function inicializar() {
     try { iniciarAutoSaveCloud(); } catch (e) { console.warn('Falha ao iniciar auto-save:', e); }
 }
 
+// INÍCIO AJUSTE PRECIFICAÇÃO: normalizarPrecificacoesCliente
 function normalizarPrecificacoesCliente(origem) {
+    // Normaliza várias formas de estrutura de precificações (arrays, objetos mapeados, versões antigas)
     const lista = Array.isArray(origem)
         ? origem
         : (origem && typeof origem === 'object')
             ? Object.values(origem)
             : [];
-    return lista.map((p, i) => {
-        const item = (p && typeof p === 'object') ? p : {};
-        const itensNorm = Array.isArray(item.itens)
-            ? item.itens
-            : Array.isArray(item.items)
-                ? item.items
-                : (item.itens && typeof item.itens === 'object')
-                    ? Object.values(item.itens)
-                    : (item.items && typeof item.items === 'object')
-                        ? Object.values(item.items)
-                        : [];
+
+    return lista.map((p, idx) => {
+        const raw = (p && typeof p === 'object') ? p : {};
+
+        // Normalizar a lista de itens (suporta item.itens, item.items, objetos mapeados ou arrays)
+        let itensRaw = [];
+        if (Array.isArray(raw.itens)) itensRaw = raw.itens;
+        else if (Array.isArray(raw.items)) itensRaw = raw.items;
+        else if (raw.itens && typeof raw.itens === 'object') itensRaw = Object.values(raw.itens);
+        else if (raw.items && typeof raw.items === 'object') itensRaw = Object.values(raw.items);
+        else if (Array.isArray(raw.produtos)) itensRaw = raw.produtos;
+
+        const itens = (itensRaw || []).map(item => {
+            const it = (item && typeof item === 'object') ? item : {};
+            return {
+                produto: it.produto || it.produtoNome || it.nome || '',
+                produtoId: it.produtoId || it.produtoID || it.id || '',
+                ncm: it.ncm || it.NCM || '',
+                ci: Number(isFinite(it.ci) ? it.ci : (it.custo || 0)) || 0,
+                taxa: Number(isFinite(it.taxa) ? it.taxa : (it.taxaPct || 0)) || 0,
+                roi: Number(isFinite(it.roi) ? it.roi : (it.roiPct || 0)) || 0,
+                valorBase: Number(it.valorBase || it.valor_base || 0) || 0,
+                icms: Number(it.icms || 0) || 0,
+                icmsR: Number(it.icmsR || it.icmsR$ || 0) || 0,
+                pis: Number(it.pis || 0) || 0,
+                pisR: Number(it.pisR || 0) || 0,
+                cofins: Number(it.cofins || 0) || 0,
+                cofinsR: Number(it.cofinsR || 0) || 0,
+                ipi: Number(it.ipi || 0) || 0,
+                ipiR: Number(it.ipiR || 0) || 0,
+                valorImpostos: Number(it.valorImpostos || it.valor_impostos || 0) || 0,
+                comissao: Number(it.comissao || it.comissaoPct || 0) || 0,
+                comissaoR: Number(it.comissaoR || 0) || 0,
+                precoFinal: Number(it.precoFinal || it.preco_final || it.valorUnitario || 0) || 0,
+                margem: Number(it.margem || 0) || 0
+            };
+        });
+
+        const clienteNome = raw.clienteNome || raw.cliente || (raw.clienteObj && raw.clienteObj.nome) || '';
+        const clienteId = raw.clienteId || raw.cliente_id || (raw.clienteObj && raw.clienteObj.id) || '';
+        const clienteUF = raw.clienteUF || raw.clienteUf || (raw.clienteObj && raw.clienteObj.uf) || '';
+        const dataCriacao = raw.dataCriacao || raw.data || raw.createdAt || new Date().toISOString();
+
         return {
-            ...item,
-            itens: itensNorm,
-            versao: item.versao || (i + 1),
-            status: item.status || 'ativa',
-            propostaId: item.propostaId || null,
-            descricao: item.descricao || ''
+            id: raw.id || raw._id || ('precif-' + (Date.now() + idx)),
+            clienteId: clienteId,
+            clienteNome: clienteNome,
+            clienteUF: clienteUF,
+            tipoPessoa: raw.tipoPessoa || raw.tipo || raw.tipo_pessoa || '',
+            dataCriacao: dataCriacao,
+            versao: Number(raw.versao || raw.version || (idx + 1)) || (idx + 1),
+            status: raw.status || 'ativa',
+            propostaId: raw.propostaId || raw.proposta_id || null,
+            descricao: raw.descricao || raw.obs || '',
+            itens: itens,
+            validadeDias: Number(raw.validadeDias || raw.validade || 30) || 30,
+            dataExpiracao: raw.dataExpiracao || raw.expiracao || null,
+            retidPorProduto: raw.retidPorProduto || raw.retid || {},
+            beneficioFiscalAtivo: !!raw.beneficioFiscalAtivo,
+            beneficiosPorProduto: raw.beneficiosPorProduto || raw.beneficios || {}
         };
     });
 }
+
+// FIM AJUSTE PRECIFICAÇÃO
+// FIM AJUSTE PRECIFICAÇÃO
 
 function carregarDados() {
     const dadosSalvos = localStorage.getItem('estoqueArmasV2');
@@ -1034,6 +1169,7 @@ function carregarDados() {
             } catch (e) {}
         }
         estoque.precificacoesCliente = precificacoesCliente;
+        try { atualizarIndicadoresPrecificacao(); } catch (e) {}
         tabelaAliquotas = (estoque.tabelaAliquotas && typeof estoque.tabelaAliquotas === 'object')
             ? estoque.tabelaAliquotas
             : {};
@@ -1283,6 +1419,7 @@ async function carregarDoCloud({confirmOverwrite=true} = {}) {
             : (estoque.precificacoesCliente || []);
         estoque.precificacoesCliente = normalizarPrecificacoesCliente(precifsCloudFinal);
         precificacoesCliente = estoque.precificacoesCliente;
+        try { atualizarIndicadoresPrecificacao(); } catch (e) {}
         try { localStorage.setItem('precificacoesClienteBackupV1', JSON.stringify(precificacoesCliente || [])); } catch (e) {}
         if (!Array.isArray(estoque.auditoriaVendas)) estoque.auditoriaVendas = [];
         if (!Array.isArray(estoque.fechamentosComissoes)) estoque.fechamentosComissoes = [];
@@ -1393,6 +1530,7 @@ async function carregarDoCloudAuto() {
                     : (estoque.precificacoesCliente || [])
             );
             precificacoesCliente = estoque.precificacoesCliente; // sincroniza variável global
+            try { atualizarIndicadoresPrecificacao(); } catch (e) {}
             try { localStorage.setItem('precificacoesClienteBackupV1', JSON.stringify(precificacoesCliente || [])); } catch (e) {}
             if (!Array.isArray(estoque.auditoriaVendas)) estoque.auditoriaVendas = [];
             if (!Array.isArray(estoque.fechamentosComissoes)) estoque.fechamentosComissoes = [];
@@ -13012,6 +13150,7 @@ function renderizarConsultaPrecificacao(forceSemFiltros = false) {
                                 if (estoque && typeof estoque === 'object') estoque.precificacoesCliente = normalizadas;
                             } catch (e) {}
                             try { salvarDados(); } catch (e) {}
+                            try { atualizarIndicadoresPrecificacao(); } catch (e) {}
                         }
                     })
                     .catch(e => {
@@ -14176,6 +14315,7 @@ function salvarPrecificacaoCliente() {
     try { estoque.precificacoesCliente = precificacoesCliente; } catch (e) {}
     try { localStorage.setItem('precificacoesClienteBackupV1', JSON.stringify(precificacoesCliente || [])); } catch (e) {}
     salvarDados();
+    try { atualizarIndicadoresPrecificacao(); } catch (e) {}
     const infoEl = document.getElementById('precifSalvoInfo');
     if (infoEl) infoEl.innerHTML = `<span style="color:#16a34a; font-size:0.82rem">✅ Precificação salva v${registro.versao} em ${new Date(registro.dataCriacao).toLocaleString('pt-BR')}</span> <button onclick="carregarVersaoPrecif('${registro.id}')" class="btn btn-outline btn-sm" style="margin-left:8px">↩ Carregar versão</button> <button onclick="renderizarHistoricoPrecif('${cId}')" class="btn btn-outline btn-sm" style="margin-left:8px">🕘 Histórico</button>`;
     mostrarNotificacao('Precificação salva para o cliente.', 'success');
