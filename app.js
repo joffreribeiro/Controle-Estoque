@@ -12763,9 +12763,8 @@ function renderizarConsultaPrecificacao(forceSemFiltros = false) {
                    || document.querySelector('[id*="consulta"] tbody')
                    || document.querySelector('#subaba-precif-consulta tbody');
         if (tbody) {
-            tbody.innerHTML = '<tr><td colspan="99" style="text-align:center;padding:40px;' +
-                'color:#64748b;font-size:0.95rem;'>📋 Nenhuma precificação salva ainda.' +
-                '<br><small>Calcule e salve uma precificação na aba <strong>Por Cliente</strong>.</small>' +
+            tbody.innerHTML = '<tr><td colspan="99" style="text-align:center;padding:40px; color:#64748b;font-size:0.95rem;">' +
+                '📋 Nenhuma precificação salva ainda.<br><small>Calcule e salve uma precificação na aba <strong>Por Cliente</strong>.</small>' +
                 '</td></tr>';
         }
         return;
