@@ -13211,6 +13211,21 @@ function renderizarConsultaPrecificacao(forceSemFiltros = false) {
             <td style="text-align:center;font-size:0.8rem">${r.propostaNum ? `<span style="color:#1d4ed8;font-weight:600">${r.propostaNum}</span>` : '<span style="color:#94a3b8">—</span>'}</td>
         </tr>
     `).join('');
+
+    try {
+        const sub = document.getElementById('subaba-precif-consulta');
+        if (sub && getComputedStyle(sub).display === 'none') {
+            sub.style.display = 'block';
+            const btn = document.getElementById('sbtn-consulta');
+            if (btn) { btn.style.color = '#1e3a5f'; btn.style.borderBottomColor = '#1e3a5f'; }
+        }
+        const table = document.getElementById('tabelaConsultaPrecif');
+        if (table) {
+            try { table.scrollIntoView({behavior:'smooth', block:'center'}); } catch(e) {}
+            table.style.outline = '3px solid #94a3b8';
+            setTimeout(() => { try { table.style.outline = ''; } catch(e) {} }, 1200);
+        }
+    } catch (e) {}
     } catch (e) {
         console.error('renderizarConsultaPrecificacao error:', e);
         try {
