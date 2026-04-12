@@ -524,6 +524,9 @@
                                     <button class="precif-subtab-btn" onclick="trocarSubabaPrecif('consulta')" id="sbtn-consulta" style="padding:10px 20px;border:none;background:transparent; font-size:0.9rem;font-weight:600;color:#64748b; border-bottom:2px solid transparent;margin-bottom:-2px; cursor:pointer">🔍 Consulta</button>
                                     <button class="precif-subtab-btn active" onclick="trocarSubabaPrecif('federais')" id="sbtn-federais" style="padding:10px 20px; border:none; background:transparent; font-size:0.9rem; font-weight:600; color:#1e3a5f; border-bottom:2px solid #1e3a5f; margin-bottom:-2px; cursor:pointer">📋 Impostos Federais</button>
                                     <button class="precif-subtab-btn" onclick="trocarSubabaPrecif('rastreabilidade')" id="sbtn-rastreabilidade" style="padding:10px 20px;border:none;background:transparent; font-size:0.9rem;font-weight:600;color:#64748b; border-bottom:2px solid transparent;margin-bottom:-2px; cursor:pointer">🔗 Rastreabilidade</button>
+                                    <button class="tab-btn" onclick="trocarSubabaPrecif('subaba-precif-consulta1', this)">
+                                        📊 Consulta1
+                                    </button>
                                 </div>
 
                                 <!-- Sub-aba Impostos Federais -->
@@ -1104,29 +1107,93 @@
                                                                     </div>
                                                                 </div>
 
-                                                                <div id="subaba-precif-rastreabilidade" style="display:none">
-                                                                    <div style="display:flex;gap:10px;margin-bottom:16px;align-items:end;flex-wrap:wrap">
-                                                                        <div class="form-group" style="margin:0;min-width:240px">
-                                                                            <label style="font-size:0.85rem">Filtrar por cliente</label>
-                                                                            <select id="rastreaCliente" onchange="renderizarRastreabilidade()" style="width:100%;padding:8px 10px;border:1px solid #e2e8f0; border-radius:6px;font-size:0.9rem">
-                                                                                <option value="">Todos os clientes</option>
-                                                                            </select>
-                                                                        </div>
-                                                                        <div class="form-group" style="margin:0">
-                                                                            <label style="font-size:0.85rem">Período</label>
-                                                                            <select id="rastreaPeriodo" onchange="renderizarRastreabilidade()" style="padding:8px 10px;border:1px solid #e2e8f0; border-radius:6px;font-size:0.9rem">
-                                                                                <option value="todos">Todo o período</option>
-                                                                                <option value="mes">Este mês</option>
-                                                                                <option value="trimestre">Este trimestre</option>
-                                                                                <option value="ano">Este ano</option>
-                                                                            </select>
-                                                                        </div>
-                                                                        <button class="btn btn-outline btn-sm" onclick="exportarRastreabilidade()">
-                                                                            📤 Exportar Excel
-                                                                        </button>
-                                                                    </div>
-                                                                    <div id="painelRastreabilidade"></div>
-                                                                </div>
+                                                                                                                                <div id="subaba-precif-rastreabilidade" style="display:none">
+                                                                                                                                        <div style="display:flex;gap:10px;margin-bottom:16px;align-items:end;flex-wrap:wrap">
+                                                                                                                                                <div class="form-group" style="margin:0;min-width:240px">
+                                                                                                                                                        <label style="font-size:0.85rem">Filtrar por cliente</label>
+                                                                                                                                                        <select id="rastreaCliente" onchange="renderizarRastreabilidade()" style="width:100%;padding:8px 10px;border:1px solid #e2e8f0; border-radius:6px;font-size:0.9rem">
+                                                                                                                                                                <option value="">Todos os clientes</option>
+                                                                                                                                                        </select>
+                                                                                                                                                </div>
+                                                                                                                                                <div class="form-group" style="margin:0">
+                                                                                                                                                        <label style="font-size:0.85rem">Período</label>
+                                                                                                                                                        <select id="rastreaPeriodo" onchange="renderizarRastreabilidade()" style="padding:8px 10px;border:1px solid #e2e8f0; border-radius:6px;font-size:0.9rem">
+                                                                                                                                                                <option value="todos">Todo o período</option>
+                                                                                                                                                                <option value="mes">Este mês</option>
+                                                                                                                                                                <option value="trimestre">Este trimestre</option>
+                                                                                                                                                                <option value="ano">Este ano</option>
+                                                                                                                                                        </select>
+                                                                                                                                                </div>
+                                                                                                                                                <button class="btn btn-outline btn-sm" onclick="exportarRastreabilidade()">
+                                                                                                                                                        📤 Exportar Excel
+                                                                                                                                                </button>
+                                                                                                                                        </div>
+                                                                                                                                        <div id="painelRastreabilidade"></div>
+                                                                                                                                </div>
+
+                                                                                                                                <div id="subaba-precif-consulta1" class="subaba-precif" style="display:none;">
+                                                                                                                                    <div style="padding: 20px;">
+
+                                                                                                                                        <!-- Filtros -->
+                                                                                                                                        <div style="display:flex; gap:12px; align-items:flex-end; flex-wrap:wrap; margin-bottom:16px;">
+                                                                                                                                            <div>
+                                                                                                                                                <label style="font-size:12px;color:#64748b;display:block;margin-bottom:4px;">CLIENTE</label>
+                                                                                                                                                <select id="c1FiltroCliente" onchange="renderizarConsulta1()"
+                                                                                                                                                    style="padding:8px 12px;border:1px solid #d0d7de;border-radius:6px;font-size:13px;min-width:180px;">
+                                                                                                                                                    <option value="">Todos os clientes</option>
+                                                                                                                                                </select>
+                                                                                                                                            </div>
+                                                                                                                                            <div>
+                                                                                                                                                <label style="font-size:12px;color:#64748b;display:block;margin-bottom:4px;">STATUS</label>
+                                                                                                                                                <select id="c1FiltroStatus" onchange="renderizarConsulta1()"
+                                                                                                                                                    style="padding:8px 12px;border:1px solid #d0d7de;border-radius:6px;font-size:13px;">
+                                                                                                                                                    <option value="">Todos</option>
+                                                                                                                                                    <option value="ativa">Ativa</option>
+                                                                                                                                                    <option value="expirada">Expirada</option>
+                                                                                                                                                    <option value="convertida">Convertida</option>
+                                                                                                                                                    <option value="arquivada">Arquivada</option>
+                                                                                                                                                </select>
+                                                                                                                                            </div>
+                                                                                                                                            <button onclick="exportarConsulta1Excel()"
+                                                                                                                                                style="padding:8px 14px;background:#1e3a5f;color:#fff;border:none;border-radius:6px;
+                                                                                                                                                             font-size:12px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;">
+                                                                                                                                                📤 Exportar Excel
+                                                                                                                                            </button>
+                                                                                                                                            <span id="c1TotalRegistros"
+                                                                                                                                                style="font-size:12px;color:#64748b;align-self:center;margin-left:4px;"></span>
+                                                                                                                                        </div>
+
+                                                                                                                                        <!-- Tabela -->
+                                                                                                                                        <div style="overflow-x:auto;border-radius:8px;border:1px solid #e2e8f0;">
+                                                                                                                                            <table id="tabelaConsulta1" style="width:100%;border-collapse:collapse;font-size:13px;">
+                                                                                                                                                <thead>
+                                                                                                                                                    <tr style="background:#1e3a5f;color:#fff;">
+                                                                                                                                                        <th style="padding:10px 12px;text-align:left;white-space:nowrap;">Cliente</th>
+                                                                                                                                                        <th style="padding:10px 12px;text-align:center;">UF</th>
+                                                                                                                                                        <th style="padding:10px 12px;text-align:center;">Tipo</th>
+                                                                                                                                                        <th style="padding:10px 12px;text-align:center;">Versão</th>
+                                                                                                                                                        <th style="padding:10px 12px;text-align:center;">Data</th>
+                                                                                                                                                        <th style="padding:10px 12px;text-align:center;">Validade</th>
+                                                                                                                                                        <th style="padding:10px 12px;text-align:center;">Status</th>
+                                                                                                                                                        <th style="padding:10px 12px;text-align:left;">Produto</th>
+                                                                                                                                                        <th style="padding:10px 12px;text-align:right;">CI (R$)</th>
+                                                                                                                                                        <th style="padding:10px 12px;text-align:right;">Preço Final</th>
+                                                                                                                                                        <th style="padding:10px 12px;text-align:right;">Margem %</th>
+                                                                                                                                                        <th style="padding:10px 12px;text-align:center;">Proposta</th>
+                                                                                                                                                    </tr>
+                                                                                                                                                </thead>
+                                                                                                                                                <tbody id="tabelaConsulta1Body">
+                                                                                                                                                    <tr>
+                                                                                                                                                        <td colspan="12" style="text-align:center;padding:40px;color:#94a3b8;">
+                                                                                                                                                            Carregando dados...
+                                                                                                                                                        </td>
+                                                                                                                                                    </tr>
+                                                                                                                                                </tbody>
+                                                                                                                                            </table>
+                                                                                                                                        </div>
+
+                                                                                                                                    </div>
+                                                                                                                                </div>
 
                                                 </div>
                                 </div>

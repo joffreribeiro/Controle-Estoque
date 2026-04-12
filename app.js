@@ -12704,6 +12704,24 @@ function trocarSubabaPrecif(subaba) {
                 try { renderizarRastreabilidade && renderizarRastreabilidade(); } catch(e) {}
             }, 50);
         }
+        // Exibir e renderizar a sub-aba Consulta1 quando solicitada (sub-aba independente)
+        if (subaba === 'subaba-precif-consulta1') {
+            try {
+                const el = document.getElementById('subaba-precif-consulta1');
+                if (el) el.style.display = 'block';
+                // estilizar botão clicado se passado como segundo argumento: trocarSubabaPrecif('subaba-precif-consulta1', this)
+                const clickedBtn = arguments[1];
+                try {
+                    if (clickedBtn && clickedBtn.style) {
+                        clickedBtn.style.color = '#1e3a5f';
+                        clickedBtn.style.borderBottomColor = '#1e3a5f';
+                    }
+                } catch(e) {}
+            } catch(e) {}
+            setTimeout(() => {
+                try { renderizarConsulta1 && renderizarConsulta1(); } catch(e) {}
+            }, 50);
+        }
         if (subaba === 'porcliente') {
                 // preparar dropdown e estado inicial da sub-aba
                 try {
@@ -16703,3 +16721,178 @@ function requireAdminOrNotify() {
 
 // Forçar chamada inicial para ajustar UI caso o listener já tenha ocorrido
 try { if (firebase && firebase.auth) firebase.auth().currentUser; } catch(e) {}
+
+// ============================================================
+// CONSULTA1 — Sub-aba independente de precificações salvas
+// ============================================================
+
+function renderizarConsulta1() {
+    const tbody = document.getElementById('tabelaConsulta1Body');
+    const totalEl = document.getElementById('c1TotalRegistros');
+    const selCliente = document.getElementById('c1FiltroCliente');
+    const selStatus = document.getElementById('c1FiltroStatus');
+
+    if (!tbody) return;
+
+    // Ler dados direto do array global
+    const dados = (typeof precificacoesCliente !== 'undefined' && Array.isArray(precificacoesCliente))
+        ? precificacoesCliente
+        : [];
+
+    if (dados.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="12" style="text-align:center;padding:40px;color:#94a3b8;">Nenhuma precificação salva encontrada.</td></tr>';
+        if (totalEl) totalEl.textContent = '';
+        return;
+    }
+
+    // Preencher filtro de clientes dinamicamente (apenas na primeira vez ou se vazio)
+    if (selCliente && selCliente.options.length <= 1) {
+        const clientes = [...new Set(dados.map(p => p.clienteNome || p.cliente || '').filter(Boolean))].sort();
+        clientes.forEach(c => {
+            const opt = document.createElement('option');
+            opt.value = c;
+            opt.textContent = c;
+            selCliente.appendChild(opt);
+        });
+    }
+
+    // Aplicar filtros
+    const filtroCliente = selCliente ? selCliente.value : '';
+    const filtroStatus  = selStatus  ? selStatus.value  : '';
+
+    // Expandir linhas: cada precificação pode ter múltiplos produtos (array itens ou produtos)
+    const linhas = [];
+    dados.forEach(p => {
+        // Normalizar campos de nome de cliente
+        const nomeCliente = p.clienteNome || p.cliente || p.nomeCliente || '—';
+        const uf          = p.uf || p.estado || p.clienteUF || '—';
+        const tipo        = p.tipoPessoa || p.tipo || '—';
+        const versao      = p.versao || p.version || '1';
+        const data        = p.data || p.dataCriacao || p.dataCalculo || '';
+        const validade    = p.validadeDias || p.validade || '—';
+        const status      = (p.status || 'ativa').toLowerCase();
+        const proposta    = p.propostaNumero || p.numeroProposta || '';
+
+        // Filtros
+        if (filtroCliente && nomeCliente !== filtroCliente) return;
+        if (filtroStatus  && status !== filtroStatus)       return;
+
+        // Produtos dentro da precificação
+        const produtos = p.itens || p.produtos || p.resultados || [];
+
+        if (produtos.length === 0) {
+            // Precificação sem itens detalhados — exibe linha única
+            linhas.push({ nomeCliente, uf, tipo, versao, data, validade, status, proposta,
+                produto: '—', ci: '—', precoFinal: '—', margem: '—', primeiraLinha: true, totalLinhas: 1 });
+        } else {
+            produtos.forEach((item, idx) => {
+                const produto    = item.nome || item.produto || item.nomeProduto || '—';
+                const ci         = item.ci != null ? item.ci : (item.custoInicial != null ? item.custoInicial : '—');
+                const precoFinal = item.precoFinal != null ? item.precoFinal : (item.preco != null ? item.preco : '—');
+                const margem     = item.margemPercent != null ? item.margemPercent
+                                                 : (item.margem != null ? item.margem : '—');
+                linhas.push({ nomeCliente, uf, tipo, versao, data, validade, status, proposta,
+                    produto, ci, precoFinal, margem,
+                    primeiraLinha: idx === 0, totalLinhas: produtos.length });
+            });
+        }
+    });
+
+    if (linhas.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="12" style="text-align:center;padding:40px;color:#94a3b8;">Nenhum registro encontrado para os filtros selecionados.</td></tr>';
+        if (totalEl) totalEl.textContent = '';
+        return;
+    }
+
+    // Montar HTML
+    const statusCores = {
+        ativa:      'background:#dcfce7;color:#15803d;',
+        expirada:   'background:#fee2e2;color:#b91c1c;',
+        convertida: 'background:#dbeafe;color:#1d4ed8;',
+        arquivada:  'background:#f1f5f9;color:#64748b;'
+    };
+
+    const fmt = (v) => {
+        if (v === '—' || v == null || v === '') return '—';
+        const n = parseFloat(v);
+        return isNaN(n) ? v : n.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    };
+
+    const fmtData = (v) => {
+        if (!v) return '—';
+        try {
+            const d = new Date(v);
+            if (isNaN(d)) return v;
+            return d.toLocaleDateString('pt-BR');
+        } catch { return v; }
+    };
+
+    let html = '';
+    linhas.forEach((l, i) => {
+        const bgRow = i % 2 === 0 ? '#ffffff' : '#f8fafc';
+        const statusEstilo = statusCores[l.status] || 'background:#f1f5f9;color:#64748b;';
+        const borderTop = l.primeiraLinha && i > 0 ? 'border-top:2px solid #e2e8f0;' : '';
+
+        html += `<tr style="background:${bgRow};${borderTop}">`;
+
+        if (l.primeiraLinha) {
+            const rs = l.totalLinhas > 1 ? ` rowspan="${l.totalLinhas}"` : '';
+            html += `<td${rs} style="padding:8px 12px;font-weight:600;color:#1e3a5f;">${l.nomeCliente}</td>`;
+            html += `<td${rs} style="padding:8px 12px;text-align:center;">${l.uf}</td>`;
+            html += `<td${rs} style="padding:8px 12px;text-align:center;font-size:11px;">${l.tipo}</td>`;
+            html += `<td${rs} style="padding:8px 12px;text-align:center;">${l.versao}</td>`;
+            html += `<td${rs} style="padding:8px 12px;text-align:center;">${fmtData(l.data)}</td>`;
+            html += `<td${rs} style="padding:8px 12px;text-align:center;">${l.validade}</td>`;
+            html += `<td${rs} style="padding:8px 12px;text-align:center;">
+                                 <span style="padding:3px 9px;border-radius:12px;font-size:11px;font-weight:700;${statusEstilo}">
+                                     ${l.status}
+                                 </span>
+                             </td>`;
+        }
+
+        html += `<td style="padding:8px 12px;">${l.produto}</td>`;
+        html += `<td style="padding:8px 12px;text-align:right;font-variant-numeric:tabular-nums;">R$ ${fmt(l.ci)}</td>`;
+        html += `<td style="padding:8px 12px;text-align:right;font-weight:600;color:#15803d;font-variant-numeric:tabular-nums;">R$ ${fmt(l.precoFinal)}</td>`;
+        html += `<td style="padding:8px 12px;text-align:right;">${l.margem !== '—' ? fmt(l.margem) + '%' : '—'}</td>`;
+
+        if (l.primeiraLinha) {
+            const rs = l.totalLinhas > 1 ? ` rowspan="${l.totalLinhas}"` : '';
+            html += `<td${rs} style="padding:8px 12px;text-align:center;font-size:12px;color:#0284c7;">
+                                 ${l.proposta ? l.proposta : '—'}
+                             </td>`;
+        }
+
+        html += `</tr>`;
+    });
+
+    tbody.innerHTML = html;
+    if (totalEl) totalEl.textContent = `${linhas.length} linha(s) encontrada(s)`;
+}
+
+function exportarConsulta1Excel() {
+    // Reutiliza a função de exportação existente se disponível, senão usa CSV simples
+    const tabela = document.getElementById('tabelaConsulta1');
+    if (!tabela) return;
+
+    if (typeof exportarTabelaParaExcel === 'function') {
+        exportarTabelaParaExcel('tabelaConsulta1', 'Consulta_Precificacoes');
+        return;
+    }
+
+    // Fallback CSV
+    let csv = '';
+    tabela.querySelectorAll('tr').forEach(row => {
+        const cols = [...row.querySelectorAll('th,td')].map(c =>
+            '"' + (c.innerText || c.textContent || '').replace(/"/g, '""').trim() + '"'
+        );
+        csv += cols.join(';') + '\n';
+    });
+
+    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'Consulta_Precificacoes.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+}
