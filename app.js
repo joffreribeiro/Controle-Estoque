@@ -1116,6 +1116,22 @@ function salvarDados() {
 }
 
 // =============================
+// Controle de versão local
+// =============================
+function getLocalUpdatedAt() {
+    try {
+        const v = localStorage.getItem('_cloudUpdatedAt');
+        return v ? new Date(v) : null;
+    } catch(e) { return null; }
+}
+
+function setLocalUpdatedAt(date) {
+    try {
+        localStorage.setItem('_cloudUpdatedAt', date instanceof Date ? date.toISOString() : date);
+    } catch(e) {}
+}
+
+// =============================
 // Funções para salvar/carregar no Firestore
 // =============================
 async function salvarNoCloud() {
