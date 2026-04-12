@@ -933,78 +933,59 @@
 
                 </div>
 
-                                                                <!-- Sub-aba: Consulta (Lista completa de precificações) -->
-                                                                <div id="subaba-precif-consulta" style="display:none">
+                                                                                                                                <!-- Sub-aba: Consulta (Lista completa de precificações) -->
+                                                                                                                                <div id="subaba-precif-consulta" style="display:none">
 
-    <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;align-items:end">
-        <div class="form-group" style="margin:0;min-width:220px">
-            <label style="font-size:0.82rem;color:#64748b">Cliente</label>
-            <select id="consultaFiltroCliente" onchange="renderizarConsultaPrecificacao()" style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;border-radius:6px;font-size:0.85rem">
-                <option value="">Todos os clientes</option>
-            </select>
+    <div style="padding: 20px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; flex-wrap:wrap; gap:10px;">
+            <h3 style="margin:0; font-size:1rem; font-weight:700; color:#1e3a5f; display:flex; align-items:center; gap:8px;">
+                <span style="width:4px;height:20px;background:#c9a227;border-radius:2px;display:inline-block;"></span>
+                Precificações Salvas
+            </h3>
+            <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                <select id="consulta1FiltroCliente" onchange="renderizarConsulta1()" style="padding:6px 10px;border:1px solid #d0d7de;border-radius:6px;font-size:12px;">
+                    <option value="">Todos os clientes</option>
+                </select>
+                <select id="consulta1FiltroStatus" onchange="renderizarConsulta1()" style="padding:6px 10px;border:1px solid #d0d7de;border-radius:6px;font-size:12px;">
+                    <option value="">Todos os status</option>
+                    <option value="ativa">Ativa</option>
+                    <option value="expirada">Expirada</option>
+                    <option value="convertida">Convertida</option>
+                    <option value="arquivada">Arquivada</option>
+                </select>
+                <button class="btn btn-outline" onclick="exportarConsulta1Excel()" style="font-size:12px;padding:6px 12px;">📤 Exportar Excel</button>
+            </div>
         </div>
-        <div class="form-group" style="margin:0;min-width:160px">
-            <label style="font-size:0.82rem;color:#64748b">Status</label>
-            <select id="consultaFiltroStatus" onchange="renderizarConsultaPrecificacao()" style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;border-radius:6px;font-size:0.85rem">
-                <option value="">Todos</option>
-                <option value="ativa">Ativa</option>
-                <option value="expirada">Expirada</option>
-                <option value="convertida">Convertida</option>
-                <option value="arquivada">Arquivada</option>
-            </select>
-        </div>
-        <div class="form-group" style="margin:0;min-width:160px">
-            <label style="font-size:0.82rem;color:#64748b">Produto</label>
-            <select id="consultaFiltroProduto" onchange="renderizarConsultaPrecificacao()" style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;border-radius:6px;font-size:0.85rem">
-                <option value="">Todos os produtos</option>
-            </select>
-        </div>
-        <button class="btn btn-outline btn-sm" onclick="exportarConsultaPrecificacao()">📤 Exportar Excel</button>
-    </div>
 
-    <div class="table-container">
-        <div class="table-wrapper" style="overflow-x:auto">
-            <table class="dashboard-table" id="tabelaConsultaPrecif" style="font-size:0.8rem;white-space:nowrap">
-                <thead>
-                    <tr>
-                        <th style="position:sticky;left:0;z-index:3;min-width:160px;text-align:left;padding-left:12px">Cliente</th>
-                        <th>UF</th>
-                        <th>Tipo</th>
-                        <th>Versão</th>
-                        <th>Data</th>
-                        <th>Status</th>
-                        <th>Produto</th>
-                        <th>NCM</th>
-                        <th style="text-align:right">CI (R$)</th>
-                        <th style="text-align:center">Taxa %</th>
-                        <th style="text-align:center">ROI %</th>
-                        <th style="text-align:right">Valor Base</th>
-                        <th style="text-align:center">ICMS %</th>
-                        <th style="text-align:right">ICMS R$</th>
-                        <th style="text-align:center">PIS %</th>
-                        <th style="text-align:right">PIS R$</th>
-                        <th style="text-align:center">COFINS %</th>
-                        <th style="text-align:right">COFINS R$</th>
-                        <th style="text-align:center">IPI %</th>
-                        <th style="text-align:right">IPI R$</th>
-                        <th style="text-align:right">s/ Impostos</th>
-                        <th style="text-align:center">Comissão %</th>
-                        <th style="text-align:right">Comissão R$</th>
-                        <th style="text-align:right;color:#c9a227">Preço Final</th>
-                        <th style="text-align:center">Margem %</th>
-                        <th>Proposta</th>
-                    </tr>
-                </thead>
-                <tbody id="tabelaConsultaPrecifBody">
-                    <tr>
-                        <td colspan="26" style="text-align:center;color:#94a3b8;padding:40px">Selecione um cliente ou aguarde o carregamento</td>
-                    </tr>
-                </tbody>
-            </table>
+        <div id="consulta1Resumo" style="display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap;"></div>
+
+        <div class="table-container">
+            <div class="table-wrapper">
+                <table id="tabelaConsulta1" class="dashboard-table">
+                    <thead>
+                        <tr>
+                            <th style="text-align:left;padding-left:14px;">Cliente</th>
+                            <th>UF</th>
+                            <th>Tipo</th>
+                            <th>Versão</th>
+                            <th>Data</th>
+                            <th>Validade</th>
+                            <th>Status</th>
+                            <th>Produtos</th>
+                            <th>Preço Mín.</th>
+                            <th>Preço Máx.</th>
+                            <th>Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody id="consulta1Tbody">
+                        <tr><td colspan="11" style="text-align:center;padding:40px;color:#8c959f;">Carregando precificações...</td></tr>
+                    </tbody>
+                </table>
+            </div>
         </div>
     </div>
 
-                                                                </div>
+                                                                                                                                </div>
 
                                                                 <div id="subaba-precif-comparativo" style="display:none">
                                                                     <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;
