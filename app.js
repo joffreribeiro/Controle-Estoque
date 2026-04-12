@@ -1236,6 +1236,25 @@ async function carregarDoCloud({confirmOverwrite=true} = {}) {
                 ? data.precificacoesCliente
                 : ((data.estado && data.estado.precificacoesCliente) || []);
             precificacoesCliente = normalizarPrecificacoesCliente(precifsCloud);
+            // Re-renderizar subabas ativas de precificação
+            setTimeout(function() {
+                try {
+                    const subabaAtiva = document.querySelector(
+                        '#tab-precificacao [data-subaba].active, ' +
+                        '#tab-precificacao .tab-btn.active'
+                    );
+                    const nomeSubaba = subabaAtiva?.dataset?.subaba
+                                     || subabaAtiva?.textContent?.trim()?.toLowerCase() || '';
+                    if (nomeSubaba.includes('consul') || nomeSubaba.includes('🔍')) {
+                        if (typeof renderizarConsultaPrecificacao === 'function')
+                            renderizarConsultaPrecificacao();
+                    }
+                    if (nomeSubaba.includes('rastr') || nomeSubaba.includes('🔗')) {
+                        if (typeof renderizarRastreabilidade === 'function')
+                            renderizarRastreabilidade();
+                    }
+                } catch(e) {}
+            }, 200);
             estoque.precificacoesCliente = precificacoesCliente;
             try { localStorage.setItem('precificacoesClienteBackupV1', JSON.stringify(precificacoesCliente || [])); } catch (e) {}
             try {
@@ -12666,6 +12685,13 @@ function trocarSubabaPrecif(subaba) {
         }
         if (subaba === 'consulta') {
             try { renderizarConsultaPrecificacao(); } catch (e) { console.error('Erro ao renderizar consulta de precificação:', e); }
+            setTimeout(function() {
+                try {
+                    if (typeof renderizarConsultaPrecificacao === 'function') {
+                        renderizarConsultaPrecificacao();
+                    }
+                } catch(e) { console.error('Erro ao renderizar consulta:', e); }
+            }, 80);
             setTimeout(() => {
                 if (typeof renderizarConsultaPrecificacao === 'function') {
                     try { renderizarConsultaPrecificacao(); } catch (e) {}
@@ -12711,16 +12737,38 @@ function popularSelectsComparativo() {
 }
 
 function renderizarConsultaPrecificacao(forceSemFiltros = false) {
-    const dados = precificacoesCliente || [];
-    if (!dados.length) {
-        // Tentar buscar diretamente do estoque se disponível
-        const fallback = (estoque && estoque.precificacoesCliente) ? estoque.precificacoesCliente : [];
-        if (!fallback || !fallback.length) {
-            const container = document.getElementById('consultaPrecifContainer') || document.getElementById('subaba-precif-consulta');
-            if (container) container.innerHTML = '<p style="padding:20px;color:#64748b">Nenhuma precificação salva ainda.</p>';
-            return;
+    // Tentar recuperar do localStorage se estiver vazio
+    let _dadosPrecif = (Array.isArray(precificacoesCliente) && precificacoesCliente.length > 0)
+        ? precificacoesCliente
+        : null;
+
+    if (!_dadosPrecif) {
+        try {
+            const raw = localStorage.getItem('precificacoesCliente')
+                     || localStorage.getItem('estoque_precificacoesCliente');
+            if (raw) {
+                const parsed = JSON.parse(raw);
+                _dadosPrecif = Array.isArray(parsed) ? parsed
+                    : (parsed && Array.isArray(parsed.precificacoesCliente))
+                        ? parsed.precificacoesCliente : null;
+                if (_dadosPrecif && _dadosPrecif.length > 0) {
+                    precificacoesCliente = _dadosPrecif;
+                }
+            }
+        } catch(e) {}
+    }
+
+    if (!_dadosPrecif || _dadosPrecif.length === 0) {
+        const tbody = document.querySelector('#tabelaConsultaPrecificacao tbody')
+                   || document.querySelector('[id*="consulta"] tbody')
+                   || document.querySelector('#subaba-precif-consulta tbody');
+        if (tbody) {
+            tbody.innerHTML = '<tr><td colspan="99" style="text-align:center;padding:40px;' +
+                'color:#64748b;font-size:0.95rem;'>📋 Nenhuma precificação salva ainda.' +
+                '<br><small>Calcule e salve uma precificação na aba <strong>Por Cliente</strong>.</small>' +
+                '</td></tr>';
         }
-        precificacoesCliente = fallback;
+        return;
     }
     // Populate selects
     const selCliente = document.getElementById('consultaFiltroCliente');
@@ -12767,8 +12815,8 @@ function renderizarConsultaPrecificacao(forceSemFiltros = false) {
     const rows = [];
     const listaClientes = Array.isArray(clientes) ? clientes : [];
     const listaPropostas = Array.isArray(propostas) ? propostas : [];
-    let listaPrecificacoes = (precificacoesCliente && precificacoesCliente.length)
-        ? precificacoesCliente
+    let listaPrecificacoes = (_dadosPrecif && _dadosPrecif.length)
+        ? _dadosPrecif
         : normalizarPrecificacoesCliente(estoque?.precificacoesCliente || []);
     if (!listaPrecificacoes.length) {
         try {
@@ -12839,7 +12887,7 @@ function renderizarConsultaPrecificacao(forceSemFiltros = false) {
             console.warn('Falha ao gerar fallback da consulta a partir de propostas:', e);
         }
     }
-    if ((!precificacoesCliente || !precificacoesCliente.length) && listaPrecificacoes.length) {
+    if ((!_dadosPrecif || !_dadosPrecif.length) && listaPrecificacoes.length) {
         precificacoesCliente = listaPrecificacoes;
     }
 
@@ -13247,22 +13295,31 @@ function exportarComparativo() {
 }
 
 function renderizarRastreabilidade() {
-    if (!precificacoesCliente || precificacoesCliente.length === 0) {
+    // Tentar recuperar do localStorage se estiver vazio
+    let _dadosPrecif = (Array.isArray(precificacoesCliente) && precificacoesCliente.length > 0)
+        ? precificacoesCliente
+        : null;
+
+    if (!_dadosPrecif) {
         try {
-            const backup = localStorage.getItem('precificacoesClienteBackupV1');
-            if (backup) {
-                const parsed = JSON.parse(backup);
-                if (Array.isArray(parsed) && parsed.length > 0) {
-                    precificacoesCliente = parsed;
-                    if (estoque) estoque.precificacoesCliente = precificacoesCliente;
+            const raw = localStorage.getItem('precificacoesCliente')
+                     || localStorage.getItem('estoque_precificacoesCliente');
+            if (raw) {
+                const parsed = JSON.parse(raw);
+                _dadosPrecif = Array.isArray(parsed) ? parsed
+                    : (parsed && Array.isArray(parsed.precificacoesCliente))
+                        ? parsed.precificacoesCliente : null;
+                if (_dadosPrecif && _dadosPrecif.length > 0) {
+                    precificacoesCliente = _dadosPrecif;
                 }
             }
         } catch(e) {}
-        if (!precificacoesCliente || precificacoesCliente.length === 0) {
-            const container = document.getElementById('painelRastreabilidade') || document.querySelector('[id*="rastreab"]');
-            if (container) container.innerHTML = '<div style="padding:20px;color:#64748b;text-align:center">Nenhuma precificação salva. Calcule e salve uma precificação na aba Por Cliente.</div>';
-            // NÃO retornar — continuar para popular filtros/visualização
-        }
+    }
+
+    if (!_dadosPrecif || _dadosPrecif.length === 0) {
+        const container = document.getElementById('painelRastreabilidade') || document.querySelector('[id*="rastreab"]');
+        if (container) container.innerHTML = '<div style="padding:20px;color:#64748b;text-align:center">Nenhuma precificação salva. Calcule e salve uma precificação na aba Por Cliente.</div>';
+        return;
     }
         const selCliente = document.getElementById('rastreaCliente');
         if (selCliente) {
@@ -13298,7 +13355,7 @@ function renderizarRastreabilidade() {
         if (!container) return;
 
         const html = clientesFilt.map(cliente => {
-                const precifs = (precificacoesCliente || [])
+                const precifs = (_dadosPrecif || [])
                         .filter(p => String(p.clienteId) === String(cliente.id) && inPeriod(p.dataCriacao))
                         .sort((a, b) => new Date(b.dataCriacao) - new Date(a.dataCriacao));
                 const propostasC = (propostas || [])
