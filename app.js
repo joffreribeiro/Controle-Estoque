@@ -12651,8 +12651,10 @@ function trocarSubabaPrecif(subaba) {
         if (subaba === 'consulta') {
             try { renderizarConsultaPrecificacao(); } catch (e) { console.error('Erro ao renderizar consulta de precificação:', e); }
             setTimeout(() => {
-                try { renderizarConsultaPrecificacao && renderizarConsultaPrecificacao(); } catch(e) {}
-            }, 50);
+                if (typeof renderizarConsultaPrecificacao === 'function') {
+                    try { renderizarConsultaPrecificacao(); } catch (e) {}
+                }
+            }, 150);
         }
         if (subaba === 'rastreabilidade') {
             try { renderizarRastreabilidade(); } catch (e) { console.error('Erro ao renderizar rastreabilidade:', e); }
@@ -12693,26 +12695,16 @@ function popularSelectsComparativo() {
 }
 
 function renderizarConsultaPrecificacao(forceSemFiltros = false) {
-    if (!precificacoesCliente || precificacoesCliente.length === 0) {
-        try {
-            const backup = localStorage.getItem('precificacoesClienteBackupV1');
-            if (backup) {
-                const parsed = JSON.parse(backup);
-                if (Array.isArray(parsed) && parsed.length > 0) {
-                    precificacoesCliente = parsed;
-                    if (estoque) estoque.precificacoesCliente = precificacoesCliente;
-                }
-            }
-        } catch(e) {}
-        if (!precificacoesCliente || precificacoesCliente.length === 0) {
-            const tbody = document.querySelector('#tabelaConsultaPrecificacao tbody')
-                       || document.querySelector('[id*="tabela"][id*="onsulta"] tbody')
-                       || document.querySelector('[id*="consulta"] tbody');
-            if (tbody) {
-                tbody.innerHTML = '<tr><td colspan="99" style="text-align:center;padding:40px;color:#64748b;font-size:0.9rem;">Nenhuma precificação salva. Calcule e salve uma precificação na aba Por Cliente.</td></tr>';
-            }
-            // NÃO retornar — continuar para popular os selects de filtro
+    const dados = precificacoesCliente || [];
+    if (!dados.length) {
+        // Tentar buscar diretamente do estoque se disponível
+        const fallback = (estoque && estoque.precificacoesCliente) ? estoque.precificacoesCliente : [];
+        if (!fallback || !fallback.length) {
+            const container = document.getElementById('consultaPrecifContainer') || document.getElementById('subaba-precif-consulta');
+            if (container) container.innerHTML = '<p style="padding:20px;color:#64748b">Nenhuma precificação salva ainda.</p>';
+            return;
         }
+        precificacoesCliente = fallback;
     }
     // Populate selects
     const selCliente = document.getElementById('consultaFiltroCliente');
