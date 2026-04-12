@@ -12806,6 +12806,13 @@ function resetarPrecoManual(nomeProduto) {
 
 // ── SUB-TAB NAVIGATION FOR PRECIFICAÇÃO ─────────────────────────
 function trocarSubabaPrecif(subaba) {
+    try {
+        if (subaba === 'consulta') {
+            document.body.classList.add('force-show-precif');
+        } else {
+            document.body.classList.remove('force-show-precif');
+        }
+    } catch (e) {}
     ['produtos','federais','icms','porcliente','comparativo','consulta','rastreabilidade'].forEach(s => {
                 const el = document.getElementById('subaba-precif-' + s);
                 if (el) el.style.display = (s === subaba) ? 'block' : 'none';

@@ -3964,6 +3964,14 @@ th.sortable.sort-desc .sort-icon::after { content: ' ▼'; opacity: 1; }
 /* Remover possíveis overlays que cobrem a tabela (apenas ajuste visual temporário) */
 .overlay, .modal-backdrop { display: none !important; }
 
+/* Quando estiver visualizando a sub-aba Consulta, ocultar modais que obstruam a visualização */
+body.force-show-precif .modal,
+body.force-show-precif .modal-backdrop,
+body.force-show-precif .modal-content {
+    display: none !important;
+    visibility: hidden !important;
+}
+
 /* 4. Apenas o th.col-produto fica sticky à esquerda */
 #tab-estoque #tabelaEstoque th.col-produto {
     position: sticky !important;
