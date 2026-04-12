@@ -204,6 +204,120 @@ Shape per product:
 
 // Precificações salvas por cliente (temporário/permanente salvo em estado)
 let precificacoesCliente = [];
+// ============================================================
+// CONSULTA SIMPLES — Exibição simples de precificações
+// ============================================================
+
+function renderizarConsultaSimples() {
+    const tbody = document.getElementById('tabelaConsultaSimplesBody');
+    const totalEl = document.getElementById('consultaSimplesTotal');
+    const resumoEl = document.getElementById('consultaSimplesResumo');
+    const filtroCliente = (document.getElementById('filtroClienteConsulta') || {}).value || '';
+    const filtroStatus = (document.getElementById('filtroStatusConsulta') || {}).value || '';
+
+    const dados = (typeof precificacoesCliente !== 'undefined' && Array.isArray(precificacoesCliente))
+        ? precificacoesCliente : [];
+
+    // Preencher select de clientes
+    const selCliente = document.getElementById('filtroClienteConsulta');
+    if (selCliente && selCliente.options.length <= 1) {
+        const clientes = [...new Set(dados.map(p => p.clienteNome || p.cliente || '').filter(Boolean))].sort();
+        clientes.forEach(c => {
+            const opt = document.createElement('option');
+            opt.value = c; opt.textContent = c;
+            selCliente.appendChild(opt);
+        });
+    }
+
+    const hoje = new Date();
+    function calcStatus(p) {
+        if (p.status && p.status !== 'ativa') return p.status;
+        if (!p.data) return 'ativa';
+        const dias = parseInt(p.validade || p.validadeDias || 30);
+        const expira = new Date(p.data);
+        expira.setDate(expira.getDate() + dias);
+        return expira < hoje ? 'expirada' : 'ativa';
+    }
+
+    let linhas = dados.map(p => ({ ...p, _status: calcStatus(p) }));
+    if (filtroCliente) linhas = linhas.filter(p => (p.clienteNome || p.cliente || '') === filtroCliente);
+    if (filtroStatus) linhas = linhas.filter(p => p._status === filtroStatus);
+
+    if (!tbody) return;
+
+    if (linhas.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:40px;color:#888;">Nenhuma precificação encontrada.</td></tr>';
+        if (totalEl) totalEl.textContent = '';
+        if (resumoEl) resumoEl.innerHTML = '';
+        return;
+    }
+
+    const corStatus = { ativa:'#22c55e', expirada:'#ef4444', convertida:'#3b82f6', arquivada:'#94a3b8' };
+
+    tbody.innerHTML = linhas.map((p, i) => {
+        const itens = Array.isArray(p.itens) ? p.itens : [];
+        const cor = corStatus[p._status] || '#94a3b8';
+        const bg = i % 2 === 0 ? '#fff' : '#f8fafc';
+        return `<tr style="background:${bg};">
+            <td style="padding:9px 12px;font-weight:600;color:#1e3a5f;">${p.clienteNome || p.cliente || '—'}</td>
+            <td style="padding:9px 8px;text-align:center;">${p.uf || p.estado || '—'}</td>
+            <td style="padding:9px 8px;text-align:center;">${p.tipoPessoa || p.tipo || '—'}</td>
+            <td style="padding:9px 8px;text-align:center;">${p.data ? new Date(p.data).toLocaleDateString('pt-BR') : '—'}</td>
+            <td style="padding:9px 8px;text-align:center;">${p.validade || p.validadeDias || '—'} dias</td>
+            <td style="padding:9px 8px;text-align:center;">
+                <span style="background:${cor}22;color:${cor};padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;">
+                    ${p._status}
+                </span>
+            </td>
+            <td style="padding:9px 8px;text-align:center;">${itens.length}</td>
+            <td style="padding:9px 8px;text-align:center;">${p.propostaId ? '✅ ' + p.propostaId : '—'}</td>
+        </tr>`;
+    }).join('');
+
+    if (totalEl) totalEl.textContent = `${linhas.length} precificação(ões) encontrada(s)`;
+
+    if (resumoEl) {
+        const total = linhas.length;
+        const ativas = linhas.filter(p => p._status === 'ativa').length;
+        const expiradas = linhas.filter(p => p._status === 'expirada').length;
+        resumoEl.innerHTML = [
+            ['Total', total, '#1e3a5f'],
+            ['Ativas', ativas, '#22c55e'],
+            ['Expiradas', expiradas, '#ef4444']
+        ].map(([l,v,c]) => `<div style="background:${c}11;border:1px solid ${c}33;border-radius:8px;padding:8px 14px;min-width:80px;text-align:center;">
+            <div style="font-size:18px;font-weight:700;color:${c};">${v}</div>
+            <div style="font-size:10px;color:#64748b;text-transform:uppercase;">${l}</div>
+        </div>`).join('');
+    }
+}
+
+function exportarConsultaSimples() {
+    const dados = (typeof precificacoesCliente !== 'undefined' && Array.isArray(precificacoesCliente))
+        ? precificacoesCliente : [];
+    if (!dados.length) { alert('Nenhum dado para exportar.'); return; }
+    const linhas = [['Cliente','UF','Tipo','Data','Validade','Status','Qtd Produtos','Proposta']];
+    dados.forEach(p => {
+        const itens = Array.isArray(p.itens) ? p.itens : [];
+        linhas.push([
+            p.clienteNome || p.cliente || '',
+            p.uf || p.estado || '',
+            p.tipoPessoa || p.tipo || '',
+            p.data ? new Date(p.data).toLocaleDateString('pt-BR') : '',
+            (p.validade || p.validadeDias || '') + ' dias',
+            p.status || 'ativa',
+            itens.length,
+            p.propostaId || ''
+        ]);
+    });
+    const csv = linhas.map(r => r.map(c => '"' + String(c).replace(/"/g,'""') + '"').join(';')).join('\n');
+    const blob = new Blob(['\uFEFF' + csv], {type:'text/csv;charset=utf-8;'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'precificacoes.csv';
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+}
+
+// ============================================================
 let ultimaPrecificacaoCalculada = null;
 let ultimaVersaoSalva = null;
 let exibindoPrecifSalva = false;
@@ -12697,6 +12811,9 @@ function trocarSubabaPrecif(subaba) {
                     try { renderizarConsultaPrecificacao(); } catch (e) {}
                 }
             }, 150);
+            if (typeof renderizarConsultaSimples === 'function') {
+                setTimeout(renderizarConsultaSimples, 80);
+            }
         }
         if (subaba === 'rastreabilidade') {
             try { renderizarRastreabilidade(); } catch (e) { console.error('Erro ao renderizar rastreabilidade:', e); }
