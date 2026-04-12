@@ -13208,6 +13208,27 @@ function renderizarConsultaPrecificacao(forceSemFiltros = false) {
         </tr>
     `).join('');
 
+    // Garantir visibilidade caso alguma regra CSS esteja escondendo a sub-aba/tabela
+    try {
+        if ((rows || []).length > 0) {
+            const sub = document.getElementById('subaba-precif-consulta');
+            if (sub) {
+                sub.style.display = 'block';
+                sub.style.visibility = 'visible';
+                sub.style.opacity = '1';
+                if (!sub.style.minHeight) sub.style.minHeight = '180px';
+            }
+            const wrapper = document.querySelector('#subaba-precif-consulta .table-wrapper');
+            if (wrapper) wrapper.style.overflow = 'auto';
+            const table = document.getElementById('tabelaConsultaPrecif');
+            if (table) {
+                table.style.display = 'table';
+                table.style.visibility = 'visible';
+                table.style.opacity = '1';
+            }
+        }
+    } catch (e) {}
+
     
     } catch (e) {
         console.error('renderizarConsultaPrecificacao error:', e);
