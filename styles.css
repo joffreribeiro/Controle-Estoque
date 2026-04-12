@@ -3933,44 +3933,7 @@ th.sortable.sort-desc .sort-icon::after { content: ' ▼'; opacity: 1; }
     max-height: calc(100vh - 260px) !important;
 }
 
-/* Garante altura mínima para a sub-aba Consulta de precificação */
-#subaba-precif-consulta {
-    min-height: 320px !important;
-}
-
-/* Forçar visibilidade e prioridade de renderização da tabela de consulta */
-#subaba-precif-consulta {
-    position: relative !important;
-    z-index: 50 !important;
-    background: transparent !important;
-}
-
-#tab-precificacao .table-wrapper {
-    max-height: calc(100vh - 240px) !important;
-}
-
-#tabelaConsultaPrecif {
-    position: relative !important;
-    z-index: 51 !important;
-    display: table !important;
-    width: 100% !important;
-}
-
-#tabelaConsultaPrecifBody td {
-    position: relative !important;
-    z-index: 52 !important;
-}
-
-/* Remover possíveis overlays que cobrem a tabela (apenas ajuste visual temporário) */
-.overlay, .modal-backdrop { display: none !important; }
-
-/* Quando estiver visualizando a sub-aba Consulta, ocultar modais que obstruam a visualização */
-body.force-show-precif .modal,
-body.force-show-precif .modal-backdrop,
-body.force-show-precif .modal-content {
-    display: none !important;
-    visibility: hidden !important;
-}
+/* (Regras específicas de precificação removidas junto com as sub-abas Consulta/Comparativo/Rastreabilidade) */
 
 /* 4. Apenas o th.col-produto fica sticky à esquerda */
 #tab-estoque #tabelaEstoque th.col-produto {

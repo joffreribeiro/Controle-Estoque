@@ -12,257 +12,6 @@ if (location.hostname !== 'localhost') {
 let _dadosAlterados = false;
 // Marca que houve sincronização recente com o cloud (evita warning ao fechar)
 let _cloudSyncedRecently = false;
-// Timer para resetar o estado de sincronização recente
-let __cloudSyncResetTimer = null;
-
-window.addEventListener('beforeunload', e => {
-    try {
-        if (_dadosAlterados && !_cloudSyncedRecently) {
-            e.preventDefault();
-            e.returnValue = 'Há dados não sincronizados com o cloud. Sair mesmo assim?';
-        }
-    } catch (err) {}
-});
-let estoque = {
-    produtos: [],
-    representantes: ['KOLTE', 'ISA', 'LC', 'ADES', 'FL', 'IMBEL'],
-    registroVendas: [],
-    registroDistribuicao: [],
-    registroDevolucoes: [],
-    registroEntradas: [],
-    controleEnvio: {},
-    auditoriaVendas: [],
-    fechamentosComissoes: [],
-    clientes: [],
-    propostas: [],
-    precificacao: {},
-    precificacaoConfig: null
-};
-
-let tabelaAliquotas = {};
-/*
-Shape:
-{
-    "CARABINA IA2 5,56": {
-        pis: 1.65,
-        cofins: 7.60,
-        ipi: 0,
-        icmsBase: 12
-    }
-}
-*/
-
-// ========================================
-// GRÁFICO: COMISSÕES POR REPRESENTANTE
-// ========================================
-
-function renderizarGraficoComissoes() {
-    try {
-        if (typeof Chart === 'undefined') return;
-        const canvas = document.getElementById('chartComissoesRep');
-        if (!canvas) return;
-
-        const periodo = document.getElementById('filtroComissoesGraficoPeriodo')?.value || 'todos';
-        const agora = new Date();
-        const vendasFiltradas = obterVendasDashboardFiltradas() || [];
-
-        const reps = ['KOLTE', 'ISA', 'LC', 'ADES', 'FL', 'IMBEL'];
-        const comissoes = {};
-        reps.forEach(r => comissoes[r] = 0);
-        let totalComissoes = 0;
-
-        vendasFiltradas.forEach(venda => {
-            const d = new Date(venda.data || 0);
-            if (isNaN(d.getTime())) return;
-            if (periodo === 'mes' && !(d.getMonth() === agora.getMonth() && d.getFullYear() === agora.getFullYear())) return;
-            if (periodo === 'trimestre' && !(Math.floor(d.getMonth()/3) === Math.floor(agora.getMonth()/3) && d.getFullYear() === agora.getFullYear())) return;
-            if (periodo === 'ano' && !(d.getFullYear() === agora.getFullYear())) return;
-
-            const rep = (venda.representante || '').toUpperCase();
-            const itens = obterItensVendaNormalizados(venda) || [];
-            itens.forEach(it => {
-                const produtoKey = it.produtoNome || it.produtoId || it.produto;
-                // tentar achar margem/comissão na precificação do cliente
-                let margem = null;
-                try {
-                    const precs = (precificacoesCliente || []).filter(p => p && p.clienteId === venda.clienteId);
-                    if (precs.length) {
-                        const found = (precs[0].itens || []).find(vi => (vi.produtoNome || vi.produtoId) == produtoKey || String(vi.produtoId) === String(produtoKey));
-                        if (found) margem = Number(found.margem ?? found.margemPercent ?? found.comissao ?? 0);
-                    }
-                } catch (e) {}
-
-                const valor = Number(it.valorTotal || it.valor || 0) || 0;
-                let comissao = 0;
-                if (margem && !isNaN(margem) && margem !== 0) {
-                    comissao = valor * (Number(margem) / 100);
-                } else {
-                    comissao = valor * 0.05; // fallback 5%
-                }
-
-                if (!comissoes[rep]) comissoes[rep] = 0;
-                comissoes[rep] += comissao;
-                totalComissoes += comissao;
-            });
-        });
-
-        const labels = reps;
-        const dataValues = labels.map(l => comissoes[l] || 0);
-
-        // tabela lateral
-        const tabelaDiv = document.getElementById('tabelaComissoesGrafico');
-        if (tabelaDiv) {
-            tabelaDiv.innerHTML = '';
-            const tbl = document.createElement('table');
-            tbl.style.width = '100%';
-            const tb = document.createElement('tbody');
-            labels.forEach((lab, i) => {
-                const tr = document.createElement('tr');
-                tr.innerHTML = `<td style="padding:6px 0">${lab}</td><td style="text-align:right;padding:6px 0">${formatarMoedaValor(dataValues[i])}</td>`;
-                tb.appendChild(tr);
-            });
-            tbl.appendChild(tb);
-            tabelaDiv.appendChild(tbl);
-        }
-
-        const totalEl = document.getElementById('totalComissoesGrafico');
-        if (totalEl) totalEl.textContent = 'Total Comissões: ' + formatarMoedaValor(totalComissoes);
-
-        // chart
-        if (canvas) {
-            if (_chartComissoesRep) try { _chartComissoesRep.destroy(); } catch (e) {}
-            const palette = ['#79c0ff', '#7ee787', '#58a6ff', '#ffa657', '#d2a8ff', '#ff7b72'];
-            _chartComissoesRep = new Chart(canvas, {
-                type: 'bar',
-                data: {
-                    labels,
-                    datasets: [{ label: 'Comissões (R$)', data: dataValues, backgroundColor: palette, borderRadius: 6 }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: { display: false },
-                        tooltip: { callbacks: { label: function(ctx) { return formatarMoedaValor(ctx.raw || ctx.parsed?.y || 0); } } }
-                    },
-                    scales: { y: { beginAtZero: true, ticks: { callback: function(v){ return 'R$ ' + Number(v).toLocaleString('pt-BR'); } } } }
-                }
-            });
-        }
-    } catch (e) {
-        console.warn('renderizarGraficoComissoes erro', e);
-    }
-}
-
-function verificarExpiracaoPrecificacoes() {
-    try {
-        const agora = new Date();
-        let expiradas = 0;
-        (precificacoesCliente || []).forEach(p => {
-            if (p && p.status === 'ativa' && p.dataExpiracao) {
-                try {
-                    if (new Date(p.dataExpiracao) < agora) {
-                        p.status = 'expirada';
-                        expiradas++;
-                    }
-                } catch (e) { /* ignore parse errors */ }
-            }
-        });
-        try { estoque.precificacoesCliente = precificacoesCliente; } catch (e) {}
-        return expiradas;
-    } catch (e) {
-        console.warn('verificarExpiracaoPrecificacoes erro', e);
-        return 0;
-    }
-}
-
-let tabelaICMS = [];
-/*
-Shape per rule:
-{
-    id: "rule_001",
-    estado: "SP",
-    tipoPessoa: "PJ",
-    categoriaProduto: "Arma Curta",
-    aliquota: 12
-}
-*/
-
-let precificacao = {};
-/*
-Shape per product:
-{
-    "CARABINA IA2 5,56": {
-        ci: 0,
-        taxa: 1,
-        roi: 1,
-        comissao: 5,
-        precoFinalManual: null
-    }
-}
-*/
-
-// Precificações salvas por cliente (temporário/permanente salvo em estado)
-let precificacoesCliente = [];
-let ultimaPrecificacaoCalculada = null;
-let ultimaVersaoSalva = null;
-let exibindoPrecifSalva = false;
-let precifSalvaCarregada = null;
-// INÍCIO AJUSTE PRECIFICAÇÃO
-// Funções auxiliares para carregar normalizar e atualizar indicadores
-// Carrega precificações de várias chaves possíveis no localStorage
-function carregarPrecificacoesSalvas() {
-    try {
-        let dados = [];
-        // chaves legadas / possíveis onde o usuário pode ter salvo precificações
-        const chaves = ['precificacoesCliente', 'precificacoesClienteBackupV1', 'estoque_precificacoesCliente', 'estoque_precificacoesCliente'];
-        for (let i = 0; i < chaves.length; i++) {
-            try {
-                const raw = localStorage.getItem(chaves[i]);
-                if (!raw) continue;
-                const parsed = JSON.parse(raw);
-                if (Array.isArray(parsed)) { dados = parsed; break; }
-                if (parsed && Array.isArray(parsed.precificacoesCliente)) { dados = parsed.precificacoesCliente; break; }
-                // se for objeto mapeado por id
-                if (parsed && typeof parsed === 'object') {
-                    const vals = Object.values(parsed);
-                    if (vals && vals.length && vals[0] && (vals[0].itens || vals[0].items)) { dados = vals; break; }
-                }
-            } catch (e) { /* ignore parse errors */ }
-        }
-
-        // tentar chave principal (estrutura completa do app)
-        if (!dados.length) {
-            try {
-                const rawMain = localStorage.getItem('estoqueArmasV2');
-                if (rawMain) {
-                    const parsedMain = JSON.parse(rawMain);
-                    if (Array.isArray(parsedMain.precificacoesCliente)) dados = parsedMain.precificacoesCliente;
-                    else if (parsedMain && parsedMain.precificacoesCliente && typeof parsedMain.precificacoesCliente === 'object') dados = Object.values(parsedMain.precificacoesCliente);
-                }
-            } catch (e) { }
-        }
-
-        // fallback final: espelho antigo
-        if (!dados.length) {
-            try {
-                const rawBack = localStorage.getItem('precificacoesClienteBackupV1');
-                if (rawBack) {
-                    const parsedBack = JSON.parse(rawBack);
-                    if (Array.isArray(parsedBack)) dados = parsedBack;
-                }
-            } catch (e) {}
-        }
-
-        precificacoesCliente = normalizarPrecificacoesCliente(dados || []);
-        try { if (estoque && typeof estoque === 'object') estoque.precificacoesCliente = precificacoesCliente; } catch (e) {}
-    } catch (e) {
-        console.warn('carregarPrecificacoesSalvas: falha ao carregar', e);
-        precificacoesCliente = precificacoesCliente || [];
-    }
-    try { atualizarIndicadoresPrecificacao(); } catch (e) {}
-    try { renderizarConsultaPrecificacao(); } catch (e) {}
-}
 
 // Atualiza contadores/badges relacionados às precificações (sidebar + elementos opcionais)
 function atualizarIndicadoresPrecificacao() {
@@ -1394,10 +1143,12 @@ async function carregarDoCloud({confirmOverwrite=true} = {}) {
             estoque.precificacoesCliente = precificacoesCliente;
             try { localStorage.setItem('precificacoesClienteBackupV1', JSON.stringify(precificacoesCliente || [])); } catch (e) {}
             try {
-                const isConsultaVis = document.getElementById('subaba-precif-consulta')?.style.display !== 'none';
-                const isRastreaVis  = document.getElementById('subaba-precif-rastreabilidade')?.style.display !== 'none';
-                if (isConsultaVis) renderizarConsultaPrecificacao();
-                if (isRastreaVis)  renderizarRastreabilidade();
+                const consultaEl = document.getElementById('subaba-precif-consulta');
+                const rastreaEl = document.getElementById('subaba-precif-rastreabilidade');
+                const isConsultaVis = consultaEl ? consultaEl.style.display !== 'none' : false;
+                const isRastreaVis  = rastreaEl ? rastreaEl.style.display !== 'none' : false;
+                if (isConsultaVis && typeof renderizarConsultaPrecificacao === 'function') renderizarConsultaPrecificacao();
+                if (isRastreaVis && typeof renderizarRastreabilidade === 'function') renderizarRastreabilidade();
             } catch(e) {}
         } catch (e) { precificacoesCliente = []; }
         if (!data || !data.estado) {
@@ -1576,10 +1327,12 @@ async function carregarDoCloudAuto() {
             atualizarSelectsProdutos();
             atualizarSelectsRelatorios();
             try {
-                const isConsultaVis = document.getElementById('subaba-precif-consulta')?.style.display !== 'none';
-                const isRastreaVis  = document.getElementById('subaba-precif-rastreabilidade')?.style.display !== 'none';
-                if (isConsultaVis) renderizarConsultaPrecificacao();
-                if (isRastreaVis)  renderizarRastreabilidade();
+                const consultaEl = document.getElementById('subaba-precif-consulta');
+                const rastreaEl = document.getElementById('subaba-precif-rastreabilidade');
+                const isConsultaVis = consultaEl ? consultaEl.style.display !== 'none' : false;
+                const isRastreaVis  = rastreaEl ? rastreaEl.style.display !== 'none' : false;
+                if (isConsultaVis && typeof renderizarConsultaPrecificacao === 'function') renderizarConsultaPrecificacao();
+                if (isRastreaVis && typeof renderizarRastreabilidade === 'function') renderizarRastreabilidade();
             } catch (e) {}
             console.debug('Dados carregados automaticamente do Firestore (remoto mais recente).');
             return true;
@@ -12806,14 +12559,7 @@ function resetarPrecoManual(nomeProduto) {
 
 // ── SUB-TAB NAVIGATION FOR PRECIFICAÇÃO ─────────────────────────
 function trocarSubabaPrecif(subaba) {
-    try {
-        if (subaba === 'consulta') {
-            document.body.classList.add('force-show-precif');
-        } else {
-            document.body.classList.remove('force-show-precif');
-        }
-    } catch (e) {}
-    ['produtos','federais','icms','porcliente','comparativo','consulta','rastreabilidade'].forEach(s => {
+    ['produtos','federais','icms','porcliente'].forEach(s => {
                 const el = document.getElementById('subaba-precif-' + s);
                 if (el) el.style.display = (s === subaba) ? 'block' : 'none';
                 const btn = document.getElementById('sbtn-' + s);
@@ -12824,32 +12570,6 @@ function trocarSubabaPrecif(subaba) {
         });
         if (subaba === 'federais') renderizarImpostosFederais();
         if (subaba === 'icms') renderizarICMSPorEstado();
-        if (subaba === 'comparativo') {
-            try { popularSelectsComparativo(); } catch (e) {}
-            try { calcularComparativo(); } catch (e) {}
-        }
-        if (subaba === 'consulta') {
-                try { carregarPrecificacoesSalvas(); } catch (e) {}
-                try { renderizarConsultaPrecificacao(); } catch (e) { console.error('Erro ao renderizar consulta de precificação:', e); }
-            setTimeout(function() {
-                try {
-                    if (typeof renderizarConsultaPrecificacao === 'function') {
-                        renderizarConsultaPrecificacao();
-                    }
-                } catch(e) { console.error('Erro ao renderizar consulta:', e); }
-            }, 80);
-            setTimeout(() => {
-                if (typeof renderizarConsultaPrecificacao === 'function') {
-                    try { renderizarConsultaPrecificacao(); } catch (e) {}
-                }
-            }, 150);
-        }
-        if (subaba === 'rastreabilidade') {
-            try { renderizarRastreabilidade(); } catch (e) { console.error('Erro ao renderizar rastreabilidade:', e); }
-            setTimeout(() => {
-                try { renderizarRastreabilidade && renderizarRastreabilidade(); } catch(e) {}
-            }, 50);
-        }
         if (subaba === 'porcliente') {
                 // preparar dropdown e estado inicial da sub-aba
                 try {
@@ -12867,608 +12587,46 @@ function trocarSubabaPrecif(subaba) {
 }
 
 function popularSelectsComparativo() {
-        const lista = (clientes || []).slice().sort((a, b) => (a.nome || '').localeCompare(b.nome || ''));
-        [1, 2, 3].forEach(n => {
-                const sel = document.getElementById('compCliente' + n);
-                if (!sel) return;
-                const valorAtual = sel.value;
-                sel.innerHTML = '<option value="">— não selecionado —</option>'
-                        + lista.map(c => {
-                                const cnpjLimpo = (c.cnpj || '').replace(/\D/g, '');
-                                const tipo = cnpjLimpo.length === 14 ? 'PJ' : 'PF';
-                                return `<option value="${c.id}">${_escapeHtml(c.nome || '')} (${_escapeHtml(c.uf || '??')} / ${tipo})</option>`;
-                        }).join('');
-                if (valorAtual) sel.value = valorAtual;
-        });
+    // Comparativo removido — função substituída por stub.
+    return;
 }
 
 function renderizarConsultaPrecificacao(forceSemFiltros = false) {
+    // Consulta removida: função substituída por um stub que mostra mensagem mínima se elemento existir.
     try {
-        // Tentar recuperar do localStorage se estiver vazio
-        let _dadosPrecif = (Array.isArray(precificacoesCliente) && precificacoesCliente.length > 0)
-            ? precificacoesCliente
-            : null;
-
-    if (!_dadosPrecif) {
-        try {
-            const raw = localStorage.getItem('precificacoesCliente')
-                     || localStorage.getItem('estoque_precificacoesCliente');
-            if (raw) {
-                const parsed = JSON.parse(raw);
-                _dadosPrecif = Array.isArray(parsed) ? parsed
-                    : (parsed && Array.isArray(parsed.precificacoesCliente))
-                        ? parsed.precificacoesCliente : null;
-                if (_dadosPrecif && _dadosPrecif.length > 0) {
-                    precificacoesCliente = _dadosPrecif;
-                }
-            }
-        } catch(e) {}
-    }
-
-    if (!_dadosPrecif || _dadosPrecif.length === 0) {
-        const tbody = document.querySelector('#tabelaConsultaPrecificacao tbody')
-                   || document.querySelector('[id*="consulta"] tbody')
-                   || document.querySelector('#subaba-precif-consulta tbody');
+        const tbody = document.getElementById('tabelaConsultaPrecifBody') || document.getElementById('tabelaConsultaPrecificacao')?.querySelector('tbody');
         if (tbody) {
-            tbody.innerHTML = '<tr><td colspan="99" style="text-align:center;padding:40px; color:#64748b;font-size:0.95rem;">' +
-                '📋 Nenhuma precificação salva ainda.<br><small>Calcule e salve uma precificação na aba <strong>Por Cliente</strong>.</small>' +
-                '</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:28px;color:#64748b">Consulta removida</td></tr>';
         }
-        return;
-    }
-    // Populate selects
-    const selCliente = document.getElementById('consultaFiltroCliente');
-    if (selCliente) {
-        selCliente.innerHTML = '<option value="">Todos os clientes</option>';
-        (clientes||[]).slice().sort((a,b)=> (a.nome||'').localeCompare(b.nome||'')).forEach(c => {
-            const opt = document.createElement('option');
-            opt.value = c.id;
-            opt.textContent = (c.nome || '') + ' (' + (c.uf||'??') + ')';
-            selCliente.appendChild(opt);
-        });
-    }
-
-    const selProd = document.getElementById('consultaFiltroProduto');
-    if (selProd) {
-        selProd.innerHTML = '<option value="">Todos os produtos</option>';
-        (estoque.produtos||[]).slice().sort((a,b)=> (a.nome||'').localeCompare(b.nome||'')).forEach(p => {
-            const opt = document.createElement('option');
-            opt.value = p.nome;
-            opt.textContent = p.nome;
-            selProd.appendChild(opt);
-        });
-    }
-
-    const filtroClienteId = forceSemFiltros ? '' : (document.getElementById('consultaFiltroCliente')?.value || '');
-    const filtroStatus    = forceSemFiltros ? '' : (document.getElementById('consultaFiltroStatus')?.value || '');
-    const filtroProduto   = forceSemFiltros ? '' : (document.getElementById('consultaFiltroProduto')?.value || '');
-    if (forceSemFiltros) {
-        const selStatus = document.getElementById('consultaFiltroStatus');
-        if (selStatus) selStatus.value = '';
-    }
-
-    const fmt = v => 'R$ ' + parseFloat(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
-    const pct = v => parseFloat(v||0).toFixed(2) + '%';
-    const corMargem = m => m >= 30 ? '#16a34a' : m >= 15 ? '#d97706' : '#dc2626';
-
-    const statusColors = {
-        ativa:      { bg:'#f0fdf4', text:'#16a34a' },
-        expirada:   { bg:'#fff8f0', text:'#d97706' },
-        convertida: { bg:'#eff6ff', text:'#1d4ed8' },
-        arquivada:  { bg:'#f1f5f9', text:'#94a3b8' },
-    };
-
-    const rows = [];
-    const listaClientes = Array.isArray(clientes) ? clientes : [];
-    const listaPropostas = Array.isArray(propostas) ? propostas : [];
-    let listaPrecificacoes = (_dadosPrecif && _dadosPrecif.length)
-        ? _dadosPrecif
-        : normalizarPrecificacoesCliente(estoque?.precificacoesCliente || []);
-    if (!listaPrecificacoes.length) {
-        try {
-            const raw = localStorage.getItem('estoqueArmasV2');
-            const parsed = raw ? JSON.parse(raw) : null;
-            const fromLS = normalizarPrecificacoesCliente(parsed?.precificacoesCliente || []);
-            if (fromLS.length) {
-                listaPrecificacoes = fromLS;
-                precificacoesCliente = fromLS;
-                try { if (estoque) estoque.precificacoesCliente = fromLS; } catch (e) {}
-            }
-        } catch (e) {
-            console.warn('Falha ao recuperar precificações do localStorage para consulta:', e);
-        }
-    }
-    if (!listaPrecificacoes.length) {
-        try {
-            const rawEspelho = localStorage.getItem('precificacoesClienteBackupV1');
-            const fromMirror = normalizarPrecificacoesCliente(rawEspelho ? JSON.parse(rawEspelho) : []);
-            if (fromMirror.length) {
-                listaPrecificacoes = fromMirror;
-                precificacoesCliente = fromMirror;
-                try { if (estoque) estoque.precificacoesCliente = fromMirror; } catch (e) {}
-            }
-        } catch (e) {
-            console.warn('Falha ao recuperar precificações do espelho local para consulta:', e);
-        }
-    }
-    if (!listaPrecificacoes.length) {
-        try {
-            const pseudo = (Array.isArray(propostas) ? propostas : []).map((p, idx) => {
-                const cli = (Array.isArray(clientes) ? clientes : []).find(c => String(c.nome || '').trim() === String(p.cliente || '').trim());
-                const itensProp = Array.isArray(p.itens) ? p.itens : [];
-                return {
-                    id: 'pseudo-proposta-' + (p.id || idx),
-                    clienteId: cli?.id || '',
-                    clienteNome: p.cliente || cli?.nome || '—',
-                    clienteUF: cli?.uf || '—',
-                    dataCriacao: p.dataCriacao || p.data || new Date().toISOString(),
-                    versao: 1,
-                    status: p.status === 'aceita' ? 'convertida' : 'ativa',
-                    propostaId: p.id || null,
-                    itens: itensProp.map(it => ({
-                        produto: it.produto || it.produtoNome || '—',
-                        ncm: it.ncm || '—',
-                        ci: Number(it.ci || 0),
-                        taxa: Number(it.taxa || 0),
-                        roi: Number(it.roi || 0),
-                        valorBase: Number(it.valorBase || 0),
-                        icms: Number(it.icms || 0),
-                        icmsR: Number(it.icmsR || 0),
-                        pis: Number(it.pis || 0),
-                        pisR: Number(it.pisR || 0),
-                        cofins: Number(it.cofins || 0),
-                        cofinsR: Number(it.cofinsR || 0),
-                        ipi: Number(it.ipi || 0),
-                        ipiR: Number(it.ipiR || 0),
-                        valorImpostos: Number(it.valorImpostos || 0),
-                        comissao: Number(it.comissao || 0),
-                        comissaoR: Number(it.comissaoR || 0),
-                        precoFinal: Number(it.valorUnitario || it.precoFinal || 0),
-                        margem: Number(it.margem || 0)
-                    }))
-                };
-            }).filter(x => x.clienteNome && x.itens && x.itens.length);
-            if (pseudo.length) listaPrecificacoes = normalizarPrecificacoesCliente(pseudo);
-        } catch (e) {
-            console.warn('Falha ao gerar fallback da consulta a partir de propostas:', e);
-        }
-    }
-    if ((!_dadosPrecif || !_dadosPrecif.length) && listaPrecificacoes.length) {
-        precificacoesCliente = listaPrecificacoes;
-    }
-
-    (listaPrecificacoes||[])
-        .filter(p => {
-            const clienteFiltroObj = listaClientes.find(c => String(c.id) === String(filtroClienteId));
-            const bateCliente = !filtroClienteId
-                || String(p.clienteId) === String(filtroClienteId)
-                || (!!clienteFiltroObj && String((p.clienteNome || '')).trim() === String((clienteFiltroObj.nome || '')).trim());
-            if (!bateCliente) return false;
-            if (filtroStatus && String(p.status || 'ativa').toLowerCase() !== String(filtroStatus).toLowerCase()) return false;
-            return true;
-        })
-        .sort((a,b) => new Date(b.dataCriacao||0) - new Date(a.dataCriacao||0))
-        .forEach(precif => {
-            const cliente = listaClientes.find(c =>
-                String(c.id) === String(precif.clienteId)
-                || String((c.nome || '')).trim() === String((precif.clienteNome || '')).trim()
-            );
-            const cnpjLimpo = (cliente?.cnpj||'').replace(/\D/g,'');
-            const tipo = cnpjLimpo.length === 14 ? 'PJ' : 'PF';
-            const sc = statusColors[precif.status] || { bg:'#f1f5f9', text:'#64748b' };
-            const proposta = precif.propostaId ? listaPropostas.find(p => p.id === precif.propostaId) : null;
-
-            const itensOriginais = (precif.itens || precif.items || precif.produtos || []);
-            const itensFiltrados = itensOriginais.filter(it => !filtroProduto || (it.produto || it.produtoNome) === filtroProduto);
-            if (!itensFiltrados.length && filtroProduto) return;
-
-            const itensParaExibir = itensFiltrados.length ? itensFiltrados : itensOriginais;
-
-            if (!itensParaExibir.length) {
-                rows.push({
-                    clienteNome: precif.clienteNome || cliente?.nome || '—',
-                    uf: precif.clienteUF || cliente?.uf || '—',
-                    tipo,
-                    versao: 'v' + (precif.versao || 1),
-                    data: new Date(precif.dataCriacao||new Date()).toLocaleDateString('pt-BR'),
-                    status: precif.status || 'ativa',
-                    sc,
-                    produto: '— sem itens —',
-                    ncm: '—',
-                    ci: 0,
-                    taxa: precif.taxa || 0,
-                    roi: precif.roi || 0,
-                    valorBase: 0,
-                    icms: 0, icmsR: 0,
-                    pis: 0, pisR: 0,
-                    cofins: 0, cofinsR: 0,
-                    ipi: 0, ipiR: 0,
-                    valorImpostos: 0,
-                    comissao: precif.comissao || 0, comissaoR: 0,
-                    precoFinal: 0,
-                    margem: 0,
-                    propostaNum: proposta?.numero || (precif.propostaId ? '—' : ''),
-                });
-                return;
-            }
-
-            itensParaExibir.forEach((item, idx) => {
-                const margem = item.margem ?? (
-                    item.precoFinal > 0 ? ((item.precoFinal - item.ci) / item.precoFinal * 100) : 0
-                );
-
-                rows.push({
-                    clienteNome: precif.clienteNome || cliente?.nome || '—',
-                    uf: precif.clienteUF || cliente?.uf || '—',
-                    tipo,
-                    versao: 'v' + (precif.versao || 1),
-                    data: new Date(precif.dataCriacao||new Date()).toLocaleDateString('pt-BR'),
-                    status: precif.status,
-                    sc,
-                    produto: item.produto || item.produtoNome || '—',
-                    ncm: item.ncm || '—',
-                    ci: item.ci || 0,
-                    taxa: item.taxa || 0,
-                    roi: item.roi || 0,
-                    valorBase: item.valorBase || 0,
-                    icms: item.icms || 0, icmsR: item.icmsR || 0,
-                    pis: item.pis || 0, pisR: item.pisR || 0,
-                    cofins: item.cofins || 0, cofinsR: item.cofinsR || 0,
-                    ipi: item.ipi || 0, ipiR: item.ipiR || 0,
-                    valorImpostos: item.valorImpostos || 0,
-                    comissao: item.comissao || 0, comissaoR: item.comissaoR || 0,
-                    precoFinal: item.precoFinal || 0,
-                    margem,
-                    propostaNum: proposta?.numero || (precif.propostaId ? '—' : ''),
-                });
-            });
-        });
-
-    const tbody = document.getElementById('tabelaConsultaPrecifBody');
-    if (!tbody) return;
-
-    if (!rows.length) {
-        if (!forceSemFiltros && (listaPrecificacoes || []).length > 0) {
-            return renderizarConsultaPrecificacao(true);
-        }
-        try {
-            const podeTentarCloud = !forceSemFiltros
-                && (!listaPrecificacoes || !listaPrecificacoes.length)
-                && !!window.firestoreDB
-                && !!(firebase && firebase.auth && firebase.auth().currentUser)
-                && !window.__consultaCloudSyncRunning;
-            if (podeTentarCloud) {
-                window.__consultaCloudSyncRunning = true;
-                tbody.innerHTML = `
-                    <tr>
-                        <td colspan="26" style="text-align:center;color:#64748b;padding:40px;font-size:0.9rem">
-                            Sincronizando precificações do cloud...
-                        </td>
-                    </tr>`;
-                window.firestoreDB.collection('app_data').doc('latest').get()
-                    .then(doc => {
-                        if (!doc || !doc.exists) return;
-                        const data = doc.data() || {};
-                        const precifsCloud = (data.precificacoesCliente && data.precificacoesCliente.length)
-                            ? data.precificacoesCliente
-                            : ((data.estado && data.estado.precificacoesCliente) || []);
-                        const normalizadas = normalizarPrecificacoesCliente(precifsCloud);
-                        if (normalizadas.length) {
-                            precificacoesCliente = normalizadas;
-                            try {
-                                if (estoque && typeof estoque === 'object') estoque.precificacoesCliente = normalizadas;
-                            } catch (e) {}
-                            try { salvarDados(); } catch (e) {}
-                            try { atualizarIndicadoresPrecificacao(); } catch (e) {}
-                        }
-                    })
-                    .catch(e => {
-                        console.warn('Consulta: falha ao sincronizar do cloud:', e);
-                    })
-                    .finally(() => {
-                        window.__consultaCloudSyncRunning = false;
-                        try { renderizarConsultaPrecificacao(true); } catch (e) {}
-                    });
-                return;
-            }
-        } catch (e) {
-            console.warn('Consulta: fallback cloud indisponível:', e);
-        }
-        tbody.innerHTML = `
-            <tr>
-                <td colspan="26" style="text-align:center;color:#94a3b8;padding:60px;font-size:0.9rem">
-                    <div style="font-size:2rem;margin-bottom:8px">🔍</div>
-                    Nenhuma precificação encontrada com os filtros selecionados
-                </td>
-            </tr>`;
-        return;
-    }
-
-    tbody.innerHTML = rows.map((r, i) => `
-        <tr style="background:${i%2===0?'#fff':'#f8fafc'};border-bottom:1px solid #f1f5f9">
-            <td style="font-weight:600;color:#1e3a5f;padding:8px 12px;position:sticky;left:0;background:${i%2===0?'#fff':'#f8fafc'};z-index:1;border-right:1px solid #e2e8f0">${r.clienteNome}</td>
-            <td style="text-align:center;font-size:0.8rem">${r.uf}</td>
-            <td style="text-align:center;font-size:0.75rem;font-weight:600;color:${r.tipo==='PJ'?'#1d4ed8':'#7c3aed'}">${r.tipo}</td>
-            <td style="text-align:center;font-weight:700;color:#1e3a5f">${r.versao}</td>
-            <td style="font-size:0.78rem;color:#64748b">${r.data}</td>
-            <td style="text-align:center"><span style="background:${r.sc.bg};color:${r.sc.text};font-size:0.72rem;font-weight:600;padding:2px 8px;border-radius:20px">${r.status}</span></td>
-            <td style="font-weight:500;max-width:180px;overflow:hidden;text-overflow:ellipsis" title="${r.produto}">${r.produto}</td>
-            <td style="font-size:0.75rem;color:#64748b">${r.ncm}</td>
-            <td style="text-align:right;font-weight:600;color:#1e3a5f">${fmt(r.ci)}</td>
-            <td style="text-align:center">${pct(r.taxa)}</td>
-            <td style="text-align:center">${pct(r.roi)}</td>
-            <td style="text-align:right;color:#475569">${fmt(r.valorBase)}</td>
-            <td style="text-align:center;color:#0369a1;font-weight:600">${pct(r.icms)}</td>
-            <td style="text-align:right;color:#0369a1">${fmt(r.icmsR)}</td>
-            <td style="text-align:center;color:#dc2626;font-weight:600">${pct(r.pis)}</td>
-            <td style="text-align:right;color:#dc2626">${fmt(r.pisR)}</td>
-            <td style="text-align:center;color:#dc2626;font-weight:600">${pct(r.cofins)}</td>
-            <td style="text-align:right;color:#dc2626">${fmt(r.cofinsR)}</td>
-            <td style="text-align:center;color:#7c3aed;font-weight:600">${pct(r.ipi)}</td>
-            <td style="text-align:right;color:#7c3aed">${fmt(r.ipiR)}</td>
-            <td style="text-align:right;font-weight:600;color:#1e293b">${fmt(r.valorImpostos)}</td>
-            <td style="text-align:center;color:#d97706;font-weight:600">${pct(r.comissao)}</td>
-            <td style="text-align:right;color:#d97706">${fmt(r.comissaoR)}</td>
-            <td style="text-align:right;font-weight:800;color:#16a34a;font-size:0.9rem">${fmt(r.precoFinal)}</td>
-            <td style="text-align:center;font-weight:700;color:${corMargem(r.margem)}">${r.margem.toFixed(1)}%</td>
-            <td style="text-align:center;font-size:0.8rem">${r.propostaNum ? `<span style="color:#1d4ed8;font-weight:600">${r.propostaNum}</span>` : '<span style="color:#94a3b8">—</span>'}</td>
-        </tr>
-    `).join('');
-
-    // Garantir visibilidade caso alguma regra CSS esteja escondendo a sub-aba/tabela
-    try {
-        if ((rows || []).length > 0) {
-            const sub = document.getElementById('subaba-precif-consulta');
-            if (sub) {
-                sub.style.display = 'block';
-                sub.style.visibility = 'visible';
-                sub.style.opacity = '1';
-                if (!sub.style.minHeight) sub.style.minHeight = '180px';
-            }
-            const wrapper = document.querySelector('#subaba-precif-consulta .table-wrapper');
-            if (wrapper) wrapper.style.overflow = 'auto';
-            const table = document.getElementById('tabelaConsultaPrecif');
-            if (table) {
-                table.style.display = 'table';
-                table.style.visibility = 'visible';
-                table.style.opacity = '1';
-            }
-        }
-    } catch (e) {}
-
-    
-    } catch (e) {
-        console.error('renderizarConsultaPrecificacao error:', e);
-        try {
-            const tb = document.getElementById('tabelaConsultaPrecifBody');
-            if (tb) tb.innerHTML = `<tr><td colspan="26" style="text-align:center;color:#dc2626;padding:40px;">Erro ao renderizar Consulta. Verifique o console para mais detalhes.</td></tr>`;
-        } catch (inner) {}
-    }
+    } catch (e) { /* noop */ }
+    return;
 }
 
 function exportarConsultaPrecificacao() {
-    const rows = [];
-    (precificacoesCliente||[]).forEach(precif => {
-        const cliente = (clientes||[]).find(c => String(c.id) === String(precif.clienteId));
-        const cnpjLimpo = (cliente?.cnpj||'').replace(/\D/g,'');
-        const tipo = cnpjLimpo.length === 14 ? 'PJ' : 'PF';
-        const proposta = precif.propostaId ? (propostas||[]).find(p => p.id === precif.propostaId) : null;
-
-        (precif.itens||precif.items||[]).forEach(item => {
-            rows.push({
-                'Cliente':       precif.clienteNome || cliente?.nome || '',
-                'UF':            precif.clienteUF   || cliente?.uf   || '',
-                'Tipo':          tipo,
-                'Versão':        'v' + (precif.versao||1),
-                'Data':          new Date(precif.dataCriacao||new Date()).toLocaleDateString('pt-BR'),
-                'Status':        precif.status,
-                'Proposta':      proposta?.numero || '',
-            'Produto':       item.produto   || item.produtoNome || '',
-                'NCM':           item.ncm       || '',
-                'CI (R$)':       item.ci        || 0,
-                'Taxa (%)':      item.taxa      || 0,
-                'ROI (%)':       item.roi       || 0,
-                'Valor Base':    item.valorBase || 0,
-                'ICMS (%)':      item.icms      || 0,
-                'ICMS (R$)':     item.icmsR     || 0,
-                'PIS (%)':       item.pis       || 0,
-                'PIS (R$)':      item.pisR      || 0,
-                'COFINS (%)':    item.cofins    || 0,
-                'COFINS (R$)':   item.cofinsR   || 0,
-                'IPI (%)':       item.ipi       || 0,
-                'IPI (R$)':      item.ipiR      || 0,
-                'c/ Impostos':   item.valorImpostos || 0,
-                'Comissão (%)':  item.comissao  || 0,
-                'Comissão (R$)': item.comissaoR || 0,
-                'Preço Final':   item.precoFinal || 0,
-                'Margem (%)':    item.margem ? item.margem.toFixed(2) : item.precoFinal > 0 ? (((item.precoFinal - item.ci) / item.precoFinal)*100).toFixed(2) : 0,
-            });
-        });
-    });
-
-    if (!rows.length) {
-        mostrarNotificacao('Nenhuma precificação para exportar.', 'warning');
-        return;
-    }
-
-    const ws = XLSX.utils.json_to_sheet(rows);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Consulta Precificação');
-    XLSX.writeFile(wb, 'consulta_precificacao_' + new Date().toISOString().split('T')[0] + '.xlsx');
-    mostrarNotificacao('Exportado com sucesso!', 'success');
+    // Exportação da Consulta removida. Função substituída por stub.
+    mostrarNotificacao && mostrarNotificacao('Exportação de Consulta desabilitada.', 'info');
+    return;
 }
 
 function _obterCenarioComparativo(n) {
-        const id = document.getElementById('compCliente' + n)?.value;
-        if (!id) return null;
-        const cliente = (clientes || []).find(x => String(x.id) === String(id));
-        if (!cliente) return null;
-        const uf = (cliente.uf || '').toUpperCase();
-        const cnpjLimpo = (cliente.cnpj || '').replace(/\D/g, '');
-        const tipo = cnpjLimpo.length === 14 ? 'PJ' : 'PF';
-        const taxa = parseFloat(document.getElementById('compTaxa' + n)?.value)
-                || parseFloat(document.getElementById('taxaPadrao')?.value)
-                || 20;
-        const roi = parseFloat(document.getElementById('compROI' + n)?.value)
-                || parseFloat(document.getElementById('roiPadrao')?.value)
-                || 30;
-        const comissao = parseFloat(document.getElementById('comissaoPadrao')?.value) || 5;
-        return { id, nome: cliente.nome, uf, tipo, taxa, roi, comissao };
+    // Comparativo removido — stub retornando null.
+    return null;
 }
 
 function _calcularPrecoComparativo(nomeProduto, estado, tipoPessoa, taxa, roi, comissao) {
-        const prec = precificacao[nomeProduto] || {};
-        const aliq = tabelaAliquotas[nomeProduto] || {};
-        const ci = parseFloat(prec.ci) || 0;
-        if (ci === 0) return null;
-
-        const taxaPct = Number.isFinite(Number(taxa)) ? Number(taxa) : 20;
-        const roiPct = Number.isFinite(Number(roi)) ? Number(roi) : 30;
-        const comissaoPct = Number.isFinite(Number(comissao)) ? Number(comissao) : 5;
-        const pis = parseFloat(aliq.pis) || parseFloat(document.getElementById('pisPadrao')?.value) || 0;
-        const cofins = parseFloat(aliq.cofins) || parseFloat(document.getElementById('cofinsPadrao')?.value) || 0;
-        const ipi = parseFloat(aliq.ipi) || 0;
-        const icms = buscarAliquotaICMS(estado, tipoPessoa, nomeProduto);
-
-        const valorBase = ci * (1 + taxaPct / 100) * (1 + roiPct / 100);
-        const icmsR = valorBase * icms / 100;
-        const pisR = valorBase * pis / 100;
-        const cofinsR = valorBase * cofins / 100;
-        const valorImpostos = valorBase + icmsR + pisR + cofinsR;
-        const ipiR = valorImpostos * ipi / 100;
-        const valorTotal = valorImpostos + ipiR;
-        const comissaoR = valorBase * comissaoPct / 100;
-        const precoFinal = valorTotal + comissaoR;
-        const margem = precoFinal > 0 ? ((precoFinal - ci) / precoFinal) * 100 : 0;
-
-        return {
-                precoFinal,
-                margem,
-                taxa: taxaPct,
-                roi: roiPct,
-                comissao: comissaoPct
-        };
+    // Comparativo removido — stub.
+    return null;
 }
 
 function calcularComparativo() {
-        const resultado = document.getElementById('compResultado');
-        const empty = document.getElementById('compEmpty');
-        const header = document.getElementById('compHeader');
-        const body = document.getElementById('compBody');
-        if (!resultado || !empty || !header || !body) return;
-
-        const fmt = v => 'R$ ' + parseFloat(v).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-        const fmtPct = v => parseFloat(v).toFixed(1) + '%';
-        const corMargem = m => m >= 30 ? '#16a34a' : m >= 15 ? '#d97706' : '#dc2626';
-
-        const clientesSel = [1, 2, 3].map(_obterCenarioComparativo).filter(Boolean);
-
-        if (clientesSel.length < 2) {
-                resultado.style.display = 'none';
-                empty.style.display = 'block';
-                return;
-        }
-
-        const nCols = clientesSel.length;
-        header.innerHTML = `
-        <tr>
-            <th style="text-align:left;padding-left:15px;min-width:220px;
-                                 position:sticky;left:0;background:#1e3a5f;z-index:2">
-                Produto
-            </th>
-            ${clientesSel.map((c, i) => `
-                <th colspan="2" style="text-align:center;
-                        background:${['#1e3a5f','#2d5a8b','#3d7ab5'][i]};min-width:200px">
-                    ${_escapeHtml(c.nome)}<br>
-                    <span style="font-size:0.7rem;font-weight:400;color:rgba(255,255,255,0.75)">
-                        ${_escapeHtml(c.uf)} / ${c.tipo} | Taxa ${c.taxa}% | ROI ${c.roi}%
-                    </span>
-                </th>`).join('')}
-            <th style="min-width:90px;text-align:center">Diferença</th>
-        </tr>
-        <tr>
-            <th style="position:sticky;left:0;background:#161b22"></th>
-            ${clientesSel.map(() => `
-                <th style="font-size:0.7rem;font-weight:400;background:#161b22;color:#8b949e">
-                    Preço Final
-                </th>
-                <th style="font-size:0.7rem;font-weight:400;background:#161b22;color:#8b949e">
-                    Margem
-                </th>`).join('')}
-            <th style="background:#161b22"></th>
-        </tr>`;
-
-        const produtos = estoque.produtos || [];
-        body.innerHTML = produtos.map(produto => {
-                const precos = clientesSel.map(c => _calcularPrecoComparativo(produto.nome, c.uf, c.tipo, c.taxa, c.roi, c.comissao));
-
-                if (precos.every(r => !r)) {
-                        return `<tr style="opacity:0.4">
-                <td style="text-align:left;padding-left:15px;position:sticky;
-                                     left:0;background:#fff;z-index:1">${_escapeHtml(produto.nome)}</td>
-                <td colspan="${nCols * 2 + 1}" style="text-align:center;color:#94a3b8;
-                                                                                    font-size:0.8rem">CI não configurado</td>
-            </tr>`;
-                }
-
-                const valores = precos.map(r => r?.precoFinal || 0).filter(v => v > 0);
-                const maxP = valores.length ? Math.max(...valores) : 0;
-                const minP = valores.length ? Math.min(...valores) : 0;
-                const diff = maxP - minP;
-                const diffPct = minP > 0 ? (diff / minP * 100) : 0;
-
-                return `<tr>
-            <td style="text-align:left;padding-left:15px;font-weight:500;
-                                 position:sticky;left:0;background:#fff;z-index:1;
-                                 border-right:1px solid #e2e8f0">${_escapeHtml(produto.nome)}</td>
-            ${precos.map(r => {
-                if (!r) return '<td colspan="2" style="text-align:center;color:#94a3b8">—</td>';
-                const isMax = r.precoFinal === maxP && nCols > 1;
-                const isMin = r.precoFinal === minP && nCols > 1 && maxP !== minP;
-                return `
-                    <td style="text-align:right;padding-right:8px;font-weight:700;
-                                         color:${isMin ? '#16a34a' : isMax ? '#dc2626' : '#1e3a5f'};
-                                         background:${isMin ? '#f0fdf4' : isMax ? '#fef2f2' : 'transparent'}">
-                        ${fmt(r.precoFinal)}
-                        ${isMin ? '<span style="font-size:0.65rem">▼min</span>' : ''}
-                        ${isMax ? '<span style="font-size:0.65rem">▲max</span>' : ''}
-                    </td>
-                    <td style="text-align:center;font-size:0.82rem;font-weight:600;
-                                         color:${corMargem(r.margem)}">
-                        ${fmtPct(r.margem)}
-                    </td>`;
-            }).join('')}
-            <td style="text-align:center;font-weight:600;color:#d97706">
-                ${diff > 0 ? fmt(diff) + '<br><span style="font-size:0.72rem">(' + fmtPct(diffPct) + ')</span>' : '—'}
-            </td>
-        </tr>`;
-        }).join('');
-
-        resultado.style.display = 'block';
-        empty.style.display = 'none';
+    // Comparativo removido — stub.
+    return;
 }
 
 function exportarComparativo() {
-        const clientesSel = [1, 2, 3].map(_obterCenarioComparativo).filter(Boolean);
-        if (clientesSel.length < 2) {
-                alert('Selecione ao menos 2 clientes para exportar o comparativo.');
-                return;
-        }
-
-        const rows = (estoque.produtos || []).map(p => {
-                const row = { 'Produto': p.nome };
-                clientesSel.forEach(c => {
-                        const r = _calcularPrecoComparativo(p.nome, c.uf, c.tipo, c.taxa, c.roi, c.comissao);
-                        row[c.nome + ' - Preço'] = r?.precoFinal || '';
-                        row[c.nome + ' - Margem%'] = r?.margem?.toFixed(1) || '';
-                });
-                return row;
-        });
-
-        const ws = XLSX.utils.json_to_sheet(rows);
-        const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, 'Comparativo');
-        XLSX.writeFile(wb, 'comparativo_precos_' + new Date().toISOString().split('T')[0] + '.xlsx');
+    // Comparativo removido — stub.
+    mostrarNotificacao && mostrarNotificacao('Exportação de comparativo desabilitada.', 'info');
+    return;
 }
 
 function renderizarRastreabilidade() {
@@ -14360,10 +13518,12 @@ function salvarPrecificacaoCliente() {
     mostrarNotificacao('Precificação salva para o cliente.', 'success');
     try { renderizarHistoricoPrecif(cId); } catch (e) {}
     try {
-        const isConsultaVis = document.getElementById('subaba-precif-consulta')?.style.display !== 'none';
-        const isRastreaVis  = document.getElementById('subaba-precif-rastreabilidade')?.style.display !== 'none';
-        if (isConsultaVis) renderizarConsultaPrecificacao();
-        if (isRastreaVis)  renderizarRastreabilidade();
+        const consultaEl = document.getElementById('subaba-precif-consulta');
+        const rastreaEl = document.getElementById('subaba-precif-rastreabilidade');
+        const isConsultaVis = consultaEl ? consultaEl.style.display !== 'none' : false;
+        const isRastreaVis  = rastreaEl ? rastreaEl.style.display !== 'none' : false;
+        if (isConsultaVis && typeof renderizarConsultaPrecificacao === 'function') renderizarConsultaPrecificacao();
+        if (isRastreaVis && typeof renderizarRastreabilidade === 'function') renderizarRastreabilidade();
     } catch (e) {}
 }
 
