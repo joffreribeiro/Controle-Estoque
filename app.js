@@ -1742,7 +1742,14 @@ window.__AUTO_SAVE_CLOUD = {
 function scheduleCloudSaveDebounced() {
     if (!window.__AUTO_SAVE_CLOUD.enabled) return;
     if (!window.firestoreDB) return;
-    if (!isCurrentUserAdmin()) return;
+    // permitir auto-save para usuários autenticados OU para admin (fallback)
+    try {
+        const fbUser = (typeof firebase !== 'undefined' && firebase.auth) ? firebase.auth().currentUser : null;
+        const cachedAdmin = (typeof isCurrentUserAdmin === 'function') ? isCurrentUserAdmin() : false;
+        if (!fbUser && !cachedAdmin) return;
+    } catch (e) {
+        if (!isCurrentUserAdmin()) return;
+    }
     if (window.__AUTO_SAVE_CLOUD.timerId) clearTimeout(window.__AUTO_SAVE_CLOUD.timerId);
     window.__AUTO_SAVE_CLOUD.timerId = setTimeout(async () => {
         window.__AUTO_SAVE_CLOUD.timerId = null;
@@ -16391,10 +16398,50 @@ if (window.firebase && firebase.auth) {
                                 try { mostrarNotificacao('Dados carregados automaticamente do Cloud (remoto mais recente).', 'success'); } catch (e) {}
                             }
                         }
+
+                        // Registrar listener em tempo real para detectar atualizações remotas
+                        try {
+                            if (window.firestoreDB && !window.__firestoreAppDataUnsubscribe) {
+                                const docRef = window.firestoreDB.collection('app_data').doc('latest');
+                                window.__firestoreAppDataUnsubscribe = docRef.onSnapshot(async (doc) => {
+                                    try {
+                                        if (!doc || !doc.exists) return;
+                                        const data = doc.data();
+                                        const remoteUpdated = data && data.updatedAt ? data.updatedAt.toDate().getTime() : null;
+                                        const localUpdated = estoque && estoque._localUpdatedAt ? new Date(estoque._localUpdatedAt).getTime() : 0;
+                                        if (!remoteUpdated) return;
+                                        // Se acabamos de sincronizar local->cloud, ignorar o snapshot
+                                        if (window._cloudSyncedRecently) return;
+                                        // Se há alterações locais não sincronizadas, não sobrescrever automaticamente
+                                        if (window._dadosAlterados) {
+                                            try { updateFirestoreStatus(true, new Date(remoteUpdated), 'Cloud: atualização disponível'); } catch(e) {}
+                                            window.__cloudHasRemoteUpdate = true;
+                                            return;
+                                        }
+                                        // Se remoto for mais recente que local, carregar automaticamente
+                                        if (remoteUpdated > localUpdated + 1000) {
+                                            await carregarDoCloud({ confirmOverwrite: false });
+                                            try { mostrarNotificacao('Dados atualizados automaticamente do Cloud.', 'success'); } catch (e) {}
+                                        }
+                                    } catch (e) {
+                                        console.error('Erro no snapshot do Firestore:', e);
+                                    }
+                                }, (err) => {
+                                    console.warn('Erro no listener Firestore:', err);
+                                });
+                            }
+                        } catch(e) {}
                     }
                 } catch (e) { /* ignore */ }
 
             } else {
+                // Se deslogou, cancelar listener em tempo real se existia
+                try {
+                    if (window.__firestoreAppDataUnsubscribe) {
+                        try { window.__firestoreAppDataUnsubscribe(); } catch(e) {}
+                        window.__firestoreAppDataUnsubscribe = null;
+                    }
+                } catch(e) {}
                 if (formEl) formEl.style.display = 'flex';
                 if (signedEl) signedEl.style.display = 'none';
                 if (userDisplay) userDisplay.textContent = '';
