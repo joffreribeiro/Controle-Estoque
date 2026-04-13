@@ -1087,6 +1087,19 @@ function _cpPopularFiltroCliente() {
     } catch (e) { console.error('_cpPopularFiltroCliente erro:', e); }
 }
 
+// Tornar funções acessíveis no console/global (útil para debug e onclicks dinâmicos)
+try {
+    window.filtrarConsultaPrecificacoes = filtrarConsultaPrecificacoes;
+    window._cpGoToPagina = _cpGoToPagina;
+    window._cpRenderPaginacao = _cpRenderPaginacao;
+    window.excluirPrecificacao = excluirPrecificacao;
+    window.gerarPropostaDePrecificacao = gerarPropostaDePrecificacao;
+    window.exportarPrecificacoesExcel = exportarPrecificacoesExcel;
+    window.limparFiltrosConsultaPrec = limparFiltrosConsultaPrec;
+    window._cpPopularFiltroCliente = _cpPopularFiltroCliente;
+    window.renderConsultaPrecificacoes = renderConsultaPrecificacoes;
+} catch (e) {}
+
 function gerarPropostaDePrecificacao(id, idxProduto) {
     try {
         const prec = (precificacoesCliente || []).find(p => String(p.id) === String(id) || String(p.versao) === String(id));
