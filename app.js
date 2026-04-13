@@ -15545,10 +15545,20 @@ function renderizarPropostas(filtro, statusFiltro) {
         const motivoRecusaEsc = p.motivoRecusa ? _escapeHtml(String(p.motivoRecusa)) : '';
         const motivoRecusaSmall = (p.status === 'recusada' && p.motivoRecusa) ? `<div style="font-size:0.75rem;color:#dc2626;margin-top:2px;max-width:200px;overflow:hidden;text-overflow:ellipsis" title="${motivoRecusaEsc}">↳ ${motivoRecusaEsc}</div>` : '';
 
+        // Resumo do primeiro item da proposta (exibir produto, qtd e valor unitário)
+        const itensArr = Array.isArray(p.itens) ? p.itens : [];
+        const primeiroItem = (itensArr && itensArr.length) ? itensArr[0] : null;
+        const produtoDisplay = primeiroItem ? (_escapeHtml(primeiroItem.produto || primeiroItem.produtoNome || '-')) + (itensArr.length > 1 ? ` <span style="color:#64748b;font-size:0.78rem">+${itensArr.length-1}</span>` : '') : '-';
+        const qtdDisplay = primeiroItem ? (primeiroItem.quantidade || 0) : '-';
+        const unitDisplay = primeiroItem ? formatarMoedaValor(Number(primeiroItem.valorUnitario || primeiroItem.precoFinalCalc || 0)) : '-';
+
         return `<tr>
             <td><span style="background:#0ea5e9; color:#fff; padding:2px 10px; border-radius:12px; font-size:0.82rem; font-weight:600;">${_escapeHtml(String(p.numero || ''))}</span></td>
             <td style="text-align:left">${_escapeHtml(p.cliente || '-')}</td>
             <td><span class="badge-rep ${repClass}">${_escapeHtml(p.representante || '-')}</span></td>
+            <td style="text-align:left">${produtoDisplay}</td>
+            <td style="text-align:center">${qtdDisplay}</td>
+            <td style="text-align:right">${unitDisplay}</td>
             <td style="color:#16a34a; font-weight:600">${formatarMoedaValor(p.valorTotal || 0)}</td>
             <td>${dataProposta}</td>
             <td style="${validadeExpirada ? 'color:#ef4444; font-weight:600' : ''}">${dataValidade}</td>
