@@ -520,9 +520,14 @@
                                 <div class="precif-subnav" style="display:flex; gap:0; margin-bottom:20px; border-bottom:2px solid #e2e8f0;">
                                     <button class="precif-subtab-btn" onclick="trocarSubabaPrecif('porcliente')" id="sbtn-porcliente" style="padding:10px 20px; border:none; background:transparent; font-size:0.9rem; font-weight:600; color:#64748b; border-bottom:2px solid transparent; margin-bottom:-2px; cursor:pointer">👤 Por Cliente</button>
                                     <button class="precif-subtab-btn" onclick="trocarSubabaPrecif('icms')" id="sbtn-icms" style="padding:10px 20px; border:none; background:transparent; font-size:0.9rem; font-weight:600; color:#64748b; border-bottom:2px solid transparent; margin-bottom:-2px; cursor:pointer">🗺️ ICMS por Estado</button>
-                                    <!-- Removidos: botão Comparativo e Consulta -->
-                                    <button class="precif-subtab-btn active" onclick="trocarSubabaPrecif('federais')" id="sbtn-federais" style="padding:10px 20px; border:none; background:transparent; font-size:0.9rem; font-weight:600; color:#1e3a5f; border-bottom:2px solid #1e3a5f; margin-bottom:-2px; cursor:pointer">📋 Impostos Federais</button>
-                                    <!-- Removido: botão Rastreabilidade -->
+                                                                        <!-- Removidos: botão Comparativo e Consulta -->
+                                                                        <button class="precif-subtab-btn active" onclick="trocarSubabaPrecif('federais')" id="sbtn-federais" style="padding:10px 20px; border:none; background:transparent; font-size:0.9rem; font-weight:600; color:#1e3a5f; border-bottom:2px solid #1e3a5f; margin-bottom:-2px; cursor:pointer">📋 Impostos Federais</button>
+                                                                        <!-- Removido: botão Rastreabilidade -->
+                                                                        <button class="tab-btn" id="btnConsultaPrecificacao"
+                                                                                        onclick="abrirSubAbaPrec('consultaPrec')"
+                                                                                        style="padding:10px 20px; border:none; background:transparent; font-size:0.9rem; font-weight:600; color:#64748b; border-bottom:2px solid transparent; margin-bottom:-2px; cursor:pointer">
+                                                                            🔍 Consulta
+                                                                        </button>
                                 </div>
 
                                 <!-- Sub-aba Impostos Federais -->
@@ -557,9 +562,137 @@
                                             </table>
                                         </div>
                                     </div>
-                                </div>
+                                                                </div>
 
-                                <!-- Sub-aba ICMS por Estado -->
+                                                                <!-- Sub-aba Consulta de Precificações -->
+                                                                <div id="painel-consultaPrec" style="display:none">
+    <div class="content-area">
+
+        <!-- FILTROS -->
+        <div class="filtros-container" style="margin-bottom:16px">
+
+            <div class="filtro-group">
+                <label>Cliente</label>
+                <select id="fcp-cliente">
+                    <option value="">Todos</option>
+                </select>
+            </div>
+
+            <div class="filtro-group">
+                <label>Representante</label>
+                <select id="fcp-rep">
+                    <option value="">Todos</option>
+                    <option value="KOLTE">KOLTE</option>
+                    <option value="ISA">ISA</option>
+                    <option value="LC">LC</option>
+                    <option value="ADES">ADES</option>
+                    <option value="FL">FL</option>
+                    <option value="IMBEL">IMBEL</option>
+                </select>
+            </div>
+
+            <div class="filtro-group">
+                <label>Status</label>
+                <select id="fcp-status">
+                    <option value="">Todos</option>
+                    <option value="ativa">Ativa</option>
+                    <option value="expirada">Expirada</option>
+                </select>
+            </div>
+
+            <div class="filtro-group">
+                <label>De</label>
+                <input type="date" id="fcp-de">
+            </div>
+
+            <div class="filtro-group">
+                <label>Até</label>
+                <input type="date" id="fcp-ate">
+            </div>
+
+            <div class="filtro-group" style="justify-content:flex-end;flex-direction:row;align-items:flex-end;gap:8px">
+                <button class="btn btn-primary btn-sm" onclick="filtrarConsultaPrecificacoes()">
+                    🔍 Filtrar
+                </button>
+                <button class="btn btn-outline btn-sm"
+                                onclick="limparFiltrosConsultaPrec()">
+                    🔄 Limpar
+                </button>
+            </div>
+
+        </div><!-- /filtros -->
+
+        <!-- BARRA DE AÇÕES -->
+        <div class="section-header" style="margin-bottom:12px">
+            <span class="section-title">Precificações Salvas</span>
+            <div class="header-actions">
+                <button class="btn btn-outline btn-sm"
+                                onclick="exportarPrecificacoesExcel()">
+                    📊 Exportar Excel
+                </button>
+                <button class="btn btn-outline btn-sm"
+                                onclick="window.print()">
+                    🖨️ Imprimir
+                </button>
+            </div>
+        </div>
+
+        <!-- TABELA -->
+        <div class="table-container">
+            <div class="table-wrapper">
+                <table id="tabelaConsultaPrec">
+                    <thead>
+                        <tr>
+                            <th data-sort="id"       style="min-width:60px">Nº</th>
+                            <th data-sort="data"     style="min-width:100px">Data</th>
+                            <th data-sort="validade" style="min-width:100px">Validade</th>
+                            <th style="min-width:80px">Status</th>
+                            <th data-sort="cliente"  style="min-width:160px;text-align:left">Cliente</th>
+                            <th style="min-width:50px">UF</th>
+                            <th style="min-width:50px">Tipo</th>
+                            <th data-sort="rep"      style="min-width:90px">Representante</th>
+                            <th style="min-width:160px;text-align:left">Produto</th>
+                            <th style="min-width:100px">CI (R$)</th>
+                            <th style="min-width:70px">Taxa %</th>
+                            <th style="min-width:70px">ROI %</th>
+                            <th style="min-width:110px">Valor Base</th>
+                            <th style="min-width:60px">PIS %</th>
+                            <th style="min-width:70px">COFINS %</th>
+                            <th style="min-width:60px">IPI %</th>
+                            <th style="min-width:70px">ICMS %</th>
+                            <th style="min-width:110px">s/ Impostos</th>
+                            <th style="min-width:80px">Comissão %</th>
+                            <th style="min-width:120px">Preço Final</th>
+                            <th style="min-width:80px">Margem %</th>
+                            <th style="min-width:160px">Benefícios</th>
+                            <th style="min-width:110px;position:sticky;right:0">Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody id="bodyConsultaPrec">
+                        <tr>
+                            <td colspan="23">
+                                <div class="empty-state">
+                                    <div class="empty-icon">📋</div>
+                                    <div class="empty-text">Nenhuma precificação salva</div>
+                                    <div class="empty-hint">
+                                        Calcule e salve uma precificação na aba "Por Cliente"
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div><!-- /table-wrapper -->
+
+            <!-- PAGINAÇÃO -->
+            <div class="pagination-container" id="paginacaoConsultaPrec"></div>
+
+        </div><!-- /table-container -->
+
+    </div><!-- /content-area -->
+</div><!-- /painel-consultaPrec -->
+
+                                                                <!-- Sub-aba ICMS por Estado -->
                                 <div id="subaba-precif-icms" style="display:none">
 
                                     <div style="display:flex; gap:10px; margin-bottom:16px; align-items:center; flex-wrap:wrap">

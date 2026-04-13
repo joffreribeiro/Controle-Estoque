@@ -818,6 +818,118 @@ function normalizarPrecificacoesCliente(origem) {
 // FIM AJUSTE PRECIFICAÇÃO
 // FIM AJUSTE PRECIFICAÇÃO
 
+// =============================
+// CONSULTA DE PRECIFICAÇÕES - Estado e Helpers (Parte A)
+// =============================
+const _cpState = {
+    pagina: 1,
+    porPagina: 20,
+    sortCol: 'dataCriacao',
+    sortDir: 'desc',
+    dados: []
+};
+
+// Formata moeda BR
+function _cpFmt(v) {
+    return Number(v || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+}
+
+// Formata percentual
+function _cpPct(v) {
+    return Number(v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '%';
+}
+
+// Verifica se precificação está expirada
+function _cpExpirada(p) {
+    if (!p) return false;
+    const exp = p.dataExpiracao || p.data || p.validade || null;
+    if (!exp) return false;
+    try { return new Date(exp) < new Date(); } catch (e) { return false; }
+}
+
+// =============================
+// Render: Consulta de Precificações (Parte B)
+// Recebe array de precificações (já paginadas) e renderiza as linhas
+// =============================
+function renderConsultaPrecificacoes(dados) {
+    try {
+        const body = document.getElementById('bodyConsultaPrec');
+        if (!body) return;
+        body.innerHTML = '';
+
+        const totalRegistros = Array.isArray(_cpState.dados) ? _cpState.dados.length : 0;
+
+        if (!Array.isArray(dados) || dados.length === 0) {
+            body.innerHTML = `
+            <tr>
+              <td colspan="23">
+                <div class="empty-state">
+                  <div class="empty-icon">📋</div>
+                  <div class="empty-text">Nenhuma precificação salva</div>
+                  <div class="empty-hint">Calcule e salve uma precificação na aba "Por Cliente"</div>
+                </div>
+              </td>
+            </tr>`;
+            if (typeof _cpRenderPaginacao === 'function') _cpRenderPaginacao(totalRegistros);
+            return;
+        }
+
+        let html = '';
+        // contador de linhas (para exibir Nº se desejar)
+        let rowCounter = (_cpState.pagina - 1) * _cpState.porPagina + 1;
+
+        dados.forEach((prec) => {
+            const produtos = Array.isArray(prec.itens) ? prec.itens : (Array.isArray(prec.produtos) ? prec.produtos : []);
+            produtos.forEach((prod, idxProd) => {
+                const exp = _cpExpirada(prec);
+                const trClass = exp ? 'prec-expirada' : '';
+                const statusBadge = exp ? '<span class="badge-prec-expirada">✗ Expirada</span>' : '<span class="badge-prec-ativa">✓ Ativa</span>';
+                const rep = prec.representante || prec.rep || '';
+                const repClass = rep ? (' ' + String(rep).toLowerCase().replace(/[^a-z0-9\-]/g, '')) : '';
+                const beneficios = (prec.beneficiosPorProduto && (prec.beneficiosPorProduto[prod.produto] || prec.beneficiosPorProduto[prod.produtoId])) || (prec.descricao || '');
+
+                html += `<tr class="${trClass}">`;
+                html += `<td style="min-width:60px">${_escapeHtml(String(prec.id || prec.versao || rowCounter))}</td>`;
+                html += `<td style="min-width:100px">${prec.dataCriacao ? new Date(prec.dataCriacao).toLocaleString('pt-BR') : (prec.data ? new Date(prec.data).toLocaleString('pt-BR') : '-')}</td>`;
+                html += `<td style="min-width:100px">${prec.dataExpiracao ? new Date(prec.dataExpiracao).toLocaleDateString('pt-BR') : '-'}</td>`;
+                html += `<td style="min-width:80px">${statusBadge}</td>`;
+                html += `<td style="min-width:160px;text-align:left">${_escapeHtml(prec.clienteNome || prec.cliente || '')}</td>`;
+                html += `<td style="min-width:50px">${_escapeHtml(prec.clienteUF || prec.uf || '')}</td>`;
+                html += `<td style="min-width:50px">${_escapeHtml(prec.tipoPessoa || '')}</td>`;
+                html += `<td style="min-width:90px"><span class="badge-rep${repClass}">${_escapeHtml(rep)}</span></td>`;
+                html += `<td style="min-width:160px;text-align:left">${_escapeHtml(prod.produto || prod.produtoNome || prod.nome || '')}</td>`;
+                html += `<td style="min-width:100px;text-align:right">${_cpFmt(prod.ci)}</td>`;
+                html += `<td style="min-width:70px;text-align:right">${_cpPct(prod.taxa)}</td>`;
+                html += `<td style="min-width:70px;text-align:right">${_cpPct(prod.roi)}</td>`;
+                html += `<td style="min-width:110px;text-align:right">${_cpFmt(prod.valorBase)}</td>`;
+                html += `<td style="min-width:60px;text-align:right">${_cpPct(prod.pis)}</td>`;
+                html += `<td style="min-width:70px;text-align:right">${_cpPct(prod.cofins)}</td>`;
+                html += `<td style="min-width:60px;text-align:right">${_cpPct(prod.ipi)}</td>`;
+                html += `<td style="min-width:70px;text-align:right">${_cpPct(prod.icms)}</td>`;
+                // campo s/ Impostos: usar semImpostos se existir, senão valorBase como fallback
+                const semImp = (prod.semImpostos !== undefined && prod.semImpostos !== null) ? prod.semImpostos : prod.valorBase;
+                html += `<td style="min-width:110px;text-align:right">${_cpFmt(semImp)}</td>`;
+                html += `<td style="min-width:80px;text-align:right">${_cpPct(prod.comissao)}</td>`;
+                html += `<td style="min-width:120px;text-align:right">${_cpFmt(prod.precoFinal)}</td>`;
+                html += `<td style="min-width:80px;text-align:right">${_cpPct(prod.margem)}</td>`;
+                html += `<td style="min-width:160px">${_escapeHtml(beneficios || '')}</td>`;
+                html += `<td style="min-width:110px;position:sticky;right:0">`;
+                html += `<button class="btn-action btn-edit" onclick="gerarPropostaDePrecificacao('${prec.id}', ${idxProd})">📋 Proposta</button>`;
+                html += `<button class="btn-action btn-delete" onclick="excluirPrecificacao('${prec.id}')">🗑</button>`;
+                html += `</td>`;
+                html += `</tr>`;
+
+                rowCounter++;
+            });
+        });
+
+        body.innerHTML = html;
+        if (typeof _cpRenderPaginacao === 'function') _cpRenderPaginacao(totalRegistros);
+    } catch (e) {
+        console.error('renderConsultaPrecificacoes erro:', e);
+    }
+}
+
 function carregarDados() {
     const dadosSalvos = localStorage.getItem('estoqueArmasV2');
     if (dadosSalvos) {
