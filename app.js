@@ -12,6 +12,9 @@ if (location.hostname !== 'localhost') {
 let _dadosAlterados = false;
 // Marca que houve sincronização recente com o cloud (evita warning ao fechar)
 let _cloudSyncedRecently = false;
+// Feature flags: controlar painel debug e notificações automáticas do cloud
+try { window.__SHOW_DEBUG_PANEL = window.__SHOW_DEBUG_PANEL || false; } catch(e) { window.__SHOW_DEBUG_PANEL = false; }
+try { window.__SHOW_AUTO_UPDATE_NOTIFICATION = window.__SHOW_AUTO_UPDATE_NOTIFICATION || false; } catch(e) { window.__SHOW_AUTO_UPDATE_NOTIFICATION = false; }
 
 // Atualiza contadores/badges relacionados às precificações (sidebar + elementos opcionais)
 function atualizarIndicadoresPrecificacao() {
@@ -91,6 +94,7 @@ let categoriaPorProduto = {};
 
     function createDebugPanel(){
         try {
+            if (!window.__SHOW_DEBUG_PANEL) return;
             const id = 'debug-panel-mini';
             if (document.getElementById(id)) return;
             const p = document.createElement('div');
@@ -124,6 +128,7 @@ let categoriaPorProduto = {};
 
     function updateDebugPanel(){
         try {
+            if (!window.__SHOW_DEBUG_PANEL) return;
             createDebugPanel();
             const el = document.getElementById('debug-panel-content');
             if (!el) return;
@@ -149,7 +154,7 @@ let categoriaPorProduto = {};
 
     window.addEventListener('error', function(ev){ try { showRuntimeErrorOverlay(ev.error || ev.message || ev); console.error('Unhandled error', ev.error || ev.message || ev); } catch(e){} });
     window.addEventListener('unhandledrejection', function(ev){ try { showRuntimeErrorOverlay(ev.reason || ev); console.error('Unhandled rejection', ev.reason || ev); } catch(e){} });
-    document.addEventListener('DOMContentLoaded', function(){ setTimeout(updateDebugPanel, 400); });
+    document.addEventListener('DOMContentLoaded', function(){ try { if (window.__SHOW_DEBUG_PANEL) setTimeout(updateDebugPanel, 400); } catch(e){} });
 })();
 // ===== NCM / Predefinições fiscais =====
 const NCM_PRODUTOS = {
@@ -1454,6 +1459,20 @@ async function salvarNoCloud() {
         return true;
     } catch (e) {
         console.error('Erro salvando no Firestore:', e);
+        // Detectar esgotamento de writes no Firestore e pausar auto-save temporariamente
+        try {
+            const errMsg = (e && (e.code || e.message || e.toString())) ? (e.code || e.message || e.toString()) : '';
+            if (errMsg && (errMsg.indexOf('resource-exhausted') !== -1 || errMsg.indexOf('exhausted') !== -1)) {
+                console.warn('Firestore resource-exhausted detectado — pausando auto-save por 60s.');
+                window.__AUTO_SAVE_CLOUD = window.__AUTO_SAVE_CLOUD || {};
+                window.__AUTO_SAVE_CLOUD.enabled = false;
+                try { if (typeof mostrarNotificacao === 'function') mostrarNotificacao('Auto-save pausado por 1 minuto devido a limites do Firestore.', 'warning'); } catch (_) {}
+                setTimeout(() => {
+                    try { window.__AUTO_SAVE_CLOUD.enabled = true; } catch (_) {}
+                }, 60000);
+            }
+        } catch (inner) { console.warn('Erro ao processar erro do Firestore:', inner); }
+
         updateFirestoreStatus(false, null, 'Cloud: erro ao salvar');
         if (indicator) { indicator.textContent = '❌ Erro ao salvar'; indicator.style.color = '#dc2626'; }
         return false;
@@ -15147,37 +15166,48 @@ function _coletarItensProposta() {
     if (!container) return [];
     const itens = [];
     container.querySelectorAll('.item-venda-row').forEach(row => {
-        const select = row.querySelector('.item-produto');
-        const produtoId = parseInt(select?.value) || 0;
-        if (!produtoId) return;
-        const produto = (estoque.produtos || []).find(p => p.id === produtoId);
-        const quantidade = parseInt(row.querySelector('.item-quantidade')?.value) || 0;
-        const valorStr = (row.querySelector('.item-valor')?.value || '').replace(/\./g, '').replace(',', '.');
-        const valorUnitario = parseFloat(valorStr) || 0;
-                const impostoPctStyle = 'font-size:0.75rem;color:#64748b';
-                const impostoValStyle = 'font-weight:600';
-                const taxaRoiCell = `<td style="text-align:center;color:#475569">
-                    <div style="font-size:0.75rem;color:#64748b">Taxa: ${(Number(taxaProd)).toFixed(2)}%</div>
-                    <div style="font-size:0.75rem;color:#64748b">ROI: ${(Number(roiProd)).toFixed(2)}%</div>
-                </td>`;
-                const pisCofinsCell = `<td style="text-align:center">
-                    <div style="${impostoPctStyle}">PIS: ${Number(pisEfetivo).toFixed(2)}%</div>
-                    <div style="${impostoValStyle}">${fmt(pisR)}</div>
-                    <div style="${impostoPctStyle};margin-top:4px">COFINS: ${Number(cofinsEfetivo).toFixed(2)}%</div>
-                    <div style="${impostoValStyle}">${fmt(cofinsR)}</div>
-                </td>`;
-                const icmsCell = `<td style="text-align:center;background:${icmsBg}">
-                    <div style="${impostoPctStyle};color:${icmsColor}">${Number(icmsEfetivo).toFixed(2)}%</div>
-                    <div style="${impostoValStyle}">${fmt(icmsR)}</div>
-                </td>`;
-                const ipiCell = `<td style="text-align:center">
-                    <div style="${impostoPctStyle}">${Number(ipiEfetivo).toFixed(2)}%</div>
-                    <div style="${impostoValStyle}">${fmt(ipiR)}</div>
-                </td>`;
-                const comissaoCell = `<td style="text-align:center;color:#d97706">
-                    <div style="${impostoPctStyle}"> ${(Number(comissaoProd)).toFixed(2)}%</div>
-                    <div style="${impostoValStyle}">${fmt(comissaoR)}</div>
-                </td>`;
+        try {
+            const select = row.querySelector('.item-produto');
+            const produtoId = parseInt(select?.value) || 0;
+            if (!produtoId) return;
+            const produto = (estoque.produtos || []).find(p => p.id === produtoId);
+            const quantidade = parseInt(row.querySelector('.item-quantidade')?.value) || 0;
+            const valorStr = (row.querySelector('.item-valor')?.value || '').toString().trim();
+            const valorUnitarioInput = valorStr === '' ? 0 : parseFloat(valorStr.replace(/\./g, '').replace(',', '.')) || 0;
+
+            // Calcular preços/tributos padrão via calcularPreco quando possível
+            let calc = null;
+            try { if (produto && produto.nome) calc = calcularPreco(produto.nome); } catch (e) { calc = null; }
+
+            const valorUnit = (valorUnitarioInput && valorUnitarioInput > 0) ? valorUnitarioInput : (calc && calc.precoFinal ? Number(calc.precoFinal) : 0);
+            const valorTotal = Number((quantidade || 0) * valorUnit);
+
+            const itemObj = {
+                produtoId: produtoId,
+                produto: produto?.nome || '',
+                produtoNome: produto?.nome || '',
+                quantidade: quantidade,
+                valorUnitario: valorUnit,
+                valorTotal: valorTotal
+            };
+
+            if (calc) {
+                itemObj.ci = calc.ci;
+                itemObj.taxa = calc.taxa;
+                itemObj.roi = calc.roi;
+                itemObj.valorBase = calc.valorBase;
+                itemObj.pis = calc.pis; itemObj.pisR = calc.pisR;
+                itemObj.cofins = calc.cofins; itemObj.cofinsR = calc.cofinsR;
+                itemObj.icms = calc.icms; itemObj.icmsR = calc.icmsR;
+                itemObj.ipi = calc.ipi; itemObj.ipiR = calc.ipiR;
+                itemObj.comissao = calc.comissao; itemObj.comissaoR = calc.comissaoR;
+                itemObj.precoFinalCalc = calc.precoFinal;
+            }
+
+            itens.push(itemObj);
+        } catch (e) {
+            console.error('Erro coletando item de proposta:', e);
+        }
     });
     return itens;
 }
@@ -16401,7 +16431,7 @@ if (window.firebase && firebase.auth) {
                             const autoLoaded = await carregarDoCloudAuto();
                             window.__cloudAutoLoadDoneForUid = user.uid;
                             if (autoLoaded) {
-                                try { mostrarNotificacao('Dados carregados automaticamente do Cloud (remoto mais recente).', 'success'); } catch (e) {}
+                                try { if (window.__SHOW_AUTO_UPDATE_NOTIFICATION) mostrarNotificacao('Dados carregados automaticamente do Cloud (remoto mais recente).', 'success'); } catch (e) {}
                             }
                         }
 
@@ -16427,7 +16457,7 @@ if (window.firebase && firebase.auth) {
                                         // Se remoto for mais recente que local, carregar automaticamente
                                         if (remoteUpdated > localUpdated + 1000) {
                                             await carregarDoCloud({ confirmOverwrite: false });
-                                            try { mostrarNotificacao('Dados atualizados automaticamente do Cloud.', 'success'); } catch (e) {}
+                                            try { if (window.__SHOW_AUTO_UPDATE_NOTIFICATION) mostrarNotificacao('Dados atualizados automaticamente do Cloud.', 'success'); } catch (e) {}
                                         }
                                     } catch (e) {
                                         console.error('Erro no snapshot do Firestore:', e);
