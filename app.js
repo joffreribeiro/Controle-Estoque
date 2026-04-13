@@ -311,10 +311,16 @@ function calcularSaldoConsolidado(produto) {
 }
 
 function calcularImbelDisponivel(produto) {
-    if (!produto) return 0;
-    const saldoConsol = calcularSaldoConsolidado(produto);
-    const distribExcl = obterDistribuicaoTotalExcluindoImbel(produto);
-    return saldoConsol - distribExcl;
+    // Retornar o saldo disponível na IMBEL considerando:
+    // estoque consolidado, distribuições (exceto IMBEL), devoluções para IMBEL
+    // e apenas as vendas atribuídas à IMBEL — mantém coerência com `obterMetricasImbelProduto`.
+    try {
+        if (!produto) return 0;
+        const met = obterMetricasImbelProduto(produto);
+        return Number(met.imbelSaldo || 0);
+    } catch (e) {
+        return 0;
+    }
 }
 
 // Calcula estoque disponível na IMBEL baseado exclusivamente em registros
