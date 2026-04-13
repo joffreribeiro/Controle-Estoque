@@ -998,6 +998,31 @@ th[data-sort]:hover { background: rgba(30,58,95,0.03); }
     letter-spacing: 0.5px;
 }
 
+/* ================================
+   Consulta de Precificações — estilos
+   ================================ */
+#tabelaConsultaPrec { width:100%; border-collapse:collapse; font-size:0.88rem; }
+#tabelaConsultaPrec th, #tabelaConsultaPrec td { border-bottom:1px solid var(--border-color); padding:8px; vertical-align:middle; }
+.prec-expirada { opacity:0.6; background: rgba(255,243,230,0.6); }
+.badge-prec-ativa { display:inline-block; background:#16a34a; color:#fff; padding:4px 8px; border-radius:12px; font-size:0.75rem; }
+.badge-prec-expirada { display:inline-block; background:#d97706; color:#fff; padding:4px 8px; border-radius:12px; font-size:0.75rem; }
+.badge-rep { display:inline-block; padding:4px 6px; border-radius:6px; background:#eef2ff; color:#1e3a5f; font-weight:600; font-size:0.82rem; }
+.btn-action { margin-left:6px; padding:6px 8px; border-radius:6px; border:1px solid var(--border-color); background:#fff; cursor:pointer; font-size:0.85rem; }
+.btn-action.btn-edit { background:#f1faff; border-color:#bfdbfe; }
+.btn-action.btn-delete { background:#fff7f7; border-color:#fecaca; color:var(--danger-color); }
+.filtros-container .filtro-group { display:flex; flex-direction:column; gap:6px; margin-right:12px; min-width:120px; }
+#paginacaoConsultaPrec { display:flex; gap:12px; align-items:center; margin-top:12px; flex-wrap:wrap; }
+.page-info { color:var(--text-secondary); font-size:0.9rem; }
+.page-buttons { display:flex; gap:6px; align-items:center; }
+.page-btn { border:1px solid var(--border-color); background:#fff; padding:6px 8px; border-radius:6px; cursor:pointer; font-weight:600; color:var(--text-primary); }
+.page-btn.active { background:var(--primary-color); color:#fff; border-color:var(--primary-color); }
+.page-btn[disabled] { opacity:0.5; cursor:default; pointer-events:none; }
+
+.empty-state { padding:28px 12px; text-align:center; color:var(--text-secondary); }
+.empty-state .empty-icon { font-size:32px; margin-bottom:8px }
+.empty-state .empty-text { font-weight:600; color:var(--text-primary); margin-bottom:6px }
+.empty-state .empty-hint { font-size:0.9rem }
+
 /* ========================================
    DASHBOARD GRID
    ======================================== */

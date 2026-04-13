@@ -930,6 +930,265 @@ function renderConsultaPrecificacoes(dados) {
     }
 }
 
+// =============================
+// Consulta: filtros, paginação e exclusão (Partes C/D/E)
+// =============================
+function filtrarConsultaPrecificacoes(page) {
+    try {
+        const clienteEl = document.getElementById('fcp-cliente');
+        const repEl = document.getElementById('fcp-rep');
+        const statusEl = document.getElementById('fcp-status');
+        const deEl = document.getElementById('fcp-de');
+        const ateEl = document.getElementById('fcp-ate');
+
+        const cliente = clienteEl ? (clienteEl.value || '').toString().trim() : '';
+        const rep = repEl ? (repEl.value || '').toString().trim() : '';
+        const status = statusEl ? (statusEl.value || '').toString().trim() : '';
+        const de = deEl ? (deEl.value || '').toString().trim() : '';
+        const ate = ateEl ? (ateEl.value || '').toString().trim() : '';
+
+        let lista = Array.isArray(precificacoesCliente) ? precificacoesCliente.slice() : [];
+
+        if (cliente) {
+            const s = cliente.toLowerCase();
+            lista = lista.filter(p => ((p.clienteNome || p.cliente || '') + '').toLowerCase().includes(s) || ((p.clienteId || '') + '').toLowerCase().includes(s));
+        }
+
+        if (rep) {
+            const s = rep.toLowerCase();
+            lista = lista.filter(p => ((p.representante || p.rep || '') + '').toLowerCase().includes(s));
+        }
+
+        if (status) {
+            if (status === 'ativa') lista = lista.filter(p => !_cpExpirada(p));
+            if (status === 'expirada') lista = lista.filter(p => _cpExpirada(p));
+        }
+
+        if (de) {
+            const deDate = new Date(de);
+            lista = lista.filter(p => {
+                const d = new Date(p.dataCriacao || p.data || p.createdAt || null);
+                return d && !isNaN(d) && d >= deDate;
+            });
+        }
+
+        if (ate) {
+            const ateDate = new Date(ate + 'T23:59:59');
+            lista = lista.filter(p => {
+                const d = new Date(p.dataCriacao || p.data || p.createdAt || null);
+                return d && !isNaN(d) && d <= ateDate;
+            });
+        }
+
+        // ordenação simples
+        const col = _cpState.sortCol || 'dataCriacao';
+        const dir = (_cpState.sortDir || 'desc').toLowerCase();
+        lista.sort((a, b) => {
+            try {
+                let va = a[col];
+                let vb = b[col];
+                if (col === 'dataCriacao') {
+                    va = new Date(a.dataCriacao || a.data || 0).getTime() || 0;
+                    vb = new Date(b.dataCriacao || b.data || 0).getTime() || 0;
+                } else {
+                    va = (va || '') + '';
+                    vb = (vb || '') + '';
+                }
+                if (va < vb) return dir === 'asc' ? -1 : 1;
+                if (va > vb) return dir === 'asc' ? 1 : -1;
+                return 0;
+            } catch (e) { return 0; }
+        });
+
+        _cpState.dados = lista;
+        _cpState.pagina = (typeof page === 'number' && page > 0) ? page : 1; // aceitar page opcional
+
+        const start = (_cpState.pagina - 1) * (_cpState.porPagina || 20);
+        const paged = lista.slice(start, start + (_cpState.porPagina || 20));
+        renderConsultaPrecificacoes(paged);
+    } catch (e) {
+        console.error('filtrarConsultaPrecificacoes erro:', e);
+    }
+}
+
+function _cpGoToPagina(n) {
+    const num = Number(n) || 1;
+    if (num < 1) return;
+    _cpState.pagina = num;
+    filtrarConsultaPrecificacoes(num);
+}
+
+function _cpRenderPaginacao(total) {
+    try {
+        const cont = document.getElementById('paginacaoConsultaPrec');
+        if (!cont) return;
+        const per = _cpState.porPagina || 20;
+        const totalPages = Math.max(1, Math.ceil((total || 0) / per));
+        const current = Math.min(Math.max(1, _cpState.pagina || 1), totalPages);
+
+        let html = '';
+        html += `<div class="page-info">Página ${current} de ${totalPages} — ${total || 0} registros</div>`;
+        html += '<div class="page-buttons">';
+
+        const prevDisabledAttr = current <= 1 ? 'disabled' : '';
+        html += `<button class="page-btn prev" ${prevDisabledAttr} onclick="_cpGoToPagina(${Math.max(1, current - 1)})">◀</button>`;
+
+        let start = Math.max(1, current - 3);
+        let end = Math.min(totalPages, start + 6);
+        if (end - start < 6) start = Math.max(1, end - 6);
+        for (let p = start; p <= end; p++) {
+            const active = p === current ? 'active' : '';
+            html += `<button class="page-btn ${active}" onclick="_cpGoToPagina(${p})">${p}</button>`;
+        }
+
+        const nextDisabledAttr = current >= totalPages ? 'disabled' : '';
+        html += `<button class="page-btn next" ${nextDisabledAttr} onclick="_cpGoToPagina(${Math.min(totalPages, current + 1)})">▶</button>`;
+        html += '</div>';
+
+        cont.innerHTML = html;
+    } catch (e) {
+        console.error('_cpRenderPaginacao erro:', e);
+    }
+}
+
+function excluirPrecificacao(id) {
+    try {
+        if (!id) return;
+        if (!confirm('Confirma exclusão desta precificação?')) return;
+        const idx = (precificacoesCliente || []).findIndex(p => String(p.id) === String(id) || String(p.versao) === String(id));
+        if (idx === -1) {
+            try { mostrarNotificacao && mostrarNotificacao('Precificação não encontrada.', 'warning'); } catch (e) {}
+            return;
+        }
+        precificacoesCliente.splice(idx, 1);
+        try { localStorage.setItem('precificacoesClienteBackupV1', JSON.stringify(precificacoesCliente || [])); } catch (e) {}
+        try { estoque.precificacoesCliente = precificacoesCliente; } catch (e) {}
+        try { salvarDados(); } catch (e) {}
+        try { filtrarConsultaPrecificacoes(); } catch (e) {}
+        try { mostrarNotificacao && mostrarNotificacao('Precificação excluída.', 'success'); } catch (e) {}
+    } catch (e) {
+        console.error('excluirPrecificacao erro:', e);
+        try { mostrarNotificacao && mostrarNotificacao('Falha ao excluir precificação.', 'error'); } catch (ex) {}
+    }
+}
+
+function _cpPopularFiltroCliente() {
+    try {
+        const sel = document.getElementById('fcp-cliente');
+        if (!sel) return;
+        const seen = new Set();
+        let options = '<option value="">Todos</option>';
+        (precificacoesCliente || []).forEach(p => {
+            const name = (p.clienteNome || p.cliente || '') + '';
+            if (!name) return;
+            if (!seen.has(name)) { seen.add(name); options += `<option value="${_escapeHtml(name)}">${_escapeHtml(name)}</option>`; }
+        });
+        sel.innerHTML = options;
+    } catch (e) { console.error('_cpPopularFiltroCliente erro:', e); }
+}
+
+function gerarPropostaDePrecificacao(id, idxProduto) {
+    try {
+        const prec = (precificacoesCliente || []).find(p => String(p.id) === String(id) || String(p.versao) === String(id));
+        if (!prec) { mostrarNotificacao && mostrarNotificacao('Precificação não encontrada.', 'error'); return; }
+        const produtos = Array.isArray(prec.itens) ? prec.itens : (Array.isArray(prec.produtos) ? prec.produtos : []);
+        const prod = produtos[(typeof idxProduto === 'number') ? idxProduto : 0];
+        abrirModalProposta();
+        // Aguarda o modal abrir e a estrutura ser criada
+        setTimeout(() => {
+            try {
+                if (document.getElementById('propostaCliente')) document.getElementById('propostaCliente').value = prec.clienteNome || prec.cliente || '';
+                if (document.getElementById('propostaRepresentante')) document.getElementById('propostaRepresentante').value = prec.representante || prec.rep || '';
+                if (document.getElementById('propostaValidade')) document.getElementById('propostaValidade').value = prec.validade || prec.validadeDias || prec.validadeDias || 30;
+                const container = document.getElementById('itensPropostaContainer');
+                if (container) container.innerHTML = '';
+                const valorUnit = prod ? (prod.precoFinal || prod.valorBase || prod.valor || 0) : 0;
+                adicionarItemPropostaRow({ produtoId: prod ? (prod.produtoId || prod.produto || prod.id) : '', quantidade: prod && prod.quantidade ? prod.quantidade : 1, valorUnit: valorUnit ? Number(valorUnit).toLocaleString('pt-BR', { minimumFractionDigits: 2 }) : '' });
+                try { calcularTotalProposta(); } catch (e) {}
+            } catch (e) { console.error('erro ao popular modal proposta:', e); }
+        }, 120);
+    } catch (e) {
+        console.error('gerarPropostaDePrecificacao erro:', e);
+    }
+}
+
+function exportarPrecificacoesExcel() {
+    try {
+        const lista = Array.isArray(precificacoesCliente) ? precificacoesCliente : [];
+        if (!lista.length) { mostrarNotificacao && mostrarNotificacao('Nenhuma precificação para exportar.', 'warning'); return; }
+
+        const rows = [];
+        lista.forEach(p => {
+            const produtos = Array.isArray(p.itens) ? p.itens : (Array.isArray(p.produtos) ? p.produtos : []);
+            produtos.forEach(prod => {
+                rows.push({
+                    id: p.id || p.versao || '',
+                    dataCriacao: p.dataCriacao || p.data || '',
+                    dataExpiracao: p.dataExpiracao || '',
+                    status: _cpExpirada(p) ? 'expirada' : 'ativa',
+                    cliente: p.clienteNome || p.cliente || '',
+                    clienteUF: p.clienteUF || p.uf || '',
+                    tipoPessoa: p.tipoPessoa || '',
+                    representante: p.representante || p.rep || '',
+                    produtoNome: prod.produto || prod.produtoNome || prod.nome || '',
+                    produtoId: prod.produtoId || prod.id || '',
+                    ci: prod.ci || '',
+                    taxa: prod.taxa || '',
+                    roi: prod.roi || '',
+                    valorBase: prod.valorBase || prod.valor || '',
+                    pis: prod.pis || '',
+                    cofins: prod.cofins || '',
+                    ipi: prod.ipi || '',
+                    icms: prod.icms || '',
+                    semImpostos: (prod.semImpostos !== undefined && prod.semImpostos !== null) ? prod.semImpostos : prod.valorBase,
+                    comissao: prod.comissao || '',
+                    precoFinal: prod.precoFinal || '',
+                    margem: prod.margem || '',
+                    beneficios: (p.beneficiosPorProduto && (p.beneficiosPorProduto[prod.produto] || p.beneficiosPorProduto[prod.produtoId])) || p.descricao || ''
+                });
+            });
+        });
+
+        const nowTs = new Date().toISOString().slice(0,19).replace(/[:T]/g,'_');
+        const filename = 'precificacoes_export_' + nowTs + (window.XLSX ? '.xlsx' : '.csv');
+
+        if (window.XLSX) {
+            const ws = XLSX.utils.json_to_sheet(rows);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, 'Precificacoes');
+            XLSX.writeFile(wb, filename);
+            return;
+        }
+
+        const headers = ['id','dataCriacao','dataExpiracao','status','cliente','clienteUF','tipoPessoa','representante','produtoNome','produtoId','ci','taxa','roi','valorBase','pis','cofins','ipi','icms','semImpostos','comissao','precoFinal','margem','beneficios'];
+        const csvRows = [headers.join(';')];
+        rows.forEach(r => {
+            const line = headers.map(h => (r[h] === undefined || r[h] === null) ? '' : String(r[h]).replace(/"/g, '""'))
+                                .map(v => `"${v}"`).join(';');
+            csvRows.push(line);
+        });
+        const csv = '\uFEFF' + csvRows.join('\n');
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a'); a.href = url; a.download = filename; document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
+
+    } catch (e) {
+        console.error('exportarPrecificacoesExcel erro:', e);
+        mostrarNotificacao && mostrarNotificacao('Erro ao exportar precificações.', 'error');
+    }
+}
+
+function limparFiltrosConsultaPrec() {
+    try {
+        const clienteEl = document.getElementById('fcp-cliente'); if (clienteEl) clienteEl.value = '';
+        const repEl = document.getElementById('fcp-rep'); if (repEl) repEl.value = '';
+        const statusEl = document.getElementById('fcp-status'); if (statusEl) statusEl.value = '';
+        const deEl = document.getElementById('fcp-de'); if (deEl) deEl.value = '';
+        const ateEl = document.getElementById('fcp-ate'); if (ateEl) ateEl.value = '';
+        filtrarConsultaPrecificacoes(1);
+    } catch (e) { console.error('limparFiltrosConsultaPrec erro:', e); }
+}
+
 function carregarDados() {
     const dadosSalvos = localStorage.getItem('estoqueArmasV2');
     if (dadosSalvos) {
@@ -12671,31 +12930,41 @@ function resetarPrecoManual(nomeProduto) {
 
 // ── SUB-TAB NAVIGATION FOR PRECIFICAÇÃO ─────────────────────────
 function trocarSubabaPrecif(subaba) {
-    ['produtos','federais','icms','porcliente'].forEach(s => {
-                const el = document.getElementById('subaba-precif-' + s);
-                if (el) el.style.display = (s === subaba) ? 'block' : 'none';
-                const btn = document.getElementById('sbtn-' + s);
-                if (btn) {
-                        btn.style.color = (s === subaba) ? '#1e3a5f' : '#64748b';
-                        btn.style.borderBottomColor = (s === subaba) ? '#1e3a5f' : 'transparent';
-                }
-        });
-        if (subaba === 'federais') renderizarImpostosFederais();
-        if (subaba === 'icms') renderizarICMSPorEstado();
-        if (subaba === 'porcliente') {
-                // preparar dropdown e estado inicial da sub-aba
-                try {
-                try { verificarExpiracaoPrecificacoes(); } catch (e) {}
+    const tabs = ['produtos','federais','icms','porcliente','consultaPrec'];
+    tabs.forEach(s => {
+        let el = null;
+        if (s === 'consultaPrec') el = document.getElementById('painel-consultaPrec');
+        else el = document.getElementById('subaba-precif-' + s);
+        if (el) el.style.display = (s === subaba) ? 'block' : 'none';
+
+        const btnId = (s === 'consultaPrec') ? 'btnConsultaPrecificacao' : ('sbtn-' + s);
+        const btn = document.getElementById(btnId);
+        if (btn) {
+            btn.style.color = (s === subaba) ? '#1e3a5f' : '#64748b';
+            btn.style.borderBottomColor = (s === subaba) ? '#1e3a5f' : 'transparent';
+        }
+    });
+
+    if (subaba === 'federais') renderizarImpostosFederais();
+    if (subaba === 'icms') renderizarICMSPorEstado();
+    if (subaba === 'porcliente') {
+        // preparar dropdown e estado inicial da sub-aba
+        try {
+            try { verificarExpiracaoPrecificacoes(); } catch (e) {}
             popularSelectClientesPrecif();
             try { popularSelectProdutosPrecif(); } catch (e) {}
-                } catch (e) {}
-                const res = document.getElementById('precifClienteResultado');
-                const empty = document.getElementById('precifClienteEmpty');
-                const banner = document.getElementById('precifClienteBanner');
-                if (res) res.style.display = 'none';
-                if (empty) empty.style.display = 'block';
-                if (banner) banner.style.display = 'none';
-        }
+        } catch (e) {}
+        const res = document.getElementById('precifClienteResultado');
+        const empty = document.getElementById('precifClienteEmpty');
+        const banner = document.getElementById('precifClienteBanner');
+        if (res) res.style.display = 'none';
+        if (empty) empty.style.display = 'block';
+        if (banner) banner.style.display = 'none';
+    }
+
+    if (subaba === 'consultaPrec') {
+        try { if (typeof _cpPopularFiltroCliente === 'function') _cpPopularFiltroCliente(); filtrarConsultaPrecificacoes(); } catch (e) {}
+    }
 }
 
 function popularSelectsComparativo() {
@@ -13637,6 +13906,7 @@ function salvarPrecificacaoCliente() {
         if (isConsultaVis && typeof renderizarConsultaPrecificacao === 'function') renderizarConsultaPrecificacao();
         if (isRastreaVis && typeof renderizarRastreabilidade === 'function') renderizarRastreabilidade();
     } catch (e) {}
+    try { if (typeof _cpPopularFiltroCliente === 'function') _cpPopularFiltroCliente(); filtrarConsultaPrecificacoes(); } catch (e) {}
 }
 
 function carregarPrecificacaoSalva(clienteId) {
