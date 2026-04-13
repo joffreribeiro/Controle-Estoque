@@ -1023,6 +1023,32 @@ th[data-sort]:hover { background: rgba(30,58,95,0.03); }
 .empty-state .empty-text { font-weight:600; color:var(--text-primary); margin-bottom:6px }
 .empty-state .empty-hint { font-size:0.9rem }
 
+/* Correções específicas para a Tabela de Consulta de Precificações */
+#tabelaConsultaPrec thead th {
+    /* Cabeçalho escuro e texto legível */
+    background: linear-gradient(180deg, var(--primary-color), var(--primary-light));
+    color: #fff;
+}
+
+/* Fixar coluna de ações à direita com fundo e sombra para não sobrepor conteúdos */
+#tabelaConsultaPrec thead th:last-child {
+    position: sticky;
+    right: 0;
+    z-index: 995; /* acima das células do corpo */
+}
+
+#tabelaConsultaPrec tbody td:last-child {
+    position: sticky;
+    right: 0;
+    z-index: 890; /* abaixo do cabeçalho, acima das linhas */
+    background: #fff; /* evita transparência sobre os dados */
+    box-shadow: -6px 0 10px rgba(0,0,0,0.04);
+}
+
+/* Garantir que botões na coluna ações não tenham overflow e fiquem alinhados */
+#tabelaConsultaPrec td:last-child .btn-action { display:inline-flex; align-items:center; gap:6px; }
+
+
 /* ========================================
    DASHBOARD GRID
    ======================================== */
