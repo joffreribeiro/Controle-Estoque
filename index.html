@@ -258,6 +258,7 @@
                                     <th style="min-width:110px">Estoque IMBEL</th>
                                     <th style="min-width:130px">SALDO CONSOLIDADO</th>
                                     <th style="min-width:110px">Última Atualização</th>
+                                    <th style="min-width:90px; text-align:center" title="Aparece na aba Estoque">No Estoque</th>
                                     <th style="min-width:90px">Ações</th>
                                 </tr>
                             </thead>
@@ -523,14 +524,13 @@
                                 <div class="precif-subnav" style="display:flex; gap:0; margin-bottom:20px; border-bottom:2px solid #e2e8f0;">
                                     <button class="precif-subtab-btn" onclick="trocarSubabaPrecif('porcliente')" id="sbtn-porcliente" style="padding:10px 20px; border:none; background:transparent; font-size:0.9rem; font-weight:600; color:#64748b; border-bottom:2px solid transparent; margin-bottom:-2px; cursor:pointer">👤 Por Cliente</button>
                                     <button class="precif-subtab-btn" onclick="trocarSubabaPrecif('icms')" id="sbtn-icms" style="padding:10px 20px; border:none; background:transparent; font-size:0.9rem; font-weight:600; color:#64748b; border-bottom:2px solid transparent; margin-bottom:-2px; cursor:pointer">🗺️ ICMS por Estado</button>
-                                                                        <!-- Removidos: botão Comparativo e Consulta -->
-                                                                        <button class="precif-subtab-btn active" onclick="trocarSubabaPrecif('federais')" id="sbtn-federais" style="padding:10px 20px; border:none; background:transparent; font-size:0.9rem; font-weight:600; color:#1e3a5f; border-bottom:2px solid #1e3a5f; margin-bottom:-2px; cursor:pointer">📋 Impostos Federais</button>
-                                                                        <!-- Removido: botão Rastreabilidade -->
-                                                                        <button class="tab-btn" id="btnConsultaPrecificacao"
-                                                                                        onclick="trocarSubabaPrecif('consultaPrec')"
-                                                                                        style="padding:10px 20px; border:none; background:transparent; font-size:0.9rem; font-weight:600; color:#64748b; border-bottom:2px solid transparent; margin-bottom:-2px; cursor:pointer">
-                                                                            🔍 Consulta
-                                                                        </button>
+                                    <button class="precif-subtab-btn active" onclick="trocarSubabaPrecif('federais')" id="sbtn-federais" style="padding:10px 20px; border:none; background:transparent; font-size:0.9rem; font-weight:600; color:#1e3a5f; border-bottom:2px solid #1e3a5f; margin-bottom:-2px; cursor:pointer">📋 Impostos Federais</button>
+                                    <button class="tab-btn" id="btnConsultaPrecificacao"
+                                                    onclick="trocarSubabaPrecif('consultaPrec')"
+                                                    style="padding:10px 20px; border:none; background:transparent; font-size:0.9rem; font-weight:600; color:#64748b; border-bottom:2px solid transparent; margin-bottom:-2px; cursor:pointer">
+                                        🔍 Consulta
+                                    </button>
+                                    <button class="precif-subtab-btn" onclick="trocarSubabaPrecif('tabelaci'); renderizarTabelaCI();" id="sbtn-tabelaci" style="padding:10px 20px; border:none; background:transparent; font-size:0.9rem; font-weight:600; color:#64748b; border-bottom:2px solid transparent; margin-bottom:-2px; cursor:pointer">📑 Tabela de CI</button>
                                 </div>
 
                                 <!-- Sub-aba Impostos Federais -->
@@ -789,104 +789,45 @@
 
             </div>
 
-            <!-- Row 2: Produtos (multi-select style checklist) -->
+            <!-- Row 2: Lista de produtos a calcular (nova UX individual por produto) -->
             <div style="border-top:1px solid #f1f5f9;padding-top:14px;margin-bottom:14px">
-                <div style="display:flex;justify-content:space-between;
-                                align-items:center;margin-bottom:8px">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
                     <label style="font-size:0.82rem;font-weight:600;color:#1e3a5f">
                         Produtos a calcular
+                        <span style="font-size:0.75rem;color:#94a3b8;font-weight:400;margin-left:6px">— adicione produtos e ajuste Taxa/ROI individualmente</span>
                     </label>
-                    <div style="display:flex;gap:8px">
-                        <button class="btn btn-outline btn-sm"
-                                        onclick="precifSelecionarTodosProdutos(true)">
-                            Selecionar todos
-                        </button>
-                        <button class="btn btn-outline btn-sm"
-                                        onclick="precifSelecionarTodosProdutos(false)">
-                            Desmarcar todos
-                        </button>
+                    <button class="btn btn-primary btn-sm" onclick="precifAdicionarProdutoLinha()">+ Adicionar Produto</button>
+                </div>
+
+                <!-- Parâmetros globais padrão -->
+                <div style="display:flex;gap:12px;align-items:center;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:10px 14px;margin-bottom:10px;flex-wrap:wrap">
+                    <span style="font-size:0.78rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.4px">Padrão global:</span>
+                    <label style="font-size:0.82rem;color:#475569;display:flex;align-items:center;gap:6px">
+                        Taxa (%) <input type="number" step="0.01" min="0" id="precifTaxaOverride" placeholder="20" style="width:70px;padding:4px 7px;border:1px solid #e2e8f0;border-radius:5px;font-size:0.85rem">
+                    </label>
+                    <label style="font-size:0.82rem;color:#475569;display:flex;align-items:center;gap:6px">
+                        ROI (%) <input type="number" step="0.01" min="0" id="precifROIOverride" placeholder="30" style="width:70px;padding:4px 7px;border:1px solid #e2e8f0;border-radius:5px;font-size:0.85rem">
+                    </label>
+                    <label style="font-size:0.82rem;color:#475569;display:flex;align-items:center;gap:6px">
+                        Comissão (%) <input type="number" step="0.01" min="0" id="precifComissaoOverride" placeholder="5" style="width:70px;padding:4px 7px;border:1px solid #e2e8f0;border-radius:5px;font-size:0.85rem">
+                    </label>
+                    <label style="font-size:0.82rem;color:#475569;display:flex;align-items:center;gap:6px">
+                        Validade (dias) <input type="number" id="precifValidadeDias" value="30" min="1" max="365" style="width:70px;padding:4px 7px;border:1px solid #e2e8f0;border-radius:5px;font-size:0.85rem">
+                    </label>
+                    <span id="precifTaxaPadraoLabel" style="display:none"></span>
+                    <span id="precifROIPadraoLabel" style="display:none"></span>
+                    <span id="precifComissaoPadraoLabel" style="display:none"></span>
+                </div>
+
+                <!-- Container de linhas de produtos -->
+                <div id="precifLinhasProdutos" style="display:flex;flex-direction:column;gap:8px;min-height:48px">
+                    <div style="color:#94a3b8;font-size:0.85rem;text-align:center;padding:14px;background:#f8fafc;border-radius:8px;border:1px dashed #e2e8f0">
+                        Clique em "+ Adicionar Produto" para iniciar
                     </div>
                 </div>
-                <div id="precifProdutosChecklist"
-                         style="display:flex;flex-wrap:wrap;gap:8px;
-                                        min-height:36px;padding:10px;
-                                        background:#f8fafc;border:1px solid #e2e8f0;
-                                        border-radius:8px;max-height:120px;overflow-y:auto">
-                    <span style="color:#94a3b8;font-size:0.85rem">
-                        Selecione um cliente para ver os produtos disponíveis
-                    </span>
-                </div>
-                <div id="precifProdutoContador"
-                         style="font-size:0.75rem;color:#64748b;margin-top:6px">
-                </div>
-            </div>
-
-            <!-- Row 3: Taxa, ROI, Comissão, Validade — SINGLE ROW, no duplicates -->
-            <div style="border-top:1px solid #f1f5f9;padding-top:14px">
-                <div style="font-size:0.75rem;font-weight:700;color:#64748b;
-                                text-transform:uppercase;letter-spacing:0.5px;
-                                margin-bottom:10px">
-                    Parâmetros desta precificação
-                </div>
-                <div style="display:grid;grid-template-columns:repeat(4,1fr);
-                                gap:12px">
-
-                    <div class="form-group" style="margin:0">
-                        <label style="font-size:0.8rem;color:#64748b">
-                            Taxa (%)
-                            <span style="font-weight:400;color:#94a3b8;font-size:0.72rem">
-                                — global: <span id="precifTaxaPadraoLabel">—</span>%
-                            </span>
-                        </label>
-                        <input type="number" step="0.01" min="0"
-                                     id="precifTaxaOverride"
-                                     placeholder="Usar padrão global"
-                                     oninput="calcularPrecificacaoPorCliente()"
-                                     style="width:100%;padding:7px 10px;border:1px solid #e2e8f0;
-                                                    border-radius:6px;font-size:0.9rem">
-                    </div>
-
-                    <div class="form-group" style="margin:0">
-                        <label style="font-size:0.8rem;color:#64748b">
-                            ROI (%)
-                            <span style="font-weight:400;color:#94a3b8;font-size:0.72rem">
-                                — global: <span id="precifROIPadraoLabel">—</span>%
-                            </span>
-                        </label>
-                        <input type="number" step="0.01" min="0"
-                                     id="precifROIOverride"
-                                     placeholder="Usar padrão global"
-                                     oninput="calcularPrecificacaoPorCliente()"
-                                     style="width:100%;padding:7px 10px;border:1px solid #e2e8f0;
-                                                    border-radius:6px;font-size:0.9rem">
-                    </div>
-
-                    <div class="form-group" style="margin:0">
-                        <label style="font-size:0.8rem;color:#64748b">
-                            Comissão (%)
-                            <span style="font-weight:400;color:#94a3b8;font-size:0.72rem">
-                                — global: <span id="precifComissaoPadraoLabel">—</span>%
-                            </span>
-                        </label>
-                        <input type="number" step="0.01" min="0"
-                                     id="precifComissaoOverride"
-                                     placeholder="Usar padrão global"
-                                     oninput="calcularPrecificacaoPorCliente()"
-                                     style="width:100%;padding:7px 10px;border:1px solid #e2e8f0;
-                                                    border-radius:6px;font-size:0.9rem">
-                    </div>
-
-                    <div class="form-group" style="margin:0">
-                        <label style="font-size:0.8rem;color:#64748b">
-                            Validade (dias)
-                        </label>
-                        <input type="number" id="precifValidadeDias"
-                                     value="30" min="1" max="365" step="1"
-                                     style="width:100%;padding:7px 10px;border:1px solid #e2e8f0;
-                                                    border-radius:6px;font-size:0.9rem">
-                    </div>
-
-                </div>
+                <div id="precifProdutoContador" style="font-size:0.75rem;color:#64748b;margin-top:6px"></div>
+                <!-- Mantido para compatibilidade com código existente (checklist oculto) -->
+                <div id="precifProdutosChecklist" style="display:none"></div>
             </div>
 
             <!-- Row 4: Benefício Fiscal (collapsed) -->
@@ -1069,7 +1010,74 @@
 
                                                                 <!-- Sub-abas Comparativo, Consulta e Rastreabilidade removidas -->
 
+                                                </div><!-- /subaba-precif-porcliente -->
+
+                                <!-- Sub-aba Tabela de CI -->
+                                <div id="subaba-precif-tabelaci" style="display:none">
+                                    <div style="background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:20px;margin-bottom:16px">
+                                        <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;flex-wrap:wrap">
+                                            <h3 style="margin:0;font-size:1rem;color:#1e3a5f;font-weight:700">Histórico de CI por Produto</h3>
+                                            <span style="font-size:0.8rem;color:#64748b;flex:1">Registre o Custo Inicial (CI) de cada produto. O CI vigente é usado nos cálculos de precificação.</span>
+                                        </div>
+
+                                        <!-- Formulário de novo CI -->
+                                        <div id="formNovoCI" style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:14px;margin-bottom:16px">
+                                            <div style="font-size:0.8rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px">Registrar novo CI</div>
+                                            <div style="display:grid;grid-template-columns:2fr 1fr 1fr auto;gap:10px;align-items:end">
+                                                <div>
+                                                    <label style="font-size:0.82rem;font-weight:600;display:block;margin-bottom:4px">Produto</label>
+                                                    <select id="ciProdutoSelect" style="width:100%;padding:7px 10px;border:1px solid #e2e8f0;border-radius:6px;font-size:0.88rem">
+                                                        <option value="">Selecione um produto...</option>
+                                                    </select>
                                                 </div>
+                                                <div>
+                                                    <label style="font-size:0.82rem;font-weight:600;display:block;margin-bottom:4px">CI (R$)</label>
+                                                    <input type="number" id="ciValorInput" min="0" step="0.01" placeholder="0,00" style="width:100%;padding:7px 10px;border:1px solid #e2e8f0;border-radius:6px;font-size:0.88rem">
+                                                </div>
+                                                <div>
+                                                    <label style="font-size:0.82rem;font-weight:600;display:block;margin-bottom:4px">Observação</label>
+                                                    <input type="text" id="ciObsInput" placeholder="Ex: Contrato 123, reajuste..." style="width:100%;padding:7px 10px;border:1px solid #e2e8f0;border-radius:6px;font-size:0.88rem">
+                                                </div>
+                                                <button class="btn btn-primary btn-sm" data-admin="true" onclick="salvarNovoCI()" style="white-space:nowrap">+ Registrar CI</button>
+                                            </div>
+                                        </div>
+
+                                        <!-- Filtro de busca -->
+                                        <div style="display:flex;gap:10px;margin-bottom:12px;align-items:center">
+                                            <input type="text" id="ciFiltroProduto" oninput="renderizarTabelaCI()" placeholder="Buscar produto..." style="padding:7px 12px;border:1px solid #e2e8f0;border-radius:6px;font-size:0.88rem;min-width:220px">
+                                            <span id="ciContador" style="font-size:0.82rem;color:#64748b"></span>
+                                        </div>
+
+                                        <!-- Tabela -->
+                                        <div class="table-wrapper" style="overflow-x:auto">
+                                            <table class="dashboard-table" id="tabelaCIBody">
+                                                <thead>
+                                                    <tr>
+                                                        <th style="text-align:left;min-width:220px">Produto</th>
+                                                        <th style="min-width:130px">CI Vigente (R$)</th>
+                                                        <th style="min-width:130px">Última Atualização</th>
+                                                        <th style="min-width:80px">Registros</th>
+                                                        <th style="min-width:80px">Histórico</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody id="tabelaCITbody">
+                                                    <tr><td colspan="5" style="text-align:center;color:#94a3b8;padding:20px">Carregando...</td></tr>
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+
+                                    <!-- Painel de histórico expandido (injetado dinamicamente) -->
+                                    <div id="painelHistoricoCI" style="display:none;background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:20px;margin-top:12px">
+                                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+                                            <h4 id="painelHistoricoCITitulo" style="margin:0;color:#1e3a5f;font-size:0.95rem;font-weight:700">Histórico</h4>
+                                            <button onclick="document.getElementById('painelHistoricoCI').style.display='none'" style="border:none;background:none;cursor:pointer;font-size:1.2rem;color:#94a3b8">&times;</button>
+                                        </div>
+                                        <div id="painelHistoricoCIConteudo"></div>
+                                    </div>
+                                </div><!-- /subaba-precif-tabelaci -->
+
+                                </div>
                                 </div>
                                 </div>
 
@@ -2284,6 +2292,13 @@
                                 <label for="estoqueTotal">Quantidade Inicial (IMBEL) <span class="required">*</span></label>
                                 <input type="number" id="estoqueTotal" required min="0" placeholder="0">
                             </div>
+                        </div>
+                        <div class="form-group" style="margin-top:6px">
+                            <label style="display:flex; align-items:center; gap:10px; cursor:pointer; font-weight:600; color:#1e3a5f">
+                                <input type="checkbox" id="produtoExibirNoEstoque" style="width:18px; height:18px; cursor:pointer; accent-color:#1e3a5f">
+                                Exibir na aba Estoque
+                                <span style="font-size:0.75rem; color:#64748b; font-weight:400">(marque apenas produtos distribuídos por representantes)</span>
+                            </label>
                         </div>
 
                                                 <div style="font-size:0.76rem; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:0.7px; margin:10px 0 8px;">Observações</div>

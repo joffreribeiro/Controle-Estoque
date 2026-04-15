@@ -1332,6 +1332,9 @@ function carregarDados() {
             estoque.precificacoesCliente = [];
         }
         estoque.precificacoesCliente = normalizarPrecificacoesCliente(estoque.precificacoesCliente);
+        if (!Array.isArray(estoque.tabelaCI)) {
+            estoque.tabelaCI = [];
+        }
         // Carregar configuração de alertas se presente
         try {
             const cfg = localStorage.getItem('configAlertas');
@@ -2460,8 +2463,10 @@ function renderizarTabela() {
     const totais = { GERAL: { disp: 0, venda: 0, saldo: 0 } };
     estoque.representantes.forEach(rep => { totais[rep] = { disp: 0, venda: 0, saldo: 0 }; });
 
-    // Ordem de exibição: usa a lista de representantes do objeto `estoque`
-    const produtosOrdenados = [...estoque.produtos].sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
+    // Ordem de exibição: apenas produtos marcados para exibir no estoque
+    const produtosOrdenados = [...estoque.produtos]
+        .filter(p => p.exibirNoEstoque === true)
+        .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
     let countConsolidadoZeradoOuNegativo = 0;
 
     produtosOrdenados.forEach(produto => {
@@ -2719,6 +2724,10 @@ function renderizarCadastroProdutos() {
 
         if (ci > 0) comCI += 1;
 
+        const noEstoque = produto.exibirNoEstoque === true;
+        const noEstoqueBadge = noEstoque
+            ? `<span style="display:inline-block;background:#dcfce7;color:#166534;border-radius:10px;padding:2px 10px;font-size:0.78rem;font-weight:700">Sim</span>`
+            : `<span style="display:inline-block;background:#f1f5f9;color:#94a3b8;border-radius:10px;padding:2px 10px;font-size:0.78rem">Não</span>`;
         const tr = document.createElement('tr');
         tr.innerHTML = `
             <td style="text-align:left; font-weight:600">${nome}</td>
@@ -2730,6 +2739,7 @@ function renderizarCadastroProdutos() {
             <td>${imbelTexto}</td>
             <td class="${saldoConsolidadoClasse}" style="color:${saldoConsolidadoCor}; font-weight:700; font-family:monospace;">${saldoConsolidadoTexto}</td>
             <td>${atualizadoTxt}</td>
+            <td style="text-align:center">${noEstoqueBadge}</td>
             <td>
                 <button class="btn btn-outline btn-sm" data-admin="true" onclick="abrirModalEditarProduto(${Number(produto.id)})">Editar</button>
             </td>
@@ -7377,6 +7387,8 @@ function abrirModalEditarProduto(produtoId) {
     if (margemInput) margemInput.value = Number(regra.margemMinima ?? produto.margemMinima ?? 0) || '';
     if (descInput) descInput.value = Number(regra.descontoMaximo ?? produto.descontoMaximo ?? 0) || '';
     if (obsInput) obsInput.value = produto.observacoes || '';
+    const exibirEstoqueInput = document.getElementById('produtoExibirNoEstoque');
+    if (exibirEstoqueInput) exibirEstoqueInput.checked = produto.exibirNoEstoque === true;
     // Ajustar título e botão para modo edição
     const header = document.querySelector('#modalProduto .modal-header h2');
     if (header) header.innerHTML = '<span>✎</span> Editar Produto';
@@ -9925,6 +9937,7 @@ function salvarProduto(event) {
     const margemMinima = Number(document.getElementById('produtoMargemMin')?.value || 0) || 0;
     const descontoMaximo = Number(document.getElementById('produtoDescMax')?.value || 0) || 0;
     const observacoes = (document.getElementById('produtoObservacoes')?.value || '').trim();
+    const exibirNoEstoque = document.getElementById('produtoExibirNoEstoque')?.checked === true;
 
     if (!nome) {
         mostrarNotificacao('Informe o nome do produto.', 'error');
@@ -9962,6 +9975,7 @@ function salvarProduto(event) {
         produto.descontoMaximo = descontoMaximo;
         produto.descMax = descontoMaximo;
         produto.observacoes = observacoes;
+        produto.exibirNoEstoque = exibirNoEstoque;
         produto.atualizadoEm = new Date().toISOString();
         produto.dataAtualizacao = Date.now();
         // Preserve existing rep data, only add missing reps
@@ -10029,6 +10043,7 @@ function salvarProduto(event) {
         descontoMaximo,
         descMax: descontoMaximo,
         observacoes,
+        exibirNoEstoque,
         criadoEm: new Date().toISOString(),
         atualizadoEm: new Date().toISOString(),
         dataAtualizacao: Date.now(),
@@ -12769,27 +12784,24 @@ function calcularPreco(nomeProduto, estado = null, tipoPessoa = null) {
 
     if (ci === 0) return null;
 
-    // Step 1
-    // Convert percent values to multiplicative factors and apply sequentially
-    const taxaFactor = 1 + (Number(taxaPct) / 100);
-    const roiFactor = 1 + (Number(roiPct) / 100);
-    const valorBase = ci * taxaFactor * roiFactor;
+    // Step 1: valorBase = CI + (CI × Taxa%) + (CI × ROI%)  →  CI × (1 + Taxa% + ROI%)
+    const valorBase = ci * (1 + (Number(taxaPct) / 100) + (Number(roiPct) / 100));
 
-    // Step 2
+    // Step 2: impostos sobre valorBase
     const icmsR = valorBase * icms / 100;
     const pisR = valorBase * pis / 100;
     const cofinsR = valorBase * cofins / 100;
     const valorImpostos = valorBase + icmsR + pisR + cofinsR;
 
-    // Step 3
+    // Step 3: IPI sobre valorImpostos
     const ipiR = valorImpostos * ipi / 100;
     const valorTotal = valorImpostos + ipiR;
 
-    // Step 4
-    const comissaoR = valorBase * comissao / 100;
+    // Step 4: comissão sobre valorImpostos (sem IPI)
+    const comissaoR = valorImpostos * comissao / 100;
     const precoFinal = (prec.precoFinalManual !== null && prec.precoFinalManual !== undefined && prec.precoFinalManual !== '')
         ? parseFloat(prec.precoFinalManual)
-        : valorTotal + comissaoR;
+        : valorImpostos + ipiR + comissaoR;
 
     return {
         ci, taxa: taxaPct, roi: roiPct,
@@ -13020,7 +13032,7 @@ function resetarPrecoManual(nomeProduto) {
 
 // ── SUB-TAB NAVIGATION FOR PRECIFICAÇÃO ─────────────────────────
 function trocarSubabaPrecif(subaba) {
-    const tabs = ['produtos','federais','icms','porcliente','consultaPrec'];
+    const tabs = ['produtos','federais','icms','porcliente','consultaPrec','tabelaci'];
     tabs.forEach(s => {
         let el = null;
         if (s === 'consultaPrec') el = document.getElementById('painel-consultaPrec');
@@ -13055,6 +13067,153 @@ function trocarSubabaPrecif(subaba) {
     if (subaba === 'consultaPrec') {
         try { if (typeof _cpPopularFiltroCliente === 'function') _cpPopularFiltroCliente(); filtrarConsultaPrecificacoes(); } catch (e) {}
     }
+
+    if (subaba === 'tabelaci') {
+        try { popularSelectProdutosCI(); renderizarTabelaCI(); } catch (e) {}
+    }
+}
+
+// ========================================
+// TABELA DE CI COM HISTÓRICO
+// ========================================
+
+function popularSelectProdutosCI() {
+    const sel = document.getElementById('ciProdutoSelect');
+    if (!sel) return;
+    const cur = sel.value;
+    const produtos = [...(estoque.produtos || [])].sort((a, b) => (a.nome||'').localeCompare(b.nome||'', 'pt-BR'));
+    sel.innerHTML = '<option value="">Selecione um produto...</option>';
+    produtos.forEach(p => {
+        const opt = document.createElement('option');
+        opt.value = p.nome;
+        opt.textContent = p.nome;
+        sel.appendChild(opt);
+    });
+    if (cur) sel.value = cur;
+}
+
+function salvarNovoCI() {
+    if (!requireAdminOrNotify()) return;
+    const nomeProduto = (document.getElementById('ciProdutoSelect')?.value || '').trim();
+    const valor = parseFloat(document.getElementById('ciValorInput')?.value);
+    const obs = (document.getElementById('ciObsInput')?.value || '').trim();
+
+    if (!nomeProduto) { mostrarNotificacao('Selecione um produto.', 'error'); return; }
+    if (!valor || valor <= 0) { mostrarNotificacao('Informe um CI válido (maior que zero).', 'error'); return; }
+
+    if (!Array.isArray(estoque.tabelaCI)) estoque.tabelaCI = [];
+
+    const registro = {
+        id: Date.now(),
+        produtoNome: nomeProduto,
+        ci: valor,
+        data: new Date().toISOString(),
+        observacao: obs
+    };
+    estoque.tabelaCI.push(registro);
+
+    // Atualiza precificacao para manter compatibilidade
+    if (!precificacao[nomeProduto]) precificacao[nomeProduto] = {};
+    precificacao[nomeProduto].ci = valor;
+    precificacao[nomeProduto].ciAtualizadoEm = registro.data;
+
+    salvarDados();
+    renderizarTabelaCI();
+
+    // Limpar formulário
+    const valInput = document.getElementById('ciValorInput');
+    const obsInput = document.getElementById('ciObsInput');
+    if (valInput) valInput.value = '';
+    if (obsInput) obsInput.value = '';
+
+    mostrarNotificacao(`CI de ${nomeProduto} registrado: R$ ${_fmtMoeda(valor)}`, 'success');
+}
+
+function renderizarTabelaCI() {
+    const tbody = document.getElementById('tabelaCITbody');
+    if (!tbody) return;
+
+    const filtro = (document.getElementById('ciFiltroProduto')?.value || '').toLowerCase().trim();
+    const tabelaCI = Array.isArray(estoque.tabelaCI) ? estoque.tabelaCI : [];
+
+    const produtos = [...(estoque.produtos || [])].sort((a, b) => (a.nome||'').localeCompare(b.nome||'', 'pt-BR'));
+    const produtosFiltrados = filtro ? produtos.filter(p => (p.nome||'').toLowerCase().includes(filtro)) : produtos;
+
+    const contador = document.getElementById('ciContador');
+    if (contador) contador.textContent = `${produtosFiltrados.length} produto(s)`;
+
+    if (!produtosFiltrados.length) {
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#94a3b8;padding:20px">Nenhum produto encontrado</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = produtosFiltrados.map(produto => {
+        const registros = tabelaCI
+            .filter(r => r.produtoNome === produto.nome)
+            .sort((a, b) => new Date(b.data) - new Date(a.data));
+
+        const ciVigente = registros.length > 0 ? registros[0].ci : (parseFloat(precificacao[produto.nome]?.ci) || 0);
+        const ultimaData = registros.length > 0 ? new Date(registros[0].data).toLocaleDateString('pt-BR') : '-';
+        const qtdRegistros = registros.length;
+
+        const ciText = ciVigente > 0
+            ? `<span style="font-weight:700;color:#1e3a5f">R$ ${_fmtMoeda(ciVigente)}</span>`
+            : `<span style="color:#94a3b8;font-style:italic">Não definido</span>`;
+
+        const histBtn = qtdRegistros > 0
+            ? `<button class="btn btn-outline btn-sm" onclick="exibirHistoricoCI('${_escapeHtml(produto.nome)}')">Ver ${qtdRegistros} registro(s)</button>`
+            : `<span style="color:#94a3b8;font-size:0.82rem">—</span>`;
+
+        return `<tr>
+            <td style="text-align:left;font-weight:600;padding-left:15px">${_escapeHtml(produto.nome)}</td>
+            <td style="text-align:center">${ciText}</td>
+            <td style="text-align:center;color:#64748b;font-size:0.88rem">${ultimaData}</td>
+            <td style="text-align:center;color:#64748b">${qtdRegistros}</td>
+            <td style="text-align:center">${histBtn}</td>
+        </tr>`;
+    }).join('');
+}
+
+function exibirHistoricoCI(nomeProduto) {
+    const painel = document.getElementById('painelHistoricoCI');
+    const titulo = document.getElementById('painelHistoricoCITitulo');
+    const conteudo = document.getElementById('painelHistoricoCIConteudo');
+    if (!painel || !titulo || !conteudo) return;
+
+    const tabelaCI = Array.isArray(estoque.tabelaCI) ? estoque.tabelaCI : [];
+    const registros = tabelaCI
+        .filter(r => r.produtoNome === nomeProduto)
+        .sort((a, b) => new Date(b.data) - new Date(a.data));
+
+    titulo.textContent = `Histórico de CI — ${nomeProduto}`;
+
+    if (!registros.length) {
+        conteudo.innerHTML = '<p style="color:#94a3b8">Nenhum registro encontrado.</p>';
+    } else {
+        conteudo.innerHTML = `
+            <table class="dashboard-table" style="width:100%">
+                <thead>
+                    <tr>
+                        <th style="text-align:center">Data</th>
+                        <th style="text-align:center">CI (R$)</th>
+                        <th style="text-align:left">Observação</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${registros.map((r, i) => `
+                        <tr style="${i === 0 ? 'background:#f0fdf4' : ''}">
+                            <td style="text-align:center;color:#64748b">${new Date(r.data).toLocaleDateString('pt-BR')} ${i === 0 ? '<span style="font-size:0.7rem;background:#dcfce7;color:#166534;padding:1px 6px;border-radius:10px;margin-left:4px">vigente</span>' : ''}</td>
+                            <td style="text-align:center;font-weight:700;color:#1e3a5f">R$ ${_fmtMoeda(r.ci)}</td>
+                            <td style="text-align:left;color:#475569;font-size:0.88rem">${_escapeHtml(r.observacao || '—')}</td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+        `;
+    }
+
+    painel.style.display = 'block';
+    painel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 
 function popularSelectsComparativo() {
@@ -13440,7 +13599,141 @@ function precifSelecionarTodosProdutos(selecionar) {
 }
 
 function precifGetProdutosSelecionados() {
+    // Nova UX: lê da lista de linhas individuais
+    const linhas = document.querySelectorAll('.precif-linha-produto');
+    if (linhas.length > 0) {
+        return Array.from(linhas)
+            .map(l => l.dataset.nomeProduto)
+            .filter(n => !!n);
+    }
+    // Fallback: checklist antigo (compatibilidade)
     return Array.from(document.querySelectorAll('.precif-prod-check:checked')).map(cb => cb.value);
+}
+
+// ==========================================
+// UX: Lista de produtos individual na precificação
+// ==========================================
+
+// Retorna defaults globais preenchidos pelo usuário
+function precifGetGlobais() {
+    const taxaGlobal = parseFloat(localStorage.getItem('precif_taxa_global')) || 20;
+    const roiGlobal  = parseFloat(localStorage.getItem('precif_roi_global'))  || 30;
+    const comGlobal  = parseFloat(localStorage.getItem('precif_com_global'))  || 5;
+    const taxaInput = parseFloat(document.getElementById('precifTaxaOverride')?.value);
+    const roiInput  = parseFloat(document.getElementById('precifROIOverride')?.value);
+    const comInput  = parseFloat(document.getElementById('precifComissaoOverride')?.value);
+    return {
+        taxa: !isNaN(taxaInput) ? taxaInput : taxaGlobal,
+        roi:  !isNaN(roiInput)  ? roiInput  : roiGlobal,
+        com:  !isNaN(comInput)  ? comInput  : comGlobal
+    };
+}
+
+function precifAdicionarProdutoLinha(nomeProduto = '', taxaOvr = null, roiOvr = null) {
+    const container = document.getElementById('precifLinhasProdutos');
+    if (!container) return;
+
+    // Remover placeholder caso exista
+    const placeholder = container.querySelector('[data-placeholder]');
+    if (placeholder) placeholder.remove();
+
+    const glob = precifGetGlobais();
+    const produtos = [...(estoque.produtos || [])].sort((a, b) => (a.nome||'').localeCompare(b.nome||'', 'pt-BR'));
+
+    const linhaId = 'precif-linha-' + Date.now() + '-' + Math.random().toString(36).slice(2,6);
+    const div = document.createElement('div');
+    div.className = 'precif-linha-produto';
+    div.dataset.nomeProduto = nomeProduto;
+    div.id = linhaId;
+    div.style.cssText = 'display:grid;grid-template-columns:2fr 1fr 1fr 1fr auto;gap:8px;align-items:center;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:10px 12px';
+
+    // Opções de produto
+    const optsHtml = produtos.map(p => {
+        const ci = parseFloat(precificacao[p.nome]?.ci || p.ci || 0);
+        const ciTxt = ci > 0 ? ` (CI: R$ ${_fmtMoeda(ci)})` : ' (sem CI)';
+        const sel = p.nome === nomeProduto ? ' selected' : '';
+        return `<option value="${_escapeHtml(p.nome)}"${sel}>${_escapeHtml(p.nome)}${ciTxt}</option>`;
+    }).join('');
+
+    div.innerHTML = `
+        <div>
+            <label style="font-size:0.75rem;font-weight:600;color:#64748b;display:block;margin-bottom:3px">Produto</label>
+            <select class="precif-linha-select" onchange="precifLinhaAtualizarProduto(this)" style="width:100%;padding:6px 8px;border:1px solid #e2e8f0;border-radius:5px;font-size:0.85rem">
+                <option value="">Selecione...</option>
+                ${optsHtml}
+            </select>
+        </div>
+        <div>
+            <label style="font-size:0.75rem;font-weight:600;color:#64748b;display:block;margin-bottom:3px">CI (R$)</label>
+            <input type="number" class="precif-linha-ci" min="0" step="0.01" placeholder="—"
+                style="width:100%;padding:6px 8px;border:1px solid #e2e8f0;border-radius:5px;font-size:0.85rem;background:#fff;color:#1e3a5f;font-weight:600"
+                title="CI usado nesta linha — altera apenas este cálculo">
+        </div>
+        <div>
+            <label style="font-size:0.75rem;font-weight:600;color:#64748b;display:block;margin-bottom:3px">Taxa (%)</label>
+            <input type="number" class="precif-linha-taxa" min="0" step="0.01" value="${taxaOvr !== null ? taxaOvr : glob.taxa}" placeholder="${glob.taxa}"
+                style="width:100%;padding:6px 8px;border:1px solid #e2e8f0;border-radius:5px;font-size:0.85rem">
+        </div>
+        <div>
+            <label style="font-size:0.75rem;font-weight:600;color:#64748b;display:block;margin-bottom:3px">ROI (%)</label>
+            <input type="number" class="precif-linha-roi" min="0" step="0.01" value="${roiOvr !== null ? roiOvr : glob.roi}" placeholder="${glob.roi}"
+                style="width:100%;padding:6px 8px;border:1px solid #e2e8f0;border-radius:5px;font-size:0.85rem">
+        </div>
+        <button type="button" onclick="document.getElementById('${linhaId}').remove(); atualizarContadorLinhasPrecif();"
+            title="Remover produto"
+            style="background:none;border:1px solid #fca5a5;color:#dc2626;border-radius:6px;width:32px;height:32px;cursor:pointer;font-size:1rem;display:flex;align-items:center;justify-content:center;margin-top:18px">✕</button>
+    `;
+
+    // Se produto já estava selecionado, preenche CI
+    if (nomeProduto) {
+        const ci = parseFloat(precificacao[nomeProduto]?.ci || 0);
+        const ciInput = div.querySelector('.precif-linha-ci');
+        if (ciInput && ci > 0) ciInput.value = ci;
+    }
+
+    container.appendChild(div);
+    atualizarContadorLinhasPrecif();
+}
+
+function precifLinhaAtualizarProduto(select) {
+    const linha = select.closest('.precif-linha-produto');
+    if (!linha) return;
+    const nome = select.value;
+    linha.dataset.nomeProduto = nome;
+    const ciInput = linha.querySelector('.precif-linha-ci');
+    if (ciInput && nome) {
+        const ci = parseFloat(precificacao[nome]?.ci || 0);
+        ciInput.value = ci > 0 ? ci : '';
+        ciInput.placeholder = ci > 0 ? '' : 'sem CI';
+    }
+    atualizarContadorLinhasPrecif();
+}
+
+function atualizarContadorLinhasPrecif() {
+    const linhas = document.querySelectorAll('.precif-linha-produto');
+    const el = document.getElementById('precifProdutoContador');
+    if (el) {
+        if (linhas.length === 0) {
+            el.textContent = '';
+            // Mostrar placeholder
+            const container = document.getElementById('precifLinhasProdutos');
+            if (container && !container.querySelector('[data-placeholder]')) {
+                container.innerHTML = '<div data-placeholder style="color:#94a3b8;font-size:0.85rem;text-align:center;padding:14px;background:#f8fafc;border-radius:8px;border:1px dashed #e2e8f0">Clique em &quot;+ Adicionar Produto&quot; para iniciar</div>';
+            }
+        } else {
+            el.textContent = `${linhas.length} produto(s) na lista`;
+        }
+    }
+}
+
+// Retorna os dados das linhas para o cálculo
+function precifGetLinhasProdutos() {
+    return Array.from(document.querySelectorAll('.precif-linha-produto')).map(linha => ({
+        nomeProduto: linha.dataset.nomeProduto || '',
+        ci: parseFloat(linha.querySelector('.precif-linha-ci')?.value) || 0,
+        taxa: parseFloat(linha.querySelector('.precif-linha-taxa')?.value),
+        roi: parseFloat(linha.querySelector('.precif-linha-roi')?.value)
+    })).filter(l => l.nomeProduto);
 }
 
 function obterUltimaPrecificacaoCliente(clienteId) {
@@ -13608,7 +13901,6 @@ function selecionarClientePrecif() {
             }
         } catch (e) {}
         try { atualizarStatusPropostaNaPrecif(cliente.id); } catch (e) {}
-        try { precifPopularChecklist(); } catch(e) {}
 }
 
 function calcularPrecificacaoPorCliente(opcoes = {}) {
@@ -13658,6 +13950,20 @@ function calcularPrecificacaoPorCliente(opcoes = {}) {
     // filtros via checklist (fallback para texto, caso exista)
     const filtroProdutoTexto = (document.getElementById('precifFiltroProduto')?.value || '').toLowerCase().trim();
 
+    // Nova UX: verificar se há linhas de produto adicionadas
+    const linhasAdicionadas = document.querySelectorAll('.precif-linha-produto');
+    if (linhasAdicionadas.length === 0) {
+        const resultado = document.getElementById('precifClienteResultado'); if (resultado) resultado.style.display = 'none';
+        const empty = document.getElementById('precifClienteEmpty');
+        if (empty) {
+            empty.innerHTML = `<div style="font-size:2rem;margin-bottom:12px">📋</div>
+                <div style="font-size:1rem;font-weight:600;color:#1e3a5f;margin-bottom:8px">Adicione produtos para calcular</div>
+                <div style="font-size:0.85rem;color:#94a3b8">Clique em "+ Adicionar Produto" para inserir os produtos desta proposta, <br>ajuste a Taxa e o ROI de cada um e clique em 🧮 Calcular.</div>`;
+            empty.style.display = 'block';
+        }
+        return;
+    }
+
     const produtos = estoque.produtos || [];
     const fmt = v => 'R$ ' + _fmtMoeda(v);
     const pct = v => (Number.isFinite(Number(v)) ? Number(v).toFixed(2) : '0.00') + '%';
@@ -13694,8 +14000,20 @@ function calcularPrecificacaoPorCliente(opcoes = {}) {
         const aliq = tabelaAliquotas[produto.nome] || {};
         const ncm = produto.ncm || detectarNCM(produto.nome) || '—';
 
+        // Verificar se existe linha individual para este produto (nova UX)
+        const linhaIndividual = (() => {
+            try {
+                return Array.from(document.querySelectorAll('.precif-linha-produto'))
+                    .find(l => l.dataset.nomeProduto === produto.nome) || null;
+            } catch (e) { return null; }
+        })();
+
         let ci;
-        if (exibindoPrecifSalva && precifSalvaCarregada) {
+        if (linhaIndividual) {
+            // CI vem do campo da linha individual (pode ter sido editado pelo usuário)
+            const ciLinha = parseFloat(linhaIndividual.querySelector('.precif-linha-ci')?.value);
+            ci = !isNaN(ciLinha) && ciLinha > 0 ? ciLinha : (parseFloat(prec.ci) || 0);
+        } else if (exibindoPrecifSalva && precifSalvaCarregada) {
             const itemSalvo = (precifSalvaCarregada.itens || []).find(i => i.produto === produto.nome);
             ci = itemSalvo ? parseFloat(itemSalvo.ci) : (parseFloat(prec.ci) || 0);
         } else {
@@ -13707,7 +14025,7 @@ function calcularPrecificacaoPorCliente(opcoes = {}) {
             return `
                 <tr id="precif_row_${nomeId}" style="opacity:0.45">
                     <td style="text-align:left; padding-left:15px; font-weight:500; position:sticky; left:0; background:#fff; z-index:1">${_escapeHtml(produto.nome)}<span style="font-size:0.7rem; color:#94a3b8; margin-left:6px">sem CI</span></td>
-                    <td colspan="10" style="text-align:center; color:#94a3b8; font-size:0.85rem">CI não configurado — acesse a aba Produtos para definir</td>
+                    <td colspan="10" style="text-align:center; color:#94a3b8; font-size:0.85rem">CI não configurado — informe o CI na linha ou acesse a Tabela de CI</td>
                 </tr>
             `;
         }
@@ -13719,8 +14037,17 @@ function calcularPrecificacaoPorCliente(opcoes = {}) {
 
         const icmsPadrao = uf ? buscarAliquotaICMS(uf, tipoPessoa, produto.nome) : (parseFloat(aliq.icmsBase) || 0);
 
-        const taxaProd = (prec.taxa !== null && prec.taxa !== undefined && prec.taxa !== '') ? parseFloat(prec.taxa) : taxaFinal;
-        const roiProd = (prec.roi !== null && prec.roi !== undefined && prec.roi !== '') ? parseFloat(prec.roi) : roiFinal;
+        // Taxa e ROI: prioridade à linha individual > produto individual > global
+        let taxaProd, roiProd;
+        if (linhaIndividual) {
+            const taxaLinha = parseFloat(linhaIndividual.querySelector('.precif-linha-taxa')?.value);
+            const roiLinha  = parseFloat(linhaIndividual.querySelector('.precif-linha-roi')?.value);
+            taxaProd = !isNaN(taxaLinha) ? taxaLinha : taxaFinal;
+            roiProd  = !isNaN(roiLinha)  ? roiLinha  : roiFinal;
+        } else {
+            taxaProd = (prec.taxa !== null && prec.taxa !== undefined && prec.taxa !== '') ? parseFloat(prec.taxa) : taxaFinal;
+            roiProd  = (prec.roi !== null && prec.roi !== undefined && prec.roi !== '') ? parseFloat(prec.roi) : roiFinal;
+        }
         const comissaoProd = (prec.comissao !== null && prec.comissao !== undefined && prec.comissao !== '') ? parseFloat(prec.comissao) : comFinal;
 
         // resolver alíquotas com benefícios/RETID
@@ -13731,15 +14058,16 @@ function calcularPrecificacaoPorCliente(opcoes = {}) {
 
         const retidAtivo = !!retidPorProduto[produto.nome];
 
-        const valorBase = ci * (1 + taxaProd/100) * (1 + roiProd/100);
+        // valorBase = CI + (CI × Taxa%) + (CI × ROI%)  →  CI × (1 + Taxa% + ROI%)
+        const valorBase = ci * (1 + taxaProd/100 + roiProd/100);
         const icmsR = valorBase * icmsEfetivo / 100;
         const pisR = valorBase * pisEfetivo / 100;
         const cofinsR = valorBase * cofinsEfetivo / 100;
         const valorImpostos = valorBase + icmsR + pisR + cofinsR;
         const ipiR = valorImpostos * ipiEfetivo / 100;
-        const valorTotal = valorImpostos + ipiR;
-        const comissaoR = valorBase * comissaoProd / 100;
-        const precoFinal = valorTotal + comissaoR;
+        // comissão sobre valorImpostos (sem IPI)
+        const comissaoR = valorImpostos * comissaoProd / 100;
+        const precoFinal = valorImpostos + ipiR + comissaoR;
 
         const margem = precoFinal > 0 ? ((precoFinal - ci) / precoFinal) * 100 : 0;
         const margemMinima = parseFloat(precificacao[produto.nome]?.margemMinima) || null;
