@@ -733,7 +733,7 @@ const dadosIniciais = [
 
 function popularSelectRepresentantes(selectId, incluirImbel = true) {
     const sel = document.getElementById(selectId);
-        if (!sel) return; // Ensure the select element exists
+    if (!sel) return;
     const reps = estoque.representantes || 
         ['KOLTE', 'ISA', 'LC', 'ADES', 'FL'];
     // evitar duplicar IMBEL caso esteja presente em `estoque.representantes`
@@ -3523,109 +3523,6 @@ function gerarPdfProposta(propostaId, tipo = 'simples') {
     } catch (err) {
         console.error('Erro gerarPdfProposta:', err);
         mostrarNotificacao('Erro ao gerar PDF da proposta.', 'error');
-    }
-
-async function gerarDocxProposta(propostaId, tipo = 'simples') {
-    try {
-        const proposta = (propostas || []).find(p => String(p.id) === String(propostaId));
-        if (!proposta) { mostrarNotificacao('Proposta não encontrada.', 'error'); return; }
-        if (!window.docx) { mostrarNotificacao('Biblioteca docx não está disponível.', 'error'); return; }
-
-        const { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell,
-            AlignmentType, WidthType, BorderStyle, ShadingType, VerticalAlign } = docx;
-
-        const fmtMoeda = v => 'R$ ' + Number(v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
-        const border = { style: BorderStyle.SINGLE, size: 4, color: '000000' };
-        const borders = { top: border, bottom: border, left: border, right: border };
-        const bold = (text, sz = 20) => new TextRun({ text, bold: true, size: sz, font: 'Calibri' });
-        const norm = (text, sz = 20) => new TextRun({ text, size: sz, font: 'Calibri' });
-        const para = (children, align = AlignmentType.LEFT, spacing = {}) =>
-            new Paragraph({ children, alignment: align, spacing: { before: 60, after: 60, ...spacing } });
-        const emptyPara = () => new Paragraph({ children: [norm('')] });
-        const cell = (children, widthDxa, opts = {}) => new TableCell({
-            children: Array.isArray(children) ? children : [para([norm(children || '')])],
-            width: { size: widthDxa, type: WidthType.DXA },
-            borders,
-            margins: { top: 80, bottom: 80, left: 120, right: 120 },
-            ...opts
-        });
-        const headerCell = (text, widthDxa) => new TableCell({
-            children: [para([bold(text, 20)], AlignmentType.CENTER)],
-            width: { size: widthDxa, type: WidthType.DXA },
-            borders,
-            shading: { fill: 'D9D9D9', type: ShadingType.CLEAR },
-            margins: { top: 80, bottom: 80, left: 120, right: 120 },
-        });
-
-        const TW = 9360;
-
-        const itens = proposta.itens || [];
-        const prodRows = itens.map(it => {
-            const nome = it.produtoNome || it.produto || '—';
-            const qtd = Number(it.quantidade || 0);
-            const valorUnit = Number(it.valorUnitario || it.valor || it.valorUnit || 0);
-            const valorTot = Number(it.valorTotal || qtd * valorUnit || 0);
-            return new TableRow({ children: [
-                cell(nome, 5400),
-                cell(String(qtd), 900, { verticalAlign: VerticalAlign.CENTER }),
-                cell(fmtMoeda(valorUnit), 1530, { verticalAlign: VerticalAlign.CENTER }),
-                cell(fmtMoeda(valorTot), 1530, { verticalAlign: VerticalAlign.CENTER }),
-            ]});
-        });
-
-        const tabelaProdutos = new Table({
-            width: { size: TW, type: WidthType.DXA },
-            columnWidths: [5400, 900, 1530, 1530],
-            rows: [
-                new TableRow({ children: [
-                    headerCell('Produto', 5400),
-                    headerCell('Qtd', 900),
-                    headerCell('Valor Unit.', 1530),
-                    headerCell('Valor Total', 1530),
-                ]}),
-                ...prodRows,
-                new TableRow({ children: [
-                    new TableCell({
-                        children: [para([bold('VALOR TOTAL DA PROPOSTA')], AlignmentType.RIGHT)] ,
-                        width: { size: 6300, type: WidthType.DXA },
-                        columnSpan: 3,
-                        borders,
-                        margins: { top: 80, bottom: 80, left: 120, right: 120 },
-                    }),
-                    cell(fmtMoeda(proposta.valorTotal || itens.reduce((s,it)=> s + Number(it.valorTotal || (Number(it.quantidade||0)*(Number(it.valorUnitario||it.valor||it.valorUnit||0))) ),0)), 1530),
-                ]}),
-            ]
-        });
-
-        const clienteObj = (clientes || []).find(c => (c.nome || '').toLowerCase() === (proposta.cliente || '').toLowerCase());
-
-        const tabelaCliente = new Table({
-            width: { size: TW, type: WidthType.DXA },
-            columnWidths: [4680, 4680],
-            rows: [
-                new TableRow({ children: [ new TableCell({ children: [para([bold('CLIENTE', 18)])], columnSpan: 2, width:{size:TW,type:WidthType.DXA}, shading: { fill: 'D9D9D9', type: ShadingType.CLEAR }, borders, margins:{top:80,bottom:80,left:120,right:120} })]}),
-                new TableRow({ children: [ cell([para([bold('Nome: '), norm(proposta.cliente || clienteObj?.nome || '-')])], 4680), cell([para([bold('Representante: '), norm(proposta.representante||'-')])], 4680) ]}),
-                new TableRow({ children: [ cell([para([bold('CNPJ/CPF: '), norm(clienteObj?.cnpj||'-')])], 4680), cell([para([bold('Telefone: '), norm(clienteObj?.telefone||'-')])], 4680) ]}),
-                new TableRow({ children: [ cell([para([bold('Endereço: '), norm(clienteObj?.endereco||'-')])], 4680), cell([para([bold('E-mail: '), norm(clienteObj?.email||'-')])], 4680) ]})
-            ]
-        });
-
-        const doc = new Document({ sections: [{ properties: { page: { size: { width: 12240, height: 15840 }, margin: { top: 1080, right: 1080, bottom: 1080, left: 1080 } } },
-            children: [ para([bold('PROPOSTA COMERCIAL', 32)], AlignmentType.CENTER), para([norm('')]), tabelaCliente, para([norm('')]), tabelaProdutos, para([norm('')]), para([bold('VALOR TOTAL: ' + fmtMoeda(proposta.valorTotal || 0))], AlignmentType.RIGHT), proposta.observacoes ? para([norm('OBS: ' + (proposta.observacoes||''))]) : emptyPara ] }] });
-
-        const blob = await Packer.toBlob(doc);
-        const safeName = (proposta.cliente || 'cliente').replace(/[^a-z0-9]/gi, '_');
-        const a = document.createElement('a');
-        a.href = URL.createObjectURL(blob);
-        a.download = 'Proposta_' + (proposta.numero || '') + '_' + safeName + '.docx';
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        URL.revokeObjectURL(a.href);
-        mostrarNotificacao('Download gerado: .docx', 'success');
-    } catch (err) {
-        console.error('Erro gerarDocxProposta:', err);
-        mostrarNotificacao('Erro ao gerar DOCX da proposta.', 'error');
     }
 }
 
@@ -16250,13 +16147,6 @@ function renderizarPropostas(filtro, statusFiltro) {
                                         </button>
                                         <button onclick="gerarPdfProposta('${p.id}','fiscal')" style="display:block;width:100%;text-align:left;padding:8px 14px;border:none;background:none;cursor:pointer;font-size:0.85rem">
                                             🧾 Com detalhamento fiscal
-                                        </button>
-                                        <hr style="margin:6px 0;border:none;border-top:1px solid #eef2f7" />
-                                        <button onclick="gerarDocxProposta('${p.id}','simples')" style="display:block;width:100%;text-align:left;padding:8px 14px;border:none;background:none;cursor:pointer;font-size:0.85rem">
-                                            📄 DOCX (simples)
-                                        </button>
-                                        <button onclick="gerarDocxProposta('${p.id}','fiscal')" style="display:block;width:100%;text-align:left;padding:8px 14px;border:none;background:none;cursor:pointer;font-size:0.85rem">
-                                            🧾 DOCX (fiscal)
                                         </button>
                                     </div>
                                 </div>
