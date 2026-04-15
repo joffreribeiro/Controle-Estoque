@@ -994,17 +994,17 @@ function renderConsultaPrecificacoes(dados) {
                 html += `<td style="min-width:90px"><span class="badge-rep${repClass}">${_escapeHtml(rep)}</span></td>`;
                 html += `<td style="min-width:160px;text-align:left">${_escapeHtml(prod.produto || prod.produtoNome || prod.nome || '')}</td>`;
                 html += `<td style="min-width:100px;text-align:right">${_cpFmt(prod.ci)}</td>`;
-                html += `<td style="min-width:70px;text-align:right">${_cpPctWithValor(prod.taxa, prod.valorBase)}</td>`;
-                html += `<td style="min-width:70px;text-align:right">${_cpPctWithValor(prod.roi, prod.valorBase)}</td>`;
+                html += `<td style="min-width:70px;text-align:right">${_cpPctWithValor(prod.taxa, prod.ci)}</td>`;
+                html += `<td style="min-width:70px;text-align:right">${_cpPctWithValor(prod.roi, prod.ci)}</td>`;
                 html += `<td style="min-width:110px;text-align:right">${_cpFmt(prod.valorBase)}</td>`;
                 html += `<td style="min-width:60px;text-align:right">${_cpPctWithValor(prod.pis, prod.valorBase)}</td>`;
                 html += `<td style="min-width:70px;text-align:right">${_cpPctWithValor(prod.cofins, prod.valorBase)}</td>`;
-                html += `<td style="min-width:60px;text-align:right">${_cpPctWithValor(prod.ipi, prod.valorBase)}</td>`;
+                html += `<td style="min-width:60px;text-align:right">${_cpPctWithValor(prod.ipi, prod.valorImpostos)}</td>`;
                 html += `<td style="min-width:70px;text-align:right">${_cpPctWithValor(prod.icms, prod.valorBase)}</td>`;
                 // campo s/ Impostos: usar semImpostos se existir, senão valorBase como fallback
                 const semImp = (prod.semImpostos !== undefined && prod.semImpostos !== null) ? prod.semImpostos : prod.valorBase;
                 html += `<td style="min-width:110px;text-align:right">${_cpFmt(semImp)}</td>`;
-                html += `<td style="min-width:80px;text-align:right">${_cpPctWithValor(prod.comissao, prod.valorBase)}</td>`;
+                html += `<td style="min-width:80px;text-align:right">${_cpPctWithValor(prod.comissao, prod.valorImpostos)}</td>`;
                 html += `<td style="min-width:120px;text-align:right">${_cpFmt(prod.precoFinal)}</td>`;
                 html += `<td style="min-width:80px;text-align:right">${_cpPct(prod.margem)}</td>`;
                 html += `<td style="min-width:160px">${_escapeHtml(beneficios || '')}</td>`;
