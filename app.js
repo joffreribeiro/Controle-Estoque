@@ -906,6 +906,13 @@ function _cpPct(v) {
     return Number(v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '%';
 }
 
+// Formata percentual com valor em moeda abaixo (ex: 27% \n R$ 270,00)
+function _cpPctWithValor(pct, base) {
+    const percent = Number(pct || 0);
+    const baseVal = Number(base || 0);
+    const amount = (baseVal * percent) / 100;
+    return `<div style="display:flex;flex-direction:column;align-items:flex-end"><div>${_cpPct(percent)}</div><div style="font-size:0.82rem;color:#64748b">${_cpFmt(amount)}</div></div>`;
+}
 // Verifica se precificação está expirada
 function _cpExpirada(p) {
     if (!p) return false;
@@ -945,10 +952,31 @@ function renderConsultaPrecificacoes(dados) {
         // contador de linhas (para exibir Nº se desejar)
         let rowCounter = (_cpState.pagina - 1) * _cpState.porPagina + 1;
 
+        // construir mapa de numeração por ano (AAAA/NNN) baseado em _cpState.dados
+        const seqMap = new Map();
+        try {
+            const all = Array.isArray(_cpState.dados) ? _cpState.dados.slice() : [];
+            const sortedAll = all.slice().sort((a, b) => {
+                const da = new Date(a.dataCriacao || a.data || a.createdAt || 0).getTime() || 0;
+                const db = new Date(b.dataCriacao || b.data || b.createdAt || 0).getTime() || 0;
+                return da - db;
+            });
+            const counters = {};
+            sortedAll.forEach(p => {
+                const y = new Date(p.dataCriacao || p.data || p.createdAt || Date.now()).getFullYear();
+                counters[y] = (counters[y] || 0) + 1;
+                seqMap.set(p, counters[y]);
+            });
+        } catch (e) { console.warn('seqMap erro', e); }
+
         dados.forEach((prec) => {
             const produtos = Array.isArray(prec.itens) ? prec.itens : (Array.isArray(prec.produtos) ? prec.produtos : []);
             produtos.forEach((prod, idxProd) => {
                 const exp = _cpExpirada(prec);
+                // rótulo de numeração AAAA/NNN para a precificação
+                const precYear = new Date(prec.dataCriacao || prec.data || prec.createdAt || Date.now()).getFullYear();
+                const precSeq = seqMap.get(prec) || rowCounter;
+                const precLabel = `${precYear}/${String(precSeq).padStart(3, '0')}`;
                 const trClass = exp ? 'prec-expirada' : '';
                 const statusBadge = exp ? '<span class="badge-prec-expirada">✗ Expirada</span>' : '<span class="badge-prec-ativa">✓ Ativa</span>';
                 const rep = prec.representante || prec.rep || '';
@@ -956,7 +984,7 @@ function renderConsultaPrecificacoes(dados) {
                 const beneficios = (prec.beneficiosPorProduto && (prec.beneficiosPorProduto[prod.produto] || prec.beneficiosPorProduto[prod.produtoId])) || (prec.descricao || '');
 
                 html += `<tr class="${trClass}">`;
-                html += `<td style="min-width:60px">${_escapeHtml(String(prec.id || prec.versao || rowCounter))}</td>`;
+                html += `<td style="min-width:60px">${_escapeHtml(String(precLabel || prec.id || prec.versao || rowCounter))}</td>`;
                 html += `<td style="min-width:100px">${prec.dataCriacao ? new Date(prec.dataCriacao).toLocaleString('pt-BR') : (prec.data ? new Date(prec.data).toLocaleString('pt-BR') : '-')}</td>`;
                 html += `<td style="min-width:100px">${prec.dataExpiracao ? new Date(prec.dataExpiracao).toLocaleDateString('pt-BR') : '-'}</td>`;
                 html += `<td style="min-width:80px">${statusBadge}</td>`;
@@ -966,17 +994,17 @@ function renderConsultaPrecificacoes(dados) {
                 html += `<td style="min-width:90px"><span class="badge-rep${repClass}">${_escapeHtml(rep)}</span></td>`;
                 html += `<td style="min-width:160px;text-align:left">${_escapeHtml(prod.produto || prod.produtoNome || prod.nome || '')}</td>`;
                 html += `<td style="min-width:100px;text-align:right">${_cpFmt(prod.ci)}</td>`;
-                html += `<td style="min-width:70px;text-align:right">${_cpPct(prod.taxa)}</td>`;
-                html += `<td style="min-width:70px;text-align:right">${_cpPct(prod.roi)}</td>`;
+                html += `<td style="min-width:70px;text-align:right">${_cpPctWithValor(prod.taxa, prod.valorBase)}</td>`;
                 html += `<td style="min-width:110px;text-align:right">${_cpFmt(prod.valorBase)}</td>`;
-                html += `<td style="min-width:60px;text-align:right">${_cpPct(prod.pis)}</td>`;
-                html += `<td style="min-width:70px;text-align:right">${_cpPct(prod.cofins)}</td>`;
-                html += `<td style="min-width:60px;text-align:right">${_cpPct(prod.ipi)}</td>`;
-                html += `<td style="min-width:70px;text-align:right">${_cpPct(prod.icms)}</td>`;
+                html += `<td style="min-width:60px;text-align:right">${_cpPctWithValor(prod.pis, prod.valorBase)}</td>`;
+                html += `<td style="min-width:70px;text-align:right">${_cpPctWithValor(prod.cofins, prod.valorBase)}</td>`;
+                html += `<td style="min-width:60px;text-align:right">${_cpPctWithValor(prod.ipi, prod.valorBase)}</td>`;
+                html += `<td style="min-width:70px;text-align:right">${_cpPctWithValor(prod.icms, prod.valorBase)}</td>`;
                 // campo s/ Impostos: usar semImpostos se existir, senão valorBase como fallback
                 const semImp = (prod.semImpostos !== undefined && prod.semImpostos !== null) ? prod.semImpostos : prod.valorBase;
                 html += `<td style="min-width:110px;text-align:right">${_cpFmt(semImp)}</td>`;
-                html += `<td style="min-width:80px;text-align:right">${_cpPct(prod.comissao)}</td>`;
+                html += `<td style="min-width:70px;text-align:right">${_cpPctWithValor(prod.roi, prod.valorBase)}</td>`;
+                                html += `<td style="min-width:80px;text-align:right">${_cpPctWithValor(prod.comissao, prod.valorBase)}</td>`;
                 html += `<td style="min-width:120px;text-align:right">${_cpFmt(prod.precoFinal)}</td>`;
                 html += `<td style="min-width:80px;text-align:right">${_cpPct(prod.margem)}</td>`;
                 html += `<td style="min-width:160px">${_escapeHtml(beneficios || '')}</td>`;
