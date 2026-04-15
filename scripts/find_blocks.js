@@ -143,13 +143,3 @@ while (pos < len) {
 
 console.log('\nFinal depth:', depth);
 console.log('Total lines:', lineNum);
-if (openStack.length > 0) {
-  console.log('\nUnclosed open stack (top last):');
-  for (let i = openStack.length - 1; i >= 0; i--) {
-    const o = openStack[i];
-    console.log(`  at line ${o.line} type:${o.type || 'block'} depth:${o.depth || '-'} context: ${o.context || contextAt(o.line)}`);
-  }
-}
-if (templateStack.length > 0) {
-  console.log('\nTemplate stack depth:', templateStack.length);
-}
