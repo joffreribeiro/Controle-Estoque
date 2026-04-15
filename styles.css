@@ -1614,6 +1614,18 @@ tr.total-row:hover {
     gap: 15px;
 }
 
+/* Fix: garantir que elementos de navegação (abas/header/actions) apareçam
+   acima da sidebar em desktop — evita que fiquem ocultos atrás da barra */
+@media (min-width: 901px) {
+    .tabs-navigation,
+    .tabs-navigation.imbel-subnav,
+    .header-content,
+    .actions-bar {
+        position: relative;
+        z-index: 2100; /* acima do z-index da .sidebar (2000) */
+    }
+}
+
 .form-row .form-group {
     margin-bottom: 0;
 }
