@@ -1607,25 +1607,6 @@ tr.total-row:hover {
     }
 }
 
-/* Emergency layout fix: garantir deslocamento mesmo com elementos full-width
-   - força `padding-left` no `body` quando a sidebar estiver visível
-   - desabilita o deslocamento em mobile/nav drawer aberto */
-body:not(.mobile-sidebar-open) {
-    padding-left: var(--sidebar-width) !important;
-}
-
-/* Em telas menores usamos a largura colapsada */
-@media (max-width: 1200px) {
-    body:not(.mobile-sidebar-open) {
-        padding-left: var(--sidebar-collapsed-width) !important;
-    }
-}
-
-/* Quando o drawer mobile está aberto, removemos o padding para permitir
-   que o menu cubra a tela (comportamento esperado em mobile) */
-body.mobile-sidebar-open {
-    padding-left: 0 !important;
-}
 
 .form-row {
     display: grid;
