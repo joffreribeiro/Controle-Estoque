@@ -744,6 +744,9 @@ function popularSelectRepresentantes(selectId, incluirImbel = true) {
 }
 
 async function inicializar() {
+    if (window.__APP_INITIALIZED__) return;
+    window.__APP_INITIALIZED__ = true;
+
     carregarDados();
     try { carregarPrecificacoesSalvas(); } catch (e) {}
     // Load contract config into Configurações tab
@@ -1453,6 +1456,8 @@ function carregarDados() {
             }
         } catch (e) {}
     } else {
+        // Inicializa `estoque` quando não existe dado salvo
+        estoque = {};
         estoque.produtos = dadosIniciais.map((item, index) => ({
             id: index + 1,
             nome: item.nome,
@@ -2458,9 +2463,15 @@ function trocarAba(aba) {
         if (acoesEstoque) acoesEstoque.style.display = (aba === 'estoque') ? 'flex' : 'none';
 
         if (aba === 'dashboard') {
-            try { renderizarDashboard(); } catch (e) { console.error('dashboard:', e); if (window.__showRuntimeErrorOverlay) window.__showRuntimeErrorOverlay(e); }
+            if (typeof renderizarDashboard !== 'function') {
+                try { if (typeof inicializar === 'function' && document.readyState !== 'loading') inicializar(); } catch (e) {}
+            }
+            try { if (typeof renderizarDashboard === 'function') renderizarDashboard(); } catch (e) { console.error('dashboard:', e); if (window.__showRuntimeErrorOverlay) window.__showRuntimeErrorOverlay(e); }
         } else if (aba === 'cadastro-produtos') {
-            try { renderizarCadastroProdutos(); } catch (e) { console.error('cadastro-produtos:', e); if (window.__showRuntimeErrorOverlay) window.__showRuntimeErrorOverlay(e); }
+            if (typeof renderizarCadastroProdutos !== 'function') {
+                try { if (typeof inicializar === 'function' && document.readyState !== 'loading') inicializar(); } catch (e) {}
+            }
+            try { if (typeof renderizarCadastroProdutos === 'function') renderizarCadastroProdutos(); } catch (e) { console.error('cadastro-produtos:', e); if (window.__showRuntimeErrorOverlay) window.__showRuntimeErrorOverlay(e); }
         } else if (aba === 'vendas') {
             try { renderizarRegistroVendas(); } catch (e) { console.error('vendas:', e); if (window.__showRuntimeErrorOverlay) window.__showRuntimeErrorOverlay(e); }
         } else if (aba === 'distribuicao') {
