@@ -17177,3 +17177,6 @@ function requireAdminOrNotify() {
 
 // Forçar chamada inicial para ajustar UI caso o listener já tenha ocorrido
 try { if (firebase && firebase.auth) firebase.auth().currentUser; } catch(e) {}
+
+// (Removidas chaves adicionadas anteriormente para diagnóstico)
+}
