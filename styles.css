@@ -158,10 +158,34 @@
 
 /* Ensure main content leaves space for the sidebar */
 .container {
-    margin-left: var(--sidebar-width);
+    margin-left: 0;
     max-width: 100%;
     padding: 0;
     box-sizing: border-box;
+}
+
+/* Layout desktop: deslocamento global do conteúdo para não ficar sob a sidebar.
+   Usar padding no body evita falhas quando algum bloco está fora de .container. */
+@media (min-width: 1201px) {
+    body {
+        padding-left: var(--sidebar-width);
+    }
+}
+
+@media (min-width: 901px) and (max-width: 1200px) {
+    body {
+        padding-left: var(--sidebar-collapsed-width);
+    }
+
+    body.sidebar-expanded {
+        padding-left: var(--sidebar-width);
+    }
+}
+
+@media (max-width: 900px) {
+    body {
+        padding-left: 0;
+    }
 }
 
 /* ========================================
@@ -490,10 +514,6 @@ th[data-sort]:hover { background: rgba(30,58,95,0.03); }
 /* Em telas muito grandes, garantir que o bloco fique fixo à direita */
 @media (min-width: 1200px) {
     .auth-panel, .logged-account-info { position: relative; }
-    /* Em telas largas a sidebar tem sempre 220px */
-    .container {
-        margin-left: 220px;
-    }
 }
 
 .header-stat {
@@ -1600,14 +1620,6 @@ tr.total-row:hover {
     margin-bottom: 0;
 }
 
-/* Safety override: garantir offset do conteúdo em larguras de desktop */
-@media (min-width: 901px) {
-    .container {
-        margin-left: var(--sidebar-width) !important;
-    }
-}
-
-
 .form-row {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -1623,14 +1635,6 @@ tr.total-row:hover {
     .actions-bar {
         position: relative;
         z-index: 2100; /* acima do z-index da .sidebar (2000) */
-    }
-
-    /* Garantir que a barra de abas não fique atrás da sidebar:
-       desloca as abas para a direita usando a variável da sidebar. */
-    .tabs-navigation {
-        margin-left: var(--sidebar-width) !important;
-        width: calc(100% - var(--sidebar-width));
-        box-sizing: border-box;
     }
 }
 
@@ -3769,10 +3773,6 @@ th.sortable.sort-desc .sort-icon::after { content: ' ▼'; opacity: 1; }
         overflow: hidden;
     }
 
-    .container {
-        margin-left: var(--sidebar-collapsed-width);
-    }
-
     .sidebar .logo-text,
     .sidebar .nav-group-label,
     .sidebar .nav-text,
@@ -3808,10 +3808,6 @@ th.sortable.sort-desc .sort-icon::after { content: ' ▼'; opacity: 1; }
     body.sidebar-expanded .sidebar {
         width: var(--sidebar-width);
         padding: 18px 14px;
-    }
-
-    body.sidebar-expanded .container {
-        margin-left: var(--sidebar-width);
     }
 
     body.sidebar-expanded .sidebar .logo-text,
@@ -3862,10 +3858,6 @@ th.sortable.sort-desc .sort-icon::after { content: ' ▼'; opacity: 1; }
         padding: 0;
         overflow: hidden;
         transform: translateX(-100%);
-    }
-
-    .container {
-        margin-left: 0;
     }
 
     body.mobile-sidebar-open .sidebar {
