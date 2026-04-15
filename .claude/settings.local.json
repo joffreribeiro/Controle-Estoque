@@ -3,7 +3,8 @@
     "allow": [
       "Bash(grep -n \"win\\\\.document\\\\.write\\\\s*\\(\\\\`\" app.js)",
       "Bash(grep -n \"innerHTML.*\\\\${.*\\\\.nome\\\\b\\\\|innerHTML.*\\\\${.*\\\\.cliente\\\\b\\\\|innerHTML.*\\\\${.*\\\\.representante\\\\b\" app.js)",
-      "Bash(grep -n \"innerHTML.*\\\\${[^}]*\\\\.nome\\\\b\\\\|innerHTML.*\\\\${[^}]*\\\\.loja\\\\b\\\\|innerHTML.*\\\\${[^}]*\\\\.contrato\\\\b\\\\|innerHTML.*\\\\${[^}]*\\\\.representantes\\\\b\\\\|innerHTML.*\\\\${[^}]*\\\\.competencia\\\\b\\\\|innerHTML.*\\\\${[^}]*\\\\.filtroRep\\\\b\" app.js)"
+      "Bash(grep -n \"innerHTML.*\\\\${[^}]*\\\\.nome\\\\b\\\\|innerHTML.*\\\\${[^}]*\\\\.loja\\\\b\\\\|innerHTML.*\\\\${[^}]*\\\\.contrato\\\\b\\\\|innerHTML.*\\\\${[^}]*\\\\.representantes\\\\b\\\\|innerHTML.*\\\\${[^}]*\\\\.competencia\\\\b\\\\|innerHTML.*\\\\${[^}]*\\\\.filtroRep\\\\b\" app.js)",
+      "Bash(grep -n \"} catch\\(e\\){}$\\\\|} catch \\(e\\) {}$\\\\|} catch\\(e\\) {}$\\\\|} catch \\(e\\){}$\" app.js)"
     ]
   }
 }

@@ -3,6 +3,26 @@
 // Material Bélico - v2.0
 // ========================================
 
+// ----------------------------------------
+// Utilitários globais (declarados primeiro para uso em todo o arquivo)
+// ----------------------------------------
+function _escapeHtml(texto) {
+    return String(texto || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+function _escapeJsString(texto) {
+    return String(texto || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+}
+
+function _fmtMoeda(v) {
+    return Number(v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
 // Estrutura de dados principal
 if (location.hostname !== 'localhost') {
     // console.log = () => {};  // desativado para permitir depuração em produção
@@ -267,9 +287,21 @@ let configAlertas = { limite: 5, ativo: true };
 // Helper: cálculo de estoque/vendas/distribuições
 function obterTotalVendasProduto(produto) {
     if (!produto) return 0;
-    // Preferir registros detalhados quando existirem (fonte de verdade)
-    if (Array.isArray(estoque.registroVendas) && estoque.registroVendas.length > 0) {
-        return estoque.registroVendas.reduce((sum, v) => {
+    // Verificar se há registros detalhados para este produto específico (fonte de verdade)
+    const registrosDesteProduto = Array.isArray(estoque.registroVendas)
+        ? estoque.registroVendas.filter(v => {
+            if (Array.isArray(v.items) && v.items.length) {
+                return v.items.some(it =>
+                    Number(it.produtoId) === Number(produto.id) ||
+                    it.produto === produto.nome ||
+                    it.produtoNome === produto.nome
+                );
+            }
+            return Number(v.produtoId) === Number(produto.id) || v.produtoNome === produto.nome;
+        })
+        : [];
+    if (registrosDesteProduto.length > 0) {
+        return registrosDesteProduto.reduce((sum, v) => {
             if (Array.isArray(v.items) && v.items.length) {
                 return sum + v.items.reduce((s, it) => {
                     if (Number(it.produtoId) === Number(produto.id) || (it.produto === produto.nome) || (it.produtoNome === produto.nome)) return s + (Number(it.quantidade) || 0);
@@ -280,27 +312,33 @@ function obterTotalVendasProduto(produto) {
             return sum;
         }, 0);
     }
-    // Fallback para agregado em produto.vendas quando não há registros
+    // Fallback para agregado em produto.vendas quando não há registros para este produto
     if (!produto.vendas) return 0;
     return Object.keys(produto.vendas).reduce((s, k) => s + (Number(produto.vendas[k]) || 0), 0);
 }
 
 function obterDistribuicaoTotalExcluindoImbel(produto) {
     if (!produto) return 0;
-    // Preferir registroDistribuicao como fonte de verdade quando disponível
-    if (Array.isArray(estoque.registroDistribuicao) && estoque.registroDistribuicao.length > 0) {
-        return estoque.registroDistribuicao.reduce((s, d) => {
+    // Verificar se há registros de distribuição para este produto específico (fonte de verdade)
+    const registrosDesteProduto = Array.isArray(estoque.registroDistribuicao)
+        ? estoque.registroDistribuicao.filter(d =>
+            Number(d.produtoId) === Number(produto.id) ||
+            (d.produtoNome && d.produtoNome === produto.nome)
+        )
+        : [];
+    if (registrosDesteProduto.length > 0) {
+        return registrosDesteProduto.reduce((s, d) => {
             try {
-                if (Number(d.produtoId) === Number(produto.id) || (d.produtoNome && d.produtoNome === produto.nome)) {
-                    const rep = (d.representante || '').toString().toUpperCase();
-                    if (rep === 'IMBEL') return s;
-                    return s + (Number(d.quantidade) || 0);
-                }
-            } catch (e) {}
-            return s;
+                const rep = (d.representante || '').toString().toUpperCase();
+                if (rep === 'IMBEL') return s;
+                return s + (Number(d.quantidade) || 0);
+            } catch (e) {
+                console.warn('obterDistribuicaoTotalExcluindoImbel: erro ao processar registro', e);
+                return s;
+            }
         }, 0);
     }
-    // Fallback para o objeto produto.distribuicao (legado)
+    // Fallback para o objeto produto.distribuicao (legado) quando não há registros para este produto
     if (!produto.distribuicao) return 0;
     return Object.keys(produto.distribuicao).reduce((s, k) => {
         if ((k || '').toUpperCase() === 'IMBEL') return s;
@@ -358,7 +396,9 @@ function calcularEstoqueIMBEL(nomeProduto) {
             if (!match) return sum;
             const destino = (d.destino || '').toString().toUpperCase();
             if (destino === 'IMBEL') return sum + (Number(d.quantidade) || 0);
-        } catch (e) {}
+        } catch (e) {
+            console.warn('calcularEstoqueIMBEL: erro ao processar devolução', e);
+        }
         return sum;
     }, 0);
 
@@ -382,7 +422,9 @@ function obterMetricasImbelProduto(produto) {
                 const r = (d.representante || '').toString().toUpperCase();
                 distPorRep[r] = (distPorRep[r] || 0) + (Number(d.quantidade) || 0);
             }
-        } catch (e) {}
+        } catch (e) {
+            console.warn('obterMetricasImbelProduto: erro ao processar distribuição', e);
+        }
     });
     const totalDistribuido = Object.values(distPorRep).reduce((s, v) => s + v, 0);
 
@@ -393,7 +435,9 @@ function obterMetricasImbelProduto(produto) {
                 const destino = (d.destino || '').toString().toUpperCase();
                 if (destino === 'IMBEL') totalDevolvidoParaImbel += (Number(d.quantidade) || 0);
             }
-        } catch (e) {}
+        } catch (e) {
+            console.warn('obterMetricasImbelProduto: erro ao processar devolução', e);
+        }
     });
 
     const vendasPorRep = {};
@@ -418,7 +462,9 @@ function obterMetricasImbelProduto(produto) {
                 } else if (Number(v.produtoId) === Number(produtoId) || (v.produtoNome === produto.nome)) {
                     vendasPorRep[rep] = (vendasPorRep[rep] || 0) + (Number(v.quantidade) || 0);
                 }
-            } catch (e) {}
+            } catch (e) {
+                console.warn('obterMetricasImbelProduto: erro ao processar venda', e);
+            }
         });
     }
 
@@ -452,7 +498,9 @@ function reconstruirDistribuicaoAPartirDeRegistros() {
             (estoque.representantes || []).forEach(r => { p.distribuicao[r] = 0; });
             // manter IMBEL sempre 0 (é derivado)
             p.distribuicao.IMBEL = 0;
-        } catch (e) {}
+        } catch (e) {
+            console.warn('reconstruirDistribuicaoAPartirDeRegistros: erro ao inicializar produto', e);
+        }
     });
 
     // Somar todas as distribuições
@@ -463,7 +511,9 @@ function reconstruirDistribuicaoAPartirDeRegistros() {
             const rep = (d.representante || '').toString().toUpperCase();
             if (!rep) return;
             prod.distribuicao[rep] = (prod.distribuicao[rep] || 0) + (Number(d.quantidade) || 0);
-        } catch (e) {}
+        } catch (e) {
+            console.warn('reconstruirDistribuicaoAPartirDeRegistros: erro ao processar distribuição', e);
+        }
     });
 
     // Aplicar devoluções: subtrair do origem, somar para destino quando não for IMBEL
@@ -477,7 +527,9 @@ function reconstruirDistribuicaoAPartirDeRegistros() {
             if (destino && destino !== 'IMBEL') {
                 prod.distribuicao[destino] = (prod.distribuicao[destino] || 0) + (Number(dev.quantidade) || 0);
             }
-        } catch (e) {}
+        } catch (e) {
+            console.warn('reconstruirDistribuicaoAPartirDeRegistros: erro ao processar devolução', e);
+        }
     });
 }
 
@@ -490,13 +542,17 @@ function diagnosticarProduto(produtoId) {
         const totalDistribuido = (estoque.registroDistribuicao || []).reduce((s, d) => {
             try {
                 if (Number(d.produtoId) === Number(p.id) || (d.produtoNome && d.produtoNome === p.nome)) return s + (Number(d.quantidade) || 0);
-            } catch (e) {}
+            } catch (e) {
+                console.warn('diagnosticarProduto: erro ao processar distribuição', e);
+            }
             return s;
         }, 0);
         const totalDevolvidoParaImbel = (estoque.registroDevolucoes || []).reduce((s, d) => {
             try {
                 if ((Number(d.produtoId) === Number(p.id) || (d.produtoNome && d.produtoNome === p.nome)) && ((d.destino || '').toString().toUpperCase() === 'IMBEL')) return s + (Number(d.quantidade) || 0);
-            } catch (e) {}
+            } catch (e) {
+                console.warn('diagnosticarProduto: erro ao processar devolução', e);
+            }
             return s;
         }, 0);
         const totalVendas = obterTotalVendasProduto(p);
@@ -1367,6 +1423,10 @@ function carregarDados() {
 }
 
 function salvarDados() {
+    // Sincronizar aliases mutáveis de volta para estoque antes de persistir
+    // (clientes e propostas são arrays compartilhados que podem ter sido mutados diretamente)
+    if (Array.isArray(clientes)) estoque.clientes = clientes;
+    if (Array.isArray(propostas)) estoque.propostas = propostas;
     // Sincroniza os objetos de precificação no estado persistido
     estoque.precificacao = precificacao;
     estoque.tabelaAliquotas = tabelaAliquotas;
@@ -1481,6 +1541,8 @@ async function salvarNoCloud() {
 
 // UI wrappers for manual save/load triggered by user buttons
 async function salvarNoCloudUI() {
+    if (typeof requireAdminOrNotify === 'function' && !requireAdminOrNotify()) return false;
+    if (typeof showProgressBar === 'function') showProgressBar('Salvando no Cloud...');
     try {
         mostrarNotificacao('Salvando dados no cloud...', 'info');
         const ok = await salvarNoCloud();
@@ -1491,10 +1553,14 @@ async function salvarNoCloudUI() {
         console.error('salvarNoCloudUI erro:', e);
         mostrarNotificacao('Erro ao salvar no cloud.', 'error');
         return false;
+    } finally {
+        if (typeof hideProgressBar === 'function') hideProgressBar();
     }
 }
 
 async function carregarDoCloudUI() {
+    if (typeof requireAdminOrNotify === 'function' && !requireAdminOrNotify()) return false;
+    if (typeof showProgressBar === 'function') showProgressBar('Carregando do Cloud...');
     try {
         const confirmed = confirm('Carregar do cloud substituirá os dados locais. Deseja continuar?');
         if (!confirmed) return false;
@@ -1507,6 +1573,8 @@ async function carregarDoCloudUI() {
         console.error('carregarDoCloudUI erro:', e);
         mostrarNotificacao('Erro ao carregar do cloud.', 'error');
         return false;
+    } finally {
+        if (typeof hideProgressBar === 'function') hideProgressBar();
     }
 }
 
@@ -2372,6 +2440,9 @@ function trocarAba(aba) {
         }
 
         try { if (window.__updateDebugPanel) window.__updateDebugPanel(); } catch (e) {}
+
+        // Fechar drawer mobile ao trocar aba
+        try { document.body.classList.remove('mobile-sidebar-open'); } catch (e) {}
     } catch (err) {
         console.error('trocarAba falhou:', err);
         if (window.__showRuntimeErrorOverlay) window.__showRuntimeErrorOverlay(err);
@@ -11196,15 +11267,6 @@ function toggleMenuMobile() {
     toggleMobileSidebar();
 }
 
-// Fechar drawer ao trocar aba (mobile)
-const _trocarAbaOriginal = trocarAba;
-trocarAba = function(aba) {
-    _trocarAbaOriginal(aba);
-    try {
-        document.body.classList.remove('mobile-sidebar-open');
-    } catch(e) {}
-};
-
 // ========================================
 // ORDENAÇÃO CLICÁVEL NAS COLUNAS
 // ========================================
@@ -12553,23 +12615,6 @@ function gerarRelatorioVendasImbel() {
         </html>
     `);
     win.document.close();
-}
-
-function _escapeHtml(texto) {
-    return String(texto || '')
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#39;');
-}
-
-function _escapeJsString(texto) {
-    return String(texto || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
-}
-
-function _fmtMoeda(v) {
-    return Number(v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
 function detectarNCM(nomeProduto) {
@@ -15781,29 +15826,6 @@ function hideProgressBar() {
         fill.style.width = '0%';
     }, 500);
 }
-
-// Override cloud UI functions to use progress bar
-const _salvarNoCloudUI_original = salvarNoCloudUI;
-salvarNoCloudUI = async function() {
-    if (!requireAdminOrNotify()) return false;
-    showProgressBar('Salvando no Cloud...');
-    try {
-        return await _salvarNoCloudUI_original();
-    } finally {
-        hideProgressBar();
-    }
-};
-
-const _carregarDoCloudUI_original = carregarDoCloudUI;
-carregarDoCloudUI = async function() {
-    if (!requireAdminOrNotify()) return false;
-    showProgressBar('Carregando do Cloud...');
-    try {
-        return await _carregarDoCloudUI_original();
-    } finally {
-        hideProgressBar();
-    }
-};
 
 // ========================================
 // HISTÓRICO DE ALTERAÇÕES (AUDIT LOG)
