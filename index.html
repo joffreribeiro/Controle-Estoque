@@ -14,8 +14,9 @@
     <script src="https://unpkg.com/docx@8.5.0/build/index.js"></script>
 </head>
 <body>
-    <!-- Sidebar (convertido da barra superior) -->
-    <aside class="sidebar" role="navigation" aria-label="Barra lateral">
+    <div class="container">
+        <!-- Sidebar (convertido da barra superior) -->
+        <aside class="sidebar" role="navigation" aria-label="Barra lateral">
             <button class="sidebar-toggle" id="sidebarToggle" type="button" onclick="toggleSidebarExpanded()" aria-label="Expandir ou recolher menu">
                 <span class="sidebar-toggle-icon">☰</span>
             </button>
@@ -98,9 +99,7 @@
                     <span class="fs-text" id="fsText">Cloud: desconectado</span>
                 </div>
             </div>
-    </aside>
-
-    <div class="container">
+        </aside>
 
         <!-- Painel de Alertas (flutuante) -->
         <div id="painelAlertas" style="display:none; position:fixed; top:60px; right:16px; 

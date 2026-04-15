@@ -1624,6 +1624,14 @@ tr.total-row:hover {
         position: relative;
         z-index: 2100; /* acima do z-index da .sidebar (2000) */
     }
+
+    /* Garantir que a barra de abas não fique atrás da sidebar:
+       desloca as abas para a direita usando a variável da sidebar. */
+    .tabs-navigation {
+        margin-left: var(--sidebar-width) !important;
+        width: calc(100% - var(--sidebar-width));
+        box-sizing: border-box;
+    }
 }
 
 .form-row .form-group {
