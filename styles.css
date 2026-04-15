@@ -49,6 +49,8 @@
     --radius-lg: 14px;
     --radius-xl: 20px;
     --color-bg-sidebar: #0d1117;
+    --sidebar-width: 220px;
+    --sidebar-collapsed-width: 60px;
 }
 
 /* ========================================
@@ -59,7 +61,7 @@
     left: 0;
     top: 0;
     bottom: 0;
-    width: 220px;
+    width: var(--sidebar-width);
     background: var(--color-bg-sidebar, #0d1117);
     border-right: 1px solid #1e2a38;
     padding: 18px 14px;
@@ -156,7 +158,7 @@
 
 /* Ensure main content leaves space for the sidebar */
 .container {
-    margin-left: 220px;
+    margin-left: var(--sidebar-width);
     max-width: 100%;
     padding: 0;
     box-sizing: border-box;
@@ -1596,6 +1598,13 @@ tr.total-row:hover {
 
 .form-group:last-child {
     margin-bottom: 0;
+}
+
+/* Safety override: garantir offset do conteúdo em larguras de desktop */
+@media (min-width: 901px) {
+    .container {
+        margin-left: var(--sidebar-width) !important;
+    }
 }
 
 .form-row {
@@ -3734,13 +3743,13 @@ th.sortable.sort-desc .sort-icon::after { content: ' ▼'; opacity: 1; }
 /* Responsive sidebar modes */
 @media (max-width: 1200px) {
     .sidebar {
-        width: 60px;
+        width: var(--sidebar-collapsed-width);
         padding: 10px 8px;
         overflow: hidden;
     }
 
     .container {
-        margin-left: 60px;
+        margin-left: var(--sidebar-collapsed-width);
     }
 
     .sidebar .logo-text,
@@ -3776,12 +3785,12 @@ th.sortable.sort-desc .sort-icon::after { content: ' ▼'; opacity: 1; }
     }
 
     body.sidebar-expanded .sidebar {
-        width: 220px;
+        width: var(--sidebar-width);
         padding: 18px 14px;
     }
 
     body.sidebar-expanded .container {
-        margin-left: 220px;
+        margin-left: var(--sidebar-width);
     }
 
     body.sidebar-expanded .sidebar .logo-text,
