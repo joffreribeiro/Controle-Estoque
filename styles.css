@@ -157,6 +157,9 @@
 /* Ensure main content leaves space for the sidebar */
 .container {
     margin-left: 220px;
+    max-width: 100%;
+    padding: 0;
+    box-sizing: border-box;
 }
 
 /* ========================================
@@ -265,10 +268,7 @@ body {
     line-height: 1.5;
 }
 
-.container {
-    max-width: 100%;
-    padding: 0;
-}
+/* .container consolidated above */
 
 /* ========================================
    HEADER / NAVBAR
@@ -488,6 +488,10 @@ th[data-sort]:hover { background: rgba(30,58,95,0.03); }
 /* Em telas muito grandes, garantir que o bloco fique fixo à direita */
 @media (min-width: 1200px) {
     .auth-panel, .logged-account-info { position: relative; }
+    /* Em telas largas a sidebar tem sempre 220px */
+    .container {
+        margin-left: 220px;
+    }
 }
 
 .header-stat {
