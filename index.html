@@ -14,9 +14,8 @@
     <script src="https://unpkg.com/docx@8.5.0/build/index.js"></script>
 </head>
 <body>
-    <div class="container">
-        <!-- Sidebar (convertido da barra superior) -->
-        <aside class="sidebar" role="navigation" aria-label="Barra lateral">
+    <!-- Sidebar (convertido da barra superior) -->
+    <aside class="sidebar" role="navigation" aria-label="Barra lateral">
             <button class="sidebar-toggle" id="sidebarToggle" type="button" onclick="toggleSidebarExpanded()" aria-label="Expandir ou recolher menu">
                 <span class="sidebar-toggle-icon">☰</span>
             </button>
@@ -99,13 +98,15 @@
                     <span class="fs-text" id="fsText">Cloud: desconectado</span>
                 </div>
             </div>
-        </aside>
+    </aside>
 
-                <!-- Painel de Alertas (flutuante) -->
-                <div id="painelAlertas" style="display:none; position:fixed; top:60px; right:16px; 
-                         width:340px; max-height:70vh; overflow-y:auto; z-index:1500;
-                         background:#fff; border-radius:12px; box-shadow:0 8px 30px rgba(0,0,0,0.15);
-                         border:1px solid #e2e8f0; animation: slideIn 0.3s ease;">
+    <div class="container">
+
+        <!-- Painel de Alertas (flutuante) -->
+        <div id="painelAlertas" style="display:none; position:fixed; top:60px; right:16px; 
+                 width:340px; max-height:70vh; overflow-y:auto; z-index:1500;
+                 background:#fff; border-radius:12px; box-shadow:0 8px 30px rgba(0,0,0,0.15);
+                 border:1px solid #e2e8f0; animation: slideIn 0.3s ease;">
                     <div style="background:linear-gradient(135deg,#1e3a5f,#0f1f35); 
                                             padding:14px 18px; border-radius:12px 12px 0 0;
                                             display:flex; justify-content:space-between; align-items:center;">
