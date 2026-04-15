@@ -3889,7 +3889,7 @@ function visualizarFechamentoComissoes(id) {
 
     const container = document.createElement('div');
     container.className = 'report-comissoes';
-    container.innerHTML = `<div class="comissoes-resumo" style="margin-bottom:12px"><strong>Fechamento:</strong> ${fechamento.competencia} ${fechamento.filtroRep ? `| Rep: ${fechamento.filtroRep}` : ''} | <strong>Total:</strong> ${formatarMoedaValor(fechamento.totalComissoes || 0)}</div>`;
+    container.innerHTML = `<div class="comissoes-resumo" style="margin-bottom:12px"><strong>Fechamento:</strong> ${_escapeHtml(fechamento.competencia)} ${fechamento.filtroRep ? `| Rep: ${_escapeHtml(fechamento.filtroRep)}` : ''} | <strong>Total:</strong> ${formatarMoedaValor(fechamento.totalComissoes || 0)}</div>`;
 
     const table = document.createElement('table');
     table.className = 'tabela-relatorio comissoes-table';
@@ -3915,10 +3915,10 @@ function visualizarFechamentoComissoes(id) {
             : '-';
         const tr = document.createElement('tr');
         tr.innerHTML = `
-            <td style="padding:6px;border:1px solid #ddd">${l.contrato || ''}</td>
-            <td style="padding:6px;border:1px solid #ddd">${l.loja || ''}</td>
-            <td style="padding:6px;border:1px solid #ddd">${(l.representantes || []).join(', ') || '-'}</td>
-            <td style="padding:6px;border:1px solid #ddd">${dataTexto}</td>
+            <td style="padding:6px;border:1px solid #ddd">${_escapeHtml(l.contrato || '')}</td>
+            <td style="padding:6px;border:1px solid #ddd">${_escapeHtml(l.loja || '')}</td>
+            <td style="padding:6px;border:1px solid #ddd">${(l.representantes || []).map(_escapeHtml).join(', ') || '-'}</td>
+            <td style="padding:6px;border:1px solid #ddd">${_escapeHtml(dataTexto)}</td>
             <td style="padding:6px;border:1px solid #ddd;text-align:right">${formatarMoedaValor(l.valorContrato || 0)}</td>
             <td style="padding:6px;border:1px solid #ddd;text-align:right">${formatarMoedaValor(l.comissao || 0)}</td>
         `;
@@ -5415,10 +5415,10 @@ function renderControleImbelDashboard() {
         const tempo = tempoParaZerar(p.id);
         const tr = document.createElement('tr');
         tr.style.background = '#fff';
-        tr.innerHTML = `<td style="padding:8px;border:1px solid #eee">${p.nome}</td>
+        tr.innerHTML = `<td style="padding:8px;border:1px solid #eee">${_escapeHtml(p.nome)}</td>
                         <td style="padding:8px;border:1px solid #eee;text-align:center">${estoqueAtual}</td>
                         <td style="padding:8px;border:1px solid #eee;text-align:center">${p.pontoReposicao !== undefined ? p.pontoReposicao : ponto}</td>
-                        <td style="padding:8px;border:1px solid #eee;text-align:center"><span style="display:inline-block;padding:6px 10px;border-radius:12px;background:${color};color:#fff;font-weight:700">${status}</span></td>
+                        <td style="padding:8px;border:1px solid #eee;text-align:center"><span style="display:inline-block;padding:6px 10px;border-radius:12px;background:${color};color:#fff;font-weight:700">${_escapeHtml(status)}</span></td>
                         <td style="padding:8px;border:1px solid #eee;text-align:center">${tempo===null?'-':(tempo + ' dias')}</td>`;
         tb.appendChild(tr);
     });
@@ -5438,7 +5438,7 @@ function renderControleImbelDashboard() {
     if (zerados.length) {
         const listaZ = document.createElement('div');
         listaZ.style.cssText = 'background:#fff;padding:8px;border-radius:8px;box-shadow:0 1px 4px rgba(0,0,0,.04);min-width:220px';
-        listaZ.innerHTML = `<div style="font-size:.78rem;color:#666">Zerados</div><div style="font-size:.85rem;margin-top:6px;color:#333">${zerados.map(z=>z.nome).join(', ')}</div>`;
+        listaZ.innerHTML = `<div style="font-size:.78rem;color:#666">Zerados</div><div style="font-size:.85rem;margin-top:6px;color:#333">${zerados.map(z=>_escapeHtml(z.nome)).join(', ')}</div>`;
         resumo.appendChild(listaZ);
     }
 
@@ -5532,7 +5532,7 @@ function renderControleImbelDashboard() {
             const unid = unidadesPorProduto[p.id] || 0;
             const tr = document.createElement('tr');
             tr.style.background = '#fff';
-            tr.innerHTML = `<td style="padding:8px;border:1px solid #eee">${p.nome}</td><td style="padding:8px;border:1px solid #eee;text-align:center">${unid}</td><td style="padding:8px;border:1px solid #eee;text-align:right">R$ ${rec.toLocaleString('pt-BR',{minimumFractionDigits:2})}</td>`;
+            tr.innerHTML = `<td style="padding:8px;border:1px solid #eee">${_escapeHtml(p.nome)}</td><td style="padding:8px;border:1px solid #eee;text-align:center">${unid}</td><td style="padding:8px;border:1px solid #eee;text-align:right">R$ ${rec.toLocaleString('pt-BR',{minimumFractionDigits:2})}</td>`;
             tbr.appendChild(tr);
         });
         receitaWrap.appendChild(tableR);
@@ -5568,7 +5568,7 @@ function renderControleImbelDashboard() {
         clientesArr.slice(0,10).forEach((c, idx) => {
             const tr = document.createElement('tr');
             tr.style.background = '#fff';
-            tr.innerHTML = `<td style="padding:8px;border:1px solid #eee;text-align:center">${idx+1}</td><td style="padding:8px;border:1px solid #eee">${c.nome}</td><td style="padding:8px;border:1px solid #eee;text-align:right">R$ ${c.total.toLocaleString('pt-BR',{minimumFractionDigits:2})}</td><td style="padding:8px;border:1px solid #eee;text-align:center">${c.pedidos}</td><td style="padding:8px;border:1px solid #eee;text-align:center">${c.produtosCount}</td>`;
+            tr.innerHTML = `<td style="padding:8px;border:1px solid #eee;text-align:center">${idx+1}</td><td style="padding:8px;border:1px solid #eee">${_escapeHtml(c.nome)}</td><td style="padding:8px;border:1px solid #eee;text-align:right">R$ ${c.total.toLocaleString('pt-BR',{minimumFractionDigits:2})}</td><td style="padding:8px;border:1px solid #eee;text-align:center">${c.pedidos}</td><td style="padding:8px;border:1px solid #eee;text-align:center">${c.produtosCount}</td>`;
             tbc.appendChild(tr);
         });
         topWrap.appendChild(tableC);
@@ -5587,7 +5587,7 @@ function renderControleImbelDashboard() {
             multi.forEach(c => {
                 const tr = document.createElement('tr');
                 tr.style.background = '#fff';
-                tr.innerHTML = `<td style="padding:8px;border:1px solid #eee">${c.nome}</td><td style="padding:8px;border:1px solid #eee;text-align:right">R$ ${c.total.toLocaleString('pt-BR',{minimumFractionDigits:2})}</td><td style="padding:8px;border:1px solid #eee;text-align:center">${c.produtosCount}</td>`;
+                tr.innerHTML = `<td style="padding:8px;border:1px solid #eee">${_escapeHtml(c.nome)}</td><td style="padding:8px;border:1px solid #eee;text-align:right">R$ ${c.total.toLocaleString('pt-BR',{minimumFractionDigits:2})}</td><td style="padding:8px;border:1px solid #eee;text-align:center">${c.produtosCount}</td>`;
                 tbm.appendChild(tr);
             });
             multiWrap.appendChild(tbl);
