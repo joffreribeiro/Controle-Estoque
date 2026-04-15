@@ -860,6 +860,7 @@ function normalizarPrecificacoesCliente(origem) {
         const clienteNome = raw.clienteNome || raw.cliente || (raw.clienteObj && raw.clienteObj.nome) || '';
         const clienteId = raw.clienteId || raw.cliente_id || (raw.clienteObj && raw.clienteObj.id) || '';
         const clienteUF = raw.clienteUF || raw.clienteUf || (raw.clienteObj && raw.clienteObj.uf) || '';
+        const representante = raw.representante || raw.rep || (raw.clienteObj && raw.clienteObj.representante) || '';
         const dataCriacao = raw.dataCriacao || raw.data || raw.createdAt || new Date().toISOString();
 
         return {
@@ -867,6 +868,7 @@ function normalizarPrecificacoesCliente(origem) {
             clienteId: clienteId,
             clienteNome: clienteNome,
             clienteUF: clienteUF,
+            representante: representante,
             tipoPessoa: raw.tipoPessoa || raw.tipo || raw.tipo_pessoa || '',
             dataCriacao: dataCriacao,
             versao: Number(raw.versao || raw.version || (idx + 1)) || (idx + 1),
@@ -1015,9 +1017,10 @@ function renderConsultaPrecificacoes(dados) {
                 html += `<td style="min-width:110px;text-align:right">${_cpFmt(prod.valorBase)}</td>`;
                 html += pisCofinsCell;
                 html += icmsCell;
-                // Mostrar IPI antes do total sem impostos (mesma ordem da tabela Por Cliente)
-                html += ipiCell;
+                // Ordem: Valor s/ IPI, IPI, Valor c/ IPI, Comissão, Frete, Valor Final, Valor Total
                 html += `<td style="min-width:110px;text-align:right">${_cpFmt(valorSemIPI)}</td>`;
+                html += ipiCell;
+                html += `<td style="min-width:110px;text-align:right">${_cpFmt(valorComIPI)}</td>`;
                 html += comissaoCell;
                 const freteVal = Number(prod.frete || prod.freteR || prec.frete || 0) || 0;
                 html += `<td style="min-width:100px;text-align:right">${_cpFmt(freteVal)}</td>`;
@@ -14287,8 +14290,9 @@ function calcularPrecificacaoPorCliente(opcoes = {}) {
                 <td style="font-weight:600; color:#1e3a5f">${fmt(valorBase)}</td>
                 ${pisCofinsCell}
                 ${icmsCell}
-                ${ipiCell}
                 <td style="font-weight:600; color:#475569">${fmt(valorImpostos)}</td>
+                ${ipiCell}
+                <td style="font-weight:600; color:#475569">${fmt(valorComIPI)}</td>
                 ${comissaoCell}
                 <td style="text-align:right; font-weight:600;">${fmt(freteVal)}</td>
                 <td style="font-weight:800; color:#c9a227; background:#fffbf0; font-size:1rem">${fmt(valorFinalCalc)}</td>
@@ -14411,7 +14415,8 @@ function exportarPrecifCliente() {
             const trs = Array.from(document.querySelectorAll('#tabelaPrecifClienteBody tr'));
             trs.forEach(tr => {
                 const cols = Array.from(tr.querySelectorAll('td'));
-                if (!cols || cols.length < 14) return; // linha de aviso / não-produto
+                // agora esperamos pelo menos 15 colunas (adicionado Valor c/ IPI)
+                if (!cols || cols.length < 15) return; // linha de aviso / não-produto
                 const produto = cols[0]?.textContent?.trim() || '';
                 const quantidade = cols[1]?.textContent?.trim() || '1';
                 const ci = cols[2]?.textContent?.trim() || '';
@@ -14419,14 +14424,15 @@ function exportarPrecifCliente() {
                 const vbase = cols[4]?.textContent?.trim() || '';
                 const pis_cof = cols[5]?.textContent?.trim() || '';
                 const icms = cols[6]?.textContent?.trim() || '';
-                const ipi = cols[7]?.textContent?.trim() || '';
-                const vimp = cols[8]?.textContent?.trim() || '';
-                const com = cols[9]?.textContent?.trim() || '';
-                const frete = cols[10]?.textContent?.trim() || '';
-                const vfinal = cols[11]?.textContent?.trim() || '';
-                const vtotal = cols[12]?.textContent?.trim() || '';
-                const margem = cols[13]?.textContent?.trim() || '';
-                rows.push([produto, '', '', ci, taxa_roi, '', vbase, '', '', icms, vimp, ipi, vfinal, com, frete, quantidade, vfinal, vtotal, margem]);
+                const valorSemIPI = cols[7]?.textContent?.trim() || '';
+                const ipi = cols[8]?.textContent?.trim() || '';
+                const valorComIPI = cols[9]?.textContent?.trim() || '';
+                const com = cols[10]?.textContent?.trim() || '';
+                const frete = cols[11]?.textContent?.trim() || '';
+                const vfinal = cols[12]?.textContent?.trim() || '';
+                const vtotal = cols[13]?.textContent?.trim() || '';
+                const margem = cols[14]?.textContent?.trim() || '';
+                rows.push([produto, '', '', ci, taxa_roi, '', vbase, '', '', icms, valorSemIPI, ipi, valorComIPI, com, frete, quantidade, vfinal, vtotal, margem]);
             });
         }
 
