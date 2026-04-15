@@ -655,12 +655,11 @@
                             <th style="min-width:50px">Tipo</th>
                             <th data-sort="rep"      style="min-width:90px">Representante</th>
                             <th style="min-width:160px;text-align:left">Produto</th>
+                            <th style="min-width:80px;text-align:center">Quantidade</th>
                             <th style="min-width:100px">CI (R$)</th>
-                            <th style="min-width:70px">Taxa %</th>
-                            <th style="min-width:70px">ROI %</th>
+                            <th style="text-align:center;min-width:120px">Taxa % / ROI %</th>
                             <th style="min-width:110px">Valor Base</th>
-                            <th style="min-width:60px">PIS %</th>
-                            <th style="min-width:70px">COFINS %</th>
+                            <th style="text-align:center;min-width:140px">PIS / COFINS</th>
                             <th style="min-width:70px">ICMS %</th>
                             <th style="min-width:110px">Valor s/ IPI</th>
                             <th style="min-width:60px">IPI %</th>
@@ -676,7 +675,7 @@
                     </thead>
                     <tbody id="bodyConsultaPrec">
                         <tr>
-                            <td colspan="26">
+                            <td colspan="25">
                                 <div class="empty-state">
                                     <div class="empty-icon">📋</div>
                                     <div class="empty-text">Nenhuma precificação salva</div>
@@ -747,8 +746,8 @@
         <div style="background:#fff;border:1px solid #e2e8f0;border-radius:10px;
                         padding:20px;margin-bottom:16px">
 
-            <!-- Row 1: Cliente + UF + Tipo + Botões -->
-            <div style="display:grid;grid-template-columns:3fr 1fr 1fr auto;
+            <!-- Row 1: Cliente + UF + Tipo + Representante + Botões -->
+            <div style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr auto;
                             gap:14px;align-items:end;margin-bottom:16px">
 
                 <div class="form-group" style="margin:0">
@@ -775,6 +774,13 @@
                                  style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;
                                                 border-radius:6px;font-size:0.9rem;background:#f8fafc;
                                                 color:#1e3a5f;font-weight:700;text-align:center">
+                </div>
+
+                <div class="form-group" style="margin:0">
+                    <label style="font-size:0.85rem;font-weight:600">Representante</label>
+                    <select id="precifRepresentanteSelect" style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;border-radius:6px;font-size:0.9rem;background:#fff">
+                        <option value="">Selecione...</option>
+                    </select>
                 </div>
 
                 <div style="display:flex;gap:8px;align-items:flex-end">
@@ -978,6 +984,7 @@
                                                              min-width:200px">
                                             Produto
                                         </th>
+                                        <th style="text-align:center;min-width:80px">Quantidade</th>
                                         <th style="text-align:right;min-width:110px">CI (R$)</th>
                                         <th style="text-align:center;min-width:120px">Taxa % / ROI %</th>
                                         <th style="text-align:right;min-width:120px">Valor Base</th>
@@ -994,7 +1001,7 @@
                                 </thead>
                                 <tbody id="tabelaPrecifClienteBody">
                                     <tr>
-                                        <td colspan="13"
+                                        <td colspan="14"
                                                 style="text-align:center;color:#94a3b8;padding:30px">
                                             Calculando...
                                         </td>

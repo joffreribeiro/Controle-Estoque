@@ -786,6 +786,7 @@ async function inicializar() {
     try { popularSelectRepresentantes('filtroRepresentante', true); } catch (e) {}
     try { popularSelectRepresentantes('filtroControleEnvioRep', true); } catch (e) {}
     try { popularSelectRepresentantes('filtroRelatoriosRep', true); } catch (e) {}
+    try { popularSelectRepresentantes('precifRepresentanteSelect', true); } catch (e) {}
     
 
     // Check proposal alerts every hour
@@ -993,31 +994,36 @@ function renderConsultaPrecificacoes(dados) {
                 html += `<td style="min-width:50px">${_escapeHtml(prec.tipoPessoa || '')}</td>`;
                 html += `<td style="min-width:90px"><span class="badge-rep${repClass}">${_escapeHtml(rep)}</span></td>`;
                 html += `<td style="min-width:160px;text-align:left">${_escapeHtml(prod.produto || prod.produtoNome || prod.nome || '')}</td>`;
+                // Quantidade — logo após a descrição
+                html += `<td style="min-width:80px;text-align:center">${_escapeHtml(String(prod.quantidade || prod.qtd || 1))}</td>`;
                 html += `<td style="min-width:100px;text-align:right">${_cpFmt(prod.ci)}</td>`;
-                html += `<td style="min-width:70px;text-align:right">${_cpPctWithValor(prod.taxa, prod.ci)}</td>`;
-                html += `<td style="min-width:70px;text-align:right">${_cpPctWithValor(prod.roi, prod.ci)}</td>`;
-                html += `<td style="min-width:110px;text-align:right">${_cpFmt(prod.valorBase)}</td>`;
-                html += `<td style="min-width:60px;text-align:right">${_cpPctWithValor(prod.pis, prod.valorBase)}</td>`;
-                html += `<td style="min-width:70px;text-align:right">${_cpPctWithValor(prod.cofins, prod.valorBase)}</td>`;
-                html += `<td style="min-width:70px;text-align:right">${_cpPctWithValor(prod.icms, prod.valorBase)}</td>`;
-                // Valor s/ IPI: valorBase + pisR + cofinsR + icmsR (já calculado como valorImpostos)
+                // A partir do CI: alinhar com tabela 'Por Cliente' (Taxa% / ROI% combinado, Valor Base, PIS/COFINS, ICMS, IPI, s/Impostos, c/ IPI, Comissão, Frete, Valor Final, Valor Total, Margem, Benefícios)
+                const tipoPessoa = prec.tipoPessoa || '';
+                const impostoPctStyle = 'font-size:0.75rem;color:#64748b';
+                const impostoValStyle = 'font-weight:600';
+                const icmsBg = tipoPessoa === 'PF' ? '#fef2f2' : '#f0fdf4';
+                const icmsColor = tipoPessoa === 'PF' ? '#dc2626' : '#16a34a';
+                const taxaRoiCell = `<td style="text-align:center;color:#475569">\n                    <div style="font-size:0.75rem;color:#64748b">Taxa: ${(Number(prod.taxa || 0)).toFixed(2)}%</div>\n                    <div style="font-size:0.75rem;color:#64748b">ROI: ${(Number(prod.roi || 0)).toFixed(2)}%</div>\n                </td>`;
+                const pisCofinsCell = `<td style="text-align:center">\n                    <div style="${impostoPctStyle}">PIS: ${Number(prod.pis || 0).toFixed(2)}%</div>\n                    <div style="${impostoValStyle}">${_cpFmt(Number(prod.pisR || 0))}</div>\n                    <div style="${impostoPctStyle};margin-top:4px">COFINS: ${Number(prod.cofins || 0).toFixed(2)}%</div>\n                    <div style="${impostoValStyle}">${_cpFmt(Number(prod.cofinsR || 0))}</div>\n                </td>`;
+                const icmsCell = `<td style="text-align:center;background:${icmsBg}">\n                    <div style="${impostoPctStyle};color:${icmsColor}">${Number(prod.icms || 0).toFixed(2)}%</div>\n                    <div style="${impostoValStyle}">${_cpFmt(Number(prod.icmsR || 0))}</div>\n                </td>`;
                 const valorSemIPI = Number(prod.valorImpostos || prod.valorBase || 0);
-                html += `<td style="min-width:110px;text-align:right">${_cpFmt(valorSemIPI)}</td>`;
-                // IPI: percentual e valor calculado sobre valorSemIPI
-                html += `<td style="min-width:60px;text-align:right">${_cpPctWithValor(prod.ipi, valorSemIPI)}</td>`;
-                // Valor c/ IPI
+                const ipiCell = `<td style="text-align:center">\n                    <div style="${impostoPctStyle}">${Number(prod.ipi || 0).toFixed(2)}%</div>\n                    <div style="${impostoValStyle}">${_cpFmt(Number(prod.ipiR || 0))}</div>\n                </td>`;
                 const valorComIPI = valorSemIPI + (Number(prod.ipiR || 0));
-                html += `<td style="min-width:110px;text-align:right">${_cpFmt(valorComIPI)}</td>`;
-                // Comissão: percentual e valor sobre valorSemIPI
-                html += `<td style="min-width:80px;text-align:right">${_cpPctWithValor(prod.comissao, valorSemIPI)}</td>`;
-                // Frete: campo opcional (item ou precificação)
+                const comissaoCell = `<td style="text-align:center;color:#d97706">\n                    <div style="${impostoPctStyle}">${(Number(prod.comissao || 0)).toFixed(2)}%</div>\n                    <div style="${impostoValStyle}">${_cpFmt(Number(prod.comissaoR || 0))}</div>\n                </td>`;
+
+                html += taxaRoiCell;
+                html += `<td style="min-width:110px;text-align:right">${_cpFmt(prod.valorBase)}</td>`;
+                html += pisCofinsCell;
+                html += icmsCell;
+                // Mostrar IPI antes do total sem impostos (mesma ordem da tabela Por Cliente)
+                html += ipiCell;
+                html += `<td style="min-width:110px;text-align:right">${_cpFmt(valorSemIPI)}</td>`;
+                html += comissaoCell;
                 const freteVal = Number(prod.frete || prod.freteR || prec.frete || 0) || 0;
                 html += `<td style="min-width:100px;text-align:right">${_cpFmt(freteVal)}</td>`;
-                // Valor Final = Valor c/ IPI + Comissão (usando comissaoR se disponível)
                 const comissaoR = Number(prod.comissaoR || 0);
                 const valorFinalCalc = valorComIPI + comissaoR;
                 html += `<td style="min-width:120px;text-align:right">${_cpFmt(valorFinalCalc)}</td>`;
-                // Valor Total = valorFinal * quantidade + frete
                 const quantidade = Number(prod.quantidade || prod.qtd || 1) || 1;
                 const valorTotalCalc = (valorFinalCalc * quantidade) + freteVal;
                 html += `<td style="min-width:120px;text-align:right">${_cpFmt(valorTotalCalc)}</td>`;
@@ -13879,12 +13885,13 @@ function aplicarEstadoPrecificacaoSalva(registro) {
         const cliente = (clientes || []).find(c => String(c.id) === String(registro.clienteId));
         const select = document.getElementById('precifClienteSelect');
         if (select) select.value = registro.clienteId || '';
-        const ufEl = document.getElementById('precifClienteUF'); if (ufEl) ufEl.value = registro.uf || '—';
+        const ufEl = document.getElementById('precifClienteUF'); if (ufEl) ufEl.value = registro.clienteUF || registro.uf || '—';
         const tipoEl = document.getElementById('precifClienteTipo'); if (tipoEl) tipoEl.value = registro.tipoPessoa || '—';
+        const repSel = document.getElementById('precifRepresentanteSelect'); if (repSel) repSel.value = registro.representante || registro.rep || '';
         const banner = document.getElementById('precifClienteBanner'); if (banner) banner.style.display = 'flex';
         const name = document.getElementById('precifBannerNome'); if (name) name.textContent = cliente?.nome || registro.clienteNome || '—';
         const doc = document.getElementById('precifBannerDoc'); if (doc) doc.textContent = cliente?.cnpj || cliente?.cpf || '—';
-        const ufBanner = document.getElementById('precifBannerUF'); if (ufBanner) ufBanner.textContent = registro.uf || cliente?.uf || cliente?.estado || '—';
+        const ufBanner = document.getElementById('precifBannerUF'); if (ufBanner) ufBanner.textContent = registro.clienteUF || registro.uf || cliente?.uf || cliente?.estado || '—';
         const tipoBanner = document.getElementById('precifBannerTipo'); if (tipoBanner) tipoBanner.textContent = registro.tipoPessoa || cliente?.tipoPessoa || '—';
         const contato = document.getElementById('precifBannerContato'); if (contato) contato.textContent = cliente?.contato || cliente?.email || '—';
         const taxaOverride = document.getElementById('precifTaxaOverride'); if (taxaOverride) taxaOverride.value = registro.taxa ?? '';
@@ -14007,6 +14014,8 @@ function calcularPrecificacaoPorCliente(opcoes = {}) {
 
     try { document.getElementById('precifClienteUF').value = uf || '—'; } catch (e) {}
     try { document.getElementById('precifClienteTipo').value = tipoPessoa; } catch (e) {}
+    // pré-selecionar representante se cadastro do cliente tiver
+    try { const repSel = document.getElementById('precifRepresentanteSelect'); if (repSel) repSel.value = cliente.representante || ''; } catch (e) {}
 
     const taxaOverride = parseFloat(document.getElementById('precifTaxaOverride')?.value);
     const roiOverride = parseFloat(document.getElementById('precifROIOverride')?.value);
@@ -14272,6 +14281,7 @@ function calcularPrecificacaoPorCliente(opcoes = {}) {
         return `
             <tr id="precif_row_${nomeId}" style="${rowStyle}">
                 <td style="text-align:left; padding-left:15px; font-weight:500; position:sticky; left:0; background:#fff; z-index:1; border-right:1px solid #e2e8f0">${_escapeHtml(produto.nome)} ${prodBadge}${ciBadge}</td>
+                <td style="text-align:center; min-width:80px; font-weight:600">${quantidade}</td>
                 <td style="font-weight:600; color:#1e3a5f">${fmt(ci)}</td>
                 ${taxaRoiCell}
                 <td style="font-weight:600; color:#1e3a5f">${fmt(valorBase)}</td>
@@ -14336,11 +14346,14 @@ function calcularPrecificacaoPorCliente(opcoes = {}) {
     if (emptyEl2) emptyEl2.style.display = 'none';
 
     // guardar última precificação calculada para salvar/gerar proposta
+    const representanteSelecionado = (document.getElementById('precifRepresentanteSelect')?.value) || (cliente.representante || '') || '';
     ultimaPrecificacaoCalculada = {
         clienteId: cliente.id,
         clienteNome: cliente.nome,
+        clienteUF: uf,
         uf,
         tipoPessoa,
+        representante: representanteSelecionado,
         taxa: taxaFinal,
         roi: roiFinal,
         comissao: comFinal,
@@ -14398,21 +14411,22 @@ function exportarPrecifCliente() {
             const trs = Array.from(document.querySelectorAll('#tabelaPrecifClienteBody tr'));
             trs.forEach(tr => {
                 const cols = Array.from(tr.querySelectorAll('td'));
-                if (!cols || cols.length < 11) return; // linha de aviso
+                if (!cols || cols.length < 14) return; // linha de aviso / não-produto
                 const produto = cols[0]?.textContent?.trim() || '';
-                const ci = cols[1]?.textContent?.trim() || '';
-                const taxa_roi = cols[2]?.textContent?.trim() || '';
-                const vbase = cols[3]?.textContent?.trim() || '';
-                const pis_cof = cols[4]?.textContent?.trim() || '';
-                const icms = cols[5]?.textContent?.trim() || '';
-                const ipi = cols[6]?.textContent?.trim() || '';
-                const vimp = cols[7]?.textContent?.trim() || '';
-                const com = cols[8]?.textContent?.trim() || '';
-                const frete = cols[9]?.textContent?.trim() || '';
-                const vfinal = cols[10]?.textContent?.trim() || '';
-                const vtotal = cols[11]?.textContent?.trim() || '';
-                const margem = cols[12]?.textContent?.trim() || '';
-                rows.push([produto, '', '', ci, taxa_roi, '', vbase, '', '', icms, vimp, ipi, vfinal, com, frete, '1', vfinal, vtotal, margem]);
+                const quantidade = cols[1]?.textContent?.trim() || '1';
+                const ci = cols[2]?.textContent?.trim() || '';
+                const taxa_roi = cols[3]?.textContent?.trim() || '';
+                const vbase = cols[4]?.textContent?.trim() || '';
+                const pis_cof = cols[5]?.textContent?.trim() || '';
+                const icms = cols[6]?.textContent?.trim() || '';
+                const ipi = cols[7]?.textContent?.trim() || '';
+                const vimp = cols[8]?.textContent?.trim() || '';
+                const com = cols[9]?.textContent?.trim() || '';
+                const frete = cols[10]?.textContent?.trim() || '';
+                const vfinal = cols[11]?.textContent?.trim() || '';
+                const vtotal = cols[12]?.textContent?.trim() || '';
+                const margem = cols[13]?.textContent?.trim() || '';
+                rows.push([produto, '', '', ci, taxa_roi, '', vbase, '', '', icms, vimp, ipi, vfinal, com, frete, quantidade, vfinal, vtotal, margem]);
             });
         }
 
@@ -14467,6 +14481,10 @@ function salvarPrecificacaoCliente() {
     const validadeDias = Number.isFinite(validadeBruta) ? Math.max(1, Math.min(365, validadeBruta)) : 30;
     registro.validadeDias = validadeDias;
     registro.dataExpiracao = new Date(Date.now() + validadeDias * 86400000).toISOString();
+    // Garantir compatibilidade de campos de UF/representante
+    try { registro.clienteUF = registro.clienteUF || registro.uf || (document.getElementById('precifClienteUF')?.value || ''); } catch (e) {}
+    try { registro.uf = registro.uf || registro.clienteUF || (document.getElementById('precifClienteUF')?.value || ''); } catch (e) {}
+    try { registro.representante = registro.representante || (document.getElementById('precifRepresentanteSelect')?.value || ''); } catch (e) {}
     precificacoesCliente.push(registro);
     ultimaVersaoSalva = proximaVersao;
     try { estoque.precificacoesCliente = precificacoesCliente; } catch (e) {}
