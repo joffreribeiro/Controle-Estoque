@@ -14758,8 +14758,6 @@ function imprimirPrecificacao() {
 // MÓDULO: PROPOSTAS COMERCIAIS
 // ========================================
 
-let propostas = [];
-
 function gerarNumeroProposta() {
     const existentes = propostas.map(p => {
         const m = (p.numero || '').match(/P-(\d+)/);
