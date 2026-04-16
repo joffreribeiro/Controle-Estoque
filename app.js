@@ -14942,21 +14942,46 @@ function renderizarHistoricoPrecif(clienteId) {
                     expCell = `<span style="color:#64748b;font-size:0.78rem">${exp.toLocaleDateString('pt-BR')} (${dias}d)</span>`;
                 }
             }
+
+            // Formatar Taxa/ROI com fallback seguro
+            const taxaVal = Number(v.taxa ?? (Array.isArray(v.itens) && v.itens[0] && (v.itens[0].taxa ?? v.itens[0].taxa)) ?? 0) || 0;
+            const roiVal = Number(v.roi ?? (Array.isArray(v.itens) && v.itens[0] && (v.itens[0].roi ?? v.itens[0].roi)) ?? 0) || 0;
+            const taxaHtml = (typeof _cpPct === 'function') ? _cpPct(taxaVal) : (taxaVal.toFixed(2) + '%');
+            const roiHtml = (typeof _cpPct === 'function') ? _cpPct(roiVal) : (roiVal.toFixed(2) + '%');
+
+            // Resumo de produtos: mostrar até 2 produtos com quantidade, unitário e total
+            const produtos = Array.isArray(v.itens) ? v.itens : [];
+            let produtosSummaryHtml = '';
+            if (!produtos.length) {
+                produtosSummaryHtml = '—';
+            } else {
+                const toShow = produtos.slice(0, 2);
+                produtosSummaryHtml = toShow.map(p => {
+                    const nome = p.produto || p.produtoNome || '';
+                    const qtd = Number(p.quantidade || p.qtd || 1) || 1;
+                    const unit = Number(p.precoFinal || p.valorFinal || p.preco || p.precoUnitario || 0) || 0;
+                    const total = Number(p.valorTotal || (unit * qtd) + (Number(p.frete || 0) || 0)) || (unit * qtd);
+                    return `<div style="text-align:left; margin-bottom:6px"><div style="font-weight:600;color:#0f172a">${_escapeHtml(nome)}</div><div style="font-size:0.82rem;color:#64748b">Qtd: ${qtd} • Unit: ${_cpFmt(unit)} • Total: ${_cpFmt(total)}</div></div>`;
+                }).join('');
+                if (produtos.length > 2) produtosSummaryHtml += `<div style="font-size:0.82rem;color:#64748b">+${produtos.length - 2} outro(s)</div>`;
+            }
+
             return `
                         <tr>
                             <td style="font-weight:700; color:#1e3a5f; text-align:center">v${v.versao}</td>
                             <td>${new Date(v.dataCriacao).toLocaleDateString('pt-BR')}</td>
                             <td style="color:#475569">${v.descricao || '<span style="color:#94a3b8">—</span>'}</td>
-                            <td style="text-align:center">${v.taxa}%</td>
-                            <td style="text-align:center">${v.roi}%</td>
-                            <td style="text-align:center">${(v.itens||[]).length}</td>
+                            <td style="text-align:center">${taxaHtml}</td>
+                            <td style="text-align:center">${roiHtml}</td>
+                            <td style="text-align:left; max-width:320px">${produtosSummaryHtml}</td>
                             <td style="text-align:center"><span style="background:${statusColor[v.status]}20; color:${statusColor[v.status]}; font-size:0.75rem; font-weight:600; padding:2px 8px; border-radius:20px">${statusLabel[v.status] || v.status}</span></td>
                             <td style="text-align:center">${expCell}</td>
                             <td style="text-align:center">${v.propostaId ? `<span style="color:#0ea5e9; font-size:0.75rem">${(propostas.find(p=>p.id===v.propostaId)?.numero)||'—'}</span>` : '—'}</td>
                             <td style="text-align:center">
                                 <button onclick="carregarVersaoPrecif('${v.id}')" class="btn btn-outline btn-sm" title="Carregar esta versão">↩ Carregar</button>
-                                <button onclick="arquivarVersaoPrecif('${v.id}')" style="background:none;border:none;cursor:pointer;color:#94a3b8;font-size:0.9rem" title="Arquivar">📦</button>
-                                <button onclick="excluirVersaoPrecif('${v.id}')" style="background:none;border:none;cursor:pointer;color:#dc2626;font-size:0.9rem" title="Excluir">🗑️</button>
+                                <button onclick="visualizarPrecificacao('${v.id}')" class="btn btn-outline btn-sm" title="Ver detalhado" style="margin-left:6px">👁️ Ver</button>
+                                <button onclick="arquivarVersaoPrecif('${v.id}')" style="background:none;border:none;cursor:pointer;color:#94a3b8;font-size:0.9rem;margin-left:6px" title="Arquivar">📦</button>
+                                <button onclick="excluirVersaoPrecif('${v.id}')" style="background:none;border:none;cursor:pointer;color:#dc2626;font-size:0.9rem;margin-left:6px" title="Excluir">🗑️</button>
                             </td>
                         </tr>
                     `;
@@ -14985,6 +15010,120 @@ function renderizarHistoricoPrecif(clienteId) {
         </div>
         `;
         const painel = document.getElementById('painelHistoricoPrecif'); if (painel) painel.style.display = 'block';
+}
+
+// Modal: visualizar precificação completa (taxas, impostos, valores)
+function visualizarPrecificacao(id) {
+    try {
+        const registro = (precificacoesCliente || []).find(p => p.id === id);
+        if (!registro) { mostrarNotificacao && mostrarNotificacao('Precificação não encontrada.', 'warning'); return; }
+
+        // remover modal anterior se existir
+        const old = document.getElementById('modalVisualizarPrecificacao'); if (old) old.remove();
+
+        const overlay = document.createElement('div');
+        overlay.id = 'modalVisualizarPrecificacao';
+        overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.45);display:flex;align-items:center;justify-content:center;padding:20px;z-index:99999';
+
+        const box = document.createElement('div');
+        box.style.cssText = 'background:#fff;border-radius:10px;max-width:1100px;width:100%;max-height:90vh;overflow:auto;padding:18px;box-shadow:0 10px 30px rgba(2,6,23,0.15);';
+
+        const headerHtml = `<div style="display:flex;gap:12px;align-items:center;margin-bottom:12px">
+            <div style="font-weight:700;font-size:1.05rem">Precificação v${registro.versao} — ${_escapeHtml(registro.clienteNome || registro.cliente || '')}</div>
+            <div style="margin-left:auto;display:flex;gap:8px">
+                <button class="btn btn-outline btn-sm" onclick="carregarVersaoPrecif('${registro.id}')">↩ Carregar</button>
+                <button class="btn btn-outline btn-sm" id="modalVisualizarClose">Fechar</button>
+            </div>
+        </div>`;
+
+        let tableHtml = `
+            <div style="font-size:0.9rem;color:#64748b;margin-bottom:8px">Descrição: ${_escapeHtml(registro.descricao || '')}</div>
+            <table class="dashboard-table" style="width:100%;font-size:0.88rem;">
+                <thead>
+                    <tr>
+                        <th>Produto</th>
+                        <th>Qtd</th>
+                        <th>CI (R$)</th>
+                        <th>Taxa %</th>
+                        <th>ROI %</th>
+                        <th>Valor Base</th>
+                        <th>PIS %</th>
+                        <th>PIS R$</th>
+                        <th>COFINS %</th>
+                        <th>COFINS R$</th>
+                        <th>ICMS %</th>
+                        <th>ICMS R$</th>
+                        <th>Valor s/ IPI</th>
+                        <th>IPI %</th>
+                        <th>IPI R$</th>
+                        <th>Comissão %</th>
+                        <th>Comissão R$</th>
+                        <th>Frete R$</th>
+                        <th>Valor Unit.</th>
+                        <th>Valor Total</th>
+                        <th>Margem %</th>
+                    </tr>
+                </thead>
+                <tbody>`;
+
+        const itens = Array.isArray(registro.itens) ? registro.itens : [];
+        itens.forEach(it => {
+            const qtd = Number(it.quantidade || it.qtd || 1) || 1;
+            const ci = Number(it.ci || 0) || 0;
+            const taxa = Number(it.taxa || 0) || 0;
+            const roi = Number(it.roi || 0) || 0;
+            const valorBase = Number(it.valorBase || 0) || 0;
+            const pis = Number(it.pis || 0) || 0;
+            const pisR = Number(it.pisR || 0) || 0;
+            const cofins = Number(it.cofins || 0) || 0;
+            const cofinsR = Number(it.cofinsR || 0) || 0;
+            const icms = Number(it.icms || 0) || 0;
+            const icmsR = Number(it.icmsR || 0) || 0;
+            const valorSemIPI = Number(it.valorSemIPI || it.valorImpostos || 0) || 0;
+            const ipi = Number(it.ipi || 0) || 0;
+            const ipiR = Number(it.ipiR || 0) || 0;
+            const comissao = Number(it.comissao || 0) || 0;
+            const comissaoR = Number(it.comissaoR || 0) || 0;
+            const frete = Number(it.frete || 0) || 0;
+            const unit = Number(it.precoFinal || it.valorFinal || it.preco || 0) || 0;
+            const total = Number(it.valorTotal || (unit * qtd) + frete) || (unit * qtd);
+            const margem = Number(it.margem || 0) || 0;
+
+            tableHtml += `<tr>
+                <td style="text-align:left">${_escapeHtml(it.produto || it.produtoNome || '')}</td>
+                <td style="text-align:center">${qtd}</td>
+                <td style="text-align:right">${_cpFmt(ci)}</td>
+                <td style="text-align:center">${_cpPct(taxa)}</td>
+                <td style="text-align:center">${_cpPct(roi)}</td>
+                <td style="text-align:right">${_cpFmt(valorBase)}</td>
+                <td style="text-align:center">${_cpPct(pis)}</td>
+                <td style="text-align:right">${_cpFmt(pisR)}</td>
+                <td style="text-align:center">${_cpPct(cofins)}</td>
+                <td style="text-align:right">${_cpFmt(cofinsR)}</td>
+                <td style="text-align:center">${_cpPct(icms)}</td>
+                <td style="text-align:right">${_cpFmt(icmsR)}</td>
+                <td style="text-align:right">${_cpFmt(valorSemIPI)}</td>
+                <td style="text-align:center">${_cpPct(ipi)}</td>
+                <td style="text-align:right">${_cpFmt(ipiR)}</td>
+                <td style="text-align:center">${_cpPct(comissao)}</td>
+                <td style="text-align:right">${_cpFmt(comissaoR)}</td>
+                <td style="text-align:right">${_cpFmt(frete)}</td>
+                <td style="text-align:right">${_cpFmt(unit)}</td>
+                <td style="text-align:right">${_cpFmt(total)}</td>
+                <td style="text-align:center">${_cpPct(margem)}</td>
+            </tr>`;
+        });
+
+        tableHtml += `</tbody></table>`;
+
+        box.innerHTML = headerHtml + tableHtml;
+        overlay.appendChild(box);
+        document.body.appendChild(overlay);
+
+        // fechar
+        const btnClose = document.getElementById('modalVisualizarClose'); if (btnClose) btnClose.addEventListener('click', () => overlay.remove());
+
+    } catch (e) { console.error('visualizarPrecificacao erro:', e); mostrarNotificacao && mostrarNotificacao('Falha ao abrir visualização.', 'error'); }
 }
 
 function toggleHistoricoPrecif() {
