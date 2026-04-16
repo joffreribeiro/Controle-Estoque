@@ -333,6 +333,19 @@ table thead th { position: sticky; top: 0; background: linear-gradient(180deg,#f
     z-index: 2;
     border-right: 1px solid var(--border-color);
 }
+/* Topbar única da área de estoque */
+#acoesEstoque.actions-bar {
+    background: #ffffff;
+    border-bottom: 1px solid #d0d7de;
+    padding: 0 20px;
+    height: 52px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    position: sticky;
+    top: 0;
+    z-index: 1400 !important;
+}
 
 /* Aumentar z-index dos sub-headers do thead para evitar sobreposição por células fixas */
 #tabelaEstoque thead tr:nth-child(2) th { z-index: 5; }
@@ -2053,6 +2066,31 @@ tr.total-row:hover {
 .header-actions {
     display: flex;
     gap: 10px;
+}
+
+/* Make the section header inside the Estoque tab sticky below the actions bar */
+#tab-estoque .section-header {
+    position: sticky;
+    top: var(--acoes-height, 52px);
+    z-index: 1350 !important;
+    background: var(--bg-white);
+    margin-bottom: 0;
+}
+
+/* Ensure thead sticks above body but below section header/actions */
+#tab-estoque #tabelaEstoque thead th {
+    z-index: 1300 !important;
+}
+
+/* Second header row offset uses CSS var set by JS */
+#tab-estoque #tabelaEstoque thead tr:nth-child(2) th {
+    top: var(--first-row-h, 36px) !important;
+}
+
+/* Product column cells should float above body but below header */
+#tab-estoque #tabelaEstoque td.produto-nome {
+    z-index: 1250 !important;
+    background: var(--bg-white) !important;
 }
 
 .filtros-container {
