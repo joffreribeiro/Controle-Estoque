@@ -2703,12 +2703,55 @@ function trocarAba(aba) {
 // RENDERIZAÇÃO DA TABELA DE ESTOQUE
 // ========================================
 
+function getInventoryRepsOrder() {
+    const stored = Array.isArray(estoque.representantes) ? estoque.representantes.map(r => String(r).toUpperCase()) : [];
+    const baseline = ['ISA','KOLTE','ADES','FL','LC'];
+    // Começar sempre com a ordem fixa solicitada
+    const order = baseline.slice();
+    // Não adicionar representantes extras — manter apenas a baseline solicitada e IMBEL
+    if (!order.includes('IMBEL')) order.push('IMBEL');
+    return order;
+}
+
+function repClassName(rep) {
+    return 'rep-' + String(rep || '').toLowerCase().replace(/[^a-z0-9\-]/g, '-');
+}
+
+// Abre a aba 'vendas' filtrada por produto e representante (função global usada por onclick)
+function abrirVendasPorProduto(produtoId, representante) {
+    try {
+        try { atualizarSelectsProdutos(); } catch (e) {}
+        try { popularSelectRepresentantes('filtroRepresentante', true); } catch (e) {}
+        const filtroProduto = document.getElementById('filtroProduto');
+        const filtroRep = document.getElementById('filtroRepresentante');
+        if (filtroProduto) filtroProduto.value = produtoId || '';
+        if (filtroRep) filtroRep.value = representante || '';
+        trocarAba('vendas');
+        setTimeout(() => {
+            try {
+                renderizarRegistroVendas();
+                // rolar para a primeira linha que contenha o produto (se houver)
+                try {
+                    const prod = (estoque.produtos || []).find(p => Number(p.id) === Number(produtoId));
+                    if (prod) {
+                        const rows = Array.from(document.querySelectorAll('#tabelaRegistroVendasBody tr'));
+                        for (const r of rows) {
+                            if ((r.textContent || '').includes(prod.nome)) { r.scrollIntoView({ behavior: 'smooth', block: 'center' }); break; }
+                        }
+                    }
+                } catch (e) {}
+            } catch (e) { console.warn('abrirVendasPorProduto renderizar erro', e); }
+        }, 80);
+    } catch (e) { console.warn('abrirVendasPorProduto erro', e); }
+}
+
 function renderizarTabela() {
     const tbody = document.getElementById('corpoTabela');
     if (!tbody) return;
     tbody.innerHTML = '';
     const totais = { GERAL: { disp: 0, venda: 0, saldo: 0 } };
-    estoque.representantes.forEach(rep => { totais[rep] = { disp: 0, venda: 0, saldo: 0 }; });
+    const repsOrder = getInventoryRepsOrder();
+    repsOrder.forEach(rep => { totais[rep] = { disp: 0, venda: 0, saldo: 0 }; });
 
     // Ordem de exibição: apenas produtos marcados para exibir no estoque
     const produtosOrdenados = [...estoque.produtos]
@@ -2794,9 +2837,10 @@ function renderizarTabela() {
         // total vendas do produto (em todos os reps)
         const totalVendasProduto = Object.values(vendasPorRep).reduce((s, v) => s + v, 0);
 
-        // === STEP 5: montar colunas por representante (KOLTE, ISA, LC, ADES, FL) e IMBEL
-        estoque.representantes.forEach(rep => {
+        // === STEP 5: montar colunas por representante na ordem configurada (ISA, KOLTE, ADES, FL, LC, IMBEL)
+        repsOrder.forEach(rep => {
             const repKey = (rep || '').toString().toUpperCase();
+            const repCls = repClassName(repKey);
             let disp = 0, venda = 0, saldo = 0;
             if (repKey === 'IMBEL') {
                 // IMBEL centralizado para evitar divergência entre abas
@@ -2837,10 +2881,19 @@ function renderizarTabela() {
                 saldoClass += ' negativo';
             }
 
+            // tornar o número de vendas clicável para abrir a aba de vendas filtrada
+            let vendaInner = vendaText;
+            try {
+                if (Number(venda) > 0) {
+                    const repEsc = _escapeJsString(repKey);
+                    vendaInner = `<a href="#" onclick="abrirVendasPorProduto(${produtoId}, '${repEsc}'); return false;" style="color:inherit;text-decoration:underline">${formatarNumero(venda)}</a>`;
+                }
+            } catch (e) {}
+
             tr.innerHTML += `
-                <td class="cell-disp numeric-cell ${(!isFinite(disp) || disp === 0) ? 'cell-zero' : ''}">${dispText}</td>
-                <td class="cell-venda numeric-cell ${venda === 0 ? 'cell-zero' : ''} ${vendaClass}">${vendaText}</td>
-                <td class="cell-saldo numeric-cell ${saldoClass} ${saldo === 0 ? 'cell-zero' : ''}">${saldoText}</td>
+                <td class="cell-disp numeric-cell ${(!isFinite(disp) || disp === 0) ? 'cell-zero' : ''} ${repCls}">${dispText}</td>
+                <td class="cell-venda numeric-cell ${venda === 0 ? 'cell-zero' : ''} ${vendaClass} ${repCls}">${vendaInner}</td>
+                <td class="cell-saldo numeric-cell ${saldoClass} ${saldo === 0 ? 'cell-zero' : ''} ${repCls}">${saldoText}</td>
             `;
 
             // Atualizar totais por rep
@@ -2889,14 +2942,15 @@ function renderizarTabela() {
     trTotal.className = 'total-row';
     trTotal.innerHTML = `<td class="produto-nome col-produto"><strong>TOTAL GERAL</strong></td>`;
 
-    estoque.representantes.forEach(rep => {
+    repsOrder.forEach(rep => {
         const repKey = (rep || '').toString().toUpperCase();
         const saldoRep = totais[repKey].saldo;
         const saldoRepClass = saldoRep > 0 ? 'saldo-positivo' : 'negativo';
+        const repCls = repClassName(repKey);
         trTotal.innerHTML += `
-            <td class="cell-disp numeric-cell"><strong>${formatarNumero(totais[repKey].disp)}</strong></td>
-            <td class="cell-venda numeric-cell ${totais[repKey].venda > 0 ? 'venda-positiva' : ''}"><strong>${formatarNumero(totais[repKey].venda)}</strong></td>
-            <td class="cell-saldo numeric-cell ${saldoRepClass}"><strong>${formatarNumero(totais[repKey].saldo)}</strong></td>
+            <td class="cell-disp numeric-cell ${repCls}"><strong>${formatarNumero(totais[repKey].disp)}</strong></td>
+            <td class="cell-venda numeric-cell ${totais[repKey].venda > 0 ? 'venda-positiva' : ''} ${repCls}"><strong>${formatarNumero(totais[repKey].venda)}</strong></td>
+            <td class="cell-saldo numeric-cell ${saldoRepClass} ${repCls}"><strong>${formatarNumero(totais[repKey].saldo)}</strong></td>
         `;
     });
 
@@ -2908,7 +2962,6 @@ function renderizarTabela() {
     `;
 
     tbody.appendChild(trTotal);
-
     // KPIs da aba estoque (agora renderizados no Dashboard)
     const dashContainer = document.getElementById('tab-dashboard');
     const kpiTotalVendidoEl = (dashContainer && dashContainer.querySelector)

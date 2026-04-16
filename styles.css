@@ -2376,6 +2376,22 @@ tr.total-row:hover {
     font-weight: 700;
 }
 
+/* Cor por representante usando classes (sobrescreve nth-child quando presente) */
+#tabelaEstoque td.rep-kolte { background: rgba(121,192,255,0.04); }
+#tabelaEstoque td.rep-isa   { background: rgba(126,231,135,0.04); }
+#tabelaEstoque td.rep-lc    { background: rgba(88,166,255,0.04); }
+#tabelaEstoque td.rep-ades  { background: rgba(255,166,87,0.04); }
+#tabelaEstoque td.rep-fl    { background: rgba(210,168,255,0.04); }
+#tabelaEstoque td.rep-imbel { background: rgba(255,123,114,0.04); }
+
+/* Sub-headers coloridos por representante (segunda linha do thead) */
+#tabelaEstoque thead tr:nth-child(2) th.rep-kolte { background: rgba(121,192,255,0.22); color: #12324a; }
+#tabelaEstoque thead tr:nth-child(2) th.rep-isa   { background: rgba(126,231,135,0.22); color: #123822; }
+#tabelaEstoque thead tr:nth-child(2) th.rep-lc    { background: rgba(88,166,255,0.22); color: #12324a; }
+#tabelaEstoque thead tr:nth-child(2) th.rep-ades  { background: rgba(255,166,87,0.22); color: #4a260e; }
+#tabelaEstoque thead tr:nth-child(2) th.rep-fl    { background: rgba(210,168,255,0.22); color: #3e1c18; }
+#tabelaEstoque thead tr:nth-child(2) th.rep-imbel { background: rgba(255,123,114,0.22); color: #0f2740; }
+
 /* Separadores visuais entre blocos */
 #tabelaEstoque td:nth-child(4),
 #tabelaEstoque td:nth-child(7),
