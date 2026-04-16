@@ -2729,6 +2729,18 @@ tr.row-saldo-zero {
 tr.row-saldo-zero td {
     color: #721c24;
 }
+
+/* Forçar sub-headers (segunda linha do thead) a usar as mesmas cores
+   dos respectivos representantes (evita conflitos com seletores por nth-child)
+   Colocamos no fim para garantir especificidade e aplicação. */
+#tabelaEstoque thead tr:nth-child(2) th.rep-isa   { background: #5c4d7d !important; color: #ffffff !important; }
+#tabelaEstoque thead tr:nth-child(2) th.rep-kolte { background: #3d5a80 !important; color: #ffffff !important; }
+#tabelaEstoque thead tr:nth-child(2) th.rep-ades  { background: #9c4a1a !important; color: #ffffff !important; }
+#tabelaEstoque thead tr:nth-child(2) th.rep-fl    { background: #7b2d26 !important; color: #ffffff !important; }
+#tabelaEstoque thead tr:nth-child(2) th.rep-lc    { background: #2d6a4f !important; color: #ffffff !important; }
+#tabelaEstoque thead tr:nth-child(2) th.rep-imbel { background: #1e3a5f !important; color: #ffffff !important; }
+
+#tabelaEstoque thead tr:nth-child(2) th.sub-header { color: #ffffff !important; }
 tr.row-saldo-zero td.produto-nome {
     font-weight: 700;
 }
