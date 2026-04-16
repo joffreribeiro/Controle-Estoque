@@ -28,6 +28,15 @@ function _cpGoToPagina(n) {
     filtrarConsultaPrecificacoes(num);
 }
 
+// Valores padrão seguros para evitar ReferenceError durante carregamento
+if (typeof estoque === 'undefined') var estoque = {};
+if (typeof precificacoesCliente === 'undefined') var precificacoesCliente = [];
+if (typeof clientes === 'undefined') var clientes = [];
+if (typeof propostas === 'undefined') var propostas = [];
+if (typeof ICMS_PJ_POR_NCM === 'undefined') var ICMS_PJ_POR_NCM = {};
+if (typeof ICMS_PF_POR_NCM === 'undefined') var ICMS_PF_POR_NCM = {};
+
+
 function _cpRenderPaginacao(total) {
     try {
         const cont = document.getElementById('paginacaoConsultaPrec');
@@ -10115,6 +10124,36 @@ function gerarCSV(dados) {
 // ========================================
 // INICIALIZAÇÃO
 // ========================================
+
+async function inicializar() {
+    try {
+        carregarDados();
+    } catch (e) { console.error('inicializar carregarDados erro:', e); }
+
+    try { if (typeof inicializarImpostosPreDefinidos === 'function') inicializarImpostosPreDefinidos(); } catch (e) { console.warn('inicializarImpostosPreDefinidos falhou:', e); }
+    try { if (typeof inicializarImpostosEditaveis === 'function') inicializarImpostosEditaveis(); } catch (e) {}
+    try { if (typeof inicializarICMSEditavel === 'function') inicializarICMSEditavel(); } catch (e) {}
+
+    // Renderizar vistas principais quando disponíveis
+    try { if (typeof renderizarTabela === 'function') renderizarTabela(); } catch (e) {}
+    try { if (typeof renderizarDashboard === 'function') renderizarDashboard(); } catch (e) {}
+    try { if (typeof renderizarRegistroVendas === 'function') renderizarRegistroVendas(); } catch (e) {}
+    try { if (typeof renderizarRegistroDistribuicao === 'function') renderizarRegistroDistribuicao(); } catch (e) {}
+    try { if (typeof renderizarControleEnvio === 'function') renderizarControleEnvio(); } catch (e) {}
+    try { if (typeof renderizarClientes === 'function') renderizarClientes(); } catch (e) {}
+    try { if (typeof renderizarPropostas === 'function') renderizarPropostas(); } catch (e) {}
+    try { if (typeof atualizarSelectsProdutos === 'function') atualizarSelectsProdutos(); } catch (e) {}
+    try { if (typeof atualizarSelectsRelatorios === 'function') atualizarSelectsRelatorios(); } catch (e) {}
+
+    // Sub-abas de precificação
+    try {
+        const tabPrecif = document.querySelector('#tab-precificacao');
+        if (tabPrecif) {
+            if (typeof renderizarConsultaPrecificacao === 'function') renderizarConsultaPrecificacao();
+            if (typeof renderizarRastreabilidade === 'function') renderizarRastreabilidade();
+        }
+    } catch (e) {}
+}
 
 document.addEventListener('DOMContentLoaded', inicializar);
 
