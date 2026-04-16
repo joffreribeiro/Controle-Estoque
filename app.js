@@ -15,6 +15,49 @@ function _escapeHtml(texto) {
         .replace(/'/g, '&#39;');
 }
 
+function aplicarDesconto(inputDesconto) {
+    const row = inputDesconto.closest('.item-venda-row') || inputDesconto.closest('.item-proposta-row');
+    if (!row) return;
+    const prodSelect = row.querySelector('.item-produto');
+    const valorInput = row.querySelector('.item-valor');
+    if (!prodSelect || !valorInput) return;
+
+    // resolver nome do produto a partir do id/valor do select
+    const prodVal = prodSelect.value;
+    let nomeProduto = prodVal;
+    const produtoObj = (estoque.produtos || []).find(p => String(p.id) === String(prodVal) || p.nome === prodVal);
+    if (produtoObj) nomeProduto = produtoObj.nome;
+
+    const descPct = parseFloat(inputDesconto.value) || 0;
+    const precoBase = parseFloat((valorInput.dataset.original || String(valorInput.value)).toString().replace(/\./g, '').replace(',', '.')) || 0;
+    const descontoMax = precificacao[nomeProduto] ? parseFloat(precificacao[nomeProduto].descontoMaximo) : null;
+
+    const novoPreco = precoBase * (1 - descPct / 100);
+    valorInput.value = Number(novoPreco || 0).toFixed(2).replace('.', ',');
+
+    // feedback visual se excedeu
+    const badgeClass = 'badge-excedeu-desconto';
+    if (descontoMax !== null && descPct > descontoMax) {
+        valorInput.style.border = '2px solid #7c3aed';
+        valorInput.style.background = '#f5f3ff';
+        let badge = row.querySelector('.' + badgeClass);
+        if (!badge) {
+            badge = document.createElement('span');
+            badge.className = badgeClass;
+            badge.style.cssText = 'background:#7c3aed;color:#fff;padding:2px 8px;border-radius:10px;margin-left:8px;font-size:0.75rem';
+            badge.innerText = 'Excede desconto máximo';
+            inputDesconto.parentNode.appendChild(badge);
+        }
+    } else {
+        valorInput.style.border = '';
+        valorInput.style.background = '';
+        const badge = row.querySelector('.' + badgeClass);
+        if (badge) badge.remove();
+    }
+
+    try { calcularTotalProposta(); } catch (e) {}
+}
+
 function _escapeJsString(texto) {
     return String(texto || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
 }
@@ -12968,6 +13011,19 @@ function salvarMargemMinima(nomeProduto, valor) {
     try { localStorage.setItem('estoqueArmasV2', JSON.stringify(estoque)); } catch (e) {}
 }
 
+function salvarDescontoMaximo(nomeProduto, valor) {
+    if (!precificacao[nomeProduto]) precificacao[nomeProduto] = {};
+    if (valor === '' || valor === null) {
+        delete precificacao[nomeProduto].descontoMaximo;
+    } else {
+        precificacao[nomeProduto].descontoMaximo = parseFloat(valor) || null;
+    }
+    estoque.precificacao = precificacao;
+    try { salvarDados(); } catch (e) { try { localStorage.setItem('estoqueArmasV2', JSON.stringify(estoque)); } catch (e) {} }
+    try { renderizarTabelaCI(); } catch (e) {}
+    try { mostrarNotificacao('Desconto máximo salvo.', 'success'); } catch (e) {}
+}
+
 function atualizarLinhaPrecificacao(nomeProduto) {
     const nomeId = _nomeProdutoId(nomeProduto);
     const ciEl = document.getElementById(`ci_${nomeId}`);
@@ -13232,6 +13288,14 @@ function renderizarTabelaCI() {
         return `<tr>
             <td style="text-align:left;font-weight:600;padding-left:15px">${_escapeHtml(produto.nome)}</td>
             <td style="text-align:center">${ciText}</td>
+            <td style="text-align:center">
+                <input type="number" step="0.1" min="0" max="100"
+                       value="${precificacao[produto.nome]?.descontoMaximo ?? ''}"
+                       placeholder="—"
+                       onchange="salvarDescontoMaximo('${_escapeJsString(produto.nome)}', this.value)"
+                       style="width:80px; border:1px solid #e2e8f0; border-radius:6px; padding:5px 8px; text-align:center; font-size:0.85rem">
+                <span style="font-size:0.75rem; color:#94a3b8">%</span>
+            </td>
             <td style="text-align:center;color:#64748b;font-size:0.88rem">${ultimaData}</td>
             <td style="text-align:center;color:#64748b">${qtdRegistros}</td>
             <td style="text-align:center">${histBtn}</td>
@@ -15879,11 +15943,22 @@ function adicionarItemPropostaRow(item = null) {
 
     const preQtd = item ? (item.quantidade || 1) : 1;
     const preValor = item ? (item.valorUnit || '') : '';
+    // normalizar valor original (usar ponto decimal) para dataset
+    let preValorOriginal = '';
+    try {
+        if (preValor !== null && preValor !== undefined && preValor !== '') {
+            const norm = String(preValor).toString().replace(/\./g, '').replace(',', '.');
+            const parsed = parseFloat(norm);
+            if (!isNaN(parsed)) preValorOriginal = parsed.toFixed(2);
+        }
+    } catch (e) { preValorOriginal = ''; }
 
     row.innerHTML = `
         <select class="item-produto" onchange="autoPreencherPrecoItemProposta(this); atualizarItemPropostaRow(this)">${opcoesHtml}</select>
         <input type="number" class="item-quantidade" min="1" value="${preQtd}" style="width:90px" onchange="atualizarItemPropostaRow(this)" />
-        <input type="text" class="item-valor" placeholder="Valor unit." style="width:140px" oninput="formatarMoeda(this); atualizarItemPropostaRow(this)" value="${preValor}" />
+        <input type="text" class="item-valor" placeholder="Valor unit." style="width:140px" oninput="formatarMoeda(this); atualizarItemPropostaRow(this)" value="${preValor}" data-original="${preValorOriginal}" />
+        <input type="number" step="0.01" min="0" max="100" class="item-desconto" placeholder="Desc%" oninput="aplicarDesconto(this)" style="width:65px; border:1px solid #e2e8f0; border-radius:6px; padding:5px 6px; text-align:center; font-size:0.82rem" title="Desconto % sobre o preço original">
+        <span style="font-size:0.8rem; color:#94a3b8">%</span>
         <div class="item-subtotal" style="min-width:120px">-</div>
         <button type="button" class="btn btn-outline btn-sm" onclick="removerItemPropostaRow(this)">Remover</button>
     `;
@@ -15907,6 +15982,7 @@ function autoPreencherPrecoItemProposta(selectEl) {
         const calc = calcularPreco(produto.nome);
         if (calc && calc.precoFinal > 0) {
             valorInput.value = Number(calc.precoFinal).toFixed(2).replace('.', ',');
+            try { valorInput.dataset.original = String(Number(calc.precoFinal).toFixed(2)); } catch (e) {}
         }
     }
 }
@@ -15967,12 +16043,18 @@ function _coletarItensProposta() {
             const valorUnit = (valorUnitarioInput && valorUnitarioInput > 0) ? valorUnitarioInput : (calc && calc.precoFinal ? Number(calc.precoFinal) : 0);
             const valorTotal = Number((quantidade || 0) * valorUnit);
 
+            const descontoPct = parseFloat(row.querySelector('.item-desconto')?.value || '0') || 0;
+            const valorOriginalData = (row.querySelector('.item-valor')?.dataset?.original || '').toString().replace(/\./g, '').replace(',', '.');
+            const valorUnitarioOriginal = valorOriginalData ? (parseFloat(valorOriginalData) || 0) : (calc && calc.precoFinal ? Number(calc.precoFinal) : 0);
+
             const itemObj = {
                 produtoId: produtoId,
                 produto: produto?.nome || '',
                 produtoNome: produto?.nome || '',
                 quantidade: quantidade,
                 valorUnitario: valorUnit,
+                valorUnitarioOriginal: valorUnitarioOriginal,
+                descontoPct: descontoPct,
                 valorTotal: valorTotal
             };
 
@@ -16013,6 +16095,32 @@ function salvarProposta(event) {
     if (!representante) { mostrarNotificacao('Selecione o representante.', 'error'); return; }
     if (itens.length === 0) { mostrarNotificacao('Adicione pelo menos um item.', 'error'); return; }
 
+    // Verificar se algum item excede o desconto máximo configurado
+    let precisaAprovacao = false;
+    let motivoAprovacao = null;
+    try {
+        const linhas = Array.from(document.querySelectorAll('.item-venda-row'));
+        const excederam = linhas.map(row => {
+            const prodVal = row.querySelector('.item-produto')?.value || '';
+            let nome = prodVal;
+            const produtoObj = (estoque.produtos || []).find(p => String(p.id) === String(prodVal) || p.nome === prodVal);
+            if (produtoObj) nome = produtoObj.nome;
+            const desc = parseFloat(row.querySelector('.item-desconto')?.value || '0') || 0;
+            const descMax = precificacao[nome] ? parseFloat(precificacao[nome].descontoMaximo) : null;
+            if (descMax !== null && desc > descMax) {
+                return `${nome} (${desc}% > ${descMax}%)`;
+            }
+            return null;
+        }).filter(Boolean);
+
+        if (excederam.length) {
+            const texto = 'Alguns itens excedem o desconto máximo configurado:\n- ' + excederam.join('\n- ') + '\n\nInforme o motivo para enviar para aprovação:';
+            const motivo = prompt(texto, 'Motivo do desconto excepcional');
+            if (!motivo) { mostrarNotificacao('Envio cancelado: motivo obrigatório para aprovação.', 'error'); return; }
+            precisaAprovacao = true; motivoAprovacao = motivo;
+        }
+    } catch (e) { console.error('Erro verificando desconto máximo', e); }
+
     const valorTotal = itens.reduce((s, i) => s + i.valorTotal, 0);
     const dataISO = dataStr ? new Date(dataStr + 'T00:00:00').toISOString() : new Date().toISOString();
     const dataExp = new Date(dataISO);
@@ -16030,6 +16138,14 @@ function salvarProposta(event) {
             propostas[idx].itens = itens;
             propostas[idx].valorTotal = valorTotal;
             propostas[idx].observacoes = observacoes;
+            if (precisaAprovacao) {
+                propostas[idx].aguardandoAprovacao = true;
+                propostas[idx].motivoAprovacao = motivoAprovacao;
+                propostas[idx].status = 'aguardando_aprovacao';
+            } else {
+                propostas[idx].aguardandoAprovacao = false;
+                propostas[idx].motivoAprovacao = null;
+            }
         }
     } else {
         const novaProposta = {
@@ -16040,7 +16156,7 @@ function salvarProposta(event) {
             data: dataISO,
             validade: validade,
             dataExpiracao: dataExp.toISOString(),
-            status: status,
+            status: (precisaAprovacao ? 'aguardando_aprovacao' : status),
             itens: itens,
             valorTotal: valorTotal,
             observacoes: observacoes,
@@ -16048,6 +16164,17 @@ function salvarProposta(event) {
             vendaId: null,
             dataCriacao: new Date().toISOString()
         };
+        if (precisaAprovacao) {
+            novaProposta.aguardandoAprovacao = true;
+            novaProposta.motivoAprovacao = motivoAprovacao;
+            novaProposta.aprovadoPor = null;
+            novaProposta.dataAprovacao = null;
+        } else {
+            novaProposta.aguardandoAprovacao = false;
+            novaProposta.motivoAprovacao = null;
+            novaProposta.aprovadoPor = null;
+            novaProposta.dataAprovacao = null;
+        }
         propostas.push(novaProposta);
     }
 
@@ -16299,6 +16426,7 @@ function renderizarPropostas(filtro, statusFiltro) {
         enviada:  { label: 'Enviada',  bg: '#0ea5e9' },
         aceita:   { label: 'Aceita',   bg: '#22c55e' },
         recusada: { label: 'Recusada', bg: '#ef4444' },
+        aguardando_aprovacao: { label: '⏳ Aguard. Aprovação', bg: '#7c3aed' },
         expirada: { label: 'Expirada', bg: '#f59e0b' }
     };
 
@@ -16364,6 +16492,7 @@ function renderizarPropostas(filtro, statusFiltro) {
                                         </button>
                                     </div>
                                 </div>
+                ${(p.aguardandoAprovacao || p.status === 'aguardando_aprovacao') ? `<button class="btn btn-success btn-sm" data-admin="true" onclick="aprovarProposta('${p.id}')" title="Aprovar">✅ Aprovar</button><button class="btn btn-danger btn-sm" data-admin="true" onclick="recusarAprovacaoProposta('${p.id}')" title="Recusar">❌ Recusar</button>` : ''}
                 <button class="btn btn-outline btn-sm" data-admin="true" onclick="abrirModalProposta('${p.id}')" title="Editar">✏️</button>
                 ${podeConverter ? `<button class="btn btn-success btn-sm" data-admin="true" onclick="converterPropostaEmVenda('${p.id}')" title="Converter em Venda" style="font-size:0.78rem;">🔄</button>` : ''}
                 ${p.status === 'enviada' ? `<button class="btn btn-outline btn-sm" data-admin="true" onclick="recusarProposta('${p.id}')" title="Recusar" style="color:#dc2626">❌</button>` : ''}
