@@ -876,27 +876,66 @@ function normalizarPrecificacoesCliente(origem) {
 
         const itens = (itensRaw || []).map(item => {
             const it = (item && typeof item === 'object') ? item : {};
+            // tentar enriquecer descrição a partir do produto cadastrado quando possível
+            let descricaoFromProduto = '';
+            try {
+                if (typeof estoque !== 'undefined' && Array.isArray(estoque.produtos)) {
+                    const p = estoque.produtos.find(pp => (pp.nome || '') === (it.produto || it.produtoNome || it.nome || ''));
+                    if (p) descricaoFromProduto = p.descricao || p.obs || p.observacoes || '';
+                }
+            } catch (e) { descricaoFromProduto = ''; }
+
+            const ciVal = Number(isFinite(it.ci) ? it.ci : (it.custo || 0)) || 0;
+            const taxaVal = Number(isFinite(it.taxa) ? it.taxa : (it.taxaPct || 0)) || 0;
+            const roiVal = Number(isFinite(it.roi) ? it.roi : (it.roiPct || 0)) || 0;
+            const valorBaseVal = Number(it.valorBase || it.valor_base || 0) || 0;
+            const pisVal = Number(it.pis || 0) || 0;
+            const pisRVal = Number(it.pisR || 0) || 0;
+            const cofinsVal = Number(it.cofins || 0) || 0;
+            const cofinsRVal = Number(it.cofinsR || 0) || 0;
+            const icmsVal = Number(it.icms || 0) || 0;
+            const icmsRVal = Number(it.icmsR || it.icmsR$ || 0) || 0;
+            const ipiVal = Number(it.ipi || 0) || 0;
+            const ipiRVal = Number(it.ipiR || 0) || 0;
+            const valorImpostosVal = Number(it.valorImpostos || it.valor_impostos || 0) || 0;
+            const comissaoVal = Number(it.comissao || it.comissaoPct || 0) || 0;
+            const comissaoRVal = Number(it.comissaoR || 0) || 0;
+            const precoFinalVal = Number(it.precoFinal || it.preco_final || it.valorUnitario || 0) || 0;
+            const quantidadeVal = Number(it.quantidade || it.qtd || 1) || 1;
+            const freteVal = Number(it.frete || it.freteR || 0) || 0;
+            const valorSemIPIVal = Number(it.valorSemIPI || valorImpostosVal || 0) || 0;
+            const valorComIPIVal = Number(it.valorComIPI || (valorSemIPIVal + ipiRVal) || 0) || 0;
+            const valorFinalVal = Number(it.valorFinal || it.valorFinalCalc || precoFinalVal) || 0;
+            const valorTotalVal = Number(it.valorTotal || it.total || (valorFinalVal * quantidadeVal) + freteVal) || 0;
+
             return {
                 produto: it.produto || it.produtoNome || it.nome || '',
                 produtoId: it.produtoId || it.produtoID || it.id || '',
                 ncm: it.ncm || it.NCM || '',
-                ci: Number(isFinite(it.ci) ? it.ci : (it.custo || 0)) || 0,
-                taxa: Number(isFinite(it.taxa) ? it.taxa : (it.taxaPct || 0)) || 0,
-                roi: Number(isFinite(it.roi) ? it.roi : (it.roiPct || 0)) || 0,
-                valorBase: Number(it.valorBase || it.valor_base || 0) || 0,
-                icms: Number(it.icms || 0) || 0,
-                icmsR: Number(it.icmsR || it.icmsR$ || 0) || 0,
-                pis: Number(it.pis || 0) || 0,
-                pisR: Number(it.pisR || 0) || 0,
-                cofins: Number(it.cofins || 0) || 0,
-                cofinsR: Number(it.cofinsR || 0) || 0,
-                ipi: Number(it.ipi || 0) || 0,
-                ipiR: Number(it.ipiR || 0) || 0,
-                valorImpostos: Number(it.valorImpostos || it.valor_impostos || 0) || 0,
-                comissao: Number(it.comissao || it.comissaoPct || 0) || 0,
-                comissaoR: Number(it.comissaoR || 0) || 0,
-                precoFinal: Number(it.precoFinal || it.preco_final || it.valorUnitario || 0) || 0,
-                margem: Number(it.margem || 0) || 0
+                ci: ciVal,
+                taxa: taxaVal,
+                roi: roiVal,
+                valorBase: valorBaseVal,
+                icms: icmsVal,
+                icmsR: icmsRVal,
+                pis: pisVal,
+                pisR: pisRVal,
+                cofins: cofinsVal,
+                cofinsR: cofinsRVal,
+                ipi: ipiVal,
+                ipiR: ipiRVal,
+                valorImpostos: valorImpostosVal,
+                valorSemIPI: valorSemIPIVal,
+                valorComIPI: valorComIPIVal,
+                comissao: comissaoVal,
+                comissaoR: comissaoRVal,
+                precoFinal: precoFinalVal,
+                valorFinal: valorFinalVal,
+                quantidade: quantidadeVal,
+                frete: freteVal,
+                valorTotal: valorTotalVal,
+                margem: Number(it.margem || 0) || 0,
+                descricao: it.descricao || it.descricaoProduto || it.desc || it.observacoes || descricaoFromProduto || ''
             };
         });
 
@@ -919,6 +958,11 @@ function normalizarPrecificacoesCliente(origem) {
             propostaId: raw.propostaId || raw.proposta_id || null,
             descricao: raw.descricao || raw.obs || '',
             itens: itens,
+            // preservar campos de nível superior quando existirem ou derivar de itens
+            taxa: Number(raw.taxa || raw.taxaPadrao || raw.taxaFinal || (itens.length ? itens[0].taxa : 0)) || 0,
+            roi: Number(raw.roi || raw.roiPadrao || raw.roiFinal || (itens.length ? itens[0].roi : 0)) || 0,
+            comissao: Number(raw.comissao || raw.comissaoPadrao || (itens.length ? itens[0].comissao : 0)) || 0,
+            totalFaturamento: Number(raw.totalFaturamento || raw.total_faturamento || itens.reduce((s,i)=>s + Number(i.valorTotal || i.valorFinal || i.precoFinal || 0),0)) || 0,
             validadeDias: Number(raw.validadeDias || raw.validade || 30) || 30,
             dataExpiracao: raw.dataExpiracao || raw.expiracao || null,
             retidPorProduto: raw.retidPorProduto || raw.retid || {},
@@ -979,17 +1023,17 @@ function renderConsultaPrecificacoes(dados) {
 
         const totalRegistros = Array.isArray(_cpState.dados) ? _cpState.dados.length : 0;
 
-        if (!Array.isArray(dados) || dados.length === 0) {
-            body.innerHTML = `
-            <tr>
-              <td colspan="23">
-                <div class="empty-state">
-                  <div class="empty-icon">📋</div>
-                  <div class="empty-text">Nenhuma precificação salva</div>
-                  <div class="empty-hint">Calcule e salve uma precificação na aba "Por Cliente"</div>
-                </div>
-              </td>
-            </tr>`;
+                if (!Array.isArray(dados) || dados.length === 0) {
+                        body.innerHTML = `
+                        <tr>
+                            <td colspan="26">
+                                <div class="empty-state">
+                                    <div class="empty-icon">📋</div>
+                                    <div class="empty-text">Nenhuma precificação salva</div>
+                                    <div class="empty-hint">Calcule e salve uma precificação na aba "Por Cliente"</div>
+                                </div>
+                            </td>
+                        </tr>`;
             if (typeof _cpRenderPaginacao === 'function') _cpRenderPaginacao(totalRegistros);
             return;
         }
@@ -1039,6 +1083,8 @@ function renderConsultaPrecificacoes(dados) {
                 html += `<td style="min-width:50px">${_escapeHtml(prec.tipoPessoa || '')}</td>`;
                 html += `<td style="min-width:90px"><span class="badge-rep${repClass}">${_escapeHtml(rep)}</span></td>`;
                 html += `<td style="min-width:160px;text-align:left">${_escapeHtml(prod.produto || prod.produtoNome || prod.nome || '')}</td>`;
+                // Descrição do produto (quando disponível)
+                html += `<td style="min-width:200px;text-align:left;color:#475569">${_escapeHtml(prod.descricao || prod.descricaoProduto || '')}</td>`;
                 // Quantidade — logo após a descrição
                 html += `<td style="min-width:80px;text-align:center">${_escapeHtml(String(prod.quantidade || prod.qtd || 1))}</td>`;
                 html += `<td style="min-width:100px;text-align:right">${_cpFmt(prod.ci)}</td>`;
