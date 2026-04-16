@@ -308,9 +308,13 @@ table thead th { position: sticky; top: 0; background: linear-gradient(180deg,#f
 
 /* Wrapper com rolagem apenas para tabelas largas/longas (usado em Inventário) */
 .table-wrapper.table-scroll {
+    width: 100%;
+    max-width: 100%;
     overflow: auto;
+    -webkit-overflow-scrolling: touch;
     /* Ajuste a altura disponível conforme o layout (header + filtros + margens) */
     max-height: calc(100vh - 260px);
+    position: relative;
 }
 
 /* Congelar primeira coluna (Produto) dentro da tabela de inventário */

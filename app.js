@@ -3095,6 +3095,15 @@ function ajustarStickyHeader() {
     });
 }
 
+// Garantir que o sticky header seja recalculado quando o layout mudar
+(function(){
+    function _safeAdjust() { try { ajustarStickyHeader(); } catch(e) {} }
+    window.addEventListener('resize', _safeAdjust);
+    window.addEventListener('orientationchange', _safeAdjust);
+    window.addEventListener('load', _safeAdjust);
+    document.addEventListener('DOMContentLoaded', _safeAdjust);
+})();
+
 // ========================================
 // RENDERIZAÇÃO DO DASHBOARD
 // ========================================
@@ -11559,6 +11568,8 @@ function _executarBuscaGlobalReal(termo) {
 
 function toggleSidebarExpanded() {
     document.body.classList.toggle('sidebar-expanded');
+    // recalcular sticky headers após alteração de layout
+    setTimeout(() => { try { ajustarStickyHeader(); } catch(e) {} }, 120);
 }
 
 function toggleMobileSidebar(forceOpen) {
@@ -11566,6 +11577,7 @@ function toggleMobileSidebar(forceOpen) {
         ? forceOpen
         : !document.body.classList.contains('mobile-sidebar-open');
     document.body.classList.toggle('mobile-sidebar-open', shouldOpen);
+    setTimeout(() => { try { ajustarStickyHeader(); } catch(e) {} }, 120);
 }
 
 // Compatibilidade com chamadas antigas
