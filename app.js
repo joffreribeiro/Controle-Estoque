@@ -3089,9 +3089,39 @@ function ajustarStickyHeader() {
     const firstRow = tabela.querySelector('thead tr:first-child');
     if (!firstRow) return;
     requestAnimationFrame(() => {
-        const h = firstRow.getBoundingClientRect().height;
-        const secondRowThs = tabela.querySelectorAll('thead tr:nth-child(2) th');
-        secondRowThs.forEach(th => { th.style.top = h + 'px'; });
+        try {
+            // Altura dos elementos fixos acima da tabela (actions bar + section header)
+            const actionsBar = document.getElementById('acoesEstoque');
+            const sectionHeader = document.querySelector('#tab-estoque .section-header');
+            const actionsH = actionsBar ? actionsBar.getBoundingClientRect().height : 0;
+
+            // Tornar a section-header sticky logo abaixo da actions bar
+            if (sectionHeader) {
+                sectionHeader.style.position = 'sticky';
+                sectionHeader.style.top = actionsH + 'px';
+                sectionHeader.style.zIndex = 940;
+                sectionHeader.style.background = getComputedStyle(sectionHeader).backgroundColor || '#fff';
+            }
+
+            // Recalcular offset externo (altura fixa acima da tabela)
+            const sectionH = sectionHeader ? sectionHeader.getBoundingClientRect().height : 0;
+            const externalOffset = actionsH + sectionH;
+
+            // Ajustar top do thead - primeira linha e segunda linha (sub-headers)
+            const firstRowThs = tabela.querySelectorAll('thead tr:first-child th');
+            firstRowThs.forEach(th => { th.style.top = externalOffset + 'px'; });
+
+            const firstRowH = firstRow.getBoundingClientRect().height;
+            const secondRowThs = tabela.querySelectorAll('thead tr:nth-child(2) th');
+            secondRowThs.forEach(th => { th.style.top = (externalOffset + firstRowH) + 'px'; });
+
+            // Ajustar altura do wrapper da tabela para que a rolagem vertical fique apenas na tabela
+            const tableWrapper = tabela.closest('.table-wrapper.table-scroll') || document.querySelector('#tab-estoque .table-wrapper.table-scroll');
+            if (tableWrapper) {
+                const available = Math.max(120, window.innerHeight - externalOffset - 24);
+                tableWrapper.style.maxHeight = available + 'px';
+            }
+        } catch (e) { console.warn('ajustarStickyHeader error', e); }
     });
 }
 
