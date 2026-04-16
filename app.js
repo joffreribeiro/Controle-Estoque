@@ -13346,7 +13346,7 @@ function resetarPrecoManual(nomeProduto) {
 
 // ── SUB-TAB NAVIGATION FOR PRECIFICAÇÃO ─────────────────────────
 function trocarSubabaPrecif(subaba) {
-    const tabs = ['produtos','federais','icms','porcliente','comparativo','consultaPrec','tabelaci'];
+    const tabs = ['produtos','federais','icms','porcliente','comparativo','consultaPrec','rastreabilidade','tabelaci'];
     tabs.forEach(s => {
         let el = null;
         if (s === 'consultaPrec') el = document.getElementById('painel-consultaPrec');
@@ -13384,6 +13384,9 @@ function trocarSubabaPrecif(subaba) {
 
     if (subaba === 'tabelaci') {
         try { popularSelectProdutosCI(); renderizarTabelaCI(); } catch (e) {}
+    }
+    if (subaba === 'rastreabilidade') {
+        try { renderizarRastreabilidade(); } catch (e) { if (window.__showRuntimeErrorOverlay) window.__showRuntimeErrorOverlay(e); }
     }
     if (subaba === 'comparativo') {
         try { popularSelectsComparativo(); } catch (e) {}

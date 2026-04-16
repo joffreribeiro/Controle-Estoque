@@ -3,6 +3,7 @@
    Estilos Profissionais v2.0
    ======================================== */
 @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Syne:wght@700;800&display=swap');
 
 * {
     margin: 0;
@@ -11,46 +12,84 @@
 }
 
 :root {
-    --primary-color: #1e3a5f;
-    --primary-dark: #0f1f35;
-    --primary-light: #2d5a8b;
-    --accent-color: #c9a227;
-    /* Design system additions */
-    --accent-gold: #c9a227;
-    --sidebar-bg: #0d1117;
-    --content-bg: #f6f8fa;
-    --rep-kolte: #79c0ff;
-    --rep-isa: #7ee787;
-    --rep-ades: #ffa657;
-    --rep-fl: #d2a8ff;
-    --rep-imbel: #ff7b72;
-    --accent-hover: #ddb62e;
-    --success-color: #22c55e;
-    --danger-color: #ef4444;
-    --warning-color: #f59e0b;
-    --info-color: #0ea5e9;
-    /* Typography */
-    --font-primary: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-    --font-mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, 'Roboto Mono', 'Courier New', monospace;
-    --text-primary: #1e293b;
-    --text-secondary: #64748b;
-    --text-light: #f8fafc;
-    --bg-light: #f1f5f9;
+    /* ── Paleta primária: Azul-ardósia profundo ── */
+    --primary-color: #1a3050;
+    --primary-dark: #0c1a2b;
+    --primary-light: #284d7a;
+
+    /* ── Acento: Bronze quente (mais elegante que ouro amarelo) ── */
+    --accent-color: #b8922a;
+    --accent-gold: #b8922a;
+    --accent-hover: #d4a83a;
+    --accent-bright: #e8c060;   /* versão clara para hover em fundos escuros */
+
+    /* ── Sidebar: Quase-preto com tom azulado ── */
+    --sidebar-bg: #080e18;
+    --color-bg-sidebar: #080e18;
+    --sidebar-border: #141e2d;
+    --sidebar-item-hover: #111a27;
+    --sidebar-item-active: #162235;
+    --sidebar-text: #7a8fa8;
+    --sidebar-text-hover: #c8d8e8;
+    --sidebar-text-active: #d4a83a;
+
+    /* ── Conteúdo: Fundo levemente azulado (não cinzento genérico) ── */
+    --content-bg: #f0f4f8;
+    --bg-light: #f0f4f8;
     --bg-white: #ffffff;
-    --border-color: #e2e8f0;
-    --shadow-xs: 0 1px 2px rgba(0,0,0,0.05);
-    --shadow-sm: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.06);
-    --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.08), 0 2px 4px -2px rgba(0,0,0,0.06);
-    --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.08), 0 4px 6px -4px rgba(0,0,0,0.06);
-    --shadow-xl: 0 20px 25px -5px rgba(0,0,0,0.1), 0 8px 10px -6px rgba(0,0,0,0.06);
-    --transition: all 0.2s cubic-bezier(.4,0,.2,1);
+    --bg-card: #ffffff;
+    --border-color: #dde4ed;
+    --border-strong: #c4cfd9;
+
+    /* ── Representantes: cores mantidas mas levemente mais saturadas ── */
+    --rep-kolte: #5ba8e8;
+    --rep-isa: #4ec87a;
+    --rep-ades: #f0923a;
+    --rep-fl: #a882e0;
+    --rep-imbel: #e85858;
+
+    /* ── Semáforo ── */
+    --success-color: #1aad5a;
+    --success-bg: rgba(26,173,90,0.07);
+    --danger-color: #e03535;
+    --danger-bg: rgba(224,53,53,0.07);
+    --warning-color: #e8a020;
+    --warning-bg: rgba(232,160,32,0.07);
+    --info-color: #0d90d4;
+    --info-bg: rgba(13,144,212,0.07);
+
+    /* ── Tipografia ── */
+    --font-primary: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+    --font-display: 'Syne', 'IBM Plex Sans', system-ui, sans-serif;
+    --font-mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, 'Courier New', monospace;
+    --text-primary: #111a27;
+    --text-secondary: #5a6d82;
+    --text-muted: #8fa0b4;
+    --text-light: #f0f6fc;
+
+    /* ── Sombras mais definidas ── */
+    --shadow-xs: 0 1px 2px rgba(8,14,24,0.06);
+    --shadow-sm: 0 2px 4px rgba(8,14,24,0.07), 0 1px 2px rgba(8,14,24,0.05);
+    --shadow-md: 0 4px 10px rgba(8,14,24,0.09), 0 2px 4px rgba(8,14,24,0.06);
+    --shadow-lg: 0 10px 24px rgba(8,14,24,0.10), 0 4px 8px rgba(8,14,24,0.07);
+    --shadow-xl: 0 20px 40px rgba(8,14,24,0.13), 0 8px 16px rgba(8,14,24,0.08);
+    --shadow-inset: inset 0 1px 3px rgba(8,14,24,0.08);
+
+    /* ── Transição padrão ── */
+    --transition: all 0.18s cubic-bezier(.4,0,.2,1);
+    --transition-slow: all 0.3s cubic-bezier(.4,0,.2,1);
+
+    /* ── Bordas arredondadas ── */
+    --radius-xs: 4px;
     --radius-sm: 6px;
     --radius-md: 10px;
     --radius-lg: 14px;
     --radius-xl: 20px;
-    --color-bg-sidebar: #0d1117;
-    --sidebar-width: 220px;
-    --sidebar-collapsed-width: 60px;
+
+    /* ── Layout ── */
+    --sidebar-width: 224px;
+    --sidebar-collapsed-width: 58px;
+    --header-height: 62px;
 }
 
 /* ========================================
@@ -62,13 +101,17 @@
     top: 0;
     bottom: 0;
     width: var(--sidebar-width);
-    background: var(--color-bg-sidebar, #0d1117);
-    border-right: 1px solid #1e2a38;
-    padding: 18px 14px;
+    background: var(--color-bg-sidebar, #080e18);
+    border-right: 1px solid var(--sidebar-border, #141e2d);
+    padding: 16px 12px;
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    gap: 10px;
     z-index: 2000;
+    /* Textura sutil de ruído para profundidade */
+    background-image:
+        linear-gradient(180deg, rgba(255,255,255,0.015) 0%, transparent 60%),
+        linear-gradient(var(--color-bg-sidebar, #080e18), var(--color-bg-sidebar, #080e18));
 }
 .sidebar .sidebar-top {
     display: flex;
@@ -76,17 +119,17 @@
     gap: 10px;
 }
 .sidebar .logo-icon {
-    width: 40px;
-    height: 40px;
-    background: linear-gradient(135deg, #0b1723 0%, #1a2937 50%, #0b1723 100%);
-    border-radius: 50%;
+    width: 38px;
+    height: 38px;
+    background: linear-gradient(145deg, #0d1e30 0%, #162840 60%, #0a1520 100%);
+    border-radius: 8px;
     display: flex;
     align-items: center;
     justify-content: center;
-    border: 1px solid rgba(201, 162, 39, 0.35);
-    box-shadow: 0 4px 12px rgba(5, 10, 15, 0.45);
+    border: 1px solid rgba(184, 146, 42, 0.4);
+    box-shadow: 0 4px 14px rgba(0,0,0,0.5), inset 0 1px 0 rgba(212,168,58,0.15);
     overflow: hidden;
-    flex: 0 0 40px;
+    flex: 0 0 38px;
 }
 
 .sidebar .logo-svg {
@@ -95,19 +138,21 @@
     transform: scale(1.1);
 }
 .sidebar .logo-text h1 {
-    color: #e6edf3;
-    font-size: 1rem;
+    color: #dce8f4;
+    font-size: 0.95rem;
     margin: 0;
     font-weight: 700;
     line-height: 1;
+    font-family: var(--font-display);
+    letter-spacing: 0.3px;
 }
 .sidebar .logo-text .subtitle {
-    font-size: 10px;
+    font-size: 9.5px;
     text-transform: uppercase;
-    color: #8b949e;
-    font-weight: 700;
-    letter-spacing: 0.6px;
-    margin-top: 4px;
+    color: var(--sidebar-text, #7a8fa8);
+    font-weight: 600;
+    letter-spacing: 0.8px;
+    margin-top: 3px;
 }
 .sidebar-nav {
     margin-top: 12px;
@@ -117,37 +162,51 @@
 }
 .nav-group { margin-bottom: 14px; }
 .nav-group-label {
-    font-size: 11px;
-    color: #6b7280;
-    margin-bottom: 6px;
+    font-size: 9.5px;
+    color: #3d5068;
+    margin-bottom: 5px;
     text-transform: uppercase;
     font-weight: 700;
-    letter-spacing: 0.6px;
+    letter-spacing: 1px;
+    padding-left: 8px;
 }
 .nav-item {
     display: flex;
     align-items: center;
-    gap: 10px;
-    padding: 8px 10px;
+    gap: 9px;
+    padding: 7px 10px;
     border-radius: 6px;
     font-size: 12.5px;
-    color: #8b949e;
+    color: var(--sidebar-text, #7a8fa8);
     background: transparent;
     border: none;
     width: 100%;
     text-align: left;
     cursor: pointer;
+    transition: var(--transition);
+    letter-spacing: 0.1px;
 }
 .nav-item .nav-text { flex: 1; }
-.nav-item.active { background: #1a2332; color: #c9a227; }
-.nav-item:hover { background: #161b22; color: #e6edf3; }
+.nav-item.active {
+    background: var(--sidebar-item-active, #162235);
+    color: var(--sidebar-text-active, #d4a83a);
+    border-left: 2px solid var(--accent-color, #b8922a);
+    padding-left: 8px;
+    box-shadow: inset 1px 0 0 rgba(184,146,42,0.15);
+}
+.nav-item:hover:not(.active) {
+    background: var(--sidebar-item-hover, #111a27);
+    color: var(--sidebar-text-hover, #c8d8e8);
+}
+.nav-item .nav-icon { opacity: 0.7; flex-shrink: 0; }
+.nav-item.active .nav-icon { opacity: 1; }
 .sidebar-footer {
     margin-top: auto;
     display: flex;
     flex-direction: column;
     gap: 8px;
-    padding-top: 8px;
-    border-top: 1px solid rgba(255,255,255,0.03);
+    padding-top: 10px;
+    border-top: 1px solid rgba(255,255,255,0.05);
 }
 .faturamento-label { font-size: 12px; color: #94d3a2; font-weight: 600; }
 .faturamento-value { font-size: 1rem; font-weight: 700; color: var(--success-color); }
@@ -301,13 +360,12 @@ body {
    ======================================== */
 
 header {
-    /* Glassmorphism: barra translúcida com desfoque */
-    background: rgba(255,255,255,0.78);
-    -webkit-backdrop-filter: blur(8px);
-    backdrop-filter: blur(8px);
-    border-bottom: 1px solid rgba(15,23,42,0.06);
+    background: rgba(255,255,255,0.95);
+    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border-color);
     padding: 0;
-    box-shadow: 0 6px 18px rgba(10,20,30,0.06);
+    box-shadow: 0 1px 0 var(--border-color), 0 4px 16px rgba(8,14,24,0.05);
     position: sticky;
     top: 0;
     z-index: 100;
@@ -329,22 +387,22 @@ header {
 }
 
 .logo-icon {
-    width: 52px;
-    height: 52px;
-    background: linear-gradient(135deg, #0b1723 0%, #1a2937 50%, #0b1723 100%);
-    border-radius: 50%;
+    width: 48px;
+    height: 48px;
+    background: linear-gradient(145deg, #0d1e30 0%, #162840 60%, #0a1520 100%);
+    border-radius: 10px;
     display: flex;
     align-items: center;
     justify-content: center;
-    box-shadow: 
-        0 8px 24px rgba(11, 23, 35, 0.5),
-        0 2px 8px rgba(0, 0, 0, 0.3),
-        inset 0 1px 0 rgba(255, 215, 0, 0.2),
-        inset 0 -2px 4px rgba(0, 0, 0, 0.3);
-    border: 2px solid rgba(212, 175, 55, 0.3);
+    box-shadow:
+        0 6px 20px rgba(8, 14, 24, 0.4),
+        0 2px 6px rgba(0, 0, 0, 0.25),
+        inset 0 1px 0 rgba(212, 168, 58, 0.18),
+        inset 0 -1px 3px rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(184, 146, 42, 0.35);
     position: relative;
     overflow: hidden;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: var(--transition-slow);
 }
 
 .logo-icon::before {
@@ -370,13 +428,13 @@ header {
 }
 
 .logo-icon:hover {
-    transform: translateY(-2px) scale(1.05);
-    box-shadow: 
-        0 12px 32px rgba(11, 23, 35, 0.6),
-        0 4px 12px rgba(0, 0, 0, 0.4),
-        inset 0 1px 0 rgba(255, 215, 0, 0.3),
-        inset 0 -2px 4px rgba(0, 0, 0, 0.4);
-    border-color: rgba(212, 175, 55, 0.5);
+    transform: translateY(-1px);
+    box-shadow:
+        0 10px 28px rgba(8, 14, 24, 0.5),
+        0 4px 10px rgba(0, 0, 0, 0.3),
+        inset 0 1px 0 rgba(212, 168, 58, 0.25),
+        inset 0 -1px 3px rgba(0, 0, 0, 0.4);
+    border-color: rgba(184, 146, 42, 0.55);
 }
 
 .logo-svg {
@@ -395,19 +453,13 @@ header {
 }
 .logo-text h1 {
     display: block;
-    font-size: 1.7rem;
-    color: var(--primary-color);
-    font-weight: 900;
-    letter-spacing: 1px;
+    font-size: 1.55rem;
+    color: var(--primary-dark);
+    font-weight: 800;
+    letter-spacing: -0.5px;
     line-height: 1.1;
     margin: 0;
-    text-transform: none;
-    text-shadow: 
-        2px 2px 0px rgba(0, 0, 0, 0.15),
-        3px 3px 0px rgba(0, 0, 0, 0.1),
-        4px 4px 0px rgba(0, 0, 0, 0.05),
-        0px 1px 2px rgba(255, 255, 255, 0.3);
-    filter: drop-shadow(0 2px 4px rgba(11, 23, 35, 0.2));
+    font-family: var(--font-display);
 }
 
 .logo-text {
@@ -434,17 +486,13 @@ th[data-sort]:hover { background: rgba(30,58,95,0.03); }
 .logo-text .subtitle {
     display: block;
     box-sizing: border-box;
-    font-size: 0.95rem;
-    color: var(--text-secondary);
+    font-size: 0.68rem;
+    color: var(--text-muted);
     text-transform: uppercase;
-    letter-spacing: 2px;
-    margin-top: 6px;
-    font-weight: 800;
-    line-height: 1.05;
-    text-shadow: 
-        1px 1px 0px rgba(0, 0, 0, 0.1),
-        2px 2px 0px rgba(0, 0, 0, 0.05),
-        0px 1px 1px rgba(255, 255, 255, 0.2);
+    letter-spacing: 2.5px;
+    margin-top: 4px;
+    font-weight: 600;
+    line-height: 1.1;
     width: var(--logo-title-width, auto);
     white-space: normal;
     word-wrap: break-word;
@@ -518,56 +566,59 @@ th[data-sort]:hover { background: rgba(30,58,95,0.03); }
 
 .header-stat {
     text-align: center;
-    padding: 8px 12px;
+    padding: 7px 14px;
     background: var(--bg-white);
     border-radius: var(--radius-sm);
     border: 1px solid var(--border-color);
-    box-shadow: var(--shadow-sm);
+    box-shadow: var(--shadow-xs);
     transition: var(--transition);
-    min-width: 86px; /* reduzir largura para caber na linha */
+    min-width: 88px;
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 4px;
+    gap: 2px;
     flex: 0 0 auto;
+    position: relative;
+}
+
+.header-stat::before {
+    content: '';
+    position: absolute;
+    bottom: 0; left: 20%; right: 20%;
+    height: 2px;
+    border-radius: 2px 2px 0 0;
+    background: var(--border-color);
+    transition: var(--transition);
 }
 
 .header-stat:hover {
     background: var(--bg-white);
-    transform: translateY(-2px);
-    box-shadow: var(--shadow-md);
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-sm);
 }
 
-.header-stat.accent {
-    background: rgba(34,197,94,0.06);
-    border-color: rgba(34,197,94,0.12);
-}
+.header-stat.accent { background: var(--success-bg); border-color: rgba(26,173,90,0.18); }
+.header-stat.accent::before { background: var(--success-color); }
 
-.header-stat.highlight {
-    background: rgba(201,162,39,0.06);
-    border-color: rgba(201,162,39,0.12);
-}
+.header-stat.highlight { background: rgba(184,146,42,0.05); border-color: rgba(184,146,42,0.18); }
+.header-stat.highlight::before { background: var(--accent-color); }
 
 .header-stat .stat-value {
-    font-size: 1rem;
+    font-size: 0.98rem;
     font-weight: 700;
     color: var(--text-primary);
+    font-variant-numeric: tabular-nums;
 }
 
-.header-stat.accent .stat-value {
-    color: #4ade80;
-}
-
-.header-stat.highlight .stat-value {
-    color: #fbbf24;
-}
+.header-stat.accent .stat-value { color: var(--success-color); }
+.header-stat.highlight .stat-value { color: var(--accent-color); }
 
 .header-stat .stat-label {
-    font-size: 0.62rem;
-    color: var(--text-secondary);
+    font-size: 0.6rem;
+    color: var(--text-muted);
     text-transform: uppercase;
-    letter-spacing: 1px;
-    margin-top: 0;
+    letter-spacing: 1.2px;
+    font-weight: 600;
 }
 
 /* Centralizar os cards no header em telas grandes */
