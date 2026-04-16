@@ -12810,24 +12810,23 @@ function buscarAliquotaICMS(estado, tipoPessoa, nomeProduto) {
     return parseFloat(tabelaAliquotas[nomeProduto]?.icmsBase) || 0;
 }
 
-function calcularPreco(nomeProduto, estado = null, tipoPessoa = null) {
+function calcularPreco(nomeProduto, estado = null, tipoPessoa = null, taxaOverride = null, roiOverride = null, comissaoOverride = null) {
     const prec = precificacao[nomeProduto] || {};
     const aliq = tabelaAliquotas[nomeProduto] || {};
 
     const ci = parseFloat(prec.ci) || 0;
-    // `taxa` and `roi` are provided as percentages (e.g. 1 = 1%).
-    // Read stored value or fallback to defaults, then convert to multipliers below.
-    let taxaPct = (prec.taxa !== null && prec.taxa !== undefined && prec.taxa !== '')
-        ? parseFloat(prec.taxa)
-        : parseFloat(document.getElementById('taxaPadrao')?.value);
+    // Prefer explicit overrides when provided (used by comparativo)
+    let taxaPct = (taxaOverride !== null && taxaOverride !== undefined && !isNaN(Number(taxaOverride)))
+        ? Number(taxaOverride)
+        : ((prec.taxa !== null && prec.taxa !== undefined && prec.taxa !== '') ? parseFloat(prec.taxa) : parseFloat(document.getElementById('taxaPadrao')?.value));
     if (!Number.isFinite(taxaPct)) taxaPct = 1;
-    let roiPct = (prec.roi !== null && prec.roi !== undefined && prec.roi !== '')
-        ? parseFloat(prec.roi)
-        : parseFloat(document.getElementById('roiPadrao')?.value);
+    let roiPct = (roiOverride !== null && roiOverride !== undefined && !isNaN(Number(roiOverride)))
+        ? Number(roiOverride)
+        : ((prec.roi !== null && prec.roi !== undefined && prec.roi !== '') ? parseFloat(prec.roi) : parseFloat(document.getElementById('roiPadrao')?.value));
     if (!Number.isFinite(roiPct)) roiPct = 1;
-    const comissao = parseFloat(prec.comissao)
-        || parseFloat(document.getElementById('comissaoPadrao')?.value)
-        || 5;
+    const comissao = (comissaoOverride !== null && comissaoOverride !== undefined && !isNaN(Number(comissaoOverride)))
+        ? Number(comissaoOverride)
+        : (parseFloat(prec.comissao) || parseFloat(document.getElementById('comissaoPadrao')?.value) || 5);
     const pis = parseFloat(aliq.pis)
         || parseFloat(document.getElementById('pisPadrao')?.value)
         || 0;
@@ -12872,6 +12871,7 @@ function calcularPreco(nomeProduto, estado = null, tipoPessoa = null) {
         valorTotal,
         comissao, comissaoR,
         precoFinal,
+        margem: (valorTotal > 0 ? ((precoFinal - valorTotal) / valorTotal * 100) : 0),
         isManual: !!(prec.precoFinalManual !== null && prec.precoFinalManual !== undefined && prec.precoFinalManual !== '')
     };
 }
@@ -13090,7 +13090,7 @@ function resetarPrecoManual(nomeProduto) {
 
 // ── SUB-TAB NAVIGATION FOR PRECIFICAÇÃO ─────────────────────────
 function trocarSubabaPrecif(subaba) {
-    const tabs = ['produtos','federais','icms','porcliente','consultaPrec','tabelaci'];
+    const tabs = ['produtos','federais','icms','porcliente','comparativo','consultaPrec','tabelaci'];
     tabs.forEach(s => {
         let el = null;
         if (s === 'consultaPrec') el = document.getElementById('painel-consultaPrec');
@@ -13128,6 +13128,13 @@ function trocarSubabaPrecif(subaba) {
 
     if (subaba === 'tabelaci') {
         try { popularSelectProdutosCI(); renderizarTabelaCI(); } catch (e) {}
+    }
+    if (subaba === 'comparativo') {
+        try { popularSelectsComparativo(); } catch (e) {}
+        const res = document.getElementById('compResultado');
+        const empty = document.getElementById('compEmpty');
+        if (res) res.style.display = 'none';
+        if (empty) empty.style.display = 'block';
     }
 }
 
@@ -13274,11 +13281,6 @@ function exibirHistoricoCI(nomeProduto) {
     painel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 
-function popularSelectsComparativo() {
-    // Comparativo removido — função substituída por stub.
-    return;
-}
-
 function renderizarConsultaPrecificacao(forceSemFiltros = false) {
     // Consulta removida: função substituída por um stub que mostra mensagem mínima se elemento existir.
     try {
@@ -13296,25 +13298,210 @@ function exportarConsultaPrecificacao() {
     return;
 }
 
+function popularSelectsComparativo() {
+    [1,2,3].forEach(n => {
+        const sel = document.getElementById('compCliente' + n);
+        if (!sel) return;
+        const cur = sel.value;
+        sel.innerHTML = '<option value="">— não selecionado —</option>'
+            + (clientes||[]).slice().sort((a,b) => (a.nome||'').localeCompare(b.nome||''))
+                .map(c => `<option value="${c.id}" ${String(c.id)===String(cur)?'selected':''}>${_escapeHtml(c.nome||'-')} (${_escapeHtml(c.uf||'??')} / ${(((c.cnpj||'').replace(/\D/g,''))).length===14?'PJ':'PF'})</option>`)
+                .join('');
+    });
+    const taxaPad = parseFloat(localStorage.getItem('precif_taxa_global')) || 20;
+    const roiPad  = parseFloat(localStorage.getItem('precif_roi_global'))  || 30;
+    for (let n=1;n<=3;n++) {
+        const t = document.getElementById('compTaxa' + n);
+        const r = document.getElementById('compROI' + n);
+        if (t && (t.value === null || t.value === '')) t.value = taxaPad;
+        if (r && (r.value === null || r.value === '')) r.value = roiPad;
+    }
+}
+
 function _obterCenarioComparativo(n) {
-    // Comparativo removido — stub retornando null.
-    return null;
+    const sel = document.getElementById('compCliente' + n);
+    if (!sel || !sel.value) return null;
+    const taxa = parseFloat(document.getElementById('compTaxa' + n)?.value) || parseFloat(document.getElementById('taxaPadrao')?.value) || 20;
+    const roi  = parseFloat(document.getElementById('compROI' + n)?.value) || parseFloat(document.getElementById('roiPadrao')?.value) || 30;
+    const c = (clientes || []).find(x => String(x.id) === String(sel.value));
+    const uf = (c?.uf || '').toUpperCase();
+    const cnpjLimpo = (c?.cnpj||'').replace(/\D/g,'');
+    const tipo = cnpjLimpo.length === 14 ? 'PJ' : 'PF';
+    return { id: sel.value, nome: c?.nome, uf, tipo, taxa, roi, comissao: parseFloat(document.getElementById('comissaoPadrao')?.value) || 5 };
 }
 
 function _calcularPrecoComparativo(nomeProduto, estado, tipoPessoa, taxa, roi, comissao) {
-    // Comparativo removido — stub.
-    return null;
+    try {
+        return calcularPreco(nomeProduto, estado, tipoPessoa, taxa, roi, comissao);
+    } catch (e) { return null; }
 }
 
 function calcularComparativo() {
-    // Comparativo removido — stub.
-    return;
+    try {
+        const clientesSelecionados = [1,2,3]
+            .map(n => {
+                const id  = document.getElementById('compCliente'+n)?.value;
+                const taxa = parseFloat(document.getElementById('compTaxa'+n)?.value) || parseFloat(document.getElementById('taxaPadrao')?.value) || 20;
+                const roi  = parseFloat(document.getElementById('compROI'+n)?.value) || parseFloat(document.getElementById('roiPadrao')?.value) || 30;
+                const com  = parseFloat(document.getElementById('comissaoPadrao')?.value) || 5;
+                return id ? { id, taxa, roi, comissao: com } : null;
+            })
+            .filter(Boolean);
+
+        if (clientesSelecionados.length < 2) {
+            const resEl = document.getElementById('compResultado'); if (resEl) resEl.style.display = 'none';
+            const emptyEl = document.getElementById('compEmpty'); if (emptyEl) emptyEl.style.display = 'block';
+            return;
+        }
+
+        const clientesData = clientesSelecionados.map(sel => {
+            const c  = (clientes || []).find(x => String(x.id) === String(sel.id));
+            const uf = (c?.uf || '').toUpperCase();
+            const cnpjLimpo = (c?.cnpj||'').replace(/\D/g,'');
+            const tipo = cnpjLimpo.length === 14 ? 'PJ' : 'PF';
+            return { ...sel, nome: c?.nome, uf, tipo };
+        });
+
+        // Build header
+        const nCols = clientesData.length;
+        const headerEl = document.getElementById('compHeader');
+        if (!headerEl) return;
+        headerEl.innerHTML = `
+            <tr>
+              <th style="text-align:left; padding-left:15px; min-width:220px; position:sticky; left:0; background:#1e3a5f; z-index:2">Produto</th>
+              ${clientesData.map((c,i) => `
+                <th colspan="2" style="text-align:center; background:${['#1e3a5f','#2d5a8b','#3d7ab5'][i]}; min-width:200px">
+                  ${_escapeHtml(c.nome||'')}<br>
+                  <span style="font-size:0.7rem; font-weight:400; color:rgba(255,255,255,0.75)">${_escapeHtml(c.uf||'')} / ${_escapeHtml(c.tipo||'')} | Taxa ${c.taxa}% | ROI ${c.roi}%</span>
+                </th>
+              `).join('')}
+              <th style="min-width:100px; text-align:center">Maior preço</th>
+              <th style="min-width:100px; text-align:center">Menor preço</th>
+              <th style="min-width:90px; text-align:center">Diferença</th>
+            </tr>
+            <tr>
+              <th style="position:sticky; left:0; background:#161b22"></th>
+              ${clientesData.map(() => `
+                <th style="font-size:0.7rem; font-weight:400; background:#161b22; color:#8b949e">Preço Final</th>
+                <th style="font-size:0.7rem; font-weight:400; background:#161b22; color:#8b949e">Margem</th>
+              `).join('')}
+              <th style="background:#161b22"></th>
+              <th style="background:#161b22"></th>
+              <th style="background:#161b22"></th>
+            </tr>
+        `;
+
+        // Build rows
+        const fmt = v => 'R$ ' + parseFloat(v || 0).toLocaleString('pt-BR', {minimumFractionDigits:2,maximumFractionDigits:2});
+        const fmtPct = v => (Number(v) || 0).toFixed(1) + '%';
+        const corMargem = m => m >= 30 ? '#16a34a' : m>=15 ? '#d97706' : '#dc2626';
+
+        const produtosLista = (estoque.produtos || []).slice();
+        const bodyEl = document.getElementById('compBody');
+        if (!bodyEl) return;
+
+        bodyEl.innerHTML = produtosLista.map(produto => {
+            const precos = clientesData.map(c => _calcularPrecoComparativo(produto.nome, c.uf, c.tipo, c.taxa, c.roi, c.comissao));
+
+            if (precos.every(r => !r)) {
+                return `
+                    <tr style="opacity:0.4">
+                      <td style="text-align:left; padding-left:15px; position:sticky; left:0; background:#fff; z-index:1">${_escapeHtml(produto.nome||'')}</td>
+                      <td colspan="${nCols*2+3}" style="text-align:center; color:#94a3b8; font-size:0.8rem">CI não configurado</td>
+                    </tr>
+                `;
+            }
+
+            const precosFinal = precos.map(r => r?.precoFinal || 0);
+            const maxPreco = Math.max(...precosFinal.filter(v => v > 0));
+            const minPreco = Math.min(...precosFinal.filter(v => v > 0));
+            const diff     = maxPreco - minPreco;
+            const diffPct  = minPreco > 0 ? (diff / minPreco * 100) : 0;
+
+            return `
+              <tr>
+                <td style="text-align:left; padding-left:15px; font-weight:500; position:sticky; left:0; background:#fff; z-index:1; border-right:1px solid #e2e8f0">${_escapeHtml(produto.nome||'')}</td>
+                ${precos.map((r,i) => {
+                    if (!r) return '<td colspan="2" style="text-align:center;color:#94a3b8">—</td>';
+                    const isMax = r.precoFinal === maxPreco && nCols > 1;
+                    const isMin = r.precoFinal === minPreco && nCols > 1 && maxPreco !== minPreco;
+                    return `
+                      <td style="text-align:right; padding-right:8px; font-weight:700; color:${isMin?'#16a34a':isMax?'#dc2626':'#1e3a5f'}; background:${isMin?'#f0fdf4':isMax?'#fef2f2':'transparent'}">${fmt(r.precoFinal)} ${isMin?'<span style="font-size:0.65rem">▼min</span>':''} ${isMax?'<span style="font-size:0.65rem">▲max</span>':''}</td>
+                      <td style="text-align:center; font-size:0.82rem; font-weight:600; color:${corMargem(r.margem)}">${fmtPct(r.margem)}</td>
+                    `;
+                }).join('')}
+                <td style="text-align:center; font-weight:700; color:#dc2626">${maxPreco > 0 ? fmt(maxPreco) : '—'}</td>
+                <td style="text-align:center; font-weight:700; color:#16a34a">${minPreco > 0 ? fmt(minPreco) : '—'}</td>
+                <td style="text-align:center; font-weight:600; color:#d97706">${diff > 0 ? fmt(diff) + '<br><span style="font-size:0.72rem">(' + fmtPct(diffPct) + ')</span>' : '—'}</td>
+              </tr>
+            `;
+        }).join('');
+
+        document.getElementById('compResultado').style.display = 'block';
+        document.getElementById('compEmpty').style.display = 'none';
+
+    } catch (e) { console.warn('calcularComparativo', e); }
 }
 
 function exportarComparativo() {
-    // Comparativo removido — stub.
-    mostrarNotificacao && mostrarNotificacao('Exportação de comparativo desabilitada.', 'info');
-    return;
+    try {
+        const clientesSelecionados = [1,2,3].map(n => {
+            const id = document.getElementById('compCliente'+n)?.value;
+            const taxa = parseFloat(document.getElementById('compTaxa'+n)?.value) || parseFloat(document.getElementById('taxaPadrao')?.value) || 20;
+            const roi  = parseFloat(document.getElementById('compROI'+n)?.value) || parseFloat(document.getElementById('roiPadrao')?.value) || 30;
+            const com  = parseFloat(document.getElementById('comissaoPadrao')?.value) || 5;
+            return id ? { id, taxa, roi, com } : null;
+        }).filter(Boolean);
+
+        if (clientesSelecionados.length < 2) { mostrarNotificacao && mostrarNotificacao('Selecione ao menos 2 clientes para exportar.', 'warning'); return; }
+
+        const clientesData = clientesSelecionados.map(sel => {
+            const c = (clientes || []).find(x => String(x.id) === String(sel.id));
+            const uf = (c?.uf || '').toUpperCase();
+            const cnpjLimpo = (c?.cnpj||'').replace(/\D/g,'');
+            const tipo = cnpjLimpo.length === 14 ? 'PJ' : 'PF';
+            return { ...sel, nome: c?.nome, uf, tipo };
+        });
+
+        const produtosLista = (estoque.produtos || []).slice();
+        const rows = [];
+        // Header row
+        const header = ['Produto'];
+        clientesData.forEach(c => { header.push(`${c.nome} - Preço Final`, `${c.nome} - Margem %`); });
+        header.push('Maior preço','Menor preço','Diferença');
+        rows.push(header);
+
+        produtosLista.forEach(produto => {
+            const precos = clientesData.map(c => _calcularPrecoComparativo(produto.nome, c.uf, c.tipo, c.taxa, c.roi, c.com));
+            const precosFinal = precos.map(r => r ? r.precoFinal : null);
+            const maxPreco = Math.max(...precosFinal.filter(v => v > 0));
+            const minPreco = Math.min(...precosFinal.filter(v => v > 0));
+            const diff = (maxPreco > 0 && minPreco > 0) ? (maxPreco - minPreco) : 0;
+            const row = [produto.nome];
+            precos.forEach(r => {
+                if (!r) { row.push('—','—'); }
+                else { row.push(r.precoFinal || 0, (r.margem || 0).toFixed(1) + '%'); }
+            });
+            row.push(maxPreco > 0 ? maxPreco : '', minPreco > 0 ? minPreco : '', diff > 0 ? diff : '');
+            rows.push(row);
+        });
+
+        if (window.XLSX) {
+            const ws = XLSX.utils.aoa_to_sheet(rows);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, 'Comparativo');
+            const nomeArquivo = `comparativo_precos_${new Date().toISOString().slice(0,10)}.xlsx`;
+            XLSX.writeFile(wb, nomeArquivo);
+        } else {
+            // Fallback CSV
+            const csv = rows.map(r => r.map(c => typeof c === 'string' && c.includes(',') ? '"' + c.replace(/"/g,'""') + '"' : c).join(',')).join('\n');
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = `comparativo_precos_${new Date().toISOString().slice(0,10)}.csv`;
+            document.body.appendChild(link); link.click(); link.remove();
+        }
+    } catch (e) { console.error('exportarComparativo erro:', e); mostrarNotificacao && mostrarNotificacao('Erro ao exportar comparativo.', 'error'); }
 }
 
 function renderizarRastreabilidade() {

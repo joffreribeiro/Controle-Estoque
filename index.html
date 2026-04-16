@@ -524,6 +524,7 @@
                                 <div class="precif-subnav" style="display:flex; gap:0; margin-bottom:20px; border-bottom:2px solid #e2e8f0;">
                                     <button class="precif-subtab-btn" onclick="trocarSubabaPrecif('porcliente')" id="sbtn-porcliente" style="padding:10px 20px; border:none; background:transparent; font-size:0.9rem; font-weight:600; color:#64748b; border-bottom:2px solid transparent; margin-bottom:-2px; cursor:pointer">👤 Por Cliente</button>
                                     <button class="precif-subtab-btn" onclick="trocarSubabaPrecif('icms')" id="sbtn-icms" style="padding:10px 20px; border:none; background:transparent; font-size:0.9rem; font-weight:600; color:#64748b; border-bottom:2px solid transparent; margin-bottom:-2px; cursor:pointer">🗺️ ICMS por Estado</button>
+                                    <button class="precif-subtab-btn" onclick="trocarSubabaPrecif('comparativo')" id="sbtn-comparativo" style="padding:10px 20px; border:none; background:transparent; font-size:0.9rem; font-weight:600; color:#64748b; border-bottom:2px solid transparent; margin-bottom:-2px; cursor:pointer">⚖️ Comparativo</button>
                                     <button class="precif-subtab-btn active" onclick="trocarSubabaPrecif('federais')" id="sbtn-federais" style="padding:10px 20px; border:none; background:transparent; font-size:0.9rem; font-weight:600; color:#1e3a5f; border-bottom:2px solid #1e3a5f; margin-bottom:-2px; cursor:pointer">📋 Impostos Federais</button>
                                     <button class="tab-btn" id="btnConsultaPrecificacao"
                                                     onclick="trocarSubabaPrecif('consultaPrec')"
@@ -1034,6 +1035,68 @@
                                                                 <!-- Sub-abas Comparativo, Consulta e Rastreabilidade removidas -->
 
                                                 </div><!-- /subaba-precif-porcliente -->
+
+                                                                                <!-- Sub-aba Comparativo - comparar preços entre clientes -->
+                                                                                <div id="subaba-precif-comparativo" style="display:none">
+
+                    <div style="background:#fff; border:1px solid #e2e8f0; border-radius:10px; padding:16px 20px; margin-bottom:20px">
+                        <div style="font-size:0.8rem; font-weight:600; color:#64748b; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:14px">Selecionar Clientes para Comparar (até 3)</div>
+                        <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:14px">
+                            <div>
+                                <label style="font-size:0.82rem; color:#64748b; margin-bottom:4px; display:block">Cliente 1</label>
+                                <select id="compCliente1" onchange="calcularComparativo()" style="width:100%; padding:8px 10px; border:1px solid #e2e8f0; border-radius:6px; font-size:0.85rem">
+                                    <option value="">— não selecionado —</option>
+                                </select>
+                                <div style="margin-top:6px; display:flex; gap:6px">
+                                    <input type="number" step="0.01" id="compTaxa1" placeholder="Taxa %" oninput="calcularComparativo()" style="width:50%; padding:5px 8px; border:1px solid #e2e8f0; border-radius:6px; font-size:0.8rem">
+                                    <input type="number" step="0.01" id="compROI1" placeholder="ROI %" oninput="calcularComparativo()" style="width:50%; padding:5px 8px; border:1px solid #e2e8f0; border-radius:6px; font-size:0.8rem">
+                                </div>
+                            </div>
+                            <div>
+                                <label style="font-size:0.82rem; color:#64748b; margin-bottom:4px; display:block">Cliente 2</label>
+                                <select id="compCliente2" onchange="calcularComparativo()" style="width:100%; padding:8px 10px; border:1px solid #e2e8f0; border-radius:6px; font-size:0.85rem">
+                                    <option value="">— não selecionado —</option>
+                                </select>
+                                <div style="margin-top:6px; display:flex; gap:6px">
+                                    <input type="number" step="0.01" id="compTaxa2" placeholder="Taxa %" oninput="calcularComparativo()" style="width:50%; padding:5px 8px; border:1px solid #e2e8f0; border-radius:6px; font-size:0.8rem">
+                                    <input type="number" step="0.01" id="compROI2" placeholder="ROI %" oninput="calcularComparativo()" style="width:50%; padding:5px 8px; border:1px solid #e2e8f0; border-radius:6px; font-size:0.8rem">
+                                </div>
+                            </div>
+                            <div>
+                                <label style="font-size:0.82rem; color:#64748b; margin-bottom:4px; display:block">Cliente 3</label>
+                                <select id="compCliente3" onchange="calcularComparativo()" style="width:100%; padding:8px 10px; border:1px solid #e2e8f0; border-radius:6px; font-size:0.85rem">
+                                    <option value="">— não selecionado —</option>
+                                </select>
+                                <div style="margin-top:6px; display:flex; gap:6px">
+                                    <input type="number" step="0.01" id="compTaxa3" placeholder="Taxa %" oninput="calcularComparativo()" style="width:50%; padding:5px 8px; border:1px solid #e2e8f0; border-radius:6px; font-size:0.8rem">
+                                    <input type="number" step="0.01" id="compROI3" placeholder="ROI %" oninput="calcularComparativo()" style="width:50%; padding:5px 8px; border:1px solid #e2e8f0; border-radius:6px; font-size:0.8rem">
+                                </div>
+                            </div>
+                        </div>
+                        <div style="display:flex; gap:8px; margin-top:12px">
+                            <button class="btn btn-primary" onclick="calcularComparativo()">⚖️ Comparar</button>
+                            <button class="btn btn-outline btn-sm" onclick="exportarComparativo()">📤 Exportar Excel</button>
+                        </div>
+                    </div>
+
+                    <!-- Comparative table -->
+                    <div id="compResultado" style="display:none">
+                        <div class="table-container">
+                            <div class="table-wrapper">
+                                <table class="dashboard-table" id="tabelaComparativo">
+                                    <thead id="compHeader"></thead>
+                                    <tbody id="compBody"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="compEmpty" style="text-align:center; padding:60px; color:#94a3b8">
+                        <div style="font-size:3rem; margin-bottom:12px">⚖️</div>
+                        <div>Selecione ao menos 2 clientes para comparar os preços</div>
+                    </div>
+
+                                                                                </div>
 
                                 <!-- Sub-aba Tabela de CI -->
                                 <div id="subaba-precif-tabelaci" style="display:none">
