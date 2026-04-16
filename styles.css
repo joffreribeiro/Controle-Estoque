@@ -4101,9 +4101,12 @@ th.sortable.sort-desc .sort-icon::after { content: ' ▼'; opacity: 1; }
 
 #tab-estoque .table-wrapper {
     overflow-x: auto !important;
+    overflow-y: auto !important;
     width: 100% !important;
-    max-height: none !important;
-    overflow-y: visible !important;
+    /* permitir que o JS defina max-height dinamicamente; usar fallback com vars */
+    max-height: calc(100vh - var(--acoes-height, 52px) - var(--section-height, 0px) - 48px) !important;
+    -webkit-overflow-scrolling: touch;
+    position: relative;
 }
 
 /* ========================================
@@ -4118,9 +4121,11 @@ th.sortable.sort-desc .sort-icon::after { content: ' ▼'; opacity: 1; }
 /* 2. Scroll horizontal no wrapper */
 #tab-estoque .table-wrapper {
     overflow-x: auto !important;
-    overflow-y: visible !important;
+    overflow-y: auto !important;
     width: 100% !important;
-    max-height: none !important;
+    max-height: calc(100vh - var(--acoes-height, 52px) - var(--section-height, 0px) - 48px) !important;
+    -webkit-overflow-scrolling: touch;
+    position: relative;
 }
 
 /* 3. Remove transform do thead que quebra sticky */
