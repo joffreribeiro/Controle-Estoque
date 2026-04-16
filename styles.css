@@ -306,6 +306,33 @@ table tbody tr:hover { background: rgba(30,58,95,0.04); }
 /* Make header cells sticky when possible to improve readability on long tables */
 table thead th { position: sticky; top: 0; background: linear-gradient(180deg,#fff,#f7fbff); z-index: 2; }
 
+/* Wrapper com rolagem apenas para tabelas largas/longas (usado em Inventário) */
+.table-wrapper.table-scroll {
+    overflow: auto;
+    /* Ajuste a altura disponível conforme o layout (header + filtros + margens) */
+    max-height: calc(100vh - 260px);
+}
+
+/* Congelar primeira coluna (Produto) dentro da tabela de inventário */
+#tabelaEstoque th.col-produto {
+    position: sticky;
+    left: 0;
+    z-index: 6; /* acima dos sub-headers */
+    background: linear-gradient(180deg,#fff,#f7fbff);
+    border-right: 1px solid var(--border-color);
+}
+#tabelaEstoque td.col-produto,
+#tabelaEstoque td.produto-nome {
+    position: sticky;
+    left: 0;
+    background: #fff;
+    z-index: 2;
+    border-right: 1px solid var(--border-color);
+}
+
+/* Aumentar z-index dos sub-headers do thead para evitar sobreposição por células fixas */
+#tabelaEstoque thead tr:nth-child(2) th { z-index: 5; }
+
 /* ========================================
     Buttons: disabled state and small polish
     ======================================== */
