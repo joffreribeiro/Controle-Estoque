@@ -733,7 +733,7 @@ const dadosIniciais = [
 
 function popularSelectRepresentantes(selectId, incluirImbel = true) {
     const sel = document.getElementById(selectId);
-        if (!sel) return; // Ensure the select element exists
+    if (!sel) return;
     const reps = estoque.representantes || 
         ['KOLTE', 'ISA', 'LC', 'ADES', 'FL'];
     // evitar duplicar IMBEL caso esteja presente em `estoque.representantes`
@@ -744,6 +744,9 @@ function popularSelectRepresentantes(selectId, incluirImbel = true) {
 }
 
 async function inicializar() {
+    if (window.__APP_INITIALIZED__) return;
+    window.__APP_INITIALIZED__ = true;
+
     carregarDados();
     try { carregarPrecificacoesSalvas(); } catch (e) {}
     // Load contract config into Configurações tab
@@ -1453,6 +1456,8 @@ function carregarDados() {
             }
         } catch (e) {}
     } else {
+        // Inicializa `estoque` quando não existe dado salvo
+        estoque = {};
         estoque.produtos = dadosIniciais.map((item, index) => ({
             id: index + 1,
             nome: item.nome,
@@ -2458,9 +2463,15 @@ function trocarAba(aba) {
         if (acoesEstoque) acoesEstoque.style.display = (aba === 'estoque') ? 'flex' : 'none';
 
         if (aba === 'dashboard') {
-            try { renderizarDashboard(); } catch (e) { console.error('dashboard:', e); if (window.__showRuntimeErrorOverlay) window.__showRuntimeErrorOverlay(e); }
+            if (typeof renderizarDashboard !== 'function') {
+                try { if (typeof inicializar === 'function' && document.readyState !== 'loading') inicializar(); } catch (e) {}
+            }
+            try { if (typeof renderizarDashboard === 'function') renderizarDashboard(); } catch (e) { console.error('dashboard:', e); if (window.__showRuntimeErrorOverlay) window.__showRuntimeErrorOverlay(e); }
         } else if (aba === 'cadastro-produtos') {
-            try { renderizarCadastroProdutos(); } catch (e) { console.error('cadastro-produtos:', e); if (window.__showRuntimeErrorOverlay) window.__showRuntimeErrorOverlay(e); }
+            if (typeof renderizarCadastroProdutos !== 'function') {
+                try { if (typeof inicializar === 'function' && document.readyState !== 'loading') inicializar(); } catch (e) {}
+            }
+            try { if (typeof renderizarCadastroProdutos === 'function') renderizarCadastroProdutos(); } catch (e) { console.error('cadastro-produtos:', e); if (window.__showRuntimeErrorOverlay) window.__showRuntimeErrorOverlay(e); }
         } else if (aba === 'vendas') {
             try { renderizarRegistroVendas(); } catch (e) { console.error('vendas:', e); if (window.__showRuntimeErrorOverlay) window.__showRuntimeErrorOverlay(e); }
         } else if (aba === 'distribuicao') {
@@ -3512,109 +3523,6 @@ function gerarPdfProposta(propostaId, tipo = 'simples') {
     } catch (err) {
         console.error('Erro gerarPdfProposta:', err);
         mostrarNotificacao('Erro ao gerar PDF da proposta.', 'error');
-    }
-
-async function gerarDocxProposta(propostaId, tipo = 'simples') {
-    try {
-        const proposta = (propostas || []).find(p => String(p.id) === String(propostaId));
-        if (!proposta) { mostrarNotificacao('Proposta não encontrada.', 'error'); return; }
-        if (!window.docx) { mostrarNotificacao('Biblioteca docx não está disponível.', 'error'); return; }
-
-        const { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell,
-            AlignmentType, WidthType, BorderStyle, ShadingType, VerticalAlign } = docx;
-
-        const fmtMoeda = v => 'R$ ' + Number(v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
-        const border = { style: BorderStyle.SINGLE, size: 4, color: '000000' };
-        const borders = { top: border, bottom: border, left: border, right: border };
-        const bold = (text, sz = 20) => new TextRun({ text, bold: true, size: sz, font: 'Calibri' });
-        const norm = (text, sz = 20) => new TextRun({ text, size: sz, font: 'Calibri' });
-        const para = (children, align = AlignmentType.LEFT, spacing = {}) =>
-            new Paragraph({ children, alignment: align, spacing: { before: 60, after: 60, ...spacing } });
-        const emptyPara = () => new Paragraph({ children: [norm('')] });
-        const cell = (children, widthDxa, opts = {}) => new TableCell({
-            children: Array.isArray(children) ? children : [para([norm(children || '')])],
-            width: { size: widthDxa, type: WidthType.DXA },
-            borders,
-            margins: { top: 80, bottom: 80, left: 120, right: 120 },
-            ...opts
-        });
-        const headerCell = (text, widthDxa) => new TableCell({
-            children: [para([bold(text, 20)], AlignmentType.CENTER)],
-            width: { size: widthDxa, type: WidthType.DXA },
-            borders,
-            shading: { fill: 'D9D9D9', type: ShadingType.CLEAR },
-            margins: { top: 80, bottom: 80, left: 120, right: 120 },
-        });
-
-        const TW = 9360;
-
-        const itens = proposta.itens || [];
-        const prodRows = itens.map(it => {
-            const nome = it.produtoNome || it.produto || '—';
-            const qtd = Number(it.quantidade || 0);
-            const valorUnit = Number(it.valorUnitario || it.valor || it.valorUnit || 0);
-            const valorTot = Number(it.valorTotal || qtd * valorUnit || 0);
-            return new TableRow({ children: [
-                cell(nome, 5400),
-                cell(String(qtd), 900, { verticalAlign: VerticalAlign.CENTER }),
-                cell(fmtMoeda(valorUnit), 1530, { verticalAlign: VerticalAlign.CENTER }),
-                cell(fmtMoeda(valorTot), 1530, { verticalAlign: VerticalAlign.CENTER }),
-            ]});
-        });
-
-        const tabelaProdutos = new Table({
-            width: { size: TW, type: WidthType.DXA },
-            columnWidths: [5400, 900, 1530, 1530],
-            rows: [
-                new TableRow({ children: [
-                    headerCell('Produto', 5400),
-                    headerCell('Qtd', 900),
-                    headerCell('Valor Unit.', 1530),
-                    headerCell('Valor Total', 1530),
-                ]}),
-                ...prodRows,
-                new TableRow({ children: [
-                    new TableCell({
-                        children: [para([bold('VALOR TOTAL DA PROPOSTA')], AlignmentType.RIGHT)] ,
-                        width: { size: 6300, type: WidthType.DXA },
-                        columnSpan: 3,
-                        borders,
-                        margins: { top: 80, bottom: 80, left: 120, right: 120 },
-                    }),
-                    cell(fmtMoeda(proposta.valorTotal || itens.reduce((s,it)=> s + Number(it.valorTotal || (Number(it.quantidade||0)*(Number(it.valorUnitario||it.valor||it.valorUnit||0))) ),0)), 1530),
-                ]}),
-            ]
-        });
-
-        const clienteObj = (clientes || []).find(c => (c.nome || '').toLowerCase() === (proposta.cliente || '').toLowerCase());
-
-        const tabelaCliente = new Table({
-            width: { size: TW, type: WidthType.DXA },
-            columnWidths: [4680, 4680],
-            rows: [
-                new TableRow({ children: [ new TableCell({ children: [para([bold('CLIENTE', 18)])], columnSpan: 2, width:{size:TW,type:WidthType.DXA}, shading: { fill: 'D9D9D9', type: ShadingType.CLEAR }, borders, margins:{top:80,bottom:80,left:120,right:120} })]}),
-                new TableRow({ children: [ cell([para([bold('Nome: '), norm(proposta.cliente || clienteObj?.nome || '-')])], 4680), cell([para([bold('Representante: '), norm(proposta.representante||'-')])], 4680) ]}),
-                new TableRow({ children: [ cell([para([bold('CNPJ/CPF: '), norm(clienteObj?.cnpj||'-')])], 4680), cell([para([bold('Telefone: '), norm(clienteObj?.telefone||'-')])], 4680) ]}),
-                new TableRow({ children: [ cell([para([bold('Endereço: '), norm(clienteObj?.endereco||'-')])], 4680), cell([para([bold('E-mail: '), norm(clienteObj?.email||'-')])], 4680) ]})
-            ]
-        });
-
-        const doc = new Document({ sections: [{ properties: { page: { size: { width: 12240, height: 15840 }, margin: { top: 1080, right: 1080, bottom: 1080, left: 1080 } } },
-            children: [ para([bold('PROPOSTA COMERCIAL', 32)], AlignmentType.CENTER), para([norm('')]), tabelaCliente, para([norm('')]), tabelaProdutos, para([norm('')]), para([bold('VALOR TOTAL: ' + fmtMoeda(proposta.valorTotal || 0))], AlignmentType.RIGHT), proposta.observacoes ? para([norm('OBS: ' + (proposta.observacoes||''))]) : emptyPara ] }] });
-
-        const blob = await Packer.toBlob(doc);
-        const safeName = (proposta.cliente || 'cliente').replace(/[^a-z0-9]/gi, '_');
-        const a = document.createElement('a');
-        a.href = URL.createObjectURL(blob);
-        a.download = 'Proposta_' + (proposta.numero || '') + '_' + safeName + '.docx';
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        URL.revokeObjectURL(a.href);
-        mostrarNotificacao('Download gerado: .docx', 'success');
-    } catch (err) {
-        console.error('Erro gerarDocxProposta:', err);
-        mostrarNotificacao('Erro ao gerar DOCX da proposta.', 'error');
     }
 }
 
@@ -14594,9 +14502,7 @@ function salvarPrecificacaoCliente() {
     try { registro.clienteUF = registro.clienteUF || registro.uf || (document.getElementById('precifClienteUF')?.value || ''); } catch (e) {}
     try { registro.uf = registro.uf || registro.clienteUF || (document.getElementById('precifClienteUF')?.value || ''); } catch (e) {}
     try { registro.representante = registro.representante || (document.getElementById('precifRepresentanteSelect')?.value || ''); } catch (e) {}
-    try { console.log('salvarPrecificacaoCliente -> registro.representante:', registro.representante); console.log('salvarPrecificacaoCliente -> registro summary:', { id: registro.id, clienteId: registro.clienteId, versao: registro.versao, representante: registro.representante, itensCount: (registro.itens||[]).length }); } catch (e) {}
     precificacoesCliente.push(registro);
-    try { console.log('precificacoesCliente pushed. last item:', precificacoesCliente[precificacoesCliente.length-1] || null); } catch (e) {}
     ultimaVersaoSalva = proximaVersao;
     try { estoque.precificacoesCliente = precificacoesCliente; } catch (e) {}
     try { localStorage.setItem('precificacoesClienteBackupV1', JSON.stringify(precificacoesCliente || [])); } catch (e) {}
@@ -16240,13 +16146,6 @@ function renderizarPropostas(filtro, statusFiltro) {
                                         <button onclick="gerarPdfProposta('${p.id}','fiscal')" style="display:block;width:100%;text-align:left;padding:8px 14px;border:none;background:none;cursor:pointer;font-size:0.85rem">
                                             🧾 Com detalhamento fiscal
                                         </button>
-                                        <hr style="margin:6px 0;border:none;border-top:1px solid #eef2f7" />
-                                        <button onclick="gerarDocxProposta('${p.id}','simples')" style="display:block;width:100%;text-align:left;padding:8px 14px;border:none;background:none;cursor:pointer;font-size:0.85rem">
-                                            📄 DOCX (simples)
-                                        </button>
-                                        <button onclick="gerarDocxProposta('${p.id}','fiscal')" style="display:block;width:100%;text-align:left;padding:8px 14px;border:none;background:none;cursor:pointer;font-size:0.85rem">
-                                            🧾 DOCX (fiscal)
-                                        </button>
                                     </div>
                                 </div>
                 <button class="btn btn-outline btn-sm" data-admin="true" onclick="abrirModalProposta('${p.id}')" title="Editar">✏️</button>
@@ -17177,3 +17076,6 @@ function requireAdminOrNotify() {
 
 // Forçar chamada inicial para ajustar UI caso o listener já tenha ocorrido
 try { if (firebase && firebase.auth) firebase.auth().currentUser; } catch(e) {}
+
+// (Removidas chaves adicionadas anteriormente para diagnóstico)
+}
