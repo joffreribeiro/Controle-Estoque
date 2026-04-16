@@ -98,6 +98,11 @@
                     <span class="fs-dot fs-offline" id="fsDot"></span>
                     <span class="fs-text" id="fsText">Cloud: desconectado</span>
                 </div>
+                <div id="offlineBanner" style="display:none;background:#dc2626;color:#fff;
+                     font-size:0.78rem;font-weight:600;padding:6px 12px;text-align:center;
+                     border-radius:6px;margin-top:6px">
+                  📵 Sem conexão — dados salvos localmente
+                </div>
             </div>
         </aside>
 
@@ -2258,6 +2263,18 @@
                                                     </button>
                                                 </div>
                                             </div>
+                                        </div>
+                                        
+                                        <!-- Representantes (gerenciamento rápido) -->
+                                        <div class="config-card">
+                                            <h3>👥 Representantes</h3>
+                                            <div style="display:flex;gap:8px;align-items:center;margin-top:8px;flex-wrap:wrap">
+                                                <input type="text" id="novoRepresentante" placeholder="Nome do representante (ex: KOLTE)"
+                                                       style="padding:8px 10px;border:1px solid #e2e8f0;border-radius:6px;font-size:0.95rem;min-width:200px">
+                                                <button class="btn btn-primary" onclick="adicionarRepresentante()">Adicionar</button>
+                                            </div>
+                                            <div id="listaRepresentantesConfig" style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap"></div>
+                                            <p style="font-size:0.82rem;color:#64748b;margin-top:10px">Remover não apaga histórico de vendas</p>
                                         </div>
 
                                         <!-- Log de Auditoria -->

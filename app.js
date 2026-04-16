@@ -119,6 +119,41 @@ const CATEGORIAS_PRODUTO = [
         'Arma Curta', 'Arma Longa', 'Acessório', 'Faca', 'Munição', 'Outro'
 ];
 
+// Listeners para conectividade — atualiza banner e tenta sincronizar ao reconectar
+try {
+    window.addEventListener('online', () => {
+        const banner = document.getElementById('offlineBanner');
+        if (banner) banner.style.display = 'none';
+        const dot = document.getElementById('fsDot');
+        const txt = document.getElementById('fsText');
+        // Tentar sincronizar com cloud ao reconectar
+        try {
+            if (dot) { dot.classList.remove('fs-offline'); dot.classList.add('fs-online'); }
+            if (txt) txt.textContent = 'Reconectado — sincronizando...';
+            scheduleCloudSaveDebounced();
+        } catch(e) {}
+        try { mostrarNotificacao('Conexão restaurada. Sincronizando dados...', 'success'); } catch(e){}
+    });
+
+    window.addEventListener('offline', () => {
+        const banner = document.getElementById('offlineBanner');
+        if (banner) banner.style.display = 'block';
+        const dot = document.getElementById('fsDot');
+        const txt = document.getElementById('fsText');
+        if (dot) { dot.classList.remove('fs-online'); dot.classList.add('fs-offline'); }
+        if (txt) txt.textContent = 'Offline — sem conexão';
+        try { mostrarNotificacao('Conexão perdida. Dados sendo salvos localmente.', 'warning'); } catch(e){}
+    });
+
+    // Verificar estado inicial
+    try {
+        if (!navigator.onLine) {
+            const banner = document.getElementById('offlineBanner');
+            if (banner) banner.style.display = 'block';
+        }
+    } catch(e) {}
+} catch(e) {}
+
 let categoriaPorProduto = {};
 
 // ----------------------------------------
@@ -788,8 +823,76 @@ function popularSelectRepresentantes(selectId, incluirImbel = true) {
         + repsSemImbel.map(r => `<option value="${r}">${r}</option>`).join('');
 }
 
+function renderizarListaRepresentantesConfig() {
+    const lista = document.getElementById('listaRepresentantesConfig');
+    if (!lista) return;
+    const reps = estoque.representantes || [];
+    const repColors = {
+        KOLTE:'#79c0ff', ISA:'#7ee787', LC:'#58a6ff',
+        ADES:'#ffa657', FL:'#d2a8ff', IMBEL:'#ff7b72'
+    };
+    lista.innerHTML = reps.map(rep => {
+        const cor = repColors[rep] || '#94a3b8';
+        return `<span style="display:inline-flex;align-items:center;gap:6px;
+                background:${cor}22;border:1px solid ${cor}66;border-radius:20px;
+                padding:4px 12px;font-weight:700;font-size:0.85rem">
+            ${rep}
+            <button onclick="removerRepresentante('${rep}')"
+                    style="background:none;border:none;cursor:pointer;
+                           color:#94a3b8;font-size:0.9rem;padding:0"
+                    onmouseover="this.style.color='#dc2626'"
+                    onmouseout="this.style.color='#94a3b8'">×</button>
+        </span>`;
+    }).join('') || '<span style="color:#94a3b8;font-size:0.85rem">Nenhum representante cadastrado</span>';
+}
+
+function adicionarRepresentante() {
+    const input = document.getElementById('novoRepresentante');
+    const nome = (input?.value || '').trim().toUpperCase();
+    if (!nome || nome.length < 2) {
+        mostrarNotificacao('Nome inválido.', 'warning'); return;
+    }
+    if (!Array.isArray(estoque.representantes)) estoque.representantes = [];
+    if (estoque.representantes.includes(nome)) {
+        mostrarNotificacao(`${nome} já existe.`, 'warning'); return;
+    }
+    estoque.representantes.push(nome);
+    // Adicionar chave nos produtos existentes
+    (estoque.produtos||[]).forEach(p => {
+        if (!p.distribuicao) p.distribuicao = {};
+        if (!p.vendas) p.vendas = {};
+        if (p.distribuicao[nome] === undefined) p.distribuicao[nome] = 0;
+        if (p.vendas[nome] === undefined) p.vendas[nome] = 0;
+    });
+    if (input) input.value = '';
+    salvarDados();
+    renderizarListaRepresentantesConfig();
+    // Atualizar todos os selects do sistema
+    [
+        'filtroRepresentante','filtroDistribuicaoRep','filtroControleEnvioRep',
+        'filtroRelatoriosRep','representanteVendaDet','clienteRepresentante',
+        'propostaRepresentante','representanteDistDet','precifRepresentanteSelect'
+    ].forEach(id => popularSelectRepresentantes(id, true));
+    mostrarNotificacao(`Representante ${nome} adicionado!`, 'success');
+}
+
+function removerRepresentante(nome) {
+    const totalVendas = (estoque.registroVendas||[]).filter(v=>v.representante===nome).length;
+    const totalDist   = (estoque.registroDistribuicao||[]).filter(d=>d.representante===nome).length;
+    let aviso = `Remover ${nome}?`;
+    if (totalVendas || totalDist) {
+        aviso += `\n\n⚠️ Possui ${totalVendas} venda(s) e ${totalDist} distribuição(ões).\nO histórico será mantido.`;
+    }
+    if (!confirm(aviso)) return;
+    estoque.representantes = (estoque.representantes||[]).filter(r => r !== nome);
+    salvarDados();
+    renderizarListaRepresentantesConfig();
+    mostrarNotificacao(`Representante ${nome} removido.`, 'warning');
+}
+
 async function inicializar() {
     carregarDados();
+    try { renderizarListaRepresentantesConfig(); } catch (e) {}
     try { carregarPrecificacoesSalvas(); } catch (e) {}
     // Load contract config into Configurações tab
     try {
@@ -2609,6 +2712,7 @@ function trocarAba(aba) {
             try { renderizarAuditoria(); } catch (e) { if (window.__showRuntimeErrorOverlay) window.__showRuntimeErrorOverlay(e); }
             try { renderizarConfigVendedor(); } catch (e) { if (window.__showRuntimeErrorOverlay) window.__showRuntimeErrorOverlay(e); }
             try { renderizarSelectConfigRep(); } catch (e) { if (window.__showRuntimeErrorOverlay) window.__showRuntimeErrorOverlay(e); }
+            try { renderizarListaRepresentantesConfig(); } catch(e) {}
         }
 
         try { if (window.__updateDebugPanel) window.__updateDebugPanel(); } catch (e) {}
