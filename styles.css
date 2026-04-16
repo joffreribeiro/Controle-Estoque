@@ -4119,12 +4119,17 @@ th.sortable.sort-desc .sort-icon::after { content: ' ▼'; opacity: 1; }
     background: #1a1a2e !important;
 }
 
-/* 5. REMOVER sticky do corpo — apenas header fica fixo */
+/* 5. Manter a primeira coluna (PRODUTOS) fixa também no corpo da tabela */
+/*    - tornamos os `td.produto-nome` sticky na horizontal (left:0)
+     - z-index baixo para ficar abaixo do thead, mas acima das outras células */
 #tab-estoque #tabelaEstoque tbody td.produto-nome,
 #tab-estoque #tabelaEstoque tr.total-row td.produto-nome {
-    position: static !important;
-    left: auto !important;
-    box-shadow: none !important;
+    position: sticky !important;
+    left: 0 !important;
+    z-index: 2 !important;
+    background: #fff !important;
+    border-right: 1px solid var(--border-color) !important;
+    box-shadow: 2px 0 6px rgba(11,23,35,0.04) !important;
 }
 #tab-estoque #tabelaEstoque tr.total-row td:nth-child(4),
 #tab-estoque #tabelaEstoque tr.total-row td:nth-child(7),
