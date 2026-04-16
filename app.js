@@ -218,6 +218,8 @@ let categoriaPorProduto = {};
     window.addEventListener('error', function(ev){ try { showRuntimeErrorOverlay(ev.error || ev.message || ev); console.error('Unhandled error', ev.error || ev.message || ev); } catch(e){} });
     window.addEventListener('unhandledrejection', function(ev){ try { showRuntimeErrorOverlay(ev.reason || ev); console.error('Unhandled rejection', ev.reason || ev); } catch(e){} });
     document.addEventListener('DOMContentLoaded', function(){ try { if (window.__SHOW_DEBUG_PANEL) setTimeout(updateDebugPanel, 400); } catch(e){} });
+    // Garantir salvamento síncrono/local ao fechar a aba
+    try { window.addEventListener('beforeunload', function(){ try { salvarDados({imediato:true}); } catch(e){} }); } catch(e) {}
 })();
 // ===== NCM / Predefinições fiscais =====
 const NCM_PRODUTOS = {
@@ -1572,7 +1574,17 @@ function carregarDados() {
     }
 }
 
-function salvarDados() {
+// Debounce para localStorage — evita 60 escritas seguidas
+let __localSaveTimer = null;
+function agendarSalvarLocal() {
+    if (__localSaveTimer) clearTimeout(__localSaveTimer);
+    __localSaveTimer = setTimeout(() => {
+        __localSaveTimer = null;
+        _executarSalvarLocal();
+    }, 300); // 300ms de espera
+}
+
+function _executarSalvarLocal() {
     // Sincronizar aliases mutáveis de volta para estoque antes de persistir
     // (clientes e propostas são arrays compartilhados que podem ter sido mutados diretamente)
     if (Array.isArray(clientes)) estoque.clientes = clientes;
@@ -1603,6 +1615,15 @@ function salvarDados() {
     try {
         if (!_cloudSyncedRecently) _dadosAlterados = true;
     } catch (e) {}
+}
+
+function salvarDados(opcoes = {}) {
+    if (opcoes && opcoes.imediato) {
+        if (__localSaveTimer) { clearTimeout(__localSaveTimer); __localSaveTimer = null; }
+        _executarSalvarLocal();
+    } else {
+        agendarSalvarLocal();
+    }
 }
 
 // =============================
