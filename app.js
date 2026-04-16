@@ -2866,6 +2866,13 @@ function renderizarTabela() {
             <td class="geral-saldo numeric-cell ${saldoGeralClass}">${formatarNumero(consolidadoSaldo)}</td>
         `;
 
+        // Marcar linha quando o saldo consolidado for exatamente zero
+        if (Number(consolidadoSaldo) === 0) {
+            tr.classList.add('row-saldo-zero');
+        } else {
+            tr.classList.remove('row-saldo-zero');
+        }
+
         // Flag produto com consolidado zerado ou negativo (para KPI)
         if (consolidadoSaldo <= 0) countConsolidadoZeradoOuNegativo += 1;
 
@@ -11805,20 +11812,19 @@ function verificarAlertasEstoque() {
             }
         }
 
-        // atualizar alerta pequeno na página
+        // Remover exibição do aviso: esconder painel e alerta visual.
+        // Mantemos a lógica de cálculo, mas não mostramos o aviso na UI.
         const el = document.getElementById('alertaEstoqueBaixo');
         if (el) {
-            if (!ativo || alertas.length === 0) {
-                el.style.display = 'none';
-                el.innerHTML = '';
-            } else {
-                const shortHtml = `<div style="padding:12px; background:#fff7ed; border-left:4px solid #fb923c; border-radius:8px;">` +
-                                  `⚠️ <strong>${alertas.length}</strong> produto(s) abaixo do limite. <a href="#" onclick="togglePainelAlertas(); return false;">Ver detalhes</a>` +
-                                  `</div>`;
-                el.innerHTML = shortHtml;
-                el.style.display = 'block';
-            }
+            el.style.display = 'none';
+            el.innerHTML = '';
         }
+        const painel = document.getElementById('painelAlertas');
+        if (painel) painel.style.display = 'none';
+        const btnA = document.getElementById('btnAlertas');
+        if (btnA) btnA.style.display = 'none';
+        const badgeEl = document.getElementById('badgeAlertas');
+        if (badgeEl) badgeEl.style.display = 'none';
 
         const agora = new Date();
         const alertasPropostas = [];
