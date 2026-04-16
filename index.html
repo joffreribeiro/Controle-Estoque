@@ -860,9 +860,13 @@
                     <label style="font-size:0.82rem;color:#475569;display:flex;align-items:center;gap:6px">
                         Validade (dias) <input type="number" id="precifValidadeDias" value="30" min="1" max="365" style="width:70px;padding:4px 7px;border:1px solid #e2e8f0;border-radius:5px;font-size:0.85rem">
                     </label>
-                    <span id="precifTaxaPadraoLabel" style="display:none"></span>
-                    <span id="precifROIPadraoLabel" style="display:none"></span>
-                    <span id="precifComissaoPadraoLabel" style="display:none"></span>
+                    <span id="precifTaxaPadraoLabel" style="font-size:0.78rem;color:#64748b;padding-left:8px">Padrão: 20%</span>
+                    <span id="precifROIPadraoLabel" style="font-size:0.78rem;color:#64748b;padding-left:8px">Padrão: 30%</span>
+                    <span id="precifComissaoPadraoLabel" style="font-size:0.78rem;color:#64748b;padding-left:8px">Padrão: 5%</span>
+                    <div style="margin-left:auto;display:flex;gap:8px;align-items:center">
+                        <button class="btn btn-outline btn-sm" onclick="salvarPadraoPrecif()">Salvar Padrão</button>
+                        <button class="btn btn-outline btn-sm" onclick="restaurarPadraoPrecif()">Restaurar Padrões</button>
+                    </div>
                 </div>
 
                 <!-- Container de linhas de produtos -->

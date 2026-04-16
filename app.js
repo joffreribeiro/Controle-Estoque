@@ -13421,8 +13421,10 @@ function popularSelectsComparativo() {
                 .map(c => `<option value="${c.id}" ${String(c.id)===String(cur)?'selected':''}>${_escapeHtml(c.nome||'-')} (${_escapeHtml(c.uf||'??')} / ${(((c.cnpj||'').replace(/\D/g,''))).length===14?'PJ':'PF'})</option>`)
                 .join('');
     });
-    const taxaPad = parseFloat(localStorage.getItem('precif_taxa_global')) || 20;
-    const roiPad  = parseFloat(localStorage.getItem('precif_roi_global'))  || 30;
+    const taxaPadRaw = parseFloat(localStorage.getItem('precif_taxa_global'));
+    const roiPadRaw  = parseFloat(localStorage.getItem('precif_roi_global'));
+    const taxaPad = isNaN(taxaPadRaw) ? 20 : taxaPadRaw;
+    const roiPad  = isNaN(roiPadRaw)  ? 30 : roiPadRaw;
     for (let n=1;n<=3;n++) {
         const t = document.getElementById('compTaxa' + n);
         const r = document.getElementById('compROI' + n);
@@ -13883,12 +13885,15 @@ function popularSelectClientesPrecif() {
     if (valorAtual) select.value = valorAtual;
 
     // Atualizar labels de padrão (agora vindos de configuração/localStorage)
-    const taxaPad = parseFloat(localStorage.getItem('precif_taxa_global')) || 20;
-    const roiPad  = parseFloat(localStorage.getItem('precif_roi_global'))  || 30;
-    const comPad  = parseFloat(localStorage.getItem('precif_com_global'))  || 5;
-    const elTaxa = document.getElementById('precifTaxaPadraoLabel'); if (elTaxa) elTaxa.textContent = taxaPad;
-    const elROI  = document.getElementById('precifROIPadraoLabel'); if (elROI) elROI.textContent = roiPad;
-    const elCom  = document.getElementById('precifComissaoPadraoLabel'); if (elCom) elCom.textContent = comPad;
+    const taxaPadRaw = parseFloat(localStorage.getItem('precif_taxa_global'));
+    const roiPadRaw  = parseFloat(localStorage.getItem('precif_roi_global'));
+    const comPadRaw  = parseFloat(localStorage.getItem('precif_com_global'));
+    const taxaPad = isNaN(taxaPadRaw) ? 20 : taxaPadRaw;
+    const roiPad  = isNaN(roiPadRaw)  ? 30 : roiPadRaw;
+    const comPad  = isNaN(comPadRaw)  ? 5  : comPadRaw;
+    const elTaxa = document.getElementById('precifTaxaPadraoLabel'); if (elTaxa) elTaxa.textContent = 'Padrão: ' + taxaPad + '%';
+    const elROI  = document.getElementById('precifROIPadraoLabel'); if (elROI) elROI.textContent = 'Padrão: ' + roiPad + '%';
+    const elCom  = document.getElementById('precifComissaoPadraoLabel'); if (elCom) elCom.textContent = 'Padrão: ' + comPad + '%';
 }
 
 function popularSelectProdutosPrecif() {
@@ -13974,9 +13979,12 @@ function precifGetProdutosSelecionados() {
 
 // Retorna defaults globais preenchidos pelo usuário
 function precifGetGlobais() {
-    const taxaGlobal = parseFloat(localStorage.getItem('precif_taxa_global')) || 20;
-    const roiGlobal  = parseFloat(localStorage.getItem('precif_roi_global'))  || 30;
-    const comGlobal  = parseFloat(localStorage.getItem('precif_com_global'))  || 5;
+    const taxaGlobalRaw = parseFloat(localStorage.getItem('precif_taxa_global'));
+    const roiGlobalRaw  = parseFloat(localStorage.getItem('precif_roi_global'));
+    const comGlobalRaw  = parseFloat(localStorage.getItem('precif_com_global'));
+    const taxaGlobal = isNaN(taxaGlobalRaw) ? 20 : taxaGlobalRaw;
+    const roiGlobal  = isNaN(roiGlobalRaw)  ? 30 : roiGlobalRaw;
+    const comGlobal  = isNaN(comGlobalRaw)  ? 5  : comGlobalRaw;
     const taxaInput = parseFloat(document.getElementById('precifTaxaOverride')?.value);
     const roiInput  = parseFloat(document.getElementById('precifROIOverride')?.value);
     const comInput  = parseFloat(document.getElementById('precifComissaoOverride')?.value);
@@ -13985,6 +13993,41 @@ function precifGetGlobais() {
         roi:  !isNaN(roiInput)  ? roiInput  : roiGlobal,
         com:  !isNaN(comInput)  ? comInput  : comGlobal
     };
+}
+
+// Salvar/Restaurar padrões globais de precificação
+function salvarPadraoPrecif() {
+    try {
+        const taxaVal = parseFloat(document.getElementById('precifTaxaOverride')?.value);
+        const roiVal  = parseFloat(document.getElementById('precifROIOverride')?.value);
+        const comVal  = parseFloat(document.getElementById('precifComissaoOverride')?.value);
+        if (!isNaN(taxaVal)) localStorage.setItem('precif_taxa_global', String(taxaVal));
+        if (!isNaN(roiVal))  localStorage.setItem('precif_roi_global', String(roiVal));
+        if (!isNaN(comVal))  localStorage.setItem('precif_com_global', String(comVal));
+        const taxaPad = isNaN(parseFloat(localStorage.getItem('precif_taxa_global'))) ? 20 : parseFloat(localStorage.getItem('precif_taxa_global'));
+        const roiPad  = isNaN(parseFloat(localStorage.getItem('precif_roi_global')))  ? 30 : parseFloat(localStorage.getItem('precif_roi_global'));
+        const comPad  = isNaN(parseFloat(localStorage.getItem('precif_com_global')))  ? 5  : parseFloat(localStorage.getItem('precif_com_global'));
+        const elTaxa = document.getElementById('precifTaxaPadraoLabel'); if (elTaxa) elTaxa.textContent = 'Padrão: ' + taxaPad + '%';
+        const elROI  = document.getElementById('precifROIPadraoLabel'); if (elROI)  elROI.textContent  = 'Padrão: ' + roiPad + '%';
+        const elCom  = document.getElementById('precifComissaoPadraoLabel'); if (elCom) elCom.textContent  = 'Padrão: ' + comPad + '%';
+        mostrarNotificacao && mostrarNotificacao('Padrões salvos.', 'success');
+    } catch (e) { console.warn('salvarPadraoPrecif', e); mostrarNotificacao && mostrarNotificacao('Erro ao salvar padrões.', 'error'); }
+}
+
+function restaurarPadraoPrecif() {
+    try {
+        localStorage.removeItem('precif_taxa_global');
+        localStorage.removeItem('precif_roi_global');
+        localStorage.removeItem('precif_com_global');
+        const elTaxa = document.getElementById('precifTaxaPadraoLabel'); if (elTaxa) elTaxa.textContent = 'Padrão: 20%';
+        const elROI  = document.getElementById('precifROIPadraoLabel'); if (elROI)  elROI.textContent  = 'Padrão: 30%';
+        const elCom  = document.getElementById('precifComissaoPadraoLabel'); if (elCom) elCom.textContent  = 'Padrão: 5%';
+        // limpar inputs de override
+        const tIn = document.getElementById('precifTaxaOverride'); if (tIn) tIn.value = '';
+        const rIn = document.getElementById('precifROIOverride');  if (rIn) rIn.value = '';
+        const cIn = document.getElementById('precifComissaoOverride'); if (cIn) cIn.value = '';
+        mostrarNotificacao && mostrarNotificacao('Padrões restaurados.', 'success');
+    } catch (e) { console.warn('restaurarPadraoPrecif', e); mostrarNotificacao && mostrarNotificacao('Erro ao restaurar padrões.', 'error'); }
 }
 
 function precifAdicionarProdutoLinha(nomeProduto = '', taxaOvr = null, roiOvr = null, freteVal = null, quantidade = 1) {
@@ -14325,16 +14368,19 @@ function calcularPrecificacaoPorCliente(opcoes = {}) {
     const roiOverride = parseFloat(document.getElementById('precifROIOverride')?.value);
     const comOverride = parseFloat(document.getElementById('precifComissaoOverride')?.value);
 
-    const taxaGlobal = parseFloat(localStorage.getItem('precif_taxa_global')) || 20;
-    const roiGlobal  = parseFloat(localStorage.getItem('precif_roi_global'))  || 30;
-    const comGlobal  = parseFloat(localStorage.getItem('precif_com_global'))  || 5;
+    const taxaGlobalRaw = parseFloat(localStorage.getItem('precif_taxa_global'));
+    const roiGlobalRaw  = parseFloat(localStorage.getItem('precif_roi_global'));
+    const comGlobalRaw  = parseFloat(localStorage.getItem('precif_com_global'));
+    const taxaGlobal = isNaN(taxaGlobalRaw) ? 20 : taxaGlobalRaw;
+    const roiGlobal  = isNaN(roiGlobalRaw)  ? 30 : roiGlobalRaw;
+    const comGlobal  = isNaN(comGlobalRaw)  ? 5  : comGlobalRaw;
 
     const taxaLbl = document.getElementById('precifTaxaPadraoLabel');
     const roiLbl  = document.getElementById('precifROIPadraoLabel');
     const comLbl  = document.getElementById('precifComissaoPadraoLabel');
-    if (taxaLbl) taxaLbl.textContent = taxaGlobal;
-    if (roiLbl)  roiLbl.textContent  = roiGlobal;
-    if (comLbl)  comLbl.textContent  = comGlobal;
+    if (taxaLbl) taxaLbl.textContent = 'Padrão: ' + taxaGlobal + '%';
+    if (roiLbl)  roiLbl.textContent  = 'Padrão: ' + roiGlobal + '%';
+    if (comLbl)  comLbl.textContent  = 'Padrão: ' + comGlobal + '%';
 
     const taxaFinal = !isNaN(taxaOverride) ? taxaOverride : taxaGlobal;
     const roiFinal  = !isNaN(roiOverride)  ? roiOverride  : roiGlobal;
