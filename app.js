@@ -13346,7 +13346,7 @@ function resetarPrecoManual(nomeProduto) {
 
 // ── SUB-TAB NAVIGATION FOR PRECIFICAÇÃO ─────────────────────────
 function trocarSubabaPrecif(subaba) {
-    const tabs = ['produtos','federais','icms','porcliente','comparativo','consultaPrec','rastreabilidade','tabelaci'];
+    const tabs = ['porcliente','consultaPrec','comparativo','rastreabilidade','tabelaci','icms','federais'];
     tabs.forEach(s => {
         let el = null;
         if (s === 'consultaPrec') el = document.getElementById('painel-consultaPrec');
