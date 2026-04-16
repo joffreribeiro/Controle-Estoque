@@ -14544,6 +14544,14 @@ function criarPropostaDaPrecificacao() {
         }
     } catch (e) {}
 
+    // Bloquear geração de proposta a partir de versão arquivada (quando o usuário carregou uma versão salva)
+    try {
+        if (exibindoPrecifSalva && precifSalvaCarregada && String(precifSalvaCarregada.status) === 'arquivada') {
+            alert('Esta versão de precificação está arquivada e não pode ser usada para gerar propostas. Reative ou carregue outra versão.');
+            return;
+        }
+    } catch (e) {}
+
     if (!ultimaPrecificacaoCalculada) {
         alert('Calcule ou carregue uma precificação antes de gerar proposta.');
         return;
@@ -14695,6 +14703,36 @@ function carregarVersaoPrecif(id) {
     const infoEl = document.getElementById('precifSalvoInfo'); if (infoEl) infoEl.innerHTML = `<span style="color:#16a34a; font-size:0.82rem">Usando versão v${v.versao} de ${new Date(v.dataCriacao).toLocaleString('pt-BR')}</span>`;
     mostrarNotificacao('Versão carregada.', 'success');
                 try { atualizarStatusPropostaNaPrecif(v.clienteId); } catch(e) { console.warn('Erro ao atualizar status da proposta:', e); }
+}
+
+function arquivarVersaoPrecif(id) {
+    try {
+        const v = (precificacoesCliente || []).find(p => p.id === id);
+        if (!v) return;
+        if (!confirm(`Arquivar versão v${v.versao}?\nEla ficará visível no histórico mas não poderá ser usada para novas propostas.`)) return;
+        v.status = 'arquivada';
+        try { estoque.precificacoesCliente = precificacoesCliente; } catch (e) {}
+        salvarDados();
+        try { renderizarHistoricoPrecif(v.clienteId); } catch (e) {}
+        try { mostrarNotificacao && mostrarNotificacao('Versão arquivada.', 'success'); } catch (e) {}
+    } catch (e) { console.error('arquivarVersaoPrecif erro:', e); }
+}
+
+function excluirVersaoPrecif(id) {
+    try {
+        const v = (precificacoesCliente || []).find(p => p.id === id);
+        if (!v) return;
+        if (v.propostaId) {
+            alert('Esta precificação gerou uma proposta e não pode ser excluída.\nArquive-a se quiser ocultá-la.');
+            return;
+        }
+        if (!confirm(`Excluir versão v${v.versao} permanentemente?`)) return;
+        precificacoesCliente = (precificacoesCliente || []).filter(p => p.id !== id);
+        try { estoque.precificacoesCliente = precificacoesCliente; } catch (e) {}
+        salvarDados();
+        try { renderizarHistoricoPrecif(v.clienteId); } catch (e) {}
+        try { mostrarNotificacao && mostrarNotificacao('Versão excluída.', 'success'); } catch (e) {}
+    } catch (e) { console.error('excluirVersaoPrecif erro:', e); }
 }
 
 
