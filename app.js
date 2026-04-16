@@ -10788,8 +10788,6 @@ function renderizarGraficos() {
 // MÓDULO DE CLIENTES
 // ========================================
 
-let clientes = [];
-
 function abrirModalCliente(id = null) {
     document.getElementById('clienteEditId').value = '';
     document.getElementById('clienteNome').value = '';
