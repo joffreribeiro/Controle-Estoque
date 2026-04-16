@@ -14,28 +14,1171 @@ function _escapeHtml(texto) {
         .replace(/"/g, '&quot;')
         .replace(/'/g, '&#39;');
 }
-function renderizarRastreabilidade() {
-    try { return renderizarRastreabilidade_impl(); } catch (e) { console.error('renderizarRastreabilidade wrapper error', e); }
+
+function aplicarDesconto(inputDesconto) {
+    const row = inputDesconto.closest('.item-venda-row') || inputDesconto.closest('.item-proposta-row');
+    if (!row) return;
+    const prodSelect = row.querySelector('.item-produto');
+    const valorInput = row.querySelector('.item-valor');
+    if (!prodSelect || !valorInput) return;
+
+    // resolver nome do produto a partir do id/valor do select
+    const prodVal = prodSelect.value;
+    let nomeProduto = prodVal;
+    const produtoObj = (estoque.produtos || []).find(p => String(p.id) === String(prodVal) || p.nome === prodVal);
+    if (produtoObj) nomeProduto = produtoObj.nome;
+
+    const descPct = parseFloat(inputDesconto.value) || 0;
+    const precoBase = parseFloat((valorInput.dataset.original || String(valorInput.value)).toString().replace(/\./g, '').replace(',', '.')) || 0;
+    const descontoMax = precificacao[nomeProduto] ? parseFloat(precificacao[nomeProduto].descontoMaximo) : null;
+
+    const novoPreco = precoBase * (1 - descPct / 100);
+    valorInput.value = Number(novoPreco || 0).toFixed(2).replace('.', ',');
+
+    // feedback visual se excedeu
+    const badgeClass = 'badge-excedeu-desconto';
+    if (descontoMax !== null && descPct > descontoMax) {
+        valorInput.style.border = '2px solid #7c3aed';
+        valorInput.style.background = '#f5f3ff';
+        let badge = row.querySelector('.' + badgeClass);
+        if (!badge) {
+            badge = document.createElement('span');
+            badge.className = badgeClass;
+            badge.style.cssText = 'background:#7c3aed;color:#fff;padding:2px 8px;border-radius:10px;margin-left:8px;font-size:0.75rem';
+            badge.innerText = 'Excede desconto máximo';
+            inputDesconto.parentNode.appendChild(badge);
+        }
+    } else {
+        valorInput.style.border = '';
+        valorInput.style.background = '';
+        const badge = row.querySelector('.' + badgeClass);
+        if (badge) badge.remove();
+    }
+
+    try { calcularTotalProposta(); } catch (e) {}
 }
 
-function exportarRastreabilidade() {
-    try { return exportarRastreabilidade_impl(); } catch (e) { console.error('exportarRastreabilidade wrapper error', e); }
+function _escapeJsString(texto) {
+    return String(texto || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
 }
+
+function _fmtMoeda(v) {
+    return Number(v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+// Estrutura de dados principal
+if (location.hostname !== 'localhost') {
+    // console.log = () => {};  // desativado para permitir depuração em produção
+    console.debug = () => {};
+}
+// Flag para indicar que há dados locais alterados que ainda não foram sincronizados com o cloud
+let _dadosAlterados = false;
+// Marca que houve sincronização recente com o cloud (evita warning ao fechar)
+let _cloudSyncedRecently = false;
+// Feature flags: controlar painel debug e notificações automáticas do cloud
+try { window.__SHOW_DEBUG_PANEL = window.__SHOW_DEBUG_PANEL || false; } catch(e) { window.__SHOW_DEBUG_PANEL = false; }
+try { window.__SHOW_AUTO_UPDATE_NOTIFICATION = window.__SHOW_AUTO_UPDATE_NOTIFICATION || false; } catch(e) { window.__SHOW_AUTO_UPDATE_NOTIFICATION = false; }
+
+// Atualiza contadores/badges relacionados às precificações (sidebar + elementos opcionais)
+function atualizarIndicadoresPrecificacao() {
+    try {
+        const total = Array.isArray(precificacoesCliente) ? precificacoesCliente.length : 0;
+        // atualizar badge na sidebar (botão Precificação)
+        const navBtn = document.querySelector('.nav-item[data-tab="precificacao"]');
+        if (navBtn) {
+            let badge = document.getElementById('badgePrecificacoes');
+            if (!badge) {
+                badge = document.createElement('span');
+                badge.id = 'badgePrecificacoes';
+                badge.style.background = '#1e3a5f';
+                badge.style.color = '#fff';
+                badge.style.fontSize = '0.72rem';
+                badge.style.padding = '2px 6px';
+                badge.style.borderRadius = '999px';
+                badge.style.marginLeft = '8px';
+                badge.style.display = 'inline-block';
+                badge.className = 'badge';
+                navBtn.appendChild(badge);
+            }
+            badge.textContent = String(total);
+            badge.style.display = total > 0 ? 'inline-block' : 'none';
+        }
+
+        // elementos opcionais na página (se existirem)
+        const el1 = document.getElementById('precifTotalCount') || document.getElementById('precifCount');
+        if (el1) el1.textContent = String(total);
+    } catch (e) { console.warn('atualizarIndicadoresPrecificacao', e); }
+}
+// FIM AJUSTE PRECIFICAÇÃO
+// RETID + Benefícios fiscais (estado por sessão de precificação)
+let retidPorProduto = {};
+let beneficioFiscalAtivo = false;
+let beneficiosPorProduto = {};
+
+const CATEGORIAS_PRODUTO = [
+        'Arma Curta', 'Arma Longa', 'Acessório', 'Faca', 'Munição', 'Outro'
+];
+
+let categoriaPorProduto = {};
+
+// ----------------------------------------
+// Debug helpers: overlay de erro e painel de diagnóstico
+// (ajuda a capturar erros que antes eram suprimidos)
+;(function(){
+    function showRuntimeErrorOverlay(msg) {
+        try {
+            const id = 'runtime-error-overlay';
+            let el = document.getElementById(id);
+            if (!el) {
+                el = document.createElement('div');
+                el.id = id;
+                el.style.position = 'fixed';
+                el.style.right = '12px';
+                el.style.bottom = '12px';
+                el.style.zIndex = 2000;
+                el.style.maxWidth = '520px';
+                el.style.background = 'rgba(220,38,38,0.95)';
+                el.style.color = '#fff';
+                el.style.padding = '12px';
+                el.style.borderRadius = '8px';
+                el.style.fontSize = '0.9rem';
+                el.style.boxShadow = '0 8px 30px rgba(0,0,0,0.3)';
+                el.style.whiteSpace = 'pre-wrap';
+                el.style.fontFamily = 'Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial';
+                el.style.cursor = 'pointer';
+                el.title = 'Clique para esconder este painel de erro';
+                el.addEventListener('click', () => { el.style.display = 'none'; });
+                (document.body || document.documentElement).appendChild(el);
+            }
+            const text = (typeof msg === 'string') ? msg : (msg && msg.stack) ? msg.stack : JSON.stringify(msg, null, 2);
+            el.textContent = 'Erro em tempo de execução detectado:\n' + text;
+        } catch (e) { try { console.error('Falha ao exibir overlay de erro', e); } catch(_){} }
+    }
+
+    function createDebugPanel(){
+        try {
+            if (!window.__SHOW_DEBUG_PANEL) return;
+            const id = 'debug-panel-mini';
+            if (document.getElementById(id)) return;
+            const p = document.createElement('div');
+            p.id = id;
+            p.style.position = 'fixed';
+            p.style.left = '12px';
+            p.style.bottom = '12px';
+            p.style.zIndex = 2000;
+            p.style.background = 'rgba(15,23,42,0.95)';
+            p.style.color = '#cbd5e1';
+            p.style.padding = '10px';
+            p.style.borderRadius = '8px';
+            p.style.fontSize = '0.85rem';
+            p.style.boxShadow = '0 6px 24px rgba(0,0,0,0.2)';
+            p.style.fontFamily = 'Inter, system-ui, -apple-system, "Segoe UI", Roboto, Arial';
+            p.style.maxWidth = '360px';
+            p.style.whiteSpace = 'nowrap';
+            p.innerHTML = '<strong style="color:#fff;display:block;margin-bottom:6px">Debug</strong>' +
+                '<div id="debug-panel-content">carregando...</div>' +
+                '<div style="margin-top:8px;text-align:right"><button id="debug-copy-json" style="background:#1f2937;color:#fff;border:none;padding:6px 8px;border-radius:6px;cursor:pointer">Copiar JSON</button></div>';
+            (document.body || document.documentElement).appendChild(p);
+            document.getElementById('debug-copy-json')?.addEventListener('click', () => {
+                try {
+                    const raw = localStorage.getItem('estoqueArmasV2') || '{}';
+                    navigator.clipboard?.writeText(raw);
+                    mostrarNotificacao && mostrarNotificacao('JSON copiado para área de transferência', 'info');
+                } catch(e) { showRuntimeErrorOverlay(e); }
+            });
+        } catch(e){}
+    }
+
+    function updateDebugPanel(){
+        try {
+            if (!window.__SHOW_DEBUG_PANEL) return;
+            createDebugPanel();
+            const el = document.getElementById('debug-panel-content');
+            if (!el) return;
+            const raw = localStorage.getItem('estoqueArmasV2');
+            let parsed = null;
+            try { parsed = raw ? JSON.parse(raw) : null; } catch(e) { parsed = null; }
+            const cfgRaw = localStorage.getItem('configContrato');
+            let cfg = null;
+            try { cfg = cfgRaw ? JSON.parse(cfgRaw) : null; } catch(e){ cfg = cfgRaw; }
+            const lines = [];
+            lines.push('produtos: ' + (Array.isArray(parsed?.produtos) ? parsed.produtos.length : '-'));
+            lines.push('registroVendas: ' + (Array.isArray(parsed?.registroVendas) ? parsed.registroVendas.length : '-'));
+            lines.push('registroDistribuicao: ' + (Array.isArray(parsed?.registroDistribuicao) ? parsed.registroDistribuicao.length : '-'));
+            lines.push('clientes: ' + (Array.isArray(parsed?.clientes) ? parsed.clients?.length || parsed?.clientes.length : '-'));
+            lines.push('configContrato: ' + (cfg ? (cfg.proximo || '-') + '/' + (cfg.ano || '-') : 'ausente'));
+            lines.push('abaAtiva: ' + (window.abaAtiva || '-'));
+            el.textContent = lines.join('\n');
+        } catch(e) { showRuntimeErrorOverlay(e); }
+    }
+
+    window.__showRuntimeErrorOverlay = showRuntimeErrorOverlay;
+    window.__updateDebugPanel = updateDebugPanel;
+
+    window.addEventListener('error', function(ev){ try { showRuntimeErrorOverlay(ev.error || ev.message || ev); console.error('Unhandled error', ev.error || ev.message || ev); } catch(e){} });
+    window.addEventListener('unhandledrejection', function(ev){ try { showRuntimeErrorOverlay(ev.reason || ev); console.error('Unhandled rejection', ev.reason || ev); } catch(e){} });
+    document.addEventListener('DOMContentLoaded', function(){ try { if (window.__SHOW_DEBUG_PANEL) setTimeout(updateDebugPanel, 400); } catch(e){} });
+})();
+// ===== NCM / Predefinições fiscais =====
+const NCM_PRODUTOS = {
+    "9301.90.00": "FUZIL DE ALTA PRECISÃO IMBEL 308 AGLC",
+    "9305.91.00": "PEÇAS",
+    "9302.00.00": "PISTOLA",
+    "9305.10.00": "CARREGADOR",
+    "8211.10.00": "FACA",
+    "8201.40.00": "MACHADINHA"
+};
+
+const NCM_POR_CATEGORIA = {
+    "FUZIL":      "9301.90.00",
+    "PEÇAS":      "9305.91.00",
+    "PISTOLA":    "9302.00.00",
+    "REVÓLVER":   "9302.00.00",
+    "CARABINA":   "9302.00.00",
+    "CARREGADOR": "9305.10.00",
+    "FACA":       "8211.10.00",
+    "MACHADINHA": "8201.40.00"
+};
+
+const IMPOSTOS_FEDERAIS_POR_NCM = {
+    "9301.90.00": { pis: 1.65, cofins: 7.60, ipi: 55.00 },
+    "9305.91.00": { pis: 1.65, cofins: 7.60, ipi:  0.00 },
+    "9302.00.00": { pis: 1.65, cofins: 7.60, ipi: 55.00 },
+    "9305.10.00": { pis: 1.65, cofins: 7.60, ipi: 29.25 },
+    "8211.10.00": { pis: 1.65, cofins: 7.60, ipi:  7.80 },
+    "8201.40.00": { pis: 1.65, cofins: 7.60, ipi:  0.00 }
+};
+
+const ICMS_PJ_POR_NCM = {
+    "9301.90.00": {
+        AC:7, AL:7, AP:7, AM:7, BA:7, CE:7, DF:7, ES:7, GO:7,
+        MA:7, MS:7, PA:7, PB:7, PR:12, PE:7, PI:7, RJ:12,
+        RN:7, RS:12, RO:7, RR:7, SC:12, SP:12, SE:7, TO:7, MG:12
+    },
+    "9305.91.00": {
+        AC:7, AL:7, AP:7, AM:7, BA:7, CE:7, DF:7, ES:7, GO:7,
+        MA:7, MS:7, PA:7, PB:7, PR:12, PE:7, PI:7, RJ:12,
+        RN:7, RS:12, RO:7, RR:7, SC:12, SP:12, SE:7, TO:7, MG:12
+    },
+    "9302.00.00": {
+        AC:7, AL:7, AP:7, AM:7, BA:7, CE:7, DF:7, ES:7, GO:7,
+        MA:7, MS:7, PA:7, PB:7, PR:12, PE:7, PI:7, RJ:12,
+        RN:7, RS:12, RO:7, RR:7, SC:12, SP:12, SE:7, TO:7, MG:12
+    },
+    "9305.10.00": {
+        AC:7, AL:7, AP:7, AM:7, BA:7, CE:7, DF:7, ES:7, GO:7,
+        MA:7, MS:7, PA:7, PB:7, PR:12, PE:7, PI:7, RJ:12,
+        RN:7, RS:12, RO:7, RR:7, SC:12, SP:12, SE:7, TO:7, MG:12
+    },
+    "8211.10.00": {
+        AC:7, AL:7, AP:7, AM:7, BA:7, CE:7, DF:7, ES:7, GO:7,
+        MA:7, MS:7, PA:7, PB:7, PR:12, PE:7, PI:7, RJ:12,
+        RN:7, RS:12, RO:7, RR:7, SC:12, SP:12, SE:7, TO:7, MG:12
+    },
+    "8201.40.00": {
+        AC:7, AL:7, AP:7, AM:7, BA:7, CE:7, DF:7, ES:7, GO:7,
+        MA:7, MS:7, PA:7, PB:7, PR:12, PE:7, PI:7, RJ:12,
+        RN:7, RS:12, RO:7, RR:7, SC:12, SP:12, SE:7, TO:7, MG:12
+    }
+};
+
+const ICMS_PF_POR_NCM = {
+    "9301.90.00": {
+        AC:25, AL:29, AP:29, AM:25, BA:38, CE:28, DF:25, ES:25, GO:25,
+        MA:30.5, MT:35, MS:25, PA:30, PB:25, PR:25, PE:27, PI:33,
+        RJ:37, RN:25, RS:25, RO:25, RR:25, SC:25, SP:25, SE:28,
+        TO:27, MG:25
+    },
+    "9305.91.00": {
+        AC:19, AL:29, AP:29, AM:20, BA:20.5, CE:20, DF:20, ES:25, GO:25,
+        MA:23, MT:35, MS:25, PA:30, PB:20, PR:25, PE:27, PI:22.5,
+        RJ:37, RN:20, RS:25, RO:25, RR:25, SC:25, SP:25, SE:28,
+        TO:20, MG:18
+    },
+    "9302.00.00": {
+        AC:25, AL:29, AP:29, AM:25, BA:38, CE:28, DF:25, ES:25, GO:25,
+        MA:30.5, MT:35, MS:25, PA:30, PB:25, PR:25, PE:27, PI:33,
+        RJ:37, RN:25, RS:25, RO:25, RR:25, SC:25, SP:25, SE:28,
+        TO:27, MG:25
+    },
+    "9305.10.00": {
+        AC:19, AL:29, AP:29, AM:20, BA:20.5, CE:20, DF:20, ES:25, GO:25,
+        MA:23, MT:35, MS:25, PA:30, PB:20, PR:25, PE:27, PI:22.5,
+        RJ:37, RN:20, RS:25, RO:25, RR:25, SC:25, SP:25, SE:28,
+        TO:20, MG:18
+    },
+    "8211.10.00": {
+        AC:19, AL:19, AP:18, AM:20, BA:20.5, CE:20, DF:20, ES:17, GO:19,
+        MA:23, MT:17, MS:17, PA:19, PB:20, PR:19.5, PE:20.5, PI:22.5,
+        RJ:20, RN:20, RS:17, RO:19.5, RR:20, SC:17, SP:18, SE:19,
+        TO:20, MG:18
+    },
+    "8201.40.00": {
+        AC:19, AL:19, AP:18, AM:20, BA:20.5, CE:20, DF:20, ES:17, GO:19,
+        MA:23, MT:17, MS:17, PA:19, PB:20, PR:19.5, PE:20.5, PI:22.5,
+        RJ:20, RN:20, RS:17, RO:19.5, RR:20, SC:17, SP:18, SE:19,
+        TO:20, MG:18
+    }
+};
+
+
+let abaAtiva = 'estoque';
+
+// Configuração de alertas (persistida separadamente)
+let configAlertas = { limite: 5, ativo: true };
+
+// Helper: cálculo de estoque/vendas/distribuições
+function obterTotalVendasProduto(produto) {
+    if (!produto) return 0;
+    // Verificar se há registros detalhados para este produto específico (fonte de verdade)
+    const registrosDesteProduto = Array.isArray(estoque.registroVendas)
+        ? estoque.registroVendas.filter(v => {
+            if (Array.isArray(v.items) && v.items.length) {
+                return v.items.some(it =>
+                    Number(it.produtoId) === Number(produto.id) ||
+                    it.produto === produto.nome ||
+                    it.produtoNome === produto.nome
+                );
+            }
+            return Number(v.produtoId) === Number(produto.id) || v.produtoNome === produto.nome;
+        })
+        : [];
+    if (registrosDesteProduto.length > 0) {
+        return registrosDesteProduto.reduce((sum, v) => {
+            if (Array.isArray(v.items) && v.items.length) {
+                return sum + v.items.reduce((s, it) => {
+                    if (Number(it.produtoId) === Number(produto.id) || (it.produto === produto.nome) || (it.produtoNome === produto.nome)) return s + (Number(it.quantidade) || 0);
+                    return s;
+                }, 0);
+            }
+            if (Number(v.produtoId) === Number(produto.id) || v.produtoNome === produto.nome) return sum + (Number(v.quantidade) || 0);
+            return sum;
+        }, 0);
+    }
+    // Fallback para agregado em produto.vendas quando não há registros para este produto
+    if (!produto.vendas) return 0;
+    return Object.keys(produto.vendas).reduce((s, k) => s + (Number(produto.vendas[k]) || 0), 0);
+}
+
+function obterDistribuicaoTotalExcluindoImbel(produto) {
+    if (!produto) return 0;
+    // Verificar se há registros de distribuição para este produto específico (fonte de verdade)
+    const registrosDesteProduto = Array.isArray(estoque.registroDistribuicao)
+        ? estoque.registroDistribuicao.filter(d =>
+            Number(d.produtoId) === Number(produto.id) ||
+            (d.produtoNome && d.produtoNome === produto.nome)
+        )
+        : [];
+    if (registrosDesteProduto.length > 0) {
+        return registrosDesteProduto.reduce((s, d) => {
+            try {
+                const rep = (d.representante || '').toString().toUpperCase();
+                if (rep === 'IMBEL') return s;
+                return s + (Number(d.quantidade) || 0);
+            } catch (e) {
+                console.warn('obterDistribuicaoTotalExcluindoImbel: erro ao processar registro', e);
+                return s;
+            }
+        }, 0);
+    }
+    // Fallback para o objeto produto.distribuicao (legado) quando não há registros para este produto
+    if (!produto.distribuicao) return 0;
+    return Object.keys(produto.distribuicao).reduce((s, k) => {
+        if ((k || '').toUpperCase() === 'IMBEL') return s;
+        return s + (Number(produto.distribuicao[k]) || 0);
+    }, 0);
+}
+
+function calcularSaldoConsolidado(produto) {
+    if (!produto) return 0;
+    const estoqueConc = Number(produto.estoqueConsolidado || 0);
+    const vendas = obterTotalVendasProduto(produto);
+    return estoqueConc - vendas;
+}
+
+function calcularImbelDisponivel(produto) {
+    // Retornar o saldo disponível na IMBEL considerando:
+    // estoque consolidado, distribuições (exceto IMBEL), devoluções para IMBEL
+    // e apenas as vendas atribuídas à IMBEL — mantém coerência com `obterMetricasImbelProduto`.
+    try {
+        if (!produto) return 0;
+        const met = obterMetricasImbelProduto(produto);
+        return Number(met.imbelSaldo || 0);
+    } catch (e) {
+        return 0;
+    }
+}
+
+// Calcula estoque disponível na IMBEL baseado exclusivamente em registros
+function calcularEstoqueIMBEL(nomeProduto) {
+    if (!nomeProduto) return 0;
+    const produtos = estoque.produtos || [];
+    const produto = produtos.find(p => {
+        try {
+            if (!p || !p.nome) return false;
+            return p.nome.toString().toUpperCase() === nomeProduto.toString().toUpperCase();
+        } catch (e) { return false; }
+    });
+    if (!produto) return 0;
+
+    const estoqueTotal = Number(produto.estoqueConsolidado || produto.estoqueTotal || produto.estoque || 0);
+
+    const totalDistribuido = (estoque.registroDistribuicao || []).reduce((sum, d) => {
+        try {
+            const match = (Number(d.produtoId) === Number(produto.id)) || ((d.produtoNome || '').toString().toUpperCase() === produto.nome.toString().toUpperCase());
+            if (!match) return sum;
+            const rep = (d.representante || '').toString().toUpperCase();
+            if (rep === 'IMBEL') return sum; // não descontar distribuições para IMBEL
+            return sum + (Number(d.quantidade) || 0);
+        } catch (e) { return sum; }
+    }, 0);
+
+    const totalDevolvido = (estoque.registroDevolucoes || []).reduce((sum, d) => {
+        try {
+            const match = (Number(d.produtoId) === Number(produto.id)) || ((d.produtoNome || '').toString().toUpperCase() === produto.nome.toString().toUpperCase());
+            if (!match) return sum;
+            const destino = (d.destino || '').toString().toUpperCase();
+            if (destino === 'IMBEL') return sum + (Number(d.quantidade) || 0);
+        } catch (e) {
+            console.warn('calcularEstoqueIMBEL: erro ao processar devolução', e);
+        }
+        return sum;
+    }, 0);
+
+    return estoqueTotal - totalDistribuido + totalDevolvido;
+}
+
+function obterMetricasImbelProduto(produto) {
+    if (!produto) {
+        return { estoqueTotal: 0, imbelDisp: 0, imbelVenda: 0, imbelSaldo: 0 };
+    }
+
+    const produtoId = produto.id;
+    const estoqueTotal = Number(
+        (produto.estoqueConsolidado ?? produto.estoqueTotal ?? produto.estoque ?? produto.qtdTotal ?? produto.estoqueInicial) || 0
+    );
+
+    const distPorRep = {};
+    (estoque.registroDistribuicao || []).forEach(d => {
+        try {
+            if (Number(d.produtoId) === Number(produtoId) || (d.produtoNome && d.produtoNome === produto.nome)) {
+                const r = (d.representante || '').toString().toUpperCase();
+                distPorRep[r] = (distPorRep[r] || 0) + (Number(d.quantidade) || 0);
+            }
+        } catch (e) {
+            console.warn('obterMetricasImbelProduto: erro ao processar distribuição', e);
+        }
+    });
+    const totalDistribuido = Object.values(distPorRep).reduce((s, v) => s + v, 0);
+
+    let totalDevolvidoParaImbel = 0;
+    (estoque.registroDevolucoes || []).forEach(d => {
+        try {
+            if (Number(d.produtoId) === Number(produtoId) || (d.produtoNome && d.produtoNome === produto.nome)) {
+                const destino = (d.destino || '').toString().toUpperCase();
+                if (destino === 'IMBEL') totalDevolvidoParaImbel += (Number(d.quantidade) || 0);
+            }
+        } catch (e) {
+            console.warn('obterMetricasImbelProduto: erro ao processar devolução', e);
+        }
+    });
+
+    const vendasPorRep = {};
+    let agregadoTemValores = false;
+    if (produto.vendas && typeof produto.vendas === 'object') {
+        Object.keys(produto.vendas).forEach(k => {
+            const val = Number(produto.vendas[k]) || 0;
+            if (val !== 0) agregadoTemValores = true;
+            vendasPorRep[(k || '').toString().toUpperCase()] = val;
+        });
+    }
+    if (!agregadoTemValores) {
+        (estoque.registroVendas || []).forEach(v => {
+            try {
+                const rep = (v.representante || '').toString().toUpperCase();
+                if (Array.isArray(v.items) && v.items.length) {
+                    v.items.forEach(it => {
+                        if (Number(it.produtoId) === Number(produtoId) || (it.produto === produto.nome) || (it.produtoNome === produto.nome)) {
+                            vendasPorRep[rep] = (vendasPorRep[rep] || 0) + (Number(it.quantidade) || 0);
+                        }
+                    });
+                } else if (Number(v.produtoId) === Number(produtoId) || (v.produtoNome === produto.nome)) {
+                    vendasPorRep[rep] = (vendasPorRep[rep] || 0) + (Number(v.quantidade) || 0);
+                }
+            } catch (e) {
+                console.warn('obterMetricasImbelProduto: erro ao processar venda', e);
+            }
+        });
+    }
+
+    const totalVendasProduto = Object.values(vendasPorRep).reduce((s, v) => s + v, 0);
+    const consolidadoDisp = estoqueTotal;
+    const consolidadoVenda = totalVendasProduto;
+    const consolidadoSaldo = consolidadoDisp - consolidadoVenda;
+
+    const imbelDisp = estoqueTotal - totalDistribuido + totalDevolvidoParaImbel;
+    const imbelVenda = Number(vendasPorRep['IMBEL'] || 0);
+    const imbelSaldo = imbelDisp - imbelVenda;
+
+    return {
+        estoqueTotal,
+        imbelDisp,
+        imbelVenda,
+        imbelSaldo,
+        consolidadoDisp,
+        consolidadoVenda,
+        consolidadoSaldo
+    };
+}
+
+// Reconstrói o objeto `produto.distribuicao` a partir dos registros de distribuição e devolução
+function reconstruirDistribuicaoAPartirDeRegistros() {
+    if (!Array.isArray(estoque.produtos)) return;
+    // Inicializar chaves
+    estoque.produtos.forEach(p => {
+        try {
+            if (!p.distribuicao) p.distribuicao = {};
+            (estoque.representantes || []).forEach(r => { p.distribuicao[r] = 0; });
+            // manter IMBEL sempre 0 (é derivado)
+            p.distribuicao.IMBEL = 0;
+        } catch (e) {
+            console.warn('reconstruirDistribuicaoAPartirDeRegistros: erro ao inicializar produto', e);
+        }
+    });
+
+    // Somar todas as distribuições
+    (estoque.registroDistribuicao || []).forEach(d => {
+        try {
+            const prod = estoque.produtos.find(p => Number(p.id) === Number(d.produtoId) || (d.produtoNome && p.nome === d.produtoNome));
+            if (!prod) return;
+            const rep = (d.representante || '').toString().toUpperCase();
+            if (!rep) return;
+            prod.distribuicao[rep] = (prod.distribuicao[rep] || 0) + (Number(d.quantidade) || 0);
+        } catch (e) {
+            console.warn('reconstruirDistribuicaoAPartirDeRegistros: erro ao processar distribuição', e);
+        }
+    });
+
+    // Aplicar devoluções: subtrair do origem, somar para destino quando não for IMBEL
+    (estoque.registroDevolucoes || []).forEach(dev => {
+        try {
+            const prod = estoque.produtos.find(p => Number(p.id) === Number(dev.produtoId) || (dev.produtoNome && p.nome === dev.produtoNome));
+            if (!prod) return;
+            const origem = (dev.origem || '').toString().toUpperCase();
+            const destino = (dev.destino || '').toString().toUpperCase();
+            prod.distribuicao[origem] = Math.max(0, (prod.distribuicao[origem] || 0) - (Number(dev.quantidade) || 0));
+            if (destino && destino !== 'IMBEL') {
+                prod.distribuicao[destino] = (prod.distribuicao[destino] || 0) + (Number(dev.quantidade) || 0);
+            }
+        } catch (e) {
+            console.warn('reconstruirDistribuicaoAPartirDeRegistros: erro ao processar devolução', e);
+        }
+    });
+}
+
+// Função de diagnóstico disponível no console para inspecionar um produto rapidamente
+function diagnosticarProduto(produtoId) {
+    try {
+        const p = estoque.produtos.find(x => Number(x.id) === Number(produtoId) || String(x.id) === String(produtoId));
+        if (!p) { console.warn('Produto não encontrado:', produtoId); return null; }
+        const estoqueConsolidado = Number(p.estoqueConsolidado) || 0;
+        const totalDistribuido = (estoque.registroDistribuicao || []).reduce((s, d) => {
+            try {
+                if (Number(d.produtoId) === Number(p.id) || (d.produtoNome && d.produtoNome === p.nome)) return s + (Number(d.quantidade) || 0);
+            } catch (e) {
+                console.warn('diagnosticarProduto: erro ao processar distribuição', e);
+            }
+            return s;
+        }, 0);
+        const totalDevolvidoParaImbel = (estoque.registroDevolucoes || []).reduce((s, d) => {
+            try {
+                if ((Number(d.produtoId) === Number(p.id) || (d.produtoNome && d.produtoNome === p.nome)) && ((d.destino || '').toString().toUpperCase() === 'IMBEL')) return s + (Number(d.quantidade) || 0);
+            } catch (e) {
+                console.warn('diagnosticarProduto: erro ao processar devolução', e);
+            }
+            return s;
+        }, 0);
+        const totalVendas = obterTotalVendasProduto(p);
+        const imbelDisponivel = estoqueConsolidado - totalDistribuido + totalDevolvidoParaImbel;
+        const distribuicaoPorRep = {};
+        (estoque.representantes || []).forEach(r => { distribuicaoPorRep[r] = p.distribuicao ? (p.distribuicao[r] || 0) : 0; });
+        const result = { produtoId: p.id, nome: p.nome, estoqueConsolidado, totalDistribuido, totalDevolvidoParaImbel, totalVendas, imbelDisponivel, distribuicaoPorRep };
+        console.debug('Diagnóstico do produto:', result);
+        return result;
+    } catch (e) { console.error('Erro no diagnóstico:', e); return null; }
+}
+window.diagnosticarProduto = diagnosticarProduto;
+
+// Atalho por nome (útil para console): `diagnosticarProdutoPorNome("NOME DO PRODUTO")`
+function diagnosticarProdutoPorNome(nome) {
+    if (!nome) return null;
+    const p = (estoque.produtos || []).find(x => (x.nome || '').toString().toUpperCase() === nome.toString().toUpperCase());
+    if (!p) { console.warn('Produto não encontrado por nome:', nome); return null; }
+    return diagnosticarProduto(p.id);
+}
+window.diagnosticarProdutoPorNome = diagnosticarProdutoPorNome;
+
+// =============================
+// Firebase (inicialização e helpers)
+// =============================
+// Atualiza o indicador visual de status do Firestore (presente no header)
+function updateFirestoreStatus(connected, lastSyncDate, message) {
+    try {
+        const el = document.getElementById('firestoreStatus');
+        const dot = document.getElementById('fsDot');
+        const text = document.getElementById('fsText');
+        if (!el || !dot || !text) return;
+        if (connected) {
+            dot.classList.remove('fs-offline');
+            dot.classList.remove('fs-warning');
+            dot.classList.add('fs-online');
+            const label = message || 'Cloud: conectado';
+            if (lastSyncDate) {
+                const dt = (lastSyncDate instanceof Date) ? lastSyncDate : new Date(lastSyncDate);
+                text.textContent = `${label} — último sync: ${dt.toLocaleString('pt-BR')}`;
+            } else {
+                text.textContent = message || 'Cloud: conectado — sem sync';
+            }
+        } else {
+            dot.classList.remove('fs-online');
+            dot.classList.remove('fs-warning');
+            dot.classList.add('fs-offline');
+            text.textContent = message || 'Cloud: desconectado';
+        }
+    } catch (e) {
+        // ignore UI update errors
+    }
+}
+
+try {
+    if (typeof firebase !== 'undefined') {
+        const firebaseConfig = {
+            apiKey: "AIzaSyBizembCnAJpVe4TCcTTJvCickREOa_f1Y",
+            authDomain: "estoquefi.firebaseapp.com",
+            databaseURL: "https://estoquefi-default-rtdb.firebaseio.com",
+            projectId: "estoquefi",
+            storageBucket: "estoquefi.firebasestorage.app",
+            messagingSenderId: "339770116384",
+            appId: "1:339770116384:web:3b51acfbc9f18162c5af45",
+            measurementId: "G-RVK6BC5TDP"
+        };
+
+        // Inicializa apenas se ainda não inicializado
+        if (!firebase.apps || firebase.apps.length === 0) {
+            firebase.initializeApp(firebaseConfig);
+        }
+
+        // Instância do Firestore para uso nas funções abaixo
+        try {
+            window.firestoreDB = firebase.firestore();
+            // Não tentar ler do cloud antes da autenticação para evitar erros de permissão
+            updateFirestoreStatus(true, null, 'Cloud: aguardando login');
+        } catch (e) {
+            console.warn('Firestore não disponível:', e);
+            window.firestoreDB = null;
+            updateFirestoreStatus(false, null, 'Cloud: não disponível');
+        }
+    } else {
+        console.warn('Firebase SDK não carregado — funções cloud desativadas.');
+        // atualizar UI se possível
+        try { updateFirestoreStatus(false, null, 'SDK não carregado'); } catch (e) {}
+    }
+} catch (e) {
+    console.error('Erro inicializando Firebase:', e);
+}
+
+
+
+// ID da venda que está sendo editada (null quando criando nova)
+let vendaEditandoId = null;
+// ID do produto que está sendo editado no modal de produto (null quando criando novo)
+let produtoEditandoId = null;
+
+// Dados iniciais com PREÇOS baseados na planilha - SEM dados de distribuição/vendas (zerados)
+const dadosIniciais = [
+    {
+        nome: 'CARABINA IA2 5,56',
+        preco: 10420.75,
+        distribuicao: { KOLTE: 0, ISA: 0, LC: 0, ADES: 0, FL: 0, IMBEL: 0 },
+        vendas: { KOLTE: 0, ISA: 0, LC: 0, ADES: 0, FL: 0, IMBEL: 0 }
+    },
+    {
+        nome: 'CARABINA IA2 7,62',
+        preco: 12690.21,
+        distribuicao: { KOLTE: 0, ISA: 0, LC: 0, ADES: 0, FL: 0, IMBEL: 0 },
+        vendas: { KOLTE: 0, ISA: 0, LC: 0, ADES: 0, FL: 0, IMBEL: 0 }
+    },
+    {
+        nome: 'FACA CAMPANHA AMZ',
+        preco: 360.00,
+        distribuicao: { KOLTE: 0, ISA: 0, LC: 0, ADES: 0, FL: 0, IMBEL: 0 },
+        vendas: { KOLTE: 0, ISA: 0, LC: 0, ADES: 0, FL: 0, IMBEL: 0 }
+    },
+    {
+        nome: 'FACA POLICIAL AMZ',
+        preco: 352.45,
+        distribuicao: { KOLTE: 0, ISA: 0, LC: 0, ADES: 0, FL: 0, IMBEL: 0 },
+        vendas: { KOLTE: 0, ISA: 0, LC: 0, ADES: 0, FL: 0, IMBEL: 0 }
+    },
+    {
+        nome: 'FACA POLICIAL IA2',
+        preco: 380.00,
+        distribuicao: { KOLTE: 0, ISA: 0, LC: 0, ADES: 0, FL: 0, IMBEL: 0 },
+        vendas: { KOLTE: 0, ISA: 0, LC: 0, ADES: 0, FL: 0, IMBEL: 0 }
+    },
+    {
+        nome: 'FUZIL DE ALTA PRECISÃO IMBEL 308 AGLC (COMPLETO)',
+        preco: 13500.00,
+        distribuicao: { KOLTE: 0, ISA: 0, LC: 0, ADES: 0, FL: 0, IMBEL: 0 },
+        vendas: { KOLTE: 0, ISA: 0, LC: 0, ADES: 0, FL: 0, IMBEL: 0 }
+    },
+    {
+        nome: 'PISTOLA .40 GC MD7 C/ ADC',
+        preco: 5159.71,
+        distribuicao: { KOLTE: 0, ISA: 0, LC: 0, ADES: 0, FL: 0, IMBEL: 0 },
+        vendas: { KOLTE: 0, ISA: 0, LC: 0, ADES: 0, FL: 0, IMBEL: 0 }
+    },
+    {
+        nome: 'PISTOLA 380 GC MD1 C/ ADC',
+        preco: 5219.54,
+        distribuicao: { KOLTE: 0, ISA: 0, LC: 0, ADES: 0, FL: 0, IMBEL: 0 },
+        vendas: { KOLTE: 0, ISA: 0, LC: 0, ADES: 0, FL: 0, IMBEL: 0 }
+    },
+    {
+        nome: 'PISTOLA 380 GC MD1 S/ ADC',
+        preco: 5406.19,
+        distribuicao: { KOLTE: 0, ISA: 0, LC: 0, ADES: 0, FL: 0, IMBEL: 0 },
+        vendas: { KOLTE: 0, ISA: 0, LC: 0, ADES: 0, FL: 0, IMBEL: 0 }
+    },
+    {
+        nome: 'PISTOLA 380 GC MD2 C/ ADC',
+        preco: 5162.57,
+        distribuicao: { KOLTE: 0, ISA: 0, LC: 0, ADES: 0, FL: 0, IMBEL: 0 },
+        vendas: { KOLTE: 0, ISA: 0, LC: 0, ADES: 0, FL: 0, IMBEL: 0 }
+    },
+    {
+        nome: 'PISTOLA 380 GC MD2 S/ ADC',
+        preco: 5207.87,
+        distribuicao: { KOLTE: 0, ISA: 0, LC: 0, ADES: 0, FL: 0, IMBEL: 0 },
+        vendas: { KOLTE: 0, ISA: 0, LC: 0, ADES: 0, FL: 0, IMBEL: 0 }
+    },
+    {
+        nome: 'PISTOLA 9 GC MD1 S/ ADC',
+        preco: 5236.30,
+        distribuicao: { KOLTE: 0, ISA: 0, LC: 0, ADES: 0, FL: 0, IMBEL: 0 },
+        vendas: { KOLTE: 0, ISA: 0, LC: 0, ADES: 0, FL: 0, IMBEL: 0 }
+    }
+];
+
+// ========================================
+// FUNÇÕES DE INICIALIZAÇÃO
+// ========================================
+
+function popularSelectRepresentantes(selectId, incluirImbel = true) {
+    const sel = document.getElementById(selectId);
+    if (!sel) return;
+    const reps = estoque.representantes || 
+        ['KOLTE', 'ISA', 'LC', 'ADES', 'FL'];
+    // evitar duplicar IMBEL caso esteja presente em `estoque.representantes`
+    const repsSemImbel = reps.filter(r => String(r).toUpperCase() !== 'IMBEL');
+    sel.innerHTML = '<option value="">Selecione...</option>'
+        + (incluirImbel ? '<option value="IMBEL">IMBEL (Venda Direta)</option>' : '')
+        + repsSemImbel.map(r => `<option value="${r}">${r}</option>`).join('');
+}
+
+async function inicializar() {
+    carregarDados();
+    try { carregarPrecificacoesSalvas(); } catch (e) {}
+    // Load contract config into Configurações tab
+    try {
+        const cfg = carregarConfigContrato();
+        const anoEl = document.getElementById('configContratoAno');
+        const proxEl = document.getElementById('configContratoProximo');
+        if (anoEl) anoEl.value = cfg.ano;
+        if (proxEl) proxEl.value = cfg.proximo;
+        atualizarPreviaContrato();
+    } catch (e) {}
+    try { verificarExpiracaoPrecificacoes(); } catch (e) {}
+    try { inicializarImpostosPreDefinidos(); } catch (e) { console.warn('Inicialização de impostos predefinidos falhou:', e); }
+
+    try { inicializarImpostosEditaveis(); } catch (e) {}
+    try { inicializarICMSEditavel(); } catch (e) {}
+
+    // Sync automático com cloud ocorre após autenticação (onAuthStateChanged)
+
+    try { renderizarTabela(); } catch (e) { console.error('renderizarTabela:', e); }
+    try { renderizarCadastroProdutos(); } catch (e) { console.error('renderizarCadastroProdutos:', e); }
+    try { renderizarDashboard(); } catch (e) { console.error('renderizarDashboard:', e); }
+    try { renderizarRegistroVendas(); } catch (e) { console.error('renderizarVendas:', e); }
+    try { renderizarRegistroDistribuicao(); } catch (e) { console.error('renderizarDist:', e); }
+    try { renderizarControleEnvio(); } catch (e) { console.error('renderizarEnvio:', e); }
+    try { renderizarClientes(); } catch (e) { console.error('renderizarClientes:', e); }
+    try { atualizarKPIsClientes(); } catch (e) {}
+    try { atualizarDatalistClientes(); } catch (e) {}
+    try { renderizarPropostas(); } catch (e) { console.error('renderizarPropostas:', e); }
+    try { atualizarKPIsPropostas(); } catch (e) {}
+    try { renderizarPrecificacao(); } catch (e) { console.error('renderizarPrecif:', e); }
+    try { atualizarSelectsProdutos(); } catch (e) {}
+    try { popularSelectProdutosPrecif(); } catch (e) {}
+    try { atualizarSelectsRelatorios(); } catch (e) {}
+    try { atualizarEstatisticas(); } catch (e) {}
+    try { atualizarData(); } catch (e) {}
+
+    // Popular selects visíveis de representantes (filtros) na inicialização
+    try { popularSelectRepresentantes('filtroDistribuicaoRep', true); } catch (e) {}
+    try { popularSelectRepresentantes('filtroRepresentante', true); } catch (e) {}
+    try { popularSelectRepresentantes('filtroControleEnvioRep', true); } catch (e) {}
+    try { popularSelectRepresentantes('filtroRelatoriosRep', true); } catch (e) {}
+    try { popularSelectRepresentantes('precifRepresentanteSelect', true); } catch (e) {}
+    
+
+    // Check proposal alerts every hour
+    if (!window.__PROPOSTA_ALERTAS_INTERVALO__) {
+        window.__PROPOSTA_ALERTAS_INTERVALO__ = setInterval(() => {
+            try { verificarAlertasEstoque(); } catch (e) {}
+        }, 60 * 60 * 1000);
+    }
+
+    // Re-check when user returns to tab
+    if (!window.__PROPOSTA_ALERTAS_VISIBILITY__) {
+        document.addEventListener('visibilitychange', () => {
+            if (!document.hidden) {
+                try { verificarAlertasEstoque(); } catch (e) {}
+            }
+        });
+        window.__PROPOSTA_ALERTAS_VISIBILITY__ = true;
+    }
+
+    // Reativar auto-save: habilita salvamento automático (debounced + periódico)
+    try { window.__AUTO_SAVE_CLOUD.enabled = true; } catch (e) {}
+    try { iniciarAutoSaveCloud(); } catch (e) { console.warn('Falha ao iniciar auto-save:', e); }
+}
+
+// INÍCIO AJUSTE PRECIFICAÇÃO: normalizarPrecificacoesCliente
+function normalizarPrecificacoesCliente(origem) {
+    // Normaliza várias formas de estrutura de precificações (arrays, objetos mapeados, versões antigas)
+    const lista = Array.isArray(origem)
+        ? origem
+        : (origem && typeof origem === 'object')
+            ? Object.values(origem)
+            : [];
+
+    return lista.map((p, idx) => {
+        const raw = (p && typeof p === 'object') ? p : {};
+
+        // Normalizar a lista de itens (suporta item.itens, item.items, objetos mapeados ou arrays)
+        let itensRaw = [];
+        if (Array.isArray(raw.itens)) itensRaw = raw.itens;
+        else if (Array.isArray(raw.items)) itensRaw = raw.items;
+        else if (raw.itens && typeof raw.itens === 'object') itensRaw = Object.values(raw.itens);
+        else if (raw.items && typeof raw.items === 'object') itensRaw = Object.values(raw.items);
+        else if (Array.isArray(raw.produtos)) itensRaw = raw.produtos;
+
+        const itens = (itensRaw || []).map(item => {
+            const it = (item && typeof item === 'object') ? item : {};
+            return {
+                produto: it.produto || it.produtoNome || it.nome || '',
+                produtoId: it.produtoId || it.produtoID || it.id || '',
+                ncm: it.ncm || it.NCM || '',
+                ci: Number(isFinite(it.ci) ? it.ci : (it.custo || 0)) || 0,
+                taxa: Number(isFinite(it.taxa) ? it.taxa : (it.taxaPct || 0)) || 0,
+                roi: Number(isFinite(it.roi) ? it.roi : (it.roiPct || 0)) || 0,
+                valorBase: Number(it.valorBase || it.valor_base || 0) || 0,
+                icms: Number(it.icms || 0) || 0,
+                icmsR: Number(it.icmsR || it.icmsR$ || 0) || 0,
+                pis: Number(it.pis || 0) || 0,
+                pisR: Number(it.pisR || 0) || 0,
+                cofins: Number(it.cofins || 0) || 0,
+                cofinsR: Number(it.cofinsR || 0) || 0,
+                ipi: Number(it.ipi || 0) || 0,
+                ipiR: Number(it.ipiR || 0) || 0,
+                valorImpostos: Number(it.valorImpostos || it.valor_impostos || 0) || 0,
+                comissao: Number(it.comissao || it.comissaoPct || 0) || 0,
+                comissaoR: Number(it.comissaoR || 0) || 0,
+                precoFinal: Number(it.precoFinal || it.preco_final || it.valorUnitario || 0) || 0,
+                margem: Number(it.margem || 0) || 0
+            };
+        });
+
+        const clienteNome = raw.clienteNome || raw.cliente || (raw.clienteObj && raw.clienteObj.nome) || '';
+        const clienteId = raw.clienteId || raw.cliente_id || (raw.clienteObj && raw.clienteObj.id) || '';
+        const clienteUF = raw.clienteUF || raw.clienteUf || (raw.clienteObj && raw.clienteObj.uf) || '';
+        const representante = raw.representante || raw.rep || (raw.clienteObj && raw.clienteObj.representante) || '';
+        const dataCriacao = raw.dataCriacao || raw.data || raw.createdAt || new Date().toISOString();
+
+        return {
+            id: raw.id || raw._id || ('precif-' + (Date.now() + idx)),
+            clienteId: clienteId,
+            clienteNome: clienteNome,
+            clienteUF: clienteUF,
+            representante: representante,
+            tipoPessoa: raw.tipoPessoa || raw.tipo || raw.tipo_pessoa || '',
+            dataCriacao: dataCriacao,
+            versao: Number(raw.versao || raw.version || (idx + 1)) || (idx + 1),
+            status: raw.status || 'ativa',
+            propostaId: raw.propostaId || raw.proposta_id || null,
+            descricao: raw.descricao || raw.obs || '',
+            itens: itens,
+            validadeDias: Number(raw.validadeDias || raw.validade || 30) || 30,
+            dataExpiracao: raw.dataExpiracao || raw.expiracao || null,
+            retidPorProduto: raw.retidPorProduto || raw.retid || {},
+            beneficioFiscalAtivo: !!raw.beneficioFiscalAtivo,
+            beneficiosPorProduto: raw.beneficiosPorProduto || raw.beneficios || {}
+        };
+    });
+}
+
+// FIM AJUSTE PRECIFICAÇÃO
+// FIM AJUSTE PRECIFICAÇÃO
+
+// =============================
+// CONSULTA DE PRECIFICAÇÕES - Estado e Helpers (Parte A)
+// =============================
+const _cpState = {
+    pagina: 1,
+    porPagina: 20,
+    sortCol: 'dataCriacao',
+    sortDir: 'desc',
+    dados: []
+};
+
+// Formata moeda BR
+function _cpFmt(v) {
+    return Number(v || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+}
+
+// Formata percentual
+function _cpPct(v) {
+    return Number(v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '%';
+}
+
+// Formata percentual com valor em moeda abaixo (ex: 27% \n R$ 270,00)
+function _cpPctWithValor(pct, base) {
+    const percent = Number(pct || 0);
+    const baseVal = Number(base || 0);
+    const amount = (baseVal * percent) / 100;
+    return `<div style="display:flex;flex-direction:column;align-items:flex-end"><div>${_cpPct(percent)}</div><div style="font-size:0.82rem;color:#64748b">${_cpFmt(amount)}</div></div>`;
+}
+// Verifica se precificação está expirada
+function _cpExpirada(p) {
+    if (!p) return false;
+    const exp = p.dataExpiracao || p.data || p.validade || null;
+    if (!exp) return false;
+    try { return new Date(exp) < new Date(); } catch (e) { return false; }
+}
+
+// =============================
+// Render: Consulta de Precificações (Parte B)
+// Recebe array de precificações (já paginadas) e renderiza as linhas
+// =============================
+function renderConsultaPrecificacoes(dados) {
+    try {
+        const body = document.getElementById('bodyConsultaPrec');
+        if (!body) return;
+        body.innerHTML = '';
+
+        const totalRegistros = Array.isArray(_cpState.dados) ? _cpState.dados.length : 0;
+
+        if (!Array.isArray(dados) || dados.length === 0) {
+            body.innerHTML = `
+            <tr>
+              <td colspan="23">
+                <div class="empty-state">
+                  <div class="empty-icon">📋</div>
+                  <div class="empty-text">Nenhuma precificação salva</div>
+                  <div class="empty-hint">Calcule e salve uma precificação na aba "Por Cliente"</div>
+                </div>
+              </td>
+            </tr>`;
+            if (typeof _cpRenderPaginacao === 'function') _cpRenderPaginacao(totalRegistros);
+            return;
+        }
+
+        let html = '';
+        // contador de linhas (para exibir Nº se desejar)
+        let rowCounter = (_cpState.pagina - 1) * _cpState.porPagina + 1;
+
+        // construir mapa de numeração por ano (AAAA/NNN) baseado em _cpState.dados
+        const seqMap = new Map();
+        try {
+            const all = Array.isArray(_cpState.dados) ? _cpState.dados.slice() : [];
+            const sortedAll = all.slice().sort((a, b) => {
+                const da = new Date(a.dataCriacao || a.data || a.createdAt || 0).getTime() || 0;
+                const db = new Date(b.dataCriacao || b.data || b.createdAt || 0).getTime() || 0;
+                return da - db;
+            });
+            const counters = {};
+            sortedAll.forEach(p => {
+                const y = new Date(p.dataCriacao || p.data || p.createdAt || Date.now()).getFullYear();
+                counters[y] = (counters[y] || 0) + 1;
+                seqMap.set(p, counters[y]);
+            });
+        } catch (e) { console.warn('seqMap erro', e); }
+
+        dados.forEach((prec) => {
+            const produtos = Array.isArray(prec.itens) ? prec.itens : (Array.isArray(prec.produtos) ? prec.produtos : []);
+            produtos.forEach((prod, idxProd) => {
+                const exp = _cpExpirada(prec);
+                // rótulo de numeração AAAA/NNN para a precificação
+                const precYear = new Date(prec.dataCriacao || prec.data || prec.createdAt || Date.now()).getFullYear();
+                const precSeq = seqMap.get(prec) || rowCounter;
+                const precLabel = `${precYear}/${String(precSeq).padStart(3, '0')}`;
+                const trClass = exp ? 'prec-expirada' : '';
+                const statusBadge = exp ? '<span class="badge-prec-expirada">✗ Expirada</span>' : '<span class="badge-prec-ativa">✓ Ativa</span>';
+                const rep = prec.representante || prec.rep || '';
+                const repClass = rep ? (' ' + String(rep).toLowerCase().replace(/[^a-z0-9\-]/g, '')) : '';
+                const beneficios = (prec.beneficiosPorProduto && (prec.beneficiosPorProduto[prod.produto] || prec.beneficiosPorProduto[prod.produtoId])) || (prec.descricao || '');
+
+                html += `<tr class="${trClass}">`;
+                html += `<td style="min-width:60px">${_escapeHtml(String(precLabel || prec.id || prec.versao || rowCounter))}</td>`;
+                html += `<td style="min-width:100px">${prec.dataCriacao ? new Date(prec.dataCriacao).toLocaleString('pt-BR') : (prec.data ? new Date(prec.data).toLocaleString('pt-BR') : '-')}</td>`;
+                html += `<td style="min-width:100px">${prec.dataExpiracao ? new Date(prec.dataExpiracao).toLocaleDateString('pt-BR') : '-'}</td>`;
+                html += `<td style="min-width:80px">${statusBadge}</td>`;
+                html += `<td style="min-width:160px;text-align:left">${_escapeHtml(prec.clienteNome || prec.cliente || '')}</td>`;
+                html += `<td style="min-width:50px">${_escapeHtml(prec.clienteUF || prec.uf || '')}</td>`;
+                html += `<td style="min-width:50px">${_escapeHtml(prec.tipoPessoa || '')}</td>`;
+                html += `<td style="min-width:90px"><span class="badge-rep${repClass}">${_escapeHtml(rep)}</span></td>`;
+                html += `<td style="min-width:160px;text-align:left">${_escapeHtml(prod.produto || prod.produtoNome || prod.nome || '')}</td>`;
+                // Quantidade — logo após a descrição
+                html += `<td style="min-width:80px;text-align:center">${_escapeHtml(String(prod.quantidade || prod.qtd || 1))}</td>`;
+                html += `<td style="min-width:100px;text-align:right">${_cpFmt(prod.ci)}</td>`;
+                // A partir do CI: alinhar com tabela 'Por Cliente' (Taxa% / ROI% combinado, Valor Base, PIS/COFINS, ICMS, IPI, s/Impostos, c/ IPI, Comissão, Frete, Valor Final, Valor Total, Margem, Benefícios)
+                const tipoPessoa = prec.tipoPessoa || '';
+                const impostoPctStyle = 'font-size:0.75rem;color:#64748b';
+                const impostoValStyle = 'font-weight:600';
+                const icmsBg = tipoPessoa === 'PF' ? '#fef2f2' : '#f0fdf4';
+                const icmsColor = tipoPessoa === 'PF' ? '#dc2626' : '#16a34a';
+                const taxaRoiCell = `<td style="text-align:center;color:#475569">\n                    <div style="font-size:0.75rem;color:#64748b">Taxa: ${(Number(prod.taxa || 0)).toFixed(2)}%</div>\n                    <div style="font-size:0.75rem;color:#64748b">ROI: ${(Number(prod.roi || 0)).toFixed(2)}%</div>\n                </td>`;
+                const pisCofinsCell = `<td style="text-align:center">\n                    <div style="${impostoPctStyle}">PIS: ${Number(prod.pis || 0).toFixed(2)}%</div>\n                    <div style="${impostoValStyle}">${_cpFmt(Number(prod.pisR || 0))}</div>\n                    <div style="${impostoPctStyle};margin-top:4px">COFINS: ${Number(prod.cofins || 0).toFixed(2)}%</div>\n                    <div style="${impostoValStyle}">${_cpFmt(Number(prod.cofinsR || 0))}</div>\n                </td>`;
+                const icmsCell = `<td style="text-align:center;background:${icmsBg}">\n                    <div style="${impostoPctStyle};color:${icmsColor}">${Number(prod.icms || 0).toFixed(2)}%</div>\n                    <div style="${impostoValStyle}">${_cpFmt(Number(prod.icmsR || 0))}</div>\n                </td>`;
+                const valorSemIPI = Number(prod.valorImpostos || prod.valorBase || 0);
+                const ipiCell = `<td style="text-align:center">\n                    <div style="${impostoPctStyle}">${Number(prod.ipi || 0).toFixed(2)}%</div>\n                    <div style="${impostoValStyle}">${_cpFmt(Number(prod.ipiR || 0))}</div>\n                </td>`;
+                const valorComIPI = valorSemIPI + (Number(prod.ipiR || 0));
+                const comissaoCell = `<td style="text-align:center;color:#d97706">\n                    <div style="${impostoPctStyle}">${(Number(prod.comissao || 0)).toFixed(2)}%</div>\n                    <div style="${impostoValStyle}">${_cpFmt(Number(prod.comissaoR || 0))}</div>\n                </td>`;
+
+                html += taxaRoiCell;
+                html += `<td style="min-width:110px;text-align:right">${_cpFmt(prod.valorBase)}</td>`;
+                html += pisCofinsCell;
+                html += icmsCell;
+                // Ordem: Valor s/ IPI, IPI, Valor c/ IPI, Comissão, Frete, Valor Final, Valor Total
+                html += `<td style="min-width:110px;text-align:right">${_cpFmt(valorSemIPI)}</td>`;
+                html += ipiCell;
+                html += `<td style="min-width:110px;text-align:right">${_cpFmt(valorComIPI)}</td>`;
+                html += comissaoCell;
+                const freteVal = Number(prod.frete || prod.freteR || prec.frete || 0) || 0;
+                html += `<td style="min-width:100px;text-align:right">${_cpFmt(freteVal)}</td>`;
+                const comissaoR = Number(prod.comissaoR || 0);
+                const valorFinalCalc = valorComIPI + comissaoR;
+                html += `<td style="min-width:120px;text-align:right">${_cpFmt(valorFinalCalc)}</td>`;
+                const quantidade = Number(prod.quantidade || prod.qtd || 1) || 1;
+                const valorTotalCalc = (valorFinalCalc * quantidade) + freteVal;
+                html += `<td style="min-width:120px;text-align:right">${_cpFmt(valorTotalCalc)}</td>`;
+                html += `<td style="min-width:80px;text-align:right">${_cpPct(prod.margem)}</td>`;
+                html += `<td style="min-width:160px">${_escapeHtml(beneficios || '')}</td>`;
+                html += `<td style="min-width:110px;position:sticky;right:0">`;
+                html += `<button class="btn-action btn-edit" onclick="gerarPropostaDePrecificacao('${prec.id}', ${idxProd})">📋 Proposta</button>`;
+                html += `<button class="btn-action btn-delete" onclick="excluirPrecificacao('${prec.id}')">🗑</button>`;
+                html += `</td>`;
+                html += `</tr>`;
+
+                rowCounter++;
+            });
+        });
+
+        body.innerHTML = html;
+        if (typeof _cpRenderPaginacao === 'function') _cpRenderPaginacao(totalRegistros);
+    } catch (e) {
+        console.error('renderConsultaPrecificacoes erro:', e);
+    }
+}
+
+// =============================
+// Consulta: filtros, paginação e exclusão (Partes C/D/E)
+// =============================
+function filtrarConsultaPrecificacoes(page) {
+    try {
+        const clienteEl = document.getElementById('fcp-cliente');
+        const repEl = document.getElementById('fcp-rep');
+        const statusEl = document.getElementById('fcp-status');
+        const deEl = document.getElementById('fcp-de');
+        const ateEl = document.getElementById('fcp-ate');
+
+        const cliente = clienteEl ? (clienteEl.value || '').toString().trim() : '';
+        const rep = repEl ? (repEl.value || '').toString().trim() : '';
+        const status = statusEl ? (statusEl.value || '').toString().trim() : '';
+        const de = deEl ? (deEl.value || '').toString().trim() : '';
+        const ate = ateEl ? (ateEl.value || '').toString().trim() : '';
+
+        let lista = Array.isArray(precificacoesCliente) ? precificacoesCliente.slice() : [];
+
+        if (cliente) {
+            const s = cliente.toLowerCase();
+            lista = lista.filter(p => ((p.clienteNome || p.cliente || '') + '').toLowerCase().includes(s) || ((p.clienteId || '') + '').toLowerCase().includes(s));
+        }
+
+        if (rep) {
+            const s = rep.toLowerCase();
+            lista = lista.filter(p => ((p.representante || p.rep || '') + '').toLowerCase().includes(s));
+        }
+
+        if (status) {
+            if (status === 'ativa') lista = lista.filter(p => !_cpExpirada(p));
+            if (status === 'expirada') lista = lista.filter(p => _cpExpirada(p));
+        }
+
+        if (de) {
+            const deDate = new Date(de);
+            lista = lista.filter(p => {
+                const d = new Date(p.dataCriacao || p.data || p.createdAt || null);
+                return d && !isNaN(d) && d >= deDate;
+            });
+        }
+
+        if (ate) {
+            const ateDate = new Date(ate + 'T23:59:59');
+            lista = lista.filter(p => {
+                const d = new Date(p.dataCriacao || p.data || p.createdAt || null);
+                return d && !isNaN(d) && d <= ateDate;
+            });
+        }
+
+        // ordenação simples
+        const col = _cpState.sortCol || 'dataCriacao';
+        const dir = (_cpState.sortDir || 'desc').toLowerCase();
+        lista.sort((a, b) => {
+            try {
+                let va = a[col];
+                let vb = b[col];
+                if (col === 'dataCriacao') {
+                    va = new Date(a.dataCriacao || a.data || 0).getTime() || 0;
+                    vb = new Date(b.dataCriacao || b.data || 0).getTime() || 0;
+                } else {
+                    va = (va || '') + '';
+                    vb = (vb || '') + '';
+                }
+                if (va < vb) return dir === 'asc' ? -1 : 1;
+                if (va > vb) return dir === 'asc' ? 1 : -1;
+                return 0;
+            } catch (e) { return 0; }
+        });
+
+        _cpState.dados = lista;
+        _cpState.pagina = (typeof page === 'number' && page > 0) ? page : 1; // aceitar page opcional
+
+        const start = (_cpState.pagina - 1) * (_cpState.porPagina || 20);
+        const paged = lista.slice(start, start + (_cpState.porPagina || 20));
+        renderConsultaPrecificacoes(paged);
+    } catch (e) {
+        console.error('filtrarConsultaPrecificacoes erro:', e);
+    }
+}
+
 function _cpGoToPagina(n) {
     const num = Number(n) || 1;
     if (num < 1) return;
     _cpState.pagina = num;
     filtrarConsultaPrecificacoes(num);
 }
-
-// Valores padrão seguros para evitar ReferenceError durante carregamento
-if (typeof estoque === 'undefined') var estoque = {};
-if (typeof precificacoesCliente === 'undefined') var precificacoesCliente = [];
-if (typeof clientes === 'undefined') var clientes = [];
-if (typeof propostas === 'undefined') var propostas = [];
-if (typeof ICMS_PJ_POR_NCM === 'undefined') var ICMS_PJ_POR_NCM = {};
-if (typeof ICMS_PF_POR_NCM === 'undefined') var ICMS_PF_POR_NCM = {};
-
 
 function _cpRenderPaginacao(total) {
     try {
@@ -10125,36 +11268,6 @@ function gerarCSV(dados) {
 // INICIALIZAÇÃO
 // ========================================
 
-async function inicializar() {
-    try {
-        carregarDados();
-    } catch (e) { console.error('inicializar carregarDados erro:', e); }
-
-    try { if (typeof inicializarImpostosPreDefinidos === 'function') inicializarImpostosPreDefinidos(); } catch (e) { console.warn('inicializarImpostosPreDefinidos falhou:', e); }
-    try { if (typeof inicializarImpostosEditaveis === 'function') inicializarImpostosEditaveis(); } catch (e) {}
-    try { if (typeof inicializarICMSEditavel === 'function') inicializarICMSEditavel(); } catch (e) {}
-
-    // Renderizar vistas principais quando disponíveis
-    try { if (typeof renderizarTabela === 'function') renderizarTabela(); } catch (e) {}
-    try { if (typeof renderizarDashboard === 'function') renderizarDashboard(); } catch (e) {}
-    try { if (typeof renderizarRegistroVendas === 'function') renderizarRegistroVendas(); } catch (e) {}
-    try { if (typeof renderizarRegistroDistribuicao === 'function') renderizarRegistroDistribuicao(); } catch (e) {}
-    try { if (typeof renderizarControleEnvio === 'function') renderizarControleEnvio(); } catch (e) {}
-    try { if (typeof renderizarClientes === 'function') renderizarClientes(); } catch (e) {}
-    try { if (typeof renderizarPropostas === 'function') renderizarPropostas(); } catch (e) {}
-    try { if (typeof atualizarSelectsProdutos === 'function') atualizarSelectsProdutos(); } catch (e) {}
-    try { if (typeof atualizarSelectsRelatorios === 'function') atualizarSelectsRelatorios(); } catch (e) {}
-
-    // Sub-abas de precificação
-    try {
-        const tabPrecif = document.querySelector('#tab-precificacao');
-        if (tabPrecif) {
-            if (typeof renderizarConsultaPrecificacao === 'function') renderizarConsultaPrecificacao();
-            if (typeof renderizarRastreabilidade === 'function') renderizarRastreabilidade();
-        }
-    } catch (e) {}
-}
-
 document.addEventListener('DOMContentLoaded', inicializar);
 
 // ========================================
@@ -10787,6 +11900,8 @@ function renderizarGraficos() {
 // ========================================
 // MÓDULO DE CLIENTES
 // ========================================
+
+let clientes = [];
 
 function abrirModalCliente(id = null) {
     document.getElementById('clienteEditId').value = '';
@@ -12031,7 +13146,7 @@ function resetarPrecoManual(nomeProduto) {
 
 // ── SUB-TAB NAVIGATION FOR PRECIFICAÇÃO ─────────────────────────
 function trocarSubabaPrecif(subaba) {
-    const tabs = ['produtos','federais','icms','porcliente','comparativo','consultaPrec','rastreabilidade','tabelaci'];
+    const tabs = ['produtos','federais','icms','porcliente','comparativo','consultaPrec','tabelaci'];
     tabs.forEach(s => {
         let el = null;
         if (s === 'consultaPrec') el = document.getElementById('painel-consultaPrec');
@@ -12076,9 +13191,6 @@ function trocarSubabaPrecif(subaba) {
         const empty = document.getElementById('compEmpty');
         if (res) res.style.display = 'none';
         if (empty) empty.style.display = 'block';
-    }
-    if (subaba === 'rastreabilidade') {
-        try { renderizarRastreabilidade(); } catch (e) {}
     }
 }
 
@@ -12456,7 +13568,7 @@ function exportarComparativo() {
     } catch (e) { console.error('exportarComparativo erro:', e); mostrarNotificacao && mostrarNotificacao('Erro ao exportar comparativo.', 'error'); }
 }
 
-function renderizarRastreabilidade_impl() {
+function renderizarRastreabilidade() {
     // Tentar recuperar do localStorage se estiver vazio
     let _dadosPrecif = (Array.isArray(precificacoesCliente) && precificacoesCliente.length > 0)
         ? precificacoesCliente
@@ -12661,7 +13773,7 @@ function renderizarRastreabilidade_impl() {
         </div>`;
 }
 
-function exportarRastreabilidade_impl() {
+function exportarRastreabilidade() {
         const rows = [];
         (clientes || []).forEach(c => {
                 (precificacoesCliente || []).filter(p => String(p.clienteId) === String(c.id)).forEach(p => rows.push({
@@ -14757,6 +15869,8 @@ function imprimirPrecificacao() {
 // ========================================
 // MÓDULO: PROPOSTAS COMERCIAIS
 // ========================================
+
+let propostas = [];
 
 function gerarNumeroProposta() {
     const existentes = propostas.map(p => {
