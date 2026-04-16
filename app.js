@@ -2662,7 +2662,7 @@ function trocarAba(aba) {
         } else if (aba === 'controleimbel') {
             try { trocarSubAbaControleImbel('dashboard'); } catch (e) { if (window.__showRuntimeErrorOverlay) window.__showRuntimeErrorOverlay(e); }
         } else if (aba === 'precificacao') {
-            try { trocarSubabaPrecif('federais'); } catch (e) { if (window.__showRuntimeErrorOverlay) window.__showRuntimeErrorOverlay(e); }
+            try { trocarSubabaPrecif('porcliente'); } catch (e) { if (window.__showRuntimeErrorOverlay) window.__showRuntimeErrorOverlay(e); }
             try { renderizarPrecificacao(); } catch (e) { if (window.__showRuntimeErrorOverlay) window.__showRuntimeErrorOverlay(e); }
             try { popularSelectProdutosPrecif(); } catch (e) {}
             // Se o carregamento anterior deixou uma render pendente, disparar agora
