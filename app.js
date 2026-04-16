@@ -2553,8 +2553,9 @@ function trocarAba(aba) {
         } else if (aba === 'vendas') {
             try { renderizarRegistroVendas(); } catch (e) { console.error('vendas:', e); if (window.__showRuntimeErrorOverlay) window.__showRuntimeErrorOverlay(e); }
         } else if (aba === 'distribuicao') {
+            try { popularSelectRepresentantes('filtroDistribuicaoRep', true); } catch (e) {}
+            try { atualizarSelectDistribuicaoProduto(); } catch (e) {}
             try { renderizarRegistroDistribuicao(); } catch (e) { if (window.__showRuntimeErrorOverlay) window.__showRuntimeErrorOverlay(e); }
-            try { atualizarSelectDistribuicaoProduto(); } catch (e) { if (window.__showRuntimeErrorOverlay) window.__showRuntimeErrorOverlay(e); }
         } else if (aba === 'relatorios') {
             try { prepararRelatorioInventario(); } catch (e) { if (window.__showRuntimeErrorOverlay) window.__showRuntimeErrorOverlay(e); }
             try { gerarRelatorioRentabilidade(); } catch (e) { if (window.__showRuntimeErrorOverlay) window.__showRuntimeErrorOverlay(e); }
