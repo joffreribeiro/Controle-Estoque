@@ -1087,7 +1087,7 @@ function renderConsultaPrecificacoes(dados) {
                 html += `<td style="min-width:200px;text-align:left;color:#475569">${_escapeHtml(prod.descricao || prod.descricaoProduto || '')}</td>`;
                 // Quantidade — logo após a descrição
                 html += `<td style="min-width:80px;text-align:center">${_escapeHtml(String(prod.quantidade || prod.qtd || 1))}</td>`;
-                html += `<td style="min-width:100px;text-align:right">${_cpFmt(prod.ci)}</td>`;
+                html += `<td style="min-width:100px;text-align:right">${_fmtMoeda(prod.ci)}</td>`;
                 // A partir do CI: alinhar com tabela 'Por Cliente' (Taxa% / ROI% combinado, Valor Base, PIS/COFINS, ICMS, IPI, s/Impostos, c/ IPI, Comissão, Frete, Valor Final, Valor Total, Margem, Benefícios)
                 const tipoPessoa = prec.tipoPessoa || '';
                 const impostoPctStyle = 'font-size:0.75rem;color:#64748b';
@@ -7530,7 +7530,10 @@ function abrirModalEditarProduto(produtoId) {
     const obsInput = document.getElementById('produtoObservacoes');
     if (ncmInput) ncmInput.value = produto.ncm || '';
     if (catInput) catInput.value = cat || '';
-    if (ciInput) ciInput.value = Number(regra.ci ?? produto.ci ?? 0) || '';
+    if (ciInput) {
+        const ciVal = Number(regra.ci ?? produto.ci ?? 0) || 0;
+        ciInput.value = ciVal ? _fmtMoeda(ciVal) : '';
+    }
     if (margemInput) margemInput.value = Number(regra.margemMinima ?? produto.margemMinima ?? 0) || '';
     if (descInput) descInput.value = Number(regra.descontoMaximo ?? produto.descontoMaximo ?? 0) || '';
     if (obsInput) obsInput.value = produto.observacoes || '';
@@ -10080,7 +10083,7 @@ function salvarProduto(event) {
     const estoqueTotal = parseInt(document.getElementById('estoqueTotal').value) || 0;
     const ncm = (document.getElementById('produtoNCM')?.value || '').trim();
     const categoria = (document.getElementById('produtoCategoria')?.value || '').trim();
-    const ci = Number(document.getElementById('produtoCI')?.value || 0) || 0;
+    const ci = parseCurrencyBRLToNumber(document.getElementById('produtoCI')?.value) || 0;
     const margemMinima = Number(document.getElementById('produtoMargemMin')?.value || 0) || 0;
     const descontoMaximo = Number(document.getElementById('produtoDescMax')?.value || 0) || 0;
     const observacoes = (document.getElementById('produtoObservacoes')?.value || '').trim();
@@ -13262,7 +13265,7 @@ function popularSelectProdutosCI() {
 function salvarNovoCI() {
     if (!requireAdminOrNotify()) return;
     const nomeProduto = (document.getElementById('ciProdutoSelect')?.value || '').trim();
-    const valor = parseFloat(document.getElementById('ciValorInput')?.value);
+    const valor = parseCurrencyBRLToNumber(document.getElementById('ciValorInput')?.value);
     const obs = (document.getElementById('ciObsInput')?.value || '').trim();
 
     if (!nomeProduto) { mostrarNotificacao('Selecione um produto.', 'error'); return; }
@@ -13293,7 +13296,7 @@ function salvarNovoCI() {
     if (valInput) valInput.value = '';
     if (obsInput) obsInput.value = '';
 
-    mostrarNotificacao(`CI de ${nomeProduto} registrado: R$ ${_fmtMoeda(valor)}`, 'success');
+    mostrarNotificacao(`CI de ${nomeProduto} registrado: ${_fmtMoeda(valor)}`, 'success');
 }
 
 function renderizarTabelaCI() {
@@ -13324,7 +13327,7 @@ function renderizarTabelaCI() {
         const qtdRegistros = registros.length;
 
         const ciText = ciVigente > 0
-            ? `<span style="font-weight:700;color:#1e3a5f">R$ ${_fmtMoeda(ciVigente)}</span>`
+            ? `<span style="font-weight:700;color:#1e3a5f">${_fmtMoeda(ciVigente)}</span>`
             : `<span style="color:#94a3b8;font-style:italic">Não definido</span>`;
 
         const histBtn = qtdRegistros > 0
@@ -13369,16 +13372,16 @@ function exibirHistoricoCI(nomeProduto) {
             <table class="dashboard-table" style="width:100%">
                 <thead>
                     <tr>
-                        <th style="text-align:center">Data</th>
-                        <th style="text-align:center">CI (R$)</th>
-                        <th style="text-align:left">Observação</th>
+                            <th style="text-align:center">Data</th>
+                            <th style="text-align:center">CI</th>
+                            <th style="text-align:left">Observação</th>
                     </tr>
                 </thead>
                 <tbody>
                     ${registros.map((r, i) => `
                         <tr style="${i === 0 ? 'background:#f0fdf4' : ''}">
                             <td style="text-align:center;color:#64748b">${new Date(r.data).toLocaleDateString('pt-BR')} ${i === 0 ? '<span style="font-size:0.7rem;background:#dcfce7;color:#166534;padding:1px 6px;border-radius:10px;margin-left:4px">vigente</span>' : ''}</td>
-                            <td style="text-align:center;font-weight:700;color:#1e3a5f">R$ ${_fmtMoeda(r.ci)}</td>
+                            <td style="text-align:center;font-weight:700;color:#1e3a5f">${_fmtMoeda(r.ci)}</td>
                             <td style="text-align:left;color:#475569;font-size:0.88rem">${_escapeHtml(r.observacao || '—')}</td>
                         </tr>
                     `).join('')}
@@ -14005,7 +14008,7 @@ function precifAdicionarProdutoLinha(nomeProduto = '', taxaOvr = null, roiOvr = 
     // Opções de produto
     const optsHtml = produtos.map(p => {
         const ci = parseFloat(precificacao[p.nome]?.ci || p.ci || 0);
-        const ciTxt = ci > 0 ? ` (CI: R$ ${_fmtMoeda(ci)})` : ' (sem CI)';
+        const ciTxt = ci > 0 ? ` (CI: ${_fmtMoeda(ci)})` : ' (sem CI)';
         const sel = p.nome === nomeProduto ? ' selected' : '';
         return `<option value="${_escapeHtml(p.nome)}"${sel}>${_escapeHtml(p.nome)}${ciTxt}</option>`;
     }).join('');
@@ -14019,8 +14022,9 @@ function precifAdicionarProdutoLinha(nomeProduto = '', taxaOvr = null, roiOvr = 
             </select>
         </div>
         <div>
-            <label style="font-size:0.75rem;font-weight:600;color:#64748b;display:block;margin-bottom:3px">CI (R$)</label>
-            <input type="number" class="precif-linha-ci" min="0" step="0.01" placeholder="—"
+            <label style="font-size:0.75rem;font-weight:600;color:#64748b;display:block;margin-bottom:3px">CI</label>
+            <input type="text" class="precif-linha-ci" placeholder="—"
+                oninput="this.value = formatCurrencyBRLInput(this.value)"
                 style="width:100%;padding:6px 8px;border:1px solid #e2e8f0;border-radius:5px;font-size:0.85rem;background:#fff;color:#1e3a5f;font-weight:600"
                 title="CI usado nesta linha — altera apenas este cálculo">
         </div>
@@ -14049,11 +14053,11 @@ function precifAdicionarProdutoLinha(nomeProduto = '', taxaOvr = null, roiOvr = 
             style="background:none;border:1px solid #fca5a5;color:#dc2626;border-radius:6px;width:32px;height:32px;cursor:pointer;font-size:1rem;display:flex;align-items:center;justify-content:center;margin-top:18px">✕</button>
     `;
 
-    // Se produto já estava selecionado, preenche CI
+    // Se produto já estava selecionado, preenche CI (formatado)
     if (nomeProduto) {
         const ci = parseFloat(precificacao[nomeProduto]?.ci || 0);
         const ciInput = div.querySelector('.precif-linha-ci');
-        if (ciInput && ci > 0) ciInput.value = ci;
+        if (ciInput && ci > 0) ciInput.value = _fmtMoeda(ci);
     }
 
     container.appendChild(div);
@@ -14068,7 +14072,7 @@ function precifLinhaAtualizarProduto(select) {
     const ciInput = linha.querySelector('.precif-linha-ci');
     if (ciInput && nome) {
         const ci = parseFloat(precificacao[nome]?.ci || 0);
-        ciInput.value = ci > 0 ? ci : '';
+        ciInput.value = ci > 0 ? _fmtMoeda(ci) : '';
         ciInput.placeholder = ci > 0 ? '' : 'sem CI';
     }
     atualizarContadorLinhasPrecif();
@@ -14095,7 +14099,7 @@ function atualizarContadorLinhasPrecif() {
 function precifGetLinhasProdutos() {
     return Array.from(document.querySelectorAll('.precif-linha-produto')).map(linha => ({
         nomeProduto: linha.dataset.nomeProduto || '',
-        ci: parseFloat(linha.querySelector('.precif-linha-ci')?.value) || 0,
+        ci: parseCurrencyBRLToNumber(linha.querySelector('.precif-linha-ci')?.value) || 0,
         taxa: parseFloat(linha.querySelector('.precif-linha-taxa')?.value),
         roi: parseFloat(linha.querySelector('.precif-linha-roi')?.value),
         frete: parseFloat(linha.querySelector('.precif-linha-frete')?.value) || 0,
@@ -14400,7 +14404,7 @@ function calcularPrecificacaoPorCliente(opcoes = {}) {
         let ci;
         if (linhaIndividual) {
             // CI vem do campo da linha individual (pode ter sido editado pelo usuário)
-            const ciLinha = parseFloat(linhaIndividual.querySelector('.precif-linha-ci')?.value);
+            const ciLinha = parseCurrencyBRLToNumber(linhaIndividual.querySelector('.precif-linha-ci')?.value);
             ci = !isNaN(ciLinha) && ciLinha > 0 ? ciLinha : (parseFloat(prec.ci) || 0);
         } else if (exibindoPrecifSalva && precifSalvaCarregada) {
             const itemSalvo = (precifSalvaCarregada.itens || []).find(i => i.produto === produto.nome);
@@ -15043,7 +15047,7 @@ function visualizarPrecificacao(id) {
                     <tr>
                         <th>Produto</th>
                         <th>Qtd</th>
-                        <th>CI (R$)</th>
+                        <th>CI</th>
                         <th>Taxa %</th>
                         <th>ROI %</th>
                         <th>Valor Base</th>
@@ -15092,7 +15096,7 @@ function visualizarPrecificacao(id) {
             tableHtml += `<tr>
                 <td style="text-align:left">${_escapeHtml(it.produto || it.produtoNome || '')}</td>
                 <td style="text-align:center">${qtd}</td>
-                <td style="text-align:right">${_cpFmt(ci)}</td>
+                <td style="text-align:right">${_fmtMoeda(ci)}</td>
                 <td style="text-align:center">${_cpPct(taxa)}</td>
                 <td style="text-align:center">${_cpPct(roi)}</td>
                 <td style="text-align:right">${_cpFmt(valorBase)}</td>

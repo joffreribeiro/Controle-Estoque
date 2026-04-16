@@ -252,7 +252,7 @@
                                     <th style="text-align:left; min-width:220px">Nome</th>
                                     <th style="min-width:100px">NCM</th>
                                     <th style="min-width:120px">Categoria</th>
-                                    <th style="min-width:100px">CI (R$)</th>
+                                    <th style="min-width:100px">CI</th>
                                     <th style="min-width:100px">Margem Mín. (%)</th>
                                     <th style="min-width:100px">Desc. Máx. (%)</th>
                                     <th style="min-width:110px">Estoque IMBEL</th>
@@ -661,7 +661,7 @@
                             <th style="min-width:160px;text-align:left">Produto</th>
                             <th style="min-width:200px;text-align:left">Descrição</th>
                             <th style="min-width:80px;text-align:center">Quantidade</th>
-                            <th style="min-width:100px">CI (R$)</th>
+                            <th style="min-width:100px">CI</th>
                             <th style="text-align:center;min-width:120px">Taxa % / ROI %</th>
                             <th style="min-width:110px">Valor Base</th>
                             <th style="text-align:center;min-width:140px">PIS / COFINS</th>
@@ -1024,7 +1024,7 @@
                                             Produto
                                         </th>
                                         <th style="text-align:center;min-width:80px">Quantidade</th>
-                                        <th style="text-align:right;min-width:110px">CI (R$)</th>
+                                        <th style="text-align:right;min-width:110px">CI</th>
                                         <th style="text-align:center;min-width:120px">Taxa % / ROI %</th>
                                         <th style="text-align:right;min-width:120px">Valor Base</th>
                                         <th style="text-align:center;min-width:140px">PIS / COFINS</th>
@@ -1153,8 +1153,8 @@
                                                     </select>
                                                 </div>
                                                 <div>
-                                                    <label style="font-size:0.82rem;font-weight:600;display:block;margin-bottom:4px">CI (R$)</label>
-                                                    <input type="number" id="ciValorInput" min="0" step="0.01" placeholder="0,00" style="width:100%;padding:7px 10px;border:1px solid #e2e8f0;border-radius:6px;font-size:0.88rem">
+                                                    <label style="font-size:0.82rem;font-weight:600;display:block;margin-bottom:4px">CI</label>
+                                                        <input type="text" id="ciValorInput" min="0" step="0.01" placeholder="0,00" oninput="this.value = formatCurrencyBRLInput(this.value)" style="width:100%;padding:7px 10px;border:1px solid #e2e8f0;border-radius:6px;font-size:0.88rem">
                                                 </div>
                                                 <div>
                                                     <label style="font-size:0.82rem;font-weight:600;display:block;margin-bottom:4px">Observação</label>
@@ -2401,8 +2401,8 @@
                         <div style="font-size:0.76rem; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:0.7px; margin:10px 0 8px;">Precificação</div>
                         <div class="form-row">
                             <div class="form-group">
-                                <label for="produtoCI">CI (R$)</label>
-                                <input type="number" step="0.01" min="0" id="produtoCI" placeholder="0,00">
+                                <label for="produtoCI">CI</label>
+                                <input type="text" step="0.01" min="0" id="produtoCI" placeholder="0,00" oninput="this.value = formatCurrencyBRLInput(this.value)">
                             </div>
                             <div class="form-group">
                                 <label for="produtoMargemMin">Margem Mínima (%)</label>
