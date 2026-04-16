@@ -4110,12 +4110,11 @@ th.sortable.sort-desc .sort-icon::after { content: ' ▼'; opacity: 1; }
 
 /* (Regras específicas de precificação removidas junto com as sub-abas Consulta/Comparativo/Rastreabilidade) */
 
-/* 4. Apenas o th.col-produto fica sticky à esquerda */
+/* 4. th.col-produto fica sticky à esquerda e também fixa no topo (manter top para cabeçalho) */
 #tab-estoque #tabelaEstoque th.col-produto {
     position: sticky !important;
     left: 0 !important;
-    top: 0 !important;       /* canto: sticky nas 2 direções */
-    top: auto !important;    /* cancela o top:0 da regra global para sticky horizontal puro */
+    top: 0 !important;       /* fixo no topo e à esquerda (canto) */
     z-index: 951 !important;
     background: #1a1a2e !important;
 }
