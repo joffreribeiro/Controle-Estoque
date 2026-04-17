@@ -333,6 +333,30 @@ table thead th { position: sticky; top: 0; background: linear-gradient(180deg,#f
     z-index: 2;
     border-right: 1px solid var(--border-color);
 }
+/* Congelar coluna "Ações" (direita) em tabelas de dashboard */
+.dashboard-table th.col-acoes,
+.dashboard-table td.col-acoes {
+    position: sticky;
+    right: 0;
+    background: linear-gradient(180deg,#fff,#f7fbff);
+    z-index: 6;
+    border-left: 1px solid var(--border-color);
+}
+/* Fallback: quando a coluna Ações for a última coluna mas as TDs não tiverem a classe */
+.dashboard-table th:last-child {
+    position: sticky;
+    right: 0;
+    background: linear-gradient(180deg,#fff,#f7fbff);
+    z-index: 6;
+    border-left: 1px solid var(--border-color);
+}
+.dashboard-table td:last-child {
+    position: sticky;
+    right: 0;
+    background: #fff;
+    z-index: 2;
+    border-left: 1px solid var(--border-color);
+}
 /* Topbar única da área de estoque */
 #acoesEstoque.actions-bar {
     background: #ffffff;
