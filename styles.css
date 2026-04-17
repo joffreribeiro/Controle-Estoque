@@ -334,28 +334,28 @@ table thead th { position: sticky; top: 0; background: linear-gradient(180deg,#f
     border-right: 1px solid var(--border-color);
 }
 /* Congelar coluna "Ações" (direita) em tabelas de dashboard */
+/* Aplicamos regras tanto para a classe `.col-acoes` quanto para o fallback `:last-child`.
+   Usamos z-index altos para garantir que fique acima das células do corpo, e `top:0` nos
+   cabeçalhos para que o comportamento top+right funcione corretamente. */
 .dashboard-table th.col-acoes,
-.dashboard-table td.col-acoes {
-    position: sticky;
-    right: 0;
-    background: linear-gradient(180deg,#fff,#f7fbff);
-    z-index: 6;
-    border-left: 1px solid var(--border-color);
-}
-/* Fallback: quando a coluna Ações for a última coluna mas as TDs não tiverem a classe */
 .dashboard-table th:last-child {
     position: sticky;
+    top: 0;
     right: 0;
-    background: linear-gradient(180deg,#fff,#f7fbff);
-    z-index: 6;
+    z-index: 995; /* acima do thead (950) */
+    background: var(--primary-color) !important;
+    color: #fff;
     border-left: 1px solid var(--border-color);
 }
+.dashboard-table td.col-acoes,
 .dashboard-table td:last-child {
     position: sticky;
     right: 0;
-    background: #fff;
-    z-index: 2;
+    z-index: 890; /* abaixo do cabeçalho, acima das linhas */
+    background: var(--bg-white);
     border-left: 1px solid var(--border-color);
+    min-width: 80px;
+    text-align: center;
 }
 /* Topbar única da área de estoque */
 #acoesEstoque.actions-bar {
@@ -1252,6 +1252,7 @@ th[data-sort]:hover { background: rgba(30,58,95,0.03); }
     overflow-x: auto;
     max-height: calc(100vh - 320px);
     overflow-y: auto;
+    position: relative; /* necessário para que elementos sticky se calculem corretamente dentro do wrapper */
 }
 
 table {
@@ -1297,20 +1298,9 @@ th {
     padding: 14px 15px;
 }
 
-/* Fix: alinhar e fixar (sticky) a coluna Ações nas tabelas do dashboard */
-.dashboard-table th.col-acoes,
-.dashboard-table td.col-acoes {
-    position: sticky;
-    right: 0;
-    z-index: 960;
-}
-.dashboard-table th.col-acoes {
-    background: var(--primary-color) !important;
-    color: #fff;
-}
-.dashboard-table td.col-acoes {
-    background: var(--bg-white);
-}
+/* Observação: regras específicas para a coluna Ações foram definidas acima
+   (fusão com fallback :last-child) para evitar duplicidade e conflitos.
+*/
 
 th.col-produto {
     min-width: 280px;
