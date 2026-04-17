@@ -3840,6 +3840,12 @@ th.sortable.sort-desc .sort-icon::after { content: ' ▼'; opacity: 1; }
 #tabelaEstoque thead tr:first-child th.header-rep.imbel { color: #ff7b72 !important; }
 #tabelaEstoque thead tr:first-child th.header-geral { color: var(--accent-bright) !important; }
 
+/* Tornar o cabeçalho "PRODUTOS" consistente com os demais (cor branca) */
+#tabelaEstoque thead tr:first-child th.col-produto {
+    color: #ffffff !important;
+    font-weight: 700;
+}
+
 #tabelaEstoque thead tr:nth-child(2) th {
     background: #161b22 !important;
     font-size: 9px;
