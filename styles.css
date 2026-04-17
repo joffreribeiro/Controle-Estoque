@@ -2080,6 +2080,17 @@ tr.total-row:hover {
 .header-actions {
     display: flex;
     gap: 10px;
+    align-items: center;
+    flex-wrap: wrap; /* permite que itens quebrem em telas pequenas sem cortar */
+}
+
+/* Garantir que o campo de busca dentro do header possa encolher e não empurre os botões
+   (override leve sobre estilos inline usados no HTML). */
+.section-header .header-actions input[type="text"] {
+    flex: 0 1 340px; /* base 340px, pode encolher se necessário */
+    min-width: 0;    /* permite que encolha dentro de flex container */
+    width: auto !important; /* sobrescreve width:inline quando precisar */
+    max-width: 340px !important;
 }
 
 /* Make the section header inside the Estoque tab sticky below the actions bar */
