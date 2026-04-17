@@ -3844,6 +3844,10 @@ th.sortable.sort-desc .sort-icon::after { content: ' ▼'; opacity: 1; }
 #tabelaEstoque thead tr:first-child th.col-produto {
     color: #ffffff !important;
     font-weight: 700;
+    font-size: 12px !important;
+    text-align: center !important;
+    vertical-align: middle !important;
+    padding: 12px 8px !important;
 }
 
 #tabelaEstoque thead tr:nth-child(2) th {
