@@ -3545,6 +3545,26 @@
     <script src="app.js?v=20260411-3"></script>
 
     <script>
+    // Correção: permitir rolagem vertical com o mouse em wrappers de tabela
+    (function enableTableWheelScroll(){
+        function onWheel(e){
+            try {
+                const el = document.elementFromPoint(e.clientX, e.clientY);
+                const wrapper = el && el.closest ? el.closest('.table-wrapper.table-scroll') : null;
+                if (!wrapper) return;
+                const delta = e.deltaY;
+                if (!delta) return;
+                const atTop = wrapper.scrollTop === 0;
+                const atBottom = Math.abs(wrapper.scrollTop - (wrapper.scrollHeight - wrapper.clientHeight)) < 1;
+                if ((delta > 0 && atBottom) || (delta < 0 && atTop)) return;
+                e.preventDefault();
+                wrapper.scrollTop += delta;
+            } catch (err) { /* ignore errors */ }
+        }
+        document.addEventListener('wheel', onWheel, { passive: false });
+    })();
+    </script>
+    <script>
     (function matchSubtitleWidth(){
         const logoText = document.querySelector('.logo-text');
         function update(){
