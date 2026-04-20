@@ -3,7 +3,6 @@
    Estilos Profissionais v2.0
    ======================================== */
 @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=Syne:wght@700;800&display=swap');
 
 * {
     margin: 0;
@@ -59,8 +58,8 @@
     --info-bg: rgba(13,144,212,0.07);
 
     /* ── Tipografia ── */
-    --font-primary: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
-    --font-display: 'Syne', 'IBM Plex Sans', system-ui, sans-serif;
+    --font-primary: 'Inter', 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+    --font-display: 'Inter', 'IBM Plex Sans', system-ui, sans-serif;
     --font-mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, 'Courier New', monospace;
     --text-primary: #111a27;
     --text-secondary: #5a6d82;
