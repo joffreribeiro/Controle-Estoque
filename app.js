@@ -12270,9 +12270,9 @@ function renderizarGraficoComissoes() {
 
     const tabela = document.getElementById('tabelaComissoesGrafico');
     if (tabela) {
-        // substituir a lista textual por um gráfico de barras com valor de vendas por representante (R$)
-        tabela.innerHTML = '<canvas id="chartVendasRepSide" height="220"></canvas>';
-        const canvasSide = document.getElementById('chartVendasRepSide');
+    // substituir a lista textual por um gráfico de barras com valor de vendas por representante (R$)
+    tabela.innerHTML = '<div style="font-weight:700;color:#1e3a5f;margin-bottom:8px">Vendas por Representante (R$)</div><canvas id="chartVendasRepSide" height="420"></canvas>';
+    const canvasSide = document.getElementById('chartVendasRepSide');
         if (canvasSide) {
             if (_chartVendasRepSide) _chartVendasRepSide.destroy();
             // calcular vendas por representante (R$) a partir de vendasFiltradas
