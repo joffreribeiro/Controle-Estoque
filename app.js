@@ -12057,16 +12057,17 @@ function renderizarGraficos() {
     reps.forEach(rep => { vendasPorRepMap[rep] = 0; });
 
     const produtoTotals = new Map();
+    // Somar valor total das vendas por representante (inclui IMBEL)
     vendasFiltradas.forEach(v => {
         const rep = (v.representante || '').toUpperCase();
         const itens = obterItensVendaNormalizados(v);
         itens.forEach(it => {
             if (vendasPorRepMap[rep] === undefined) vendasPorRepMap[rep] = 0;
-            vendasPorRepMap[rep] += Number(it.quantidade) || 0;
+            vendasPorRepMap[rep] += Number(it.valorTotal) || 0;
             produtoTotals.set(it.produtoNome, (produtoTotals.get(it.produtoNome) || 0) + (Number(it.quantidade) || 0));
         });
     });
-    const vendasPorRep = reps.map(rep => vendasPorRepMap[rep] || 0);
+    const vendasPorRep = reps.map(rep => Math.round(((vendasPorRepMap[rep] || 0) * 100)) / 100);
 
     // Ordenar decrescente mantendo cores e labels
     const vendasArr = reps.map((rep, i) => ({ rep, value: vendasPorRep[i] || 0, color: coresReps[i] || '#79c0ff' }));
@@ -12084,7 +12085,7 @@ function renderizarGraficos() {
             data: {
                 labels: vendasLabels,
                 datasets: [{
-                    label: 'Unidades Vendidas',
+                    label: 'Vendas (R$)',
                     data: vendasValues,
                     backgroundColor: vendasColors,
                     borderColor: vendasColors,
@@ -12097,9 +12098,9 @@ function renderizarGraficos() {
                 maintainAspectRatio: true,
                 plugins: { 
                     legend: { display: false },
-                    drawValuesAbove: { display: true, format: 'number', fontSize: 12, color: '#0b1723', offset: 6 }
+                    drawValuesAbove: { display: true, format: 'currency', fontSize: 12, color: '#0b1723', offset: 6 }
                 },
-                scales: { y: { beginAtZero: true, ticks: { precision: 0 } } }
+                scales: { y: { beginAtZero: true, ticks: { callback: v => 'R$ ' + Number(v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 }) } } }
             }
         });
     }
