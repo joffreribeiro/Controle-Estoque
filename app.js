@@ -3334,7 +3334,9 @@ function gerarRelatorioRentabilidade() {
         const vendas = Array.isArray(estoque.registroVendas) ? estoque.registroVendas : (estoque.registroVendas || []);
 
         const vendasFiltradas = (vendas || []).filter(v => {
-            if (!v || !v.data) return periodo === 'todos';
+            // considerar apenas vendas efetivadas (não canceladas)
+            if (!v || v.cancelado) return false;
+            if (!v.data) return periodo === 'todos';
             const dataVenda = new Date(v.data);
             if (isNaN(dataVenda)) return periodo === 'todos';
             if (periodo === 'todos') return true;
