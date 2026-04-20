@@ -3,6 +3,7 @@
    Estilos Profissionais v2.0
    ======================================== */
 @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Syne:wght@700;800&display=swap');
 
 * {
     margin: 0;
@@ -58,8 +59,8 @@
     --info-bg: rgba(13,144,212,0.07);
 
     /* ── Tipografia ── */
-    --font-primary: 'Inter', 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
-    --font-display: 'Inter', 'IBM Plex Sans', system-ui, sans-serif;
+    --font-primary: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+    --font-display: 'Syne', 'IBM Plex Sans', system-ui, sans-serif;
     --font-mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, 'Courier New', monospace;
     --text-primary: #111a27;
     --text-secondary: #5a6d82;
@@ -89,8 +90,6 @@
     --sidebar-width: 224px;
     --sidebar-collapsed-width: 58px;
     --header-height: 62px;
-    --chart-height: 420px;
-    --chart-height-dashboard: 320px;
 }
 
 /* ========================================
@@ -2117,34 +2116,6 @@ tr.total-row:hover {
 .header-actions {
     display: flex;
     gap: 10px;
-    align-items: center;
-    flex-wrap: nowrap; /* manter botões em linha no desktop; permitir quebra via media query abaixo */ 
-}
-
-/* Garantir que o campo de busca dentro do header possa encolher e não empurre os botões
-   (override leve sobre estilos inline usados no HTML). */
-.section-header .header-actions input[type="text"] {
-    flex: 0 1 260px; /* base menor para liberar espaço aos botões */ 
-    min-width: 0;  
-    width: auto !important;
-    max-width: 340px !important;
-    margin-bottom: 0 !important; /* sobrescreve o margin-bottom inline no HTML */ 
-}
-
-/* Garantir que botões não quebrem e mantenham tamanho mínimo em linha */ 
-.section-header .header-actions .btn {
-    white-space: nowrap;
-    flex: 0 0 auto;
-}
-
-/* Em telas menores permitir quebra e fazer o input ocupar a linha inteira */ 
-@media (max-width: 900px) {
-    .header-actions { flex-wrap: wrap; }
-    .section-header .header-actions input[type="text"] {
-        flex: 1 1 100%;
-        max-width: none !important;
-    }
-    .section-header .header-actions .btn { width: auto; }
 }
 
 /* Make the section header inside the Estoque tab sticky below the actions bar */
@@ -3220,29 +3191,8 @@ th.sortable.sort-desc .sort-icon::after { content: ' ▼'; opacity: 1; }
     border-left: 3px solid var(--accent-color);
 }
 
-.dashboard-charts .chart-container canvas,
-.dashboard-charts canvas,
-.chart-container canvas,
-.dashboard-card canvas {
-    width: 100%;
-    height: var(--chart-height-dashboard);
-}
-
-.section-card canvas,
-#tabelaComissoesGrafico canvas {
-    width: 100%;
-    height: var(--chart-height);
-}
-
-/* Ensure chart titles inside section-card use same style as chart-title */
-.section-card .chart-title,
-.section-card h3.chart-title {
-    font-size: 0.95rem;
-    font-weight: 600;
-    color: var(--text-primary);
-    margin-bottom: 14px;
-    padding-left: 10px;
-    border-left: 3px solid var(--accent-color);
+.chart-container canvas {
+    max-height: 280px;
 }
 
 @media (max-width: 768px) {
@@ -3861,16 +3811,6 @@ th.sortable.sort-desc .sort-icon::after { content: ' ▼'; opacity: 1; }
 #tabelaEstoque thead tr:first-child th.header-rep.fl { color: #d2a8ff !important; }
 #tabelaEstoque thead tr:first-child th.header-rep.imbel { color: #ff7b72 !important; }
 #tabelaEstoque thead tr:first-child th.header-geral { color: var(--accent-bright) !important; }
-
-/* Tornar o cabeçalho "PRODUTOS" consistente com os demais (cor branca) */
-#tabelaEstoque thead tr:first-child th.col-produto {
-    color: #ffffff !important;
-    font-weight: 700;
-    font-size: 12px !important;
-    text-align: center !important;
-    vertical-align: middle !important;
-    padding: 12px 8px !important;
-}
 
 #tabelaEstoque thead tr:nth-child(2) th {
     background: #161b22 !important;

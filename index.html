@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Controle de Estoque | Material Bélico</title>
+    <link rel="stylesheet" href="styles.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="styles.css?v=20260416.1">
     <link id="favicon" rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='48' fill='%230b1723'/%3E%3Crect x='30' y='70' width='40' height='12' rx='1' fill='%23d4af37'/%3E%3Crect x='20' y='55' width='15' height='12' rx='1' fill='%23f6c84c'/%3E%3Crect x='42' y='55' width='15' height='12' rx='1' fill='%23f6c84c'/%3E%3Crect x='65' y='55' width='15' height='12' rx='1' fill='%23f6c84c'/%3E%3Crect x='30' y='40' width='15' height='12' rx='1' fill='%23ffd700'/%3E%3Crect x='55' y='40' width='15' height='12' rx='1' fill='%23ffd700'/%3E%3Crect x='25' y='28' width='12' height='9' rx='1' fill='%23f6c84c'/%3E%3Crect x='44' y='28' width='12' height='9' rx='1' fill='%23f6c84c'/%3E%3Crect x='63' y='28' width='12' height='9' rx='1' fill='%23f6c84c'/%3E%3C/svg%3E">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -300,7 +300,7 @@
                 <!-- KPIs movidos para o Dashboard (inseridos em tab-dashboard) -->
 
                 <div class="table-container">
-                    <div class="table-wrapper table-scroll">
+                    <div class="table-wrapper">
                         <table id="tabelaEstoque">
                             <thead>
                                 <tr>
@@ -1474,21 +1474,6 @@
                     </article>
                 </div>
 
-                                <div class="section-card" style="margin-top:20px">
-                                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
-                                        <h3 class="chart-title">💸 Comissões por Representante</h3>
-                                    </div>
-                                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
-                                        <div>
-                                            <canvas id="chartComissoesRep" height="420"></canvas>
-                                        </div>
-                                        <div>
-                                            <div id="tabelaComissoesGrafico" style="font-size:0.82rem;height:420px;"></div>
-                                        </div>
-                                    </div>
-                                    <div id="totalComissoesGrafico" style="text-align:right;font-size:0.85rem;color:#64748b;margin-top:10px;padding-top:10px;border-top:1px solid #f1f5f9"></div>
-                                </div>
-
                 <div class="dashboard-charts-row">
                     <div class="chart-container dashboard-card">
                         <h3 class="chart-title">Vendas por Representante</h3>
@@ -1499,6 +1484,27 @@
                         <canvas id="chartTopProdutos"></canvas>
                     </div>
                 </div>
+
+                                <div class="section-card" style="margin-top:20px">
+                                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+                                        <h3 style="font-size:1rem;font-weight:700;color:#1e3a5f;margin:0">💸 Comissões por Representante</h3>
+                                        <select id="filtroComissoesGraficoPeriodo" onchange="renderizarGraficoComissoes()" style="padding:6px 10px;border:1px solid #e2e8f0;border-radius:6px;font-size:0.82rem">
+                                            <option value="todos">Todo o período</option>
+                                            <option value="mes">Este mês</option>
+                                            <option value="trimestre">Este trimestre</option>
+                                            <option value="ano">Este ano</option>
+                                        </select>
+                                    </div>
+                                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+                                        <div>
+                                            <canvas id="chartComissoesRep" height="220"></canvas>
+                                        </div>
+                                        <div>
+                                            <div id="tabelaComissoesGrafico" style="font-size:0.82rem;max-height:220px;overflow-y:auto"></div>
+                                        </div>
+                                    </div>
+                                    <div id="totalComissoesGrafico" style="text-align:right;font-size:0.85rem;color:#64748b;margin-top:10px;padding-top:10px;border-top:1px solid #f1f5f9"></div>
+                                </div>
 
                                 <div class="dashboard-tables-row">
                     <div class="dashboard-section dashboard-card">
@@ -3538,26 +3544,6 @@
 
     <script src="app.js?v=20260411-3"></script>
 
-    <script>
-    // Correção: permitir rolagem vertical com o mouse em wrappers de tabela
-    (function enableTableWheelScroll(){
-        function onWheel(e){
-            try {
-                const el = document.elementFromPoint(e.clientX, e.clientY);
-                const wrapper = el && el.closest ? el.closest('.table-wrapper.table-scroll') : null;
-                if (!wrapper) return;
-                const delta = e.deltaY;
-                if (!delta) return;
-                const atTop = wrapper.scrollTop === 0;
-                const atBottom = Math.abs(wrapper.scrollTop - (wrapper.scrollHeight - wrapper.clientHeight)) < 1;
-                if ((delta > 0 && atBottom) || (delta < 0 && atTop)) return;
-                e.preventDefault();
-                wrapper.scrollTop += delta;
-            } catch (err) { /* ignore errors */ }
-        }
-        document.addEventListener('wheel', onWheel, { passive: false });
-    })();
-    </script>
     <script>
     (function matchSubtitleWidth(){
         const logoText = document.querySelector('.logo-text');

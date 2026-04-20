@@ -1768,22 +1768,15 @@ async function salvarNoCloud() {
         if (Array.isArray(clientes)) estoque.clientes = clientes;
         if (Array.isArray(propostas)) estoque.propostas = propostas;
         const docRef = window.firestoreDB.collection('app_data').doc('latest');
-        // proteger acesso a variáveis que podem estar em TDZ (declarações let/const mais abaixo)
-        let _safe_impostosEditaveis = {};
-        let _safe_icmsEditavelPJ = {};
-        let _safe_icmsEditavelPF = {};
-        try { _safe_impostosEditaveis = impostosEditaveis || {}; } catch (e) { _safe_impostosEditaveis = (estoque.impostosEditaveis || {}); }
-        try { _safe_icmsEditavelPJ = icmsEditavelPJ || {}; } catch (e) { _safe_icmsEditavelPJ = {}; }
-        try { _safe_icmsEditavelPF = icmsEditavelPF || {}; } catch (e) { _safe_icmsEditavelPF = {}; }
         await docRef.set({
             estado: estoque,
             precificacao,
             tabelaAliquotas,
             tabelaICMS,
             categoriaPorProduto,
-            impostosEditaveis: _safe_impostosEditaveis,
-            icmsEditavelPJ: _safe_icmsEditavelPJ,
-            icmsEditavelPF: _safe_icmsEditavelPF,
+            impostosEditaveis: impostosEditaveis || {},
+            icmsEditavelPJ: icmsEditavelPJ || {},
+            icmsEditavelPF: icmsEditavelPF || {},
             updatedAt: firebase.firestore.FieldValue.serverTimestamp()
         });
         // ler o documento para obter o updatedAt do servidor
@@ -3096,38 +3089,11 @@ function ajustarStickyHeader() {
     const firstRow = tabela.querySelector('thead tr:first-child');
     if (!firstRow) return;
     requestAnimationFrame(() => {
-        try {
-            const actionsBar = document.getElementById('acoesEstoque');
-            const sectionHeader = document.querySelector('#tab-estoque .section-header');
-            const actionsH = actionsBar ? Math.ceil(actionsBar.getBoundingClientRect().height) : 0;
-            const sectionH = sectionHeader ? Math.ceil(sectionHeader.getBoundingClientRect().height) : 0;
-
-            // Definir variáveis CSS para uso nos estilos (top offsets)
-            document.documentElement.style.setProperty('--acoes-height', actionsH + 'px');
-            document.documentElement.style.setProperty('--section-height', sectionH + 'px');
-
-            // Altura da primeira linha do thead (usada pelo segundo nível de header)
-            const firstRowH = firstRow ? Math.ceil(firstRow.getBoundingClientRect().height) : 0;
-            document.documentElement.style.setProperty('--first-row-h', firstRowH + 'px');
-
-            // Ajustar altura do wrapper da tabela para que a rolagem vertical fique apenas na tabela
-            const tableWrapper = tabela.closest('.table-wrapper.table-scroll') || document.querySelector('#tab-estoque .table-wrapper.table-scroll');
-            if (tableWrapper) {
-                const available = Math.max(120, window.innerHeight - actionsH - sectionH - 48);
-                tableWrapper.style.maxHeight = available + 'px';
-            }
-        } catch (e) { console.warn('ajustarStickyHeader error', e); }
+        const h = firstRow.getBoundingClientRect().height;
+        const secondRowThs = tabela.querySelectorAll('thead tr:nth-child(2) th');
+        secondRowThs.forEach(th => { th.style.top = h + 'px'; });
     });
 }
-
-// Garantir que o sticky header seja recalculado quando o layout mudar
-(function(){
-    function _safeAdjust() { try { ajustarStickyHeader(); } catch(e) {} }
-    window.addEventListener('resize', _safeAdjust);
-    window.addEventListener('orientationchange', _safeAdjust);
-    window.addEventListener('load', _safeAdjust);
-    document.addEventListener('DOMContentLoaded', _safeAdjust);
-})();
 
 // ========================================
 // RENDERIZAÇÃO DO DASHBOARD
@@ -10772,23 +10738,15 @@ function exportarEstoqueCompleto() {
 
 function exportarSistema() {
     try {
-        // proteger leitura de variáveis que podem ainda não estar inicializadas
-        let _safe_impostosEditaveis = {};
-        let _safe_icmsEditavelPJ = {};
-        let _safe_icmsEditavelPF = {};
-        try { _safe_impostosEditaveis = impostosEditaveis || {}; } catch (e) { _safe_impostosEditaveis = (estoque.impostosEditaveis || {}); }
-        try { _safe_icmsEditavelPJ = icmsEditavelPJ || {}; } catch (e) { _safe_icmsEditavelPJ = {}; }
-        try { _safe_icmsEditavelPF = icmsEditavelPF || {}; } catch (e) { _safe_icmsEditavelPF = {}; }
-
         const payload = {
             ...estoque,
             precificacao,
             tabelaAliquotas,
             tabelaICMS,
             categoriaPorProduto,
-            impostosEditaveis: _safe_impostosEditaveis,
-            icmsEditavelPJ: _safe_icmsEditavelPJ,
-            icmsEditavelPF: _safe_icmsEditavelPF
+            impostosEditaveis: impostosEditaveis || {},
+            icmsEditavelPJ: icmsEditavelPJ || {},
+            icmsEditavelPF: icmsEditavelPF || {}
         };
         const dataStr = JSON.stringify(payload, null, 2);
         const blob = new Blob([dataStr], { type: 'application/json' });
@@ -10892,23 +10850,15 @@ function importarSistema(event) {
 
 function exportarBackupCompleto() {
     try {
-        // proteger leitura de variáveis possivelmente não inicializadas
-        let _safe_impostosEditaveis = {};
-        let _safe_icmsEditavelPJ = {};
-        let _safe_icmsEditavelPF = {};
-        try { _safe_impostosEditaveis = impostosEditaveis || {}; } catch (e) { _safe_impostosEditaveis = (estoque.impostosEditaveis || {}); }
-        try { _safe_icmsEditavelPJ = icmsEditavelPJ || {}; } catch (e) { _safe_icmsEditavelPJ = {}; }
-        try { _safe_icmsEditavelPF = icmsEditavelPF || {}; } catch (e) { _safe_icmsEditavelPF = {}; }
-
         const backup = {
             versao: '2.0',
             data: new Date().toISOString(),
             dados: estoque,
             imbelData: loadImbel(),
             precificacoesCliente: precificacoesCliente,
-            impostosEditaveis: _safe_impostosEditaveis,
-            icmsEditavelPJ: _safe_icmsEditavelPJ,
-            icmsEditavelPF: _safe_icmsEditavelPF
+            impostosEditaveis: impostosEditaveis,
+            icmsEditavelPJ: icmsEditavelPJ,
+            icmsEditavelPF: icmsEditavelPF
         };
         const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
@@ -11609,8 +11559,6 @@ function _executarBuscaGlobalReal(termo) {
 
 function toggleSidebarExpanded() {
     document.body.classList.toggle('sidebar-expanded');
-    // recalcular sticky headers após alteração de layout
-    setTimeout(() => { try { ajustarStickyHeader(); } catch(e) {} }, 120);
 }
 
 function toggleMobileSidebar(forceOpen) {
@@ -11618,7 +11566,6 @@ function toggleMobileSidebar(forceOpen) {
         ? forceOpen
         : !document.body.classList.contains('mobile-sidebar-open');
     document.body.classList.toggle('mobile-sidebar-open', shouldOpen);
-    setTimeout(() => { try { ajustarStickyHeader(); } catch(e) {} }, 120);
 }
 
 // Compatibilidade com chamadas antigas
@@ -12058,51 +12005,6 @@ function verificarAlertasEstoque() {
 let _chartVendasRep = null;
 let _chartTopProdutos = null;
 let _chartComissoesRep = null;
-let _chartVendasRepSide = null;
-
-// Plugin para desenhar valores acima das barras (registrado globalmente)
-const __drawValuesAbovePlugin = {
-    id: 'drawValuesAbove',
-    afterDatasetsDraw(chart, args, pluginOptions) {
-        if (!pluginOptions || pluginOptions.display === false) return;
-        const ctx = chart.ctx;
-        const opts = pluginOptions || {};
-        chart.data.datasets.forEach((dataset, dsIndex) => {
-            const meta = chart.getDatasetMeta(dsIndex);
-            if (!meta || !meta.data) return;
-            meta.data.forEach((element, index) => {
-                const val = dataset.data[index];
-                if (val === null || typeof val === 'undefined') return;
-                // só para barras (vertical)
-                if (chart.config.type && chart.config.type !== 'bar') return;
-                const x = element.x !== undefined ? element.x : (element.getCenterPoint ? element.getCenterPoint().x : null);
-                const y = element.y !== undefined ? element.y : (element.getCenterPoint ? element.getCenterPoint().y : null);
-                if (x === null || y === null) return;
-                ctx.save();
-                const fontSize = opts.fontSize || 12;
-                const fontFamily = opts.fontFamily || 'Inter, system-ui, sans-serif';
-                ctx.font = `${fontSize}px ${fontFamily}`;
-                ctx.fillStyle = opts.color || '#0b1723';
-                ctx.textAlign = 'center';
-                ctx.textBaseline = 'bottom';
-                let text = '';
-                if (opts.format === 'currency') {
-                    const num = Number(val) || 0;
-                    text = 'R$ ' + num.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-                } else {
-                    const num = Number(val);
-                    text = Number.isFinite(num) ? num.toLocaleString('pt-BR') : String(val);
-                }
-                const offset = opts.offset || 6;
-                ctx.fillText(text, x, y - offset);
-                ctx.restore();
-            });
-        });
-    }
-};
-if (typeof Chart !== 'undefined' && Chart) {
-    try { Chart.register(__drawValuesAbovePlugin); } catch (e) { /* ignore if already registered or API differs */ }
-}
 
 function renderizarGraficos() {
     if (typeof Chart === 'undefined') return;
@@ -12110,33 +12012,20 @@ function renderizarGraficos() {
     const reps = ['KOLTE', 'ISA', 'LC', 'ADES', 'FL', 'IMBEL'];
     const coresReps = ['#79c0ff', '#7ee787', '#58a6ff', '#ffa657', '#d2a8ff', '#ff7b72'];
     const vendasFiltradas = obterVendasDashboardFiltradas();
-    // Somar valor de venda por representante (R$)
-    const vendasValueMap = {};
-    reps.forEach(rep => { vendasValueMap[rep] = 0; });
+    const vendasPorRepMap = {};
+    reps.forEach(rep => { vendasPorRepMap[rep] = 0; });
 
     const produtoTotals = new Map();
     vendasFiltradas.forEach(v => {
         const rep = (v.representante || '').toUpperCase();
         const itens = obterItensVendaNormalizados(v);
-        // acumula quantidade por produto (usado no gráfico de top produtos)
         itens.forEach(it => {
+            if (vendasPorRepMap[rep] === undefined) vendasPorRepMap[rep] = 0;
+            vendasPorRepMap[rep] += Number(it.quantidade) || 0;
             produtoTotals.set(it.produtoNome, (produtoTotals.get(it.produtoNome) || 0) + (Number(it.quantidade) || 0));
         });
-        // soma o valor total da venda (fallbacks existentes)
-        const saleValue = Number(v.valorContrato || v.valorTotal || v.valor || 0) || 0;
-        if (vendasValueMap[rep] === undefined) vendasValueMap[rep] = 0;
-        vendasValueMap[rep] += saleValue;
     });
-
-    const vendasValuesRaw = reps.map(rep => Math.round((vendasValueMap[rep] || 0) * 100) / 100);
-
-    // montar array para ordenar mantendo cores
-    const vendasArr = reps.map((rep, i) => ({ rep, value: vendasValuesRaw[i] || 0, color: coresReps[i] || '#79c0ff' }));
-    // ordenar decrescente (maior -> menor)
-    vendasArr.sort((a, b) => b.value - a.value);
-    const vendasLabels = vendasArr.map(x => x.rep);
-    const vendasValues = vendasArr.map(x => x.value);
-    const vendasColors = vendasArr.map(x => x.color);
+    const vendasPorRep = reps.map(rep => vendasPorRepMap[rep] || 0);
 
     // Chart 1: Vendas por Representante (bar)
     const ctx1 = document.getElementById('chartVendasRep');
@@ -12145,23 +12034,20 @@ function renderizarGraficos() {
         _chartVendasRep = new Chart(ctx1, {
             type: 'bar',
             data: {
-                labels: vendasLabels,
+                labels: reps,
                 datasets: [{
                     label: 'Unidades Vendidas',
-                    data: vendasValues,
-                    backgroundColor: vendasColors,
-                    borderColor: vendasColors,
+                    data: vendasPorRep,
+                    backgroundColor: coresReps,
+                    borderColor: coresReps,
                     borderWidth: 1,
                     borderRadius: 6
                 }]
             },
             options: {
                 responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: { display: false },
-                    drawValuesAbove: { display: true, fontSize: 12, color: '#0b1723', offset: 6, format: 'number' }
-                },
+                maintainAspectRatio: true,
+                plugins: { legend: { display: false } },
                 scales: { y: { beginAtZero: true, ticks: { precision: 0 } } }
             }
         });
@@ -12191,7 +12077,7 @@ function renderizarGraficos() {
             },
             options: {
                 responsive: true,
-                maintainAspectRatio: false,
+                maintainAspectRatio: true,
                 plugins: {
                     legend: { position: 'bottom', labels: { font: { size: 11 }, padding: 10 } }
                 }
@@ -12233,14 +12119,7 @@ function renderizarGraficoComissoes() {
     });
 
     const valores = reps.map(r => Math.round((comissoesPorRep[r] || 0) * 100) / 100);
-    // ordenar crescente mantendo cores
-    const comArr = reps.map((r, i) => ({ rep: r, value: valores[i] || 0, color: coresReps[i] || '#79c0ff' }));
-    // ordenar decrescente (maior -> menor)
-    comArr.sort((a, b) => b.value - a.value);
-    const comLabels = comArr.map(x => x.rep);
-    const comValues = comArr.map(x => x.value);
-    const comColors = comArr.map(x => x.color);
-    const total = comValues.reduce((a, b) => a + b, 0);
+    const total = valores.reduce((a, b) => a + b, 0);
 
     const ctx = document.getElementById('chartComissoesRep');
     if (ctx) {
@@ -12248,21 +12127,18 @@ function renderizarGraficoComissoes() {
         _chartComissoesRep = new Chart(ctx, {
             type: 'bar',
             data: {
-                labels: comLabels,
+                labels: reps,
                 datasets: [{
                     label: 'Comissão (R$)',
-                    data: comValues,
-                    backgroundColor: comColors,
+                    data: valores,
+                    backgroundColor: coresReps.slice(0, reps.length),
                     borderRadius: 6
                 }]
             },
             options: {
                 responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: { display: false },
-                    drawValuesAbove: { display: true, format: 'currency', fontSize: 12, color: '#0b1723', offset: 6 }
-                },
+                maintainAspectRatio: true,
+                plugins: { legend: { display: false } },
                 scales: { y: { beginAtZero: true, ticks: { callback: v => 'R$ ' + v.toLocaleString('pt-BR') } } }
             }
         });
@@ -12270,49 +12146,12 @@ function renderizarGraficoComissoes() {
 
     const tabela = document.getElementById('tabelaComissoesGrafico');
     if (tabela) {
-    // substituir a lista textual por um gráfico de barras com valor de vendas por representante (R$)
-    tabela.innerHTML = '<div class="chart-title" style="margin-bottom:8px;padding-left:10px;border-left:3px solid var(--accent-color);">Vendas por Representante (R$)</div><canvas id="chartVendasRepSide" height="420"></canvas>';
-    const canvasSide = document.getElementById('chartVendasRepSide');
-        if (canvasSide) {
-            if (_chartVendasRepSide) _chartVendasRepSide.destroy();
-            // calcular vendas por representante (R$) a partir de vendasFiltradas
-            const vendasValueMap = {};
-            reps.forEach(r => { vendasValueMap[r] = 0; });
-            vendasFiltradas.forEach(v => {
-                const rep = (v.representante || '').toUpperCase();
-                const saleValue = Number(v.valorContrato || v.valorTotal || v.valor || 0) || 0;
-                if (vendasValueMap[rep] === undefined) vendasValueMap[rep] = 0;
-                vendasValueMap[rep] += saleValue;
-            });
-            const vendasVals = reps.map(r => Math.round((vendasValueMap[r] || 0) * 100) / 100);
-            const vendasArrSide = reps.map((r, i) => ({ rep: r, value: vendasVals[i] || 0, color: coresReps[i] || '#79c0ff' }));
-            vendasArrSide.sort((a, b) => b.value - a.value);
-            const sideLabels = vendasArrSide.map(x => x.rep);
-            const sideValues = vendasArrSide.map(x => x.value);
-            const sideColors = vendasArrSide.map(x => x.color);
-
-            _chartVendasRepSide = new Chart(canvasSide, {
-                type: 'bar',
-                data: {
-                    labels: sideLabels,
-                    datasets: [{
-                        label: 'Vendas (R$)',
-                        data: sideValues,
-                        backgroundColor: sideColors,
-                        borderRadius: 6
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: { display: false },
-                        drawValuesAbove: { display: true, format: 'currency', fontSize: 12, color: '#0b1723', offset: 6 }
-                    },
-                    scales: { y: { beginAtZero: true, ticks: { callback: v => 'R$ ' + v.toLocaleString('pt-BR') } } }
-                }
-            });
-        }
+        tabela.innerHTML = reps.map((r, i) =>
+            `<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid #f1f5f9">
+                <span style="color:${coresReps[i]};font-weight:600">${r}</span>
+                <span>R$ ${(valores[i] || 0).toLocaleString('pt-BR', {minimumFractionDigits:2})}</span>
+            </div>`
+        ).join('');
     }
 
     const totalEl = document.getElementById('totalComissoesGrafico');
