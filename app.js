@@ -7431,6 +7431,8 @@ function obterVendasDashboardFiltradas() {
     }
 
     return (estoque.registroVendas || []).filter(v => {
+        // considerar apenas vendas efetivadas (não canceladas)
+        if (v.cancelado) return false;
         if (!v.data) return false;
         const d = new Date(v.data);
         if (isNaN(d.getTime())) return false;
