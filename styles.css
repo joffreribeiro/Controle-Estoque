@@ -90,6 +90,7 @@
     --sidebar-collapsed-width: 58px;
     --header-height: 62px;
     --chart-height: 420px;
+    --chart-height-dashboard: 320px;
 }
 
 /* ========================================
@@ -3219,10 +3220,16 @@ th.sortable.sort-desc .sort-icon::after { content: ' ▼'; opacity: 1; }
     border-left: 3px solid var(--accent-color);
 }
 
+.dashboard-charts .chart-container canvas,
+.dashboard-charts canvas,
 .chart-container canvas,
-.section-card canvas,
-#tabelaComissoesGrafico canvas,
 .dashboard-card canvas {
+    width: 100%;
+    height: var(--chart-height-dashboard);
+}
+
+.section-card canvas,
+#tabelaComissoesGrafico canvas {
     width: 100%;
     height: var(--chart-height);
 }
