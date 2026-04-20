@@ -536,66 +536,7 @@ function obterMetricasImbelProduto(produto) {
             vendasPorRep[(k || '').toString().toUpperCase()] = val;
         });
     }
-
-    // Gráfico lateral: Valor de Vendas por Representante (inclui IMBEL)
-    try {
-        const repsValor = Array.isArray(estoque.representantes) ? [...estoque.representantes] : ['KOLTE', 'ISA', 'LC', 'ADES', 'FL'];
-        if (!repsValor.map(r => String(r).toUpperCase()).includes('IMBEL')) repsValor.push('IMBEL');
-        const repColors = { KOLTE: '#79c0ff', ISA: '#7ee787', LC: '#58a6ff', ADES: '#ffa657', FL: '#d2a8ff', IMBEL: '#ff7b72' };
-
-        const vendasAll = (Array.isArray(estoque.registroVendas) ? [...estoque.registroVendas] : []).filter(v => !v.cancelado);
-        const vendasFiltradasValor = vendasAll.filter(v => {
-            if (periodo === 'todos') return true;
-            const d = new Date(v.data || v.dataVenda || '');
-            if (isNaN(d)) return false;
-            if (periodo === 'mes') return d.getMonth() === agora.getMonth() && d.getFullYear() === agora.getFullYear();
-            if (periodo === 'trimestre') {
-                const trimestreAtual = Math.floor(agora.getMonth() / 3);
-                return Math.floor(d.getMonth() / 3) === trimestreAtual && d.getFullYear() === agora.getFullYear();
-            }
-            if (periodo === 'ano') return d.getFullYear() === agora.getFullYear();
-            return true;
-        });
-
-        const vendasValorMap = {};
-        repsValor.forEach(r => { vendasValorMap[(r || '').toUpperCase()] = 0; });
-        vendasFiltradasValor.forEach(v => {
-            const rep = (v.representante || '').toUpperCase() || 'IMBEL';
-            const itens = obterItensVendaNormalizados(v);
-            itens.forEach(it => {
-                vendasValorMap[rep] = (vendasValorMap[rep] || 0) + (Number(it.valorTotal) || 0);
-            });
-        });
-
-        const valorArr = Object.keys(vendasValorMap).map(rep => ({ rep, value: Math.round((vendasValorMap[rep] || 0) * 100) / 100, color: repColors[rep] || '#79c0ff' }));
-        valorArr.sort((a, b) => b.value - a.value);
-        const valorLabels = valorArr.map(x => x.rep);
-        const valorValues = valorArr.map(x => x.value);
-        const valorColors = valorArr.map(x => x.color);
-
-        const ctxVal = document.getElementById('chartValorVendasRep');
-        if (ctxVal) {
-            if (_chartValorVendasRep) _chartValorVendasRep.destroy();
-            _chartValorVendasRep = new Chart(ctxVal, {
-                type: 'bar',
-                data: {
-                    labels: valorLabels,
-                    datasets: [{
-                        label: 'Vendas (R$)',
-                        data: valorValues,
-                        backgroundColor: valorColors,
-                        borderRadius: 6
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: true,
-                    plugins: { legend: { display: false }, drawValuesAbove: { display: true, format: 'currency', fontSize: 12, color: '#0b1723', offset: 6 } },
-                    scales: { y: { beginAtZero: true, ticks: { callback: v => 'R$ ' + Number(v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 }) } } }
-                }
-            });
-        }
-    } catch (e) { console.warn('renderizarGraficoValorVendasRep erro', e); }
+    
     if (!agregadoTemValores) {
         (estoque.registroVendas || []).forEach(v => {
             try {
@@ -12274,6 +12215,61 @@ function renderizarGraficoComissoes() {
 
     const totalEl = document.getElementById('totalComissoesGrafico');
     if (totalEl) totalEl.textContent = 'Total: R$ ' + total.toLocaleString('pt-BR', {minimumFractionDigits: 2});
+
+    // --- Gráfico: Valor de Vendas por Representante (inclui IMBEL) ---
+    try {
+        const repsValor = Array.isArray(estoque.representantes) ? [...estoque.representantes] : ['KOLTE', 'ISA', 'LC', 'ADES', 'FL'];
+        if (!repsValor.map(r => String(r).toUpperCase()).includes('IMBEL')) repsValor.push('IMBEL');
+        const repColorMap = { KOLTE: '#79c0ff', ISA: '#7ee787', LC: '#58a6ff', ADES: '#ffa657', FL: '#d2a8ff', IMBEL: '#ff7b72' };
+
+        const vendasAll = (Array.isArray(estoque.registroVendas) ? [...estoque.registroVendas] : []).filter(v => !v.cancelado);
+        const vendasFiltradasValor = vendasAll.filter(v => {
+            if (periodo === 'todos') return true;
+            const d = new Date(v.data || v.dataVenda || '');
+            if (isNaN(d)) return false;
+            if (periodo === 'mes') return d.getMonth() === agora.getMonth() && d.getFullYear() === agora.getFullYear();
+            if (periodo === 'trimestre') {
+                const trimestreAtual = Math.floor(agora.getMonth() / 3);
+                return Math.floor(d.getMonth() / 3) === trimestreAtual && d.getFullYear() === agora.getFullYear();
+            }
+            if (periodo === 'ano') return d.getFullYear() === agora.getFullYear();
+            return true;
+        });
+
+        const vendasValorMap = {};
+        repsValor.forEach(r => { vendasValorMap[(r || '').toUpperCase()] = 0; });
+        vendasFiltradasValor.forEach(v => {
+            const rep = ((v.representante || '') + '').toUpperCase() || 'IMBEL';
+            const itens = obterItensVendaNormalizados(v);
+            itens.forEach(it => {
+                vendasValorMap[rep] = (vendasValorMap[rep] || 0) + (Number(it.valorTotal) || 0);
+            });
+        });
+
+        const valorArr = Object.keys(vendasValorMap).map(rep => ({ rep, value: Math.round((vendasValorMap[rep] || 0) * 100) / 100, color: repColorMap[rep] || '#79c0ff' }));
+        valorArr.sort((a, b) => b.value - a.value);
+        const valorLabels = valorArr.map(x => x.rep);
+        const valorValues = valorArr.map(x => x.value);
+        const valorColors = valorArr.map(x => x.color);
+
+        const ctxVal = document.getElementById('chartValorVendasRep');
+        if (ctxVal) {
+            if (_chartValorVendasRep) _chartValorVendasRep.destroy();
+            _chartValorVendasRep = new Chart(ctxVal, {
+                type: 'bar',
+                data: {
+                    labels: valorLabels,
+                    datasets: [{ label: 'Vendas (R$)', data: valorValues, backgroundColor: valorColors, borderRadius: 6 }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false }, drawValuesAbove: { display: true, format: 'currency', fontSize: 12, color: '#0b1723', offset: 6 } },
+                    scales: { y: { beginAtZero: true, ticks: { callback: v => 'R$ ' + Number(v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 }) } } }
+                }
+            });
+        }
+    } catch (e) { console.warn('erro renderizar valor vendas por rep', e); }
 }
 
 // ========================================
@@ -14590,9 +14586,8 @@ function aplicarEstadoPrecificacaoSalva(registro) {
     // Repopular linhas de produtos para edição, se existirem itens salvos
     try {
         const container = document.getElementById('precifLinhasProdutos');
-        if (ctxVal) {
-            if (_chartValorVendasRep) _chartValorVendasRep.destroy();
-            _chartValorVendasRep = new Chart(ctxVal, {
+        const itens = registro.itens || registro.produtos || [];
+        if (container) {
             if (itens.length === 0) {
                 container.innerHTML = '<div data-placeholder style="color:#94a3b8;font-size:0.85rem;text-align:center;padding:14px;background:#f8fafc;border-radius:8px;border:1px dashed #e2e8f0">Clique em "+ Adicionar Produto" para iniciar</div>';
             } else {
@@ -14604,8 +14599,8 @@ function aplicarEstadoPrecificacaoSalva(registro) {
             }
             atualizarContadorLinhasPrecif();
         }
-                    responsive: true,
-                    maintainAspectRatio: false,
+    } catch (e) {}
+
     calcularPrecificacaoPorCliente();
 }
 
