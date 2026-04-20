@@ -12109,23 +12109,28 @@ function renderizarGraficos() {
     const reps = ['KOLTE', 'ISA', 'LC', 'ADES', 'FL', 'IMBEL'];
     const coresReps = ['#79c0ff', '#7ee787', '#58a6ff', '#ffa657', '#d2a8ff', '#ff7b72'];
     const vendasFiltradas = obterVendasDashboardFiltradas();
-    const vendasPorRepMap = {};
-    reps.forEach(rep => { vendasPorRepMap[rep] = 0; });
+    // Somar valor de venda por representante (R$)
+    const vendasValueMap = {};
+    reps.forEach(rep => { vendasValueMap[rep] = 0; });
 
     const produtoTotals = new Map();
     vendasFiltradas.forEach(v => {
         const rep = (v.representante || '').toUpperCase();
         const itens = obterItensVendaNormalizados(v);
+        // acumula quantidade por produto (usado no gráfico de top produtos)
         itens.forEach(it => {
-            if (vendasPorRepMap[rep] === undefined) vendasPorRepMap[rep] = 0;
-            vendasPorRepMap[rep] += Number(it.quantidade) || 0;
             produtoTotals.set(it.produtoNome, (produtoTotals.get(it.produtoNome) || 0) + (Number(it.quantidade) || 0));
         });
+        // soma o valor total da venda (fallbacks existentes)
+        const saleValue = Number(v.valorContrato || v.valorTotal || v.valor || 0) || 0;
+        if (vendasValueMap[rep] === undefined) vendasValueMap[rep] = 0;
+        vendasValueMap[rep] += saleValue;
     });
-    const vendasPorRep = reps.map(rep => vendasPorRepMap[rep] || 0);
 
-    // Ordenar crescente mantendo as cores associadas
-    const vendasArr = reps.map((rep, i) => ({ rep, value: vendasPorRep[i] || 0, color: coresReps[i] || '#79c0ff' }));
+    const vendasValuesRaw = reps.map(rep => Math.round((vendasValueMap[rep] || 0) * 100) / 100);
+
+    // montar array para ordenar mantendo cores
+    const vendasArr = reps.map((rep, i) => ({ rep, value: vendasValuesRaw[i] || 0, color: coresReps[i] || '#79c0ff' }));
     // ordenar decrescente (maior -> menor)
     vendasArr.sort((a, b) => b.value - a.value);
     const vendasLabels = vendasArr.map(x => x.rep);
