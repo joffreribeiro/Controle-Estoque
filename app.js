@@ -1768,15 +1768,22 @@ async function salvarNoCloud() {
         if (Array.isArray(clientes)) estoque.clientes = clientes;
         if (Array.isArray(propostas)) estoque.propostas = propostas;
         const docRef = window.firestoreDB.collection('app_data').doc('latest');
+        // proteger acesso a variáveis que podem estar em TDZ (declarações let/const mais abaixo)
+        let _safe_impostosEditaveis = {};
+        let _safe_icmsEditavelPJ = {};
+        let _safe_icmsEditavelPF = {};
+        try { _safe_impostosEditaveis = impostosEditaveis || {}; } catch (e) { _safe_impostosEditaveis = (estoque.impostosEditaveis || {}); }
+        try { _safe_icmsEditavelPJ = icmsEditavelPJ || {}; } catch (e) { _safe_icmsEditavelPJ = {}; }
+        try { _safe_icmsEditavelPF = icmsEditavelPF || {}; } catch (e) { _safe_icmsEditavelPF = {}; }
         await docRef.set({
             estado: estoque,
             precificacao,
             tabelaAliquotas,
             tabelaICMS,
             categoriaPorProduto,
-            impostosEditaveis: impostosEditaveis || {},
-            icmsEditavelPJ: icmsEditavelPJ || {},
-            icmsEditavelPF: icmsEditavelPF || {},
+            impostosEditaveis: _safe_impostosEditaveis,
+            icmsEditavelPJ: _safe_icmsEditavelPJ,
+            icmsEditavelPF: _safe_icmsEditavelPF,
             updatedAt: firebase.firestore.FieldValue.serverTimestamp()
         });
         // ler o documento para obter o updatedAt do servidor
@@ -10765,15 +10772,23 @@ function exportarEstoqueCompleto() {
 
 function exportarSistema() {
     try {
+        // proteger leitura de variáveis que podem ainda não estar inicializadas
+        let _safe_impostosEditaveis = {};
+        let _safe_icmsEditavelPJ = {};
+        let _safe_icmsEditavelPF = {};
+        try { _safe_impostosEditaveis = impostosEditaveis || {}; } catch (e) { _safe_impostosEditaveis = (estoque.impostosEditaveis || {}); }
+        try { _safe_icmsEditavelPJ = icmsEditavelPJ || {}; } catch (e) { _safe_icmsEditavelPJ = {}; }
+        try { _safe_icmsEditavelPF = icmsEditavelPF || {}; } catch (e) { _safe_icmsEditavelPF = {}; }
+
         const payload = {
             ...estoque,
             precificacao,
             tabelaAliquotas,
             tabelaICMS,
             categoriaPorProduto,
-            impostosEditaveis: impostosEditaveis || {},
-            icmsEditavelPJ: icmsEditavelPJ || {},
-            icmsEditavelPF: icmsEditavelPF || {}
+            impostosEditaveis: _safe_impostosEditaveis,
+            icmsEditavelPJ: _safe_icmsEditavelPJ,
+            icmsEditavelPF: _safe_icmsEditavelPF
         };
         const dataStr = JSON.stringify(payload, null, 2);
         const blob = new Blob([dataStr], { type: 'application/json' });
@@ -10877,15 +10892,23 @@ function importarSistema(event) {
 
 function exportarBackupCompleto() {
     try {
+        // proteger leitura de variáveis possivelmente não inicializadas
+        let _safe_impostosEditaveis = {};
+        let _safe_icmsEditavelPJ = {};
+        let _safe_icmsEditavelPF = {};
+        try { _safe_impostosEditaveis = impostosEditaveis || {}; } catch (e) { _safe_impostosEditaveis = (estoque.impostosEditaveis || {}); }
+        try { _safe_icmsEditavelPJ = icmsEditavelPJ || {}; } catch (e) { _safe_icmsEditavelPJ = {}; }
+        try { _safe_icmsEditavelPF = icmsEditavelPF || {}; } catch (e) { _safe_icmsEditavelPF = {}; }
+
         const backup = {
             versao: '2.0',
             data: new Date().toISOString(),
             dados: estoque,
             imbelData: loadImbel(),
             precificacoesCliente: precificacoesCliente,
-            impostosEditaveis: impostosEditaveis,
-            icmsEditavelPJ: icmsEditavelPJ,
-            icmsEditavelPF: icmsEditavelPF
+            impostosEditaveis: _safe_impostosEditaveis,
+            icmsEditavelPJ: _safe_icmsEditavelPJ,
+            icmsEditavelPF: _safe_icmsEditavelPF
         };
         const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
@@ -12076,8 +12099,8 @@ const __drawValuesAbovePlugin = {
         });
     }
 };
-if (typeof Chart !== 'undefined' && Chart && !Chart.registry.plugins.items.some(p=>p.id === __drawValuesAbovePlugin.id)) {
-    Chart.register(__drawValuesAbovePlugin);
+if (typeof Chart !== 'undefined' && Chart) {
+    try { Chart.register(__drawValuesAbovePlugin); } catch (e) { /* ignore if already registered or API differs */ }
 }
 
 function renderizarGraficos() {
@@ -12103,7 +12126,8 @@ function renderizarGraficos() {
 
     // Ordenar crescente mantendo as cores associadas
     const vendasArr = reps.map((rep, i) => ({ rep, value: vendasPorRep[i] || 0, color: coresReps[i] || '#79c0ff' }));
-    vendasArr.sort((a, b) => a.value - b.value);
+    // ordenar decrescente (maior -> menor)
+    vendasArr.sort((a, b) => b.value - a.value);
     const vendasLabels = vendasArr.map(x => x.rep);
     const vendasValues = vendasArr.map(x => x.value);
     const vendasColors = vendasArr.map(x => x.color);
@@ -12205,7 +12229,8 @@ function renderizarGraficoComissoes() {
     const valores = reps.map(r => Math.round((comissoesPorRep[r] || 0) * 100) / 100);
     // ordenar crescente mantendo cores
     const comArr = reps.map((r, i) => ({ rep: r, value: valores[i] || 0, color: coresReps[i] || '#79c0ff' }));
-    comArr.sort((a, b) => a.value - b.value);
+    // ordenar decrescente (maior -> menor)
+    comArr.sort((a, b) => b.value - a.value);
     const comLabels = comArr.map(x => x.rep);
     const comValues = comArr.map(x => x.value);
     const comColors = comArr.map(x => x.color);
