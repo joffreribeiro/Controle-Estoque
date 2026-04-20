@@ -12255,6 +12255,29 @@ function renderizarGraficoComissoes() {
             });
         });
 
+        // DEBUG: comparar soma por itens (vendasValorMap) vs soma por venda.valorTotal (vendasByInvoice)
+        try {
+            const vendasByInvoice = {};
+            vendasFiltradasValor.forEach(v => {
+                const rep = ((v.representante || '') + '').toUpperCase() || 'IMBEL';
+                vendasByInvoice[rep] = (vendasByInvoice[rep] || 0) + (Number(v.valorTotal) || 0);
+            });
+            // garantir chaves一致
+            Object.keys(vendasValorMap).forEach(k => { if (vendasByInvoice[k] === undefined) vendasByInvoice[k] = 0; });
+
+            const comparison = Object.keys(vendasValorMap).map(k => {
+                const byItems = Math.round((vendasValorMap[k] || 0) * 100) / 100;
+                const byInvoice = Math.round((vendasByInvoice[k] || 0) * 100) / 100;
+                return { representante: k, porItens: byItems, porVenda: byInvoice, diferenca: Math.round((byItems - byInvoice) * 100) / 100 };
+            });
+            const totalItens = comparison.reduce((s, r) => s + r.porItens, 0);
+            const totalInvoice = comparison.reduce((s, r) => s + r.porVenda, 0);
+            console.groupCollapsed('DEBUG: comparação vendas por representante (itens vs. venda.valorTotal)');
+            console.table(comparison.map(r => ({ Representante: r.representante, 'Por itens (R$)': r.porItens.toLocaleString('pt-BR', {minimumFractionDigits:2}), 'Por venda (R$)': r.porVenda.toLocaleString('pt-BR', {minimumFractionDigits:2}), 'Diferença (R$)': r.diferenca.toLocaleString('pt-BR', {minimumFractionDigits:2}) })));
+            console.log('Totais — Por itens:', totalItens.toLocaleString('pt-BR', {minimumFractionDigits:2}), ' Por venda:', totalInvoice.toLocaleString('pt-BR', {minimumFractionDigits:2}), ' Dif:', (totalItens - totalInvoice).toLocaleString('pt-BR', {minimumFractionDigits:2}));
+            console.groupEnd();
+        } catch (err) { console.warn('DEBUG comparação vendas por rep falhou', err); }
+
         const valorArr = Object.keys(vendasValorMap).map(rep => ({ rep, value: Math.round((vendasValorMap[rep] || 0) * 100) / 100, color: repColorMap[rep] || '#79c0ff' }));
         valorArr.sort((a, b) => b.value - a.value);
         const valorLabels = valorArr.map(x => x.rep);
