@@ -12255,7 +12255,7 @@ function renderizarGraficoComissoes() {
             },
             options: {
                 responsive: true,
-                maintainAspectRatio: true,
+                maintainAspectRatio: false,
                 plugins: { legend: { display: false }, drawValuesAbove: { display: true, format: 'currency', fontSize: 12, color: '#0b1723', offset: 6 } },
                 scales: { y: { beginAtZero: true, ticks: { callback: v => 'R$ ' + v.toLocaleString('pt-BR') } } }
             }
@@ -14590,9 +14590,9 @@ function aplicarEstadoPrecificacaoSalva(registro) {
     // Repopular linhas de produtos para edição, se existirem itens salvos
     try {
         const container = document.getElementById('precifLinhasProdutos');
-        if (container) {
-            container.innerHTML = '';
-            const itens = Array.isArray(registro.itens) ? registro.itens : (Array.isArray(registro.produtos) ? registro.produtos : []);
+        if (ctxVal) {
+            if (_chartValorVendasRep) _chartValorVendasRep.destroy();
+            _chartValorVendasRep = new Chart(ctxVal, {
             if (itens.length === 0) {
                 container.innerHTML = '<div data-placeholder style="color:#94a3b8;font-size:0.85rem;text-align:center;padding:14px;background:#f8fafc;border-radius:8px;border:1px dashed #e2e8f0">Clique em "+ Adicionar Produto" para iniciar</div>';
             } else {
@@ -14604,8 +14604,8 @@ function aplicarEstadoPrecificacaoSalva(registro) {
             }
             atualizarContadorLinhasPrecif();
         }
-    } catch (e) { console.warn('aplicarEstadoPrecificacaoSalva: erro ao repopular linhas', e); }
-
+                    responsive: true,
+                    maintainAspectRatio: false,
     calcularPrecificacaoPorCliente();
 }
 
