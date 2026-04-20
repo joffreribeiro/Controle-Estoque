@@ -7498,12 +7498,21 @@ function renderizarDashboard() {
             totalUnidades += it.quantidade;
             totalFaturamento += it.valorTotal;
             if (vendasPorRep[rep] === undefined) vendasPorRep[rep] = 0;
-            vendasPorRep[rep] += it.quantidade;
+            vendasPorRep[rep] += Number(it.valorTotal) || 0;
         });
     });
 
-    const dadosVendas = Array.from(produtoMap.values()).sort((a, b) => b.quantidade - a.quantidade);
-    const dadosVendasAlpha = [...dadosVendas].sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
+    const produtosArray = Array.from(produtoMap.values());
+    const dadosVendas = [...produtosArray].sort((a, b) => b.quantidade - a.quantidade);
+    const sortMode = document.getElementById('filtroOrdenacaoProdutos')?.value || 'quantidade';
+    let dadosOrdenados;
+    if (sortMode === 'produto') {
+        dadosOrdenados = [...produtosArray].sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
+    } else if (sortMode === 'valor') {
+        dadosOrdenados = [...produtosArray].sort((a, b) => b.valor - a.valor);
+    } else {
+        dadosOrdenados = [...produtosArray].sort((a, b) => b.quantidade - a.quantidade);
+    }
 
     let melhorRep = '-';
     let maxVendas = 0;
@@ -7524,13 +7533,13 @@ function renderizarDashboard() {
     const dashProdutoTopEl = document.getElementById('dashProdutoTop');
     if (dashTotalUnidadesEl) dashTotalUnidadesEl.textContent = totalUnidades.toLocaleString('pt-BR');
     if (dashTotalFaturamentoEl) dashTotalFaturamentoEl.textContent = formatarMoedaValor(totalFaturamento);
-    if (dashMelhorRepEl) dashMelhorRepEl.textContent = maxVendas > 0 ? `${melhorRep} (${maxVendas})` : '-';
+    if (dashMelhorRepEl) dashMelhorRepEl.textContent = maxVendas > 0 ? `${melhorRep} (${formatarMoedaValor(maxVendas)})` : '-';
     if (dashProdutoTopEl) dashProdutoTopEl.textContent = produtoTop;
 
     const tabelaQtd = document.getElementById('tabelaQtdProduto');
     if (tabelaQtd) {
         tabelaQtd.innerHTML = '';
-        dadosVendasAlpha.forEach(item => {
+        dadosOrdenados.forEach(item => {
             const tr = document.createElement('tr');
             tr.innerHTML = `
                 <td class="produto-nome">${item.nome}</td>
@@ -7550,7 +7559,7 @@ function renderizarDashboard() {
     const tabelaValor = document.getElementById('tabelaValorProduto');
     if (tabelaValor) {
         tabelaValor.innerHTML = '';
-        dadosVendasAlpha.forEach(item => {
+        dadosOrdenados.forEach(item => {
             const tr = document.createElement('tr');
             tr.innerHTML = `
                 <td class="produto-nome">${item.nome}</td>
@@ -7573,7 +7582,7 @@ function renderizarDashboard() {
         const totaisPorRep = {};
         repsOrdem.forEach(rep => { totaisPorRep[rep] = 0; });
 
-        dadosVendasAlpha.forEach(item => {
+        dadosOrdenados.forEach(item => {
             const tr = document.createElement('tr');
             let html = `<td class="produto-nome">${item.nome}</td>`;
             repsOrdem.forEach(rep => {

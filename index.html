@@ -1465,7 +1465,7 @@
                     <article class="kpi-card kpi-info" data-icon="🏆">
                         <div class="kpi-label">Melhor Representante</div>
                         <div class="kpi-value" id="dashMelhorRep">-</div>
-                        <div class="kpi-subtitle">Maior volume de vendas</div>
+                        <div class="kpi-subtitle">Maior faturamento (R$)</div>
                     </article>
                     <article class="kpi-card kpi-danger" data-icon="📈">
                         <div class="kpi-label">Produto Mais Vendido</div>
@@ -1507,6 +1507,12 @@
                         <div class="section-header">
                             <h2 class="section-title">Quantidade Vendida por Produto</h2>
                             <div class="header-actions">
+                                <label style="margin-right:8px; font-size:0.85rem; color:#64748b">Ordenar:</label>
+                                <select id="filtroOrdenacaoProdutos" onchange="renderizarDashboard()" style="padding:6px 10px;border:1px solid #e2e8f0;border-radius:6px;font-size:0.85rem;margin-right:10px">
+                                    <option value="quantidade" selected>Quantidade (desc)</option>
+                                    <option value="valor">Valor (desc)</option>
+                                    <option value="produto">Produto (A→Z)</option>
+                                </select>
                                 <button class="btn btn-outline btn-sm" onclick="imprimirDashboardQtdProduto()">
                                     <span class="btn-icon">🖨️</span>
                                     Imprimir
