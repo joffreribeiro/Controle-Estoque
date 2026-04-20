@@ -12157,7 +12157,7 @@ function renderizarGraficos() {
             },
             options: {
                 responsive: true,
-                maintainAspectRatio: true,
+                maintainAspectRatio: false,
                 plugins: {
                     legend: { display: false },
                     drawValuesAbove: { display: true, fontSize: 12, color: '#0b1723', offset: 6, format: 'number' }
@@ -12191,7 +12191,7 @@ function renderizarGraficos() {
             },
             options: {
                 responsive: true,
-                maintainAspectRatio: true,
+                maintainAspectRatio: false,
                 plugins: {
                     legend: { position: 'bottom', labels: { font: { size: 11 }, padding: 10 } }
                 }
@@ -12258,7 +12258,7 @@ function renderizarGraficoComissoes() {
             },
             options: {
                 responsive: true,
-                maintainAspectRatio: true,
+                maintainAspectRatio: false,
                 plugins: {
                     legend: { display: false },
                     drawValuesAbove: { display: true, format: 'currency', fontSize: 12, color: '#0b1723', offset: 6 }
@@ -12271,7 +12271,7 @@ function renderizarGraficoComissoes() {
     const tabela = document.getElementById('tabelaComissoesGrafico');
     if (tabela) {
     // substituir a lista textual por um gráfico de barras com valor de vendas por representante (R$)
-    tabela.innerHTML = '<div style="font-weight:700;color:#1e3a5f;margin-bottom:8px">Vendas por Representante (R$)</div><canvas id="chartVendasRepSide" height="420"></canvas>';
+    tabela.innerHTML = '<div class="chart-title" style="margin-bottom:8px;padding-left:10px;border-left:3px solid var(--accent-color);">Vendas por Representante (R$)</div><canvas id="chartVendasRepSide" height="420"></canvas>';
     const canvasSide = document.getElementById('chartVendasRepSide');
         if (canvasSide) {
             if (_chartVendasRepSide) _chartVendasRepSide.destroy();
@@ -12304,7 +12304,7 @@ function renderizarGraficoComissoes() {
                 },
                 options: {
                     responsive: true,
-                    maintainAspectRatio: true,
+                    maintainAspectRatio: false,
                     plugins: {
                         legend: { display: false },
                         drawValuesAbove: { display: true, format: 'currency', fontSize: 12, color: '#0b1723', offset: 6 }
