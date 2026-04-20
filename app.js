@@ -12036,6 +12036,50 @@ let _chartVendasRep = null;
 let _chartTopProdutos = null;
 let _chartComissoesRep = null;
 
+// Plugin para desenhar valores acima das barras (registrado globalmente)
+const __drawValuesAbovePlugin = {
+    id: 'drawValuesAbove',
+    afterDatasetsDraw(chart, args, pluginOptions) {
+        if (!pluginOptions || pluginOptions.display === false) return;
+        const ctx = chart.ctx;
+        const opts = pluginOptions || {};
+        chart.data.datasets.forEach((dataset, dsIndex) => {
+            const meta = chart.getDatasetMeta(dsIndex);
+            if (!meta || !meta.data) return;
+            meta.data.forEach((element, index) => {
+                const val = dataset.data[index];
+                if (val === null || typeof val === 'undefined') return;
+                // só para barras (vertical)
+                if (chart.config.type && chart.config.type !== 'bar') return;
+                const x = element.x !== undefined ? element.x : (element.getCenterPoint ? element.getCenterPoint().x : null);
+                const y = element.y !== undefined ? element.y : (element.getCenterPoint ? element.getCenterPoint().y : null);
+                if (x === null || y === null) return;
+                ctx.save();
+                const fontSize = opts.fontSize || 12;
+                const fontFamily = opts.fontFamily || 'Inter, system-ui, sans-serif';
+                ctx.font = `${fontSize}px ${fontFamily}`;
+                ctx.fillStyle = opts.color || '#0b1723';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'bottom';
+                let text = '';
+                if (opts.format === 'currency') {
+                    const num = Number(val) || 0;
+                    text = 'R$ ' + num.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                } else {
+                    const num = Number(val);
+                    text = Number.isFinite(num) ? num.toLocaleString('pt-BR') : String(val);
+                }
+                const offset = opts.offset || 6;
+                ctx.fillText(text, x, y - offset);
+                ctx.restore();
+            });
+        });
+    }
+};
+if (typeof Chart !== 'undefined' && Chart && !Chart.registry.plugins.items.some(p=>p.id === __drawValuesAbovePlugin.id)) {
+    Chart.register(__drawValuesAbovePlugin);
+}
+
 function renderizarGraficos() {
     if (typeof Chart === 'undefined') return;
 
@@ -12057,6 +12101,13 @@ function renderizarGraficos() {
     });
     const vendasPorRep = reps.map(rep => vendasPorRepMap[rep] || 0);
 
+    // Ordenar crescente mantendo as cores associadas
+    const vendasArr = reps.map((rep, i) => ({ rep, value: vendasPorRep[i] || 0, color: coresReps[i] || '#79c0ff' }));
+    vendasArr.sort((a, b) => a.value - b.value);
+    const vendasLabels = vendasArr.map(x => x.rep);
+    const vendasValues = vendasArr.map(x => x.value);
+    const vendasColors = vendasArr.map(x => x.color);
+
     // Chart 1: Vendas por Representante (bar)
     const ctx1 = document.getElementById('chartVendasRep');
     if (ctx1) {
@@ -12064,12 +12115,12 @@ function renderizarGraficos() {
         _chartVendasRep = new Chart(ctx1, {
             type: 'bar',
             data: {
-                labels: reps,
+                labels: vendasLabels,
                 datasets: [{
                     label: 'Unidades Vendidas',
-                    data: vendasPorRep,
-                    backgroundColor: coresReps,
-                    borderColor: coresReps,
+                    data: vendasValues,
+                    backgroundColor: vendasColors,
+                    borderColor: vendasColors,
                     borderWidth: 1,
                     borderRadius: 6
                 }]
@@ -12077,7 +12128,10 @@ function renderizarGraficos() {
             options: {
                 responsive: true,
                 maintainAspectRatio: true,
-                plugins: { legend: { display: false } },
+                plugins: {
+                    legend: { display: false },
+                    drawValuesAbove: { display: true, fontSize: 12, color: '#0b1723', offset: 6, format: 'number' }
+                },
                 scales: { y: { beginAtZero: true, ticks: { precision: 0 } } }
             }
         });
@@ -12149,7 +12203,13 @@ function renderizarGraficoComissoes() {
     });
 
     const valores = reps.map(r => Math.round((comissoesPorRep[r] || 0) * 100) / 100);
-    const total = valores.reduce((a, b) => a + b, 0);
+    // ordenar crescente mantendo cores
+    const comArr = reps.map((r, i) => ({ rep: r, value: valores[i] || 0, color: coresReps[i] || '#79c0ff' }));
+    comArr.sort((a, b) => a.value - b.value);
+    const comLabels = comArr.map(x => x.rep);
+    const comValues = comArr.map(x => x.value);
+    const comColors = comArr.map(x => x.color);
+    const total = comValues.reduce((a, b) => a + b, 0);
 
     const ctx = document.getElementById('chartComissoesRep');
     if (ctx) {
@@ -12157,18 +12217,21 @@ function renderizarGraficoComissoes() {
         _chartComissoesRep = new Chart(ctx, {
             type: 'bar',
             data: {
-                labels: reps,
+                labels: comLabels,
                 datasets: [{
                     label: 'Comissão (R$)',
-                    data: valores,
-                    backgroundColor: coresReps.slice(0, reps.length),
+                    data: comValues,
+                    backgroundColor: comColors,
                     borderRadius: 6
                 }]
             },
             options: {
                 responsive: true,
                 maintainAspectRatio: true,
-                plugins: { legend: { display: false } },
+                plugins: {
+                    legend: { display: false },
+                    drawValuesAbove: { display: true, format: 'currency', fontSize: 12, color: '#0b1723', offset: 6 }
+                },
                 scales: { y: { beginAtZero: true, ticks: { callback: v => 'R$ ' + v.toLocaleString('pt-BR') } } }
             }
         });
