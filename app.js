@@ -12058,6 +12058,7 @@ function verificarAlertasEstoque() {
 let _chartVendasRep = null;
 let _chartTopProdutos = null;
 let _chartComissoesRep = null;
+let _chartVendasRepSide = null;
 
 // Plugin para desenhar valores acima das barras (registrado globalmente)
 const __drawValuesAbovePlugin = {
@@ -12269,12 +12270,49 @@ function renderizarGraficoComissoes() {
 
     const tabela = document.getElementById('tabelaComissoesGrafico');
     if (tabela) {
-        tabela.innerHTML = reps.map((r, i) =>
-            `<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid #f1f5f9">
-                <span style="color:${coresReps[i]};font-weight:600">${r}</span>
-                <span>R$ ${(valores[i] || 0).toLocaleString('pt-BR', {minimumFractionDigits:2})}</span>
-            </div>`
-        ).join('');
+        // substituir a lista textual por um gráfico de barras com valor de vendas por representante (R$)
+        tabela.innerHTML = '<canvas id="chartVendasRepSide" height="220"></canvas>';
+        const canvasSide = document.getElementById('chartVendasRepSide');
+        if (canvasSide) {
+            if (_chartVendasRepSide) _chartVendasRepSide.destroy();
+            // calcular vendas por representante (R$) a partir de vendasFiltradas
+            const vendasValueMap = {};
+            reps.forEach(r => { vendasValueMap[r] = 0; });
+            vendasFiltradas.forEach(v => {
+                const rep = (v.representante || '').toUpperCase();
+                const saleValue = Number(v.valorContrato || v.valorTotal || v.valor || 0) || 0;
+                if (vendasValueMap[rep] === undefined) vendasValueMap[rep] = 0;
+                vendasValueMap[rep] += saleValue;
+            });
+            const vendasVals = reps.map(r => Math.round((vendasValueMap[r] || 0) * 100) / 100);
+            const vendasArrSide = reps.map((r, i) => ({ rep: r, value: vendasVals[i] || 0, color: coresReps[i] || '#79c0ff' }));
+            vendasArrSide.sort((a, b) => b.value - a.value);
+            const sideLabels = vendasArrSide.map(x => x.rep);
+            const sideValues = vendasArrSide.map(x => x.value);
+            const sideColors = vendasArrSide.map(x => x.color);
+
+            _chartVendasRepSide = new Chart(canvasSide, {
+                type: 'bar',
+                data: {
+                    labels: sideLabels,
+                    datasets: [{
+                        label: 'Vendas (R$)',
+                        data: sideValues,
+                        backgroundColor: sideColors,
+                        borderRadius: 6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: {
+                        legend: { display: false },
+                        drawValuesAbove: { display: true, format: 'currency', fontSize: 12, color: '#0b1723', offset: 6 }
+                    },
+                    scales: { y: { beginAtZero: true, ticks: { callback: v => 'R$ ' + v.toLocaleString('pt-BR') } } }
+                }
+            });
+        }
     }
 
     const totalEl = document.getElementById('totalComissoesGrafico');
