@@ -1,0 +1,12 @@
+node_modules/
+.git
+.vscode
+.DS_Store
+dist/
+build/
+*.log
+npm-debug.log
+yarn-error.log
+**/workerd/
+**/workerd/**
+workerd
