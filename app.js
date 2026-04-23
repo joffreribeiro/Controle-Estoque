@@ -1891,6 +1891,14 @@ async function carregarDoCloud({confirmOverwrite=true} = {}) {
             if (!ok) return false;
         }
         estoque = data.estado;
+        // Restaurar dados IMBEL salvos no backup principal (se existirem)
+        try {
+            if (data && data.estado && data.estado._imbelData) {
+                try { localStorage.setItem(IMBEL_KEY, JSON.stringify(data.estado._imbelData)); console.info('IMBEL: restaurado do Cloud'); } catch (e) { console.warn('IMBEL: falha ao restaurar do Cloud', e); }
+            } else if (estoque && estoque._imbelData) {
+                try { localStorage.setItem(IMBEL_KEY, JSON.stringify(estoque._imbelData)); console.info('IMBEL: restaurado do backup principal'); } catch (e) { /* ignore */ }
+            }
+        } catch (e) {}
         const precifsCloudFinal = (data.precificacoesCliente && data.precificacoesCliente.length)
             ? data.precificacoesCliente
             : (estoque.precificacoesCliente || []);
@@ -2001,6 +2009,14 @@ async function carregarDoCloudAuto() {
         if (remoteUpdated && remoteUpdated > localUpdated) {
             // substituir local automaticamente
             estoque = data.estado;
+            // Restaurar dados IMBEL salvos no backup principal (se existirem)
+            try {
+                if (data && data.estado && data.estado._imbelData) {
+                    try { localStorage.setItem(IMBEL_KEY, JSON.stringify(data.estado._imbelData)); console.info('IMBEL: restaurado do Cloud (auto)'); } catch (e) { console.warn('IMBEL: falha ao restaurar do Cloud (auto)', e); }
+                } else if (estoque && estoque._imbelData) {
+                    try { localStorage.setItem(IMBEL_KEY, JSON.stringify(estoque._imbelData)); console.info('IMBEL: restaurado do backup principal (auto)'); } catch (e) { /* ignore */ }
+                }
+            } catch (e) {}
             estoque.precificacoesCliente = normalizarPrecificacoesCliente(
                 data.precificacoesCliente && data.precificacoesCliente.length
                     ? data.precificacoesCliente
