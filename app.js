@@ -1768,6 +1768,11 @@ async function salvarNoCloud() {
         if (Array.isArray(precificacoesCliente)) estoque.precificacoesCliente = precificacoesCliente;
         if (Array.isArray(clientes)) estoque.clientes = clientes;
         if (Array.isArray(propostas)) estoque.propostas = propostas;
+        // Incluir dados IMBEL no backup Cloud (pegar do localStorage antes de enviar)
+        try {
+            const imbelDataToSave = (typeof loadImbel === 'function') ? loadImbel() : null;
+            if (imbelDataToSave) estoque._imbelData = imbelDataToSave;
+        } catch (e) { /* ignore */ }
         const docRef = window.firestoreDB.collection('app_data').doc('latest');
         await docRef.set({
             estado: estoque,
