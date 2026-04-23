@@ -5287,6 +5287,30 @@ function imbelTipoAumentaEstoque(tipoKey) {
     try { const t = getImbelTipo(tipoKey); return t.categoria === 'entrada'; } catch(e) { return false; }
 }
 
+let _tooltipSaidaEl = null;
+function mostrarTooltipSaida(event, anchor, html) {
+    ocultarTooltipSaida();
+    const el = document.createElement('div');
+    el.id = '_tooltipSaida';
+    el.innerHTML = html;
+    Object.assign(el.style, {
+        position: 'fixed', zIndex: '99999',
+        background: '#1e293b', color: '#f1f5f9',
+        padding: '8px 12px', borderRadius: '8px',
+        fontSize: '0.8rem', lineHeight: '1.6',
+        boxShadow: '0 4px 16px rgba(0,0,0,0.3)',
+        pointerEvents: 'none', whiteSpace: 'nowrap'
+    });
+    document.body.appendChild(el);
+    _tooltipSaidaEl = el;
+    const r = anchor.getBoundingClientRect();
+    el.style.left = (r.left + r.width / 2 - el.offsetWidth / 2) + 'px';
+    el.style.top  = (r.top - el.offsetHeight - 8) + 'px';
+}
+function ocultarTooltipSaida() {
+    if (_tooltipSaidaEl) { _tooltipSaidaEl.remove(); _tooltipSaidaEl = null; }
+}
+
 // Migrar movimentações antigas para novos tipos (executar uma vez no carregamento)
 function initControleImbel() {
     // mostrar dashboard por padrão quando a aba for aberta
@@ -6020,11 +6044,16 @@ function renderControleImbelEstoque() {
     // Calcular totais de Entrada e Saída por produto
     const totEntrada = {};
     const totSaida   = {};
+    const totSaidaByTipo = {}; // { produtoId: { VENDA: n, SAIDA_MARKETING: n, ... } }
     (data.movimentacoes||[]).forEach(m => {
         if (!m.produtoId) return;
         const q = Number(m.quantidade) || 0;
         if (imbelTipoAumentaEstoque(m.tipo)) totEntrada[m.produtoId] = (totEntrada[m.produtoId]||0) + q;
-        else totSaida[m.produtoId] = (totSaida[m.produtoId]||0) + q;
+        else {
+            totSaida[m.produtoId] = (totSaida[m.produtoId]||0) + q;
+            if (!totSaidaByTipo[m.produtoId]) totSaidaByTipo[m.produtoId] = {};
+            totSaidaByTipo[m.produtoId][m.tipo] = (totSaidaByTipo[m.produtoId][m.tipo]||0) + q;
+        }
     });
 
     const produtos = data.produtos || [];
@@ -6038,6 +6067,24 @@ function renderControleImbelEstoque() {
     produtos.forEach((p, idx) => {
         const entrada = totEntrada[p.id] || 0;
         const saida   = totSaida[p.id]   || 0;
+        const saidaByTipo = totSaidaByTipo[p.id] || {};
+        const saidaTiposOrdenados = Object.keys(IMBEL_TIPOS).filter(k => {
+            const t = IMBEL_TIPOS[k];
+            return t.categoria === 'saida' && saidaByTipo[k];
+        });
+        const saidaTooltipRows = saidaTiposOrdenados.map(k => {
+            const t = IMBEL_TIPOS[k];
+            return `${t.icon} ${t.label}: <b>${saidaByTipo[k]}</b>`;
+        }).join('<br>');
+        const saidaHasBreakdown = saidaTiposOrdenados.length > 1 ||
+            (saidaTiposOrdenados.length === 1 && saidaTiposOrdenados[0] !== 'VENDA');
+        const saidaCell = saidaHasBreakdown
+            ? `<span style="cursor:help;border-bottom:1px dashed #dc2626"
+                    title=""
+                    onmouseenter="mostrarTooltipSaida(event, this, \`${saidaTooltipRows}\`)"
+                    onmouseleave="ocultarTooltipSaida()"
+               >${saida} ℹ️</span>`
+            : `${saida}`;
         const inicial = Number(p.quantidadeInicial) || 0;
         const estoqueAtual = inicial + entrada - saida;
 
@@ -6076,7 +6123,7 @@ function renderControleImbelEstoque() {
             </td>
             <td style="${tdCenter}">${inicial}</td>
             <td style="${tdCenter};color:#16a34a;font-weight:600">${entrada}</td>
-            <td style="${tdCenter};color:#dc2626;font-weight:600">${saida}</td>
+            <td style="${tdCenter};color:#dc2626;font-weight:600">${saidaCell}</td>
             <td style="${tdCenter}">${saldoBadge}</td>
             <td style="${tdCenter}">
               <input type="number" min="0" step="1"
