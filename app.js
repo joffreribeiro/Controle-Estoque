@@ -6951,24 +6951,34 @@ function renderControleImbelMovimentacao() {
         // Bloquear saída se saldo insuficiente (usa categoria dos tipos)
         if (!imbelTipoAumentaEstoque(tipoKey)) {
             const saldos = {};
+            // Calcular saldos a partir das movimentações existentes, ignorando a movimentação que está sendo editada
             (data.movimentacoes||[]).forEach(m2 => {
-                if (m2.items && (m2.items||[]).length) {
-                    m2.items.forEach(it => {
-                        const q = Number(it.quantidade)||0;
+                try {
+                    if (editId && m2.id === editId) return; // não contar a movimentação atual em edição
+                    if (m2.items && (m2.items||[]).length) {
+                        m2.items.forEach(it => {
+                            const q = Number(it.quantidade)||0;
+                            const s = imbelTipoAumentaEstoque(m2.tipo) ? 1 : -1;
+                            saldos[it.produtoId] = (saldos[it.produtoId]||0) + s * q;
+                        });
+                    } else {
+                        const q = Number(m2.quantidade)||0;
                         const s = imbelTipoAumentaEstoque(m2.tipo) ? 1 : -1;
-                        saldos[it.produtoId] = (saldos[it.produtoId]||0) + s * q;
-                    });
-                } else {
-                    const q = Number(m2.quantidade)||0;
-                    const s = imbelTipoAumentaEstoque(m2.tipo) ? 1 : -1;
-                    saldos[m2.produtoId] = (saldos[m2.produtoId]||0) + s * q;
-                }
+                        saldos[m2.produtoId] = (saldos[m2.produtoId]||0) + s * q;
+                    }
+                } catch(e) { /* ignore malformed movimentacao */ }
             });
-            // validar apenas pelos itens presentes na modal
+            // Somar quantidades solicitadas por produto (caso haja múltiplas linhas para o mesmo produto)
+            const solicitados = {};
             for (const it of items) {
-                const saldoAtual = saldos[it.produtoId] || 0;
-                if ((Number(it.quantidade)||0) > saldoAtual) {
-                    mostrarNotificacao(`Saldo insuficiente para ${it.produtoId}. Saldo atual: ${saldoAtual} un.`, 'error');
+                const pid = it.produtoId;
+                solicitados[pid] = (solicitados[pid]||0) + (Number(it.quantidade)||0);
+            }
+            for (const pid in solicitados) {
+                const req = solicitados[pid] || 0;
+                const saldoAtual = saldos[pid] || 0;
+                if (req > saldoAtual) {
+                    mostrarNotificacao(`Saldo insuficiente para ${pid}. Saldo atual: ${saldoAtual} un.`, 'error');
                     return;
                 }
             }
