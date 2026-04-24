@@ -16080,7 +16080,7 @@ function importarICMSEstadosArquivo(event) {
             ESTADOS_LISTA.forEach(uf => { if (row[uf] !== undefined && row[uf] !== '') { tabela[ncm][uf] = parseFloat(row[uf]) || 0; editarICMSEstado(ncm, uf, tipo, tabela[ncm][uf]); } });
             count++;
         });
-        renderizarICMSPorEstado(); alert(`✅ ${count} linha(s) de ICMS importadas.`); event.target.value = ''; salvarDados();
+        renderizarICMSPorEstado(); alert(`✅ ${count} linha(s) de ICMS importadas.`); event.target.value = ''; salvarDados({ imediato: true }); salvarNoCloud();
     };
     reader.readAsBinaryString(file);
 }
