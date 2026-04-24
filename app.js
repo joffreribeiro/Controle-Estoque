@@ -3062,7 +3062,9 @@ function renderizarCadastroProdutos() {
             <td style="text-align:left; font-weight:600">${nome}</td>
             <td>
                 <div style="display:flex;gap:6px;align-items:center">
-                    <input type="text" value="${ncm}" onchange="salvarNCMProduto(${Number(produto.id)}, this.value)" style="width:120px;padding:6px;border:1px solid #e2e8f0;border-radius:6px;font-family:monospace">
+                    <select onchange="salvarNCMProduto(${Number(produto.id)}, this.value)" style="width:240px;padding:6px;border:1px solid #e2e8f0;border-radius:6px;font-family:monospace">
+                        ${gerarOptionsNCM(ncm)}
+                    </select>
                     <button class="btn btn-outline btn-sm" title="Detectar NCM" onclick="detectarNCMVincular(${Number(produto.id)})">🔍</button>
                 </div>
             </td>
@@ -13630,6 +13632,23 @@ function detectarNCMVincular(produtoId) {
         return;
     }
     salvarNCMProduto(produtoId, detectado);
+}
+
+function gerarOptionsNCM(selectedNcm) {
+    try {
+        const entries = Object.entries(NCM_PRODUTOS || {});
+        if (!entries || entries.length === 0) return '<option value="">—</option>';
+        entries.sort((a, b) => a[0].localeCompare(b[0]));
+        let html = '<option value="">— Selecionar —</option>';
+        entries.forEach(([code, desc]) => {
+            const sel = String(code) === String(selectedNcm) ? ' selected' : '';
+            html += `<option value="${code}"${sel}>${_escapeHtml(code)} — ${_escapeHtml(desc || '')}</option>`;
+        });
+        return html;
+    } catch (e) {
+        console.error('gerarOptionsNCM error', e);
+        return '<option value="">—</option>';
+    }
 }
 
 function salvarPrecoFinalManual(nomeProduto, valor) {
