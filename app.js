@@ -265,12 +265,12 @@ let categoriaPorProduto = {};
 })();
 // ===== NCM / Predefinições fiscais =====
 const NCM_PRODUTOS = {
-    "9301.90.00": "FUZIL DE ALTA PRECISÃO IMBEL 308 AGLC",
-    "9305.91.00": "PEÇAS",
-    "9302.00.00": "PISTOLA",
-    "9305.10.00": "CARREGADOR",
-    "8211.10.00": "FACA",
-    "8201.40.00": "MACHADINHA"
+    "9301.90.00": "Fuzil de assalto IMBEL",
+    "9305.91.00": "Partes de armas de guerra 93.01",
+    "9302.00.00": "Revólveres e pistolas",
+    "9305.10.00": "Partes de revólveres ou pistolas",
+    "8211.10.00": "Faca",
+    "8201.40.00": "Machadinha"
 };
 
 const NCM_POR_CATEGORIA = {
