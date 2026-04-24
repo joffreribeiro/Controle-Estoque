@@ -340,7 +340,7 @@ const ICMS_PF_POR_NCM = {
         TO:20, MG:18
     },
     "9302.00.00": {
-        AC:25, AL:29, AP:29, AM:25, BA:38, CE:28, DF:25, ES:25, GO:25,
+        AC:25, AL:29, AP:29, AM:25, BA:38, CE:28, DF:27, ES:25, GO:25,
         MA:30.5, MT:35, MS:25, PA:30, PB:25, PR:25, PE:27, PI:33,
         RJ:37, RN:25, RS:25, RO:25, RR:25, SC:25, SP:25, SE:28,
         TO:27, MG:25
@@ -3060,7 +3060,12 @@ function renderizarCadastroProdutos() {
         const tr = document.createElement('tr');
         tr.innerHTML = `
             <td style="text-align:left; font-weight:600">${nome}</td>
-            <td>${ncm}</td>
+            <td>
+                <div style="display:flex;gap:6px;align-items:center">
+                    <input type="text" value="${ncm}" onchange="salvarNCMProduto(${Number(produto.id)}, this.value)" style="width:120px;padding:6px;border:1px solid #e2e8f0;border-radius:6px;font-family:monospace">
+                    <button class="btn btn-outline btn-sm" title="Detectar NCM" onclick="detectarNCMVincular(${Number(produto.id)})">🔍</button>
+                </div>
+            </td>
             <td>${categoria}</td>
             <td>${ci > 0 ? formatarMoedaValor(ci) : '-'}</td>
             <td>${margemMin > 0 ? margemMin.toFixed(1).replace('.', ',') : '-'}</td>
@@ -13587,6 +13592,44 @@ function atualizarLinhaPrecificacao(nomeProduto) {
 function salvarCategoriaProduto(nomeProduto, categoria) {
     categoriaPorProduto[nomeProduto] = categoria;
     salvarDados();
+}
+
+function salvarNCMProduto(produtoId, ncmValor) {
+    if (!requireAdminOrNotify()) return;
+    try {
+        const produto = (estoque.produtos || []).find(p => Number(p.id) === Number(produtoId));
+        if (!produto) { mostrarNotificacao('Produto não encontrado.', 'error'); return; }
+        const ncm = (ncmValor || '').toString().trim() || null;
+        produto.ncm = ncm;
+
+        // aplicar impostos federais padrão se disponíveis e não sobrescrever valores existentes
+        if (!tabelaAliquotas[produto.nome]) tabelaAliquotas[produto.nome] = {};
+        const aliq = tabelaAliquotas[produto.nome];
+        const fed = IMPOSTOS_FEDERAIS_POR_NCM[ncm];
+        if (fed) {
+            if (aliq.pis === undefined || aliq.pis === null) aliq.pis = fed.pis;
+            if (aliq.cofins === undefined || aliq.cofins === null) aliq.cofins = fed.cofins;
+            if (aliq.ipi === undefined || aliq.ipi === null) aliq.ipi = fed.ipi;
+        }
+
+        salvarDados();
+        renderizarCadastroProdutos();
+        mostrarNotificacao(`NCM atualizado para ${produto.nome}: ${produto.ncm || '—'}`, 'success');
+    } catch (e) {
+        console.error('salvarNCMProduto error', e);
+        mostrarNotificacao('Falha ao salvar NCM.', 'error');
+    }
+}
+
+function detectarNCMVincular(produtoId) {
+    const produto = (estoque.produtos || []).find(p => Number(p.id) === Number(produtoId));
+    if (!produto) { mostrarNotificacao('Produto não encontrado.', 'error'); return; }
+    const detectado = detectarNCM(produto.nome);
+    if (!detectado) {
+        mostrarNotificacao('Não foi possível detectar um NCM automaticamente para este produto.', 'warning');
+        return;
+    }
+    salvarNCMProduto(produtoId, detectado);
 }
 
 function salvarPrecoFinalManual(nomeProduto, valor) {
