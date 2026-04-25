@@ -4430,16 +4430,18 @@ th.sortable.sort-desc .sort-icon::after { content: ' ▼'; opacity: 1; }
 #tabelaEstoque tr.total-row td.negative,
 #tabelaEstoque tr.total-row td span.negative { color: var(--danger-color) !important; }
 
-/* Fix: garantir que a linha de totais da aba Estoque fique visível (sticky bottom)
-   e apareça claramente acima das linhas do corpo da tabela. */
-#tab-estoque #tabelaEstoque tr.total-row td {
+/* Fix: total-row congelada no rodapé via tfoot sticky */
+#tab-estoque #tabelaEstoque tfoot {
     position: sticky !important;
     bottom: 0 !important;
     z-index: 30 !important;
+}
+
+#tab-estoque #tabelaEstoque tfoot tr.total-row td {
     box-shadow: 0 -4px 8px rgba(11,23,35,0.06);
 }
 
-#tab-estoque #tabelaEstoque tr.total-row td.produto-nome {
+#tab-estoque #tabelaEstoque tfoot tr.total-row td.produto-nome {
     z-index: 31 !important;
     background: var(--primary-dark) !important;
 }

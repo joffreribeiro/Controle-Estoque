@@ -2983,7 +2983,13 @@ function renderizarTabela() {
         <td class="geral-saldo numeric-cell ${saldoGeralTotalClass}"><strong>${formatarNumero(totais.GERAL.saldo)}</strong></td>
     `;
 
-    tbody.appendChild(trTotal);
+    const tfoot = document.getElementById('rodapeTabela');
+    if (tfoot) {
+        tfoot.innerHTML = '';
+        tfoot.appendChild(trTotal);
+    } else {
+        tbody.appendChild(trTotal);
+    }
     // KPIs da aba estoque (agora renderizados no Dashboard)
     const dashContainer = document.getElementById('tab-dashboard');
     const kpiTotalVendidoEl = (dashContainer && dashContainer.querySelector)
