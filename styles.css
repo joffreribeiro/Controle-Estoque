@@ -4430,6 +4430,39 @@ th.sortable.sort-desc .sort-icon::after { content: ' ▼'; opacity: 1; }
 #tabelaEstoque tr.total-row td.negative,
 #tabelaEstoque tr.total-row td span.negative { color: var(--danger-color) !important; }
 
+/* Fix: garantir que a linha de totais da aba Estoque fique visível (sticky bottom)
+   e apareça claramente acima das linhas do corpo da tabela. */
+#tab-estoque #tabelaEstoque tr.total-row td {
+    position: sticky !important;
+    bottom: 0 !important;
+    z-index: 30 !important;
+    box-shadow: 0 -4px 8px rgba(11,23,35,0.06);
+}
+
+#tab-estoque #tabelaEstoque tr.total-row td.produto-nome {
+    z-index: 31 !important;
+    background: var(--primary-dark) !important;
+}
+
+/* Ajustes para a célula 'PRODUTOS' no header da aba Estoque:
+   aumentar fonte e centralizar o conteúdo. */
+#tab-estoque #tabelaEstoque th.col-produto {
+    font-size: 1.05rem !important;
+    font-weight: 700 !important;
+    text-align: center !important;
+    vertical-align: middle !important;
+    padding: 14px 12px !important;
+}
+#tab-estoque #tabelaEstoque td.produto-nome {
+    text-align: left; /* manter nome dos produtos alinhado à esquerda por legibilidade */
+}
+#tab-estoque #tabelaEstoque th.col-produto .produto-title,
+#tab-estoque #tabelaEstoque th.col-produto span {
+    display: inline-block;
+    width: 100%;
+    text-align: center;
+}
+
 
 /* ==========================
    IMBEL: Melhorias na tabela 'Registrar Movimentação'
