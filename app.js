@@ -79,9 +79,10 @@ if (location.hostname !== 'localhost') {
     console.debug = () => {};
 }
 // Flag para indicar que há dados locais alterados que ainda não foram sincronizados com o cloud
-let _dadosAlterados = false;
+// IMPORTANTE: declarado em window para que o onSnapshot (closure async) leia a mesma referência
+window._dadosAlterados = false;
 // Marca que houve sincronização recente com o cloud (evita warning ao fechar)
-let _cloudSyncedRecently = false;
+window._cloudSyncedRecently = false;
 // Feature flags: controlar painel debug e notificações automáticas do cloud
 try { window.__SHOW_DEBUG_PANEL = window.__SHOW_DEBUG_PANEL || false; } catch(e) { window.__SHOW_DEBUG_PANEL = false; }
 try { window.__SHOW_AUTO_UPDATE_NOTIFICATION = window.__SHOW_AUTO_UPDATE_NOTIFICATION || false; } catch(e) { window.__SHOW_AUTO_UPDATE_NOTIFICATION = false; }
@@ -1724,14 +1725,14 @@ function _executarSalvarLocal() {
     // agendar salvamento no cloud (debounced) se habilitado
     try { scheduleCloudSaveDebounced(); } catch (e) {}
     try {
-        if (!_cloudSyncedRecently) _dadosAlterados = true;
+        if (!window._cloudSyncedRecently) window._dadosAlterados = true;
     } catch (e) {}
 }
 
 function salvarDados(opcoes = {}) {
     // Marcar imediatamente como alterado para proteger contra sobrescrita pelo onSnapshot
     // antes mesmo do debounce de 300ms terminar
-    try { _dadosAlterados = true; } catch (e) {}
+    try { window._dadosAlterados = true; } catch (e) {}
     if (opcoes && opcoes.imediato) {
         if (__localSaveTimer) { clearTimeout(__localSaveTimer); __localSaveTimer = null; }
         _executarSalvarLocal();
@@ -1803,10 +1804,10 @@ async function salvarNoCloud() {
             setTimeout(() => { if (indicator) indicator.textContent = ''; }, 3000);
         }
         try {
-            _cloudSyncedRecently = true;
-            _dadosAlterados = false;
+            window._cloudSyncedRecently = true;
+            window._dadosAlterados = false;
             if (__cloudSyncResetTimer) clearTimeout(__cloudSyncResetTimer);
-            __cloudSyncResetTimer = setTimeout(() => { _cloudSyncedRecently = false; }, 30000);
+            __cloudSyncResetTimer = setTimeout(() => { window._cloudSyncedRecently = false; }, 30000);
         } catch (e) {}
         console.debug('Dados salvos no Firestore (coleção app_data / doc latest)');
         return true;
@@ -2015,7 +2016,7 @@ async function carregarDoCloudAuto() {
         const remoteUpdated = data.updatedAt ? data.updatedAt.toDate().getTime() : null;
         const localUpdated = estoque._localUpdatedAt ? new Date(estoque._localUpdatedAt).getTime() : 0;
         // Não sobrescrever se há alterações locais pendentes não sincronizadas
-        if (_dadosAlterados) return false;
+        if (window._dadosAlterados) return false;
         if (remoteUpdated && remoteUpdated > localUpdated) {
             // substituir local automaticamente
             estoque = data.estado;
