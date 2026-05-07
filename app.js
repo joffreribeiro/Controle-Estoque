@@ -1729,6 +1729,9 @@ function _executarSalvarLocal() {
 }
 
 function salvarDados(opcoes = {}) {
+    // Marcar imediatamente como alterado para proteger contra sobrescrita pelo onSnapshot
+    // antes mesmo do debounce de 300ms terminar
+    try { _dadosAlterados = true; } catch (e) {}
     if (opcoes && opcoes.imediato) {
         if (__localSaveTimer) { clearTimeout(__localSaveTimer); __localSaveTimer = null; }
         _executarSalvarLocal();
@@ -2011,6 +2014,8 @@ async function carregarDoCloudAuto() {
         const data = doc.data();
         const remoteUpdated = data.updatedAt ? data.updatedAt.toDate().getTime() : null;
         const localUpdated = estoque._localUpdatedAt ? new Date(estoque._localUpdatedAt).getTime() : 0;
+        // Não sobrescrever se há alterações locais pendentes não sincronizadas
+        if (_dadosAlterados) return false;
         if (remoteUpdated && remoteUpdated > localUpdated) {
             // substituir local automaticamente
             estoque = data.estado;
@@ -18120,7 +18125,8 @@ if (window.firebase && firebase.auth) {
                                             return;
                                         }
                                         // Se remoto for mais recente que local, carregar automaticamente
-                                        if (remoteUpdated > localUpdated + 1000) {
+                                        // Margem de 5s para cobrir o debounce local (300ms) + upload cloud (2500ms) + latência
+                                        if (remoteUpdated > localUpdated + 5000) {
                                             await carregarDoCloud({ confirmOverwrite: false });
                                             try { if (window.__SHOW_AUTO_UPDATE_NOTIFICATION) mostrarNotificacao('Dados atualizados automaticamente do Cloud.', 'success'); } catch (e) {}
                                         }
