@@ -13832,25 +13832,22 @@ function trocarSubabaPrecif(subaba) {
 // Grupos de UF para precificação
 const GRUPOS_PRECO_ESTADO = [
     {
+        id: 'grupo3',
+        label: 'Demais Estados',
+        ufs: ['AC','AL','AM','AP','BA','CE','DF','ES','GO','MA','MS','MT','PA','PB','PE','PI','RN','RO','RR','SE','TO'],
+        cor: '#0f766e'
+    },
+    {
         id: 'grupo1',
         label: 'Grupo 1',
         ufs: ['PR','RS','RJ','SC','SP'],
-        cor: '#1e3a5f',
-        descricao: 'PR, RS, RJ, SC, SP'
+        cor: '#1e3a5f'
     },
     {
         id: 'grupo2',
         label: 'Grupo 2',
         ufs: ['MG'],
-        cor: '#6d28d9',
-        descricao: 'MG'
-    },
-    {
-        id: 'grupo3',
-        label: 'Demais Estados',
-        ufs: ['AC','AL','AM','AP','BA','CE','DF','ES','GO','MA','MS','MT','PA','PB','PE','PI','RN','RO','RR','SE','TO'],
-        cor: '#0f766e',
-        descricao: 'AC, AL, AM, AP, BA, CE, DF, ES, GO, MA, MS, MT, PA, PB, PE, PI, RN, RO, RR, SE, TO'
+        cor: '#6d28d9'
     }
 ];
 
@@ -13878,31 +13875,22 @@ function renderizarTabelaPrecoEstado() {
         return;
     }
 
-    // Cabeçalho com legenda dos grupos
-    let legendaHtml = GRUPOS_PRECO_ESTADO.map(g => `
-        <span style="display:inline-flex;align-items:center;gap:5px;font-size:0.78rem;color:#374151">
-            <span style="width:12px;height:12px;border-radius:3px;background:${g.cor};display:inline-block"></span>
-            <strong>${g.label}:</strong> ${g.descricao}
-        </span>`).join('<span style="color:#cbd5e1;margin:0 4px">|</span>');
-
     let html = `
-        <div style="margin-bottom:14px">
-            <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px;flex-wrap:wrap">
-                <h3 style="margin:0;font-size:1rem;color:#1e3a5f;font-weight:700">Tabela de Preços por Grupo de Estado</h3>
-                <button class="btn btn-primary btn-sm" onclick="salvarTabelaPrecoEstado()">💾 Salvar</button>
-            </div>
-            <div style="display:flex;gap:12px;flex-wrap:wrap;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:10px 14px;font-size:0.78rem">
-                ${legendaHtml}
-            </div>
-            <p style="margin:8px 0 0;font-size:0.77rem;color:#64748b">O preço definido para cada grupo é aplicado automaticamente quando o cliente tiver UF cadastrada pertencente a esse grupo.</p>
+        <div style="display:flex;gap:8px;align-items:center;margin-bottom:14px;flex-wrap:wrap">
+            <h3 style="margin:0;font-size:1rem;color:#1e3a5f;font-weight:700">Tabela de Preços por Estado</h3>
+            <button class="btn btn-primary btn-sm" onclick="salvarTabelaPrecoEstado()">💾 Salvar</button>
+            <span style="font-size:0.77rem;color:#64748b">O preço é preenchido automaticamente na venda conforme a UF do cliente.</span>
         </div>
         <table style="border-collapse:collapse;width:100%;font-size:0.88rem">
             <thead>
                 <tr>
-                    <th style="padding:10px 14px;text-align:left;background:#1e3a5f;color:#fff;border-radius:6px 0 0 0;min-width:180px">Produto</th>`;
+                    <th style="padding:10px 14px;text-align:left;background:#1e3a5f;color:#fff;min-width:180px">Produto</th>`;
 
     GRUPOS_PRECO_ESTADO.forEach(g => {
-        html += `<th style="padding:10px 16px;text-align:center;background:${g.cor};color:#fff;min-width:160px">${g.label}</th>`;
+        const ufsList = g.ufs.join(' · ');
+        html += `<th style="padding:8px 16px;text-align:center;background:${g.cor};color:#fff;min-width:180px">
+            <div style="font-size:0.95rem;font-weight:700;margin-bottom:3px">${ufsList}</div>
+        </th>`;
     });
     html += `</tr></thead><tbody>`;
 
@@ -13938,8 +13926,12 @@ function renderizarTabelaPrecoEstado() {
 }
 
 function formatarMoedaPrecoEstado(input) {
-    let v = input.value.replace(/[^\d,]/g, '');
-    input.value = v;
+    let valor = input.value.replace(/\D/g, '');
+    if (!valor) { input.value = ''; return; }
+    valor = (parseInt(valor, 10) / 100).toFixed(2);
+    valor = valor.replace('.', ',');
+    valor = valor.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+    input.value = valor;
 }
 
 function salvarTabelaPrecoEstado() {
@@ -16764,8 +16756,20 @@ function autoPreencherPrecoProduto(selectEl) {
     const produto = (estoque.produtos || []).find(p => p.id === produtoId);
     if (!produto) return;
 
-    // Primeiro: tentar obter preço da precificação salva para o cliente selecionado
     const lojaNome = (document.getElementById('lojaVenda')?.value || '').trim();
+
+    // PRIORIDADE 1: tabela de preços por grupo de estado (sempre sobrepõe qualquer outra precificação)
+    try {
+        const precoEstado = obterPrecoEstadoParaClienteProduto(lojaNome, produtoId);
+        if (precoEstado !== null && !isNaN(precoEstado) && precoEstado > 0) {
+            valorInput.value = Number(precoEstado).toFixed(2).replace('.', ',');
+            valorInput.style.background = '#eff6ff';
+            valorInput.setAttribute('data-autofilled', 'estado');
+            return;
+        }
+    } catch (e) {}
+
+    // PRIORIDADE 2: precificação salva para o cliente
     let precoSalvo = null;
     try { precoSalvo = obterPrecoFinalSalvoParaClienteProduto(lojaNome, produtoId); } catch (e) { precoSalvo = null; }
 
@@ -16776,7 +16780,7 @@ function autoPreencherPrecoProduto(selectEl) {
         return;
     }
 
-    // Se não houver precificação salva, tentar usar a última precificação calculada para este cliente (se existir)
+    // PRIORIDADE 3: última precificação calculada para o cliente
     try {
         const clienteObj = (clientes || []).find(c => (c.nome||'').toLowerCase() === (lojaNome||'').toLowerCase());
         if (clienteObj && ultimaPrecificacaoCalculada && String(ultimaPrecificacaoCalculada.clienteId) === String(clienteObj.id)) {
@@ -16790,18 +16794,7 @@ function autoPreencherPrecoProduto(selectEl) {
         }
     } catch (e) {}
 
-    // Terceiro: tentar preço da tabela por estado (UF do cliente)
-    try {
-        const precoEstado = obterPrecoEstadoParaClienteProduto(lojaNome, produtoId);
-        if (precoEstado !== null && !isNaN(precoEstado) && precoEstado > 0) {
-            valorInput.value = Number(precoEstado).toFixed(2).replace('.', ',');
-            valorInput.style.background = '#eff6ff';
-            valorInput.setAttribute('data-autofilled', 'estado');
-            return;
-        }
-    } catch (e) {}
-
-    // Caso não haja nenhuma fonte de preço, manter em branco (usuário preencherá manualmente)
+    // Nenhuma fonte encontrada — campo fica em branco para preenchimento manual
 }
 
 // Retorna o preço final salvo (number) para um produto em uma precificação do cliente, ou null
