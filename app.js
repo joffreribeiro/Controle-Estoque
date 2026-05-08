@@ -1552,7 +1552,7 @@ function carregarDados() {
                 precificacao: {},
                 precificacaoConfig: null,
                 precificacoesCliente: [],
-                parametrosTabelaVenda: {}
+                parametrosTabelaVenda: { versaoAtiva: null, versoes: [] }
             };
         }
         // Garantir que registroVendas existe
@@ -1600,7 +1600,22 @@ function carregarDados() {
             estoque.tabelaPrecoEstado = {};
         }
         if (!estoque.parametrosTabelaVenda || typeof estoque.parametrosTabelaVenda !== 'object') {
-            estoque.parametrosTabelaVenda = {};
+            estoque.parametrosTabelaVenda = { versaoAtiva: null, versoes: [] };
+        }
+        // Migração do formato antigo (taxa/roi/roiPorNCM flat → versões)
+        {
+            const ptv = estoque.parametrosTabelaVenda;
+            if (!ptv.versoes) {
+                const taxaAnt = ptv.taxa;
+                const roiAnt  = ptv.roi;
+                const roiNCMAnt = ptv.roiPorNCM || {};
+                const params = {};
+                Object.entries(roiNCMAnt).forEach(([ncm, roi]) => { params[ncm] = { taxa: taxaAnt || null, roi }; });
+                const v1 = { id: Date.now(), data: new Date().toISOString(), descricao: 'Versão inicial (migrada)', params, taxaPadrao: taxaAnt || null, roiPadrao: roiAnt || null };
+                ptv.versoes = [v1];
+                ptv.versaoAtiva = v1.id;
+                delete ptv.taxa; delete ptv.roi; delete ptv.roiPorNCM;
+            }
         }
         // Carregar configuração de alertas se presente
         try {
@@ -13464,24 +13479,34 @@ function buscarAliquotaICMS(estado, tipoPessoa, nomeProduto) {
     return parseFloat(tabelaAliquotas[nomeProduto]?.icmsBase) || 0;
 }
 
+function _obterVersaoAtivaTabelaVenda() {
+    const ptv = (estoque && estoque.parametrosTabelaVenda) || {};
+    const versoes = ptv.versoes || [];
+    if (!versoes.length) return null;
+    return versoes.find(v => v.id === ptv.versaoAtiva) || versoes[versoes.length - 1];
+}
+
 function calcularPreco(nomeProduto, estado = null, tipoPessoa = null, taxaOverride = null, roiOverride = null, comissaoOverride = null) {
     const prec = precificacao[nomeProduto] || {};
     const aliq = tabelaAliquotas[nomeProduto] || {};
 
     const ci = parseFloat(prec.ci) || 0;
-    // Parâmetros globais da Tabela de Preço de Venda (taxa/roi padrão + roi por NCM)
-    const _tvParams = (estoque && estoque.parametrosTabelaVenda) || {};
-    const _taxaGlobal = parseFloat(_tvParams.taxa);
-    const _roiGlobal  = parseFloat(_tvParams.roi);
+    // Parâmetros da versão ativa da Tabela de Preço de Venda
     const _produto = (estoque && estoque.produtos || []).find(p => p.nome === nomeProduto);
     const _ncm = _produto ? (_produto.ncm || '') : '';
-    const _roiNCM = _ncm ? parseFloat((_tvParams.roiPorNCM || {})[_ncm]) : NaN;
+    const _versao = _obterVersaoAtivaTabelaVenda();
+    const _ncmParams = _versao ? ((_versao.params || {})[_ncm] || {}) : {};
+    const _taxaGlobal = _versao ? parseFloat(_versao.taxaPadrao) : NaN;
+    const _roiGlobal  = _versao ? parseFloat(_versao.roiPadrao)  : NaN;
+    const _taxaNCM    = parseFloat(_ncmParams.taxa);
+    const _roiNCM     = parseFloat(_ncmParams.roi);
 
     // Prefer explicit overrides when provided (used by comparativo)
     let taxaPct = (taxaOverride !== null && taxaOverride !== undefined && !isNaN(Number(taxaOverride)))
         ? Number(taxaOverride)
         : ((prec.taxa !== null && prec.taxa !== undefined && prec.taxa !== '') ? parseFloat(prec.taxa)
-            : (Number.isFinite(_taxaGlobal) ? _taxaGlobal : parseFloat(document.getElementById('taxaPadrao')?.value)));
+            : (Number.isFinite(_taxaNCM) ? _taxaNCM
+                : (Number.isFinite(_taxaGlobal) ? _taxaGlobal : parseFloat(document.getElementById('taxaPadrao')?.value))));
     if (!Number.isFinite(taxaPct)) taxaPct = 1;
     let roiPct = (roiOverride !== null && roiOverride !== undefined && !isNaN(Number(roiOverride)))
         ? Number(roiOverride)
@@ -14166,91 +14191,240 @@ function exportarTabelaPrecoVenda() {
     mostrarNotificacao(`Tabela exportada: ${label}`, 'success');
 }
 
-function salvarParametrosTabelaVenda() {
-    if (!estoque.parametrosTabelaVenda) estoque.parametrosTabelaVenda = {};
-    const taxa = parseFloat(document.getElementById('tvParamTaxa')?.value);
-    const roi  = parseFloat(document.getElementById('tvParamROI')?.value);
-    if (!isNaN(taxa)) estoque.parametrosTabelaVenda.taxa = taxa;
-    if (!isNaN(roi))  estoque.parametrosTabelaVenda.roi  = roi;
+function criarNovaVersaoTabelaVenda() {
+    const descricao = document.getElementById('tvNovaDescricao')?.value?.trim();
+    if (!descricao) { mostrarNotificacao('Informe uma descrição para a versão.', 'warning'); return; }
 
-    // ROI por NCM
-    if (!estoque.parametrosTabelaVenda.roiPorNCM) estoque.parametrosTabelaVenda.roiPorNCM = {};
-    document.querySelectorAll('[data-tv-ncm-roi]').forEach(inp => {
-        const ncm = inp.dataset.tvNcmRoi;
+    const taxaPadrao = parseFloat(document.getElementById('tvNovaTaxaPadrao')?.value);
+    const roiPadrao  = parseFloat(document.getElementById('tvNovaROIPadrao')?.value);
+
+    const params = {};
+    document.querySelectorAll('[data-tv-ncm]').forEach(inp => {
+        const ncm = inp.dataset.tvNcm;
+        const campo = inp.dataset.tvCampo;
         const val = parseFloat(inp.value);
-        if (!isNaN(val) && val > 0) estoque.parametrosTabelaVenda.roiPorNCM[ncm] = val;
-        else delete estoque.parametrosTabelaVenda.roiPorNCM[ncm];
+        if (!isNaN(val) && val > 0) {
+            if (!params[ncm]) params[ncm] = {};
+            params[ncm][campo] = val;
+        }
     });
 
+    if (!estoque.parametrosTabelaVenda) estoque.parametrosTabelaVenda = { versaoAtiva: null, versoes: [] };
+    if (!estoque.parametrosTabelaVenda.versoes) estoque.parametrosTabelaVenda.versoes = [];
+
+    const novaVersao = {
+        id: Date.now(),
+        data: new Date().toISOString(),
+        descricao,
+        params,
+        taxaPadrao: isNaN(taxaPadrao) ? null : taxaPadrao,
+        roiPadrao:  isNaN(roiPadrao)  ? null : roiPadrao
+    };
+    estoque.parametrosTabelaVenda.versoes.push(novaVersao);
+    estoque.parametrosTabelaVenda.versaoAtiva = novaVersao.id;
+
     salvarDados();
-    mostrarNotificacao('Parâmetros salvos. Tabela atualizada.', 'success');
+    mostrarNotificacao(`Versão "${descricao}" criada e ativada.`, 'success');
     renderizarTabelaPrecoVenda();
 }
 
-function _renderizarPainelParametrosTabelaVenda() {
-    const params = (estoque && estoque.parametrosTabelaVenda) || {};
-    const taxa = params.taxa ?? '';
-    const roi  = params.roi  ?? '';
-    const roiPorNCM = params.roiPorNCM || {};
+function ativarVersaoTabelaVenda(id) {
+    if (!estoque.parametrosTabelaVenda) return;
+    estoque.parametrosTabelaVenda.versaoAtiva = id;
+    salvarDados();
+    mostrarNotificacao('Versão ativada. Tabela atualizada.', 'success');
+    renderizarTabelaPrecoVenda();
+}
 
-    // coletar NCMs únicos dos produtos
+function abrirDetalheVersaoTabelaVenda(id) {
+    const ptv = (estoque && estoque.parametrosTabelaVenda) || {};
+    const v = (ptv.versoes || []).find(x => x.id === id);
+    if (!v) return;
+
+    const isAtiva = ptv.versaoAtiva === v.id;
     const ncmsSet = new Set();
     (estoque.produtos || []).forEach(p => { if (p.ncm) ncmsSet.add(p.ncm); });
     const ncms = [...ncmsSet].sort();
 
-    const ncmRows = ncms.map(ncm => {
-        const valNCM = roiPorNCM[ncm] ?? '';
+    const linhasNCM = ncms.map(ncm => {
+        const p = (v.params || {})[ncm] || {};
+        const grupos = (estoque.produtos || []).filter(x => x.ncm === ncm).map(x => x.categoria || '').filter((val, i, a) => val && a.indexOf(val) === i).join(', ') || '—';
+        return `<tr style="border-bottom:1px solid #f1f5f9">
+            <td style="padding:5px 12px;font-family:monospace;font-size:0.82rem">${_escapeHtml(ncm)}</td>
+            <td style="padding:5px 12px;font-size:0.78rem;color:#64748b">${_escapeHtml(grupos)}</td>
+            <td style="padding:5px 12px;text-align:right">${p.taxa != null ? p.taxa + '%' : '<span style="color:#cbd5e1">padrão</span>'}</td>
+            <td style="padding:5px 12px;text-align:right">${p.roi  != null ? p.roi  + '%' : '<span style="color:#cbd5e1">padrão</span>'}</td>
+        </tr>`;
+    }).join('');
+
+    const html = `
+        <div id="modalDetalheVersao" style="position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.45)" onclick="if(event.target===this)this.remove()">
+            <div style="background:#fff;border-radius:12px;box-shadow:0 8px 40px rgba(0,0,0,0.22);min-width:480px;max-width:620px;max-height:80vh;overflow:hidden;display:flex;flex-direction:column">
+                <div style="background:#1e3a5f;color:#fff;padding:14px 20px;display:flex;justify-content:space-between;align-items:center;flex-shrink:0">
+                    <div>
+                        <div style="font-weight:700;font-size:1rem">${_escapeHtml(v.descricao)}</div>
+                        <div style="font-size:0.78rem;opacity:0.8;margin-top:2px">${new Date(v.data).toLocaleString('pt-BR')} ${isAtiva ? '&nbsp;<span style="background:#22c55e;color:#fff;padding:1px 7px;border-radius:8px;font-size:0.72rem">vigente</span>' : ''}</div>
+                    </div>
+                    <button onclick="document.getElementById('modalDetalheVersao').remove()" style="background:none;border:none;color:#fff;font-size:1.4rem;cursor:pointer;line-height:1">&times;</button>
+                </div>
+                <div style="padding:12px 20px;background:#f8fafc;border-bottom:1px solid #e2e8f0;flex-shrink:0">
+                    <span style="font-size:0.85rem;color:#374151">Taxa padrão: <b>${v.taxaPadrao != null ? v.taxaPadrao + '%' : '—'}</b></span>
+                    &nbsp;&nbsp;
+                    <span style="font-size:0.85rem;color:#374151">ROI padrão: <b>${v.roiPadrao != null ? v.roiPadrao + '%' : '—'}</b></span>
+                </div>
+                <div style="overflow-y:auto;flex:1">
+                    ${ncms.length ? `<table style="width:100%;border-collapse:collapse;font-size:0.83rem">
+                        <thead style="position:sticky;top:0"><tr style="background:#f1f5f9">
+                            <th style="padding:7px 12px;text-align:left;font-weight:600;color:#374151">NCM</th>
+                            <th style="padding:7px 12px;text-align:left;font-weight:600;color:#374151">Grupo</th>
+                            <th style="padding:7px 12px;text-align:right;font-weight:600;color:#374151">Taxa %</th>
+                            <th style="padding:7px 12px;text-align:right;font-weight:600;color:#374151">ROI %</th>
+                        </tr></thead>
+                        <tbody>${linhasNCM}</tbody>
+                    </table>` : '<p style="padding:20px;color:#94a3b8;text-align:center">Nenhum NCM definido nesta versão.</p>'}
+                </div>
+            </div>
+        </div>`;
+
+    const ex = document.getElementById('modalDetalheVersao');
+    if (ex) ex.remove();
+    document.body.insertAdjacentHTML('beforeend', html);
+}
+
+function _renderizarPainelParametrosTabelaVenda() {
+    const ptv = (estoque && estoque.parametrosTabelaVenda) || {};
+    const versoes = (ptv.versoes || []).slice().sort((a, b) => b.id - a.id); // mais recente primeiro
+    const versaoAtiva = versoes.find(v => v.id === ptv.versaoAtiva) || (versoes.length ? versoes[0] : null);
+
+    // NCMs únicos dos produtos
+    const ncmsSet = new Set();
+    (estoque.produtos || []).forEach(p => { if (p.ncm) ncmsSet.add(p.ncm); });
+    const ncms = [...ncmsSet].sort();
+
+    // Pré-preencher formulário com valores da versão ativa (para facilitar edição incremental)
+    const preAtiva = versaoAtiva ? (versaoAtiva.params || {}) : {};
+    const taxaPreench = versaoAtiva ? (versaoAtiva.taxaPadrao ?? '') : '';
+    const roiPreench  = versaoAtiva ? (versaoAtiva.roiPadrao  ?? '') : '';
+
+    // ---- Seção A: versão ativa ----
+    const secaoAtiva = versaoAtiva
+        ? `<div style="display:flex;align-items:center;gap:10px;padding:10px 16px;background:#f0fdf4;border-bottom:1px solid #bbf7d0;flex-wrap:wrap">
+            <span style="font-size:0.82rem;color:#15803d;font-weight:700">Versão ativa:</span>
+            <span style="font-size:0.82rem;color:#15803d">${_escapeHtml(versaoAtiva.descricao)}</span>
+            <span style="font-size:0.77rem;color:#64748b">— criada em ${new Date(versaoAtiva.data).toLocaleDateString('pt-BR')}</span>
+            <span style="font-size:0.77rem;color:#374151">| Taxa padrão: <b>${versaoAtiva.taxaPadrao != null ? versaoAtiva.taxaPadrao + '%' : '—'}</b> &nbsp; ROI padrão: <b>${versaoAtiva.roiPadrao != null ? versaoAtiva.roiPadrao + '%' : '—'}</b></span>
+          </div>`
+        : `<div style="padding:8px 16px;background:#fef9c3;border-bottom:1px solid #fde047;font-size:0.82rem;color:#92400e">Nenhuma versão definida. Crie a primeira versão abaixo.</div>`;
+
+    // ---- Seção B: formulário nova versão ----
+    const ncmRowsForm = ncms.map(ncm => {
+        const grupos = (estoque.produtos || []).filter(p => p.ncm === ncm).map(p => p.categoria || '').filter((v, i, a) => v && a.indexOf(v) === i).join(', ') || '—';
+        const pAtiva = preAtiva[ncm] || {};
         return `<tr>
             <td style="padding:5px 10px;font-family:monospace;font-size:0.82rem;color:#374151">${_escapeHtml(ncm)}</td>
-            <td style="padding:5px 10px;font-size:0.78rem;color:#64748b">${_escapeHtml(
-                (estoque.produtos || []).filter(p => p.ncm === ncm).map(p => p.categoria || '').filter((v,i,a)=>v&&a.indexOf(v)===i).join(', ') || '—'
-            )}</td>
+            <td style="padding:5px 10px;font-size:0.78rem;color:#64748b">${_escapeHtml(grupos)}</td>
             <td style="padding:5px 10px">
                 <input type="number" step="0.1" min="0" max="9999"
-                    data-tv-ncm-roi="${_escapeHtml(ncm)}"
-                    value="${valNCM}"
-                    placeholder="Padrão (${roi !== '' ? roi : '—'}%)"
-                    style="width:110px;border:1px solid #e2e8f0;border-radius:5px;padding:4px 7px;font-size:0.82rem;text-align:right">
+                    data-tv-ncm="${_escapeHtml(ncm)}" data-tv-campo="taxa"
+                    value="${pAtiva.taxa ?? ''}"
+                    placeholder="padrão"
+                    style="width:90px;border:1px solid #e2e8f0;border-radius:5px;padding:4px 7px;font-size:0.82rem;text-align:right">
+            </td>
+            <td style="padding:5px 10px">
+                <input type="number" step="0.1" min="0" max="9999"
+                    data-tv-ncm="${_escapeHtml(ncm)}" data-tv-campo="roi"
+                    value="${pAtiva.roi ?? ''}"
+                    placeholder="padrão"
+                    style="width:90px;border:1px solid #e2e8f0;border-radius:5px;padding:4px 7px;font-size:0.82rem;text-align:right">
             </td>
         </tr>`;
     }).join('');
 
-    return `<div id="tvPainelParams" style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;margin-bottom:16px;overflow:hidden">
-        <div onclick="var p=document.getElementById('tvPainelParamsBody');var ic=document.getElementById('tvPainelIc');p.style.display=p.style.display==='none'?'block':'none';ic.textContent=p.style.display==='none'?'▶':'▼'"
+    const secaoForm = `<div style="padding:14px 16px;border-bottom:1px solid #e2e8f0">
+        <div style="font-size:0.82rem;font-weight:700;color:#1e3a5f;margin-bottom:10px">Nova versão de parâmetros</div>
+        <div style="display:flex;gap:14px;align-items:flex-end;flex-wrap:wrap;margin-bottom:12px">
+            <div>
+                <label style="font-size:0.75rem;font-weight:600;color:#374151;display:block;margin-bottom:3px">Descrição</label>
+                <input type="text" id="tvNovaDescricao" placeholder="Ex: Tabela mai/26"
+                    style="width:180px;border:1px solid #c7d2fe;border-radius:6px;padding:6px 10px;font-size:0.85rem">
+            </div>
+            <div>
+                <label style="font-size:0.75rem;font-weight:600;color:#374151;display:block;margin-bottom:3px">Taxa % padrão</label>
+                <input type="number" step="0.1" min="0" id="tvNovaTaxaPadrao" value="${taxaPreench}" placeholder="Ex: 20"
+                    style="width:100px;border:1px solid #c7d2fe;border-radius:6px;padding:6px 10px;font-size:0.85rem;text-align:right">
+            </div>
+            <div>
+                <label style="font-size:0.75rem;font-weight:600;color:#374151;display:block;margin-bottom:3px">ROI % padrão</label>
+                <input type="number" step="0.1" min="0" id="tvNovaROIPadrao" value="${roiPreench}" placeholder="Ex: 30"
+                    style="width:100px;border:1px solid #c7d2fe;border-radius:6px;padding:6px 10px;font-size:0.85rem;text-align:right">
+            </div>
+            <button onclick="criarNovaVersaoTabelaVenda()"
+                style="padding:7px 18px;background:#1e3a5f;color:#fff;border:none;border-radius:6px;font-size:0.85rem;font-weight:700;cursor:pointer">
+                Criar Nova Versão
+            </button>
+        </div>
+        ${ncms.length ? `
+        <div style="font-size:0.77rem;color:#64748b;margin-bottom:6px">Taxa % e ROI % por NCM <span style="color:#94a3b8">(deixe em branco para usar o padrão global acima)</span></div>
+        <div style="max-height:220px;overflow-y:auto;border:1px solid #e2e8f0;border-radius:6px">
+        <table style="width:100%;border-collapse:collapse;font-size:0.82rem">
+            <thead><tr style="background:#f1f5f9;position:sticky;top:0">
+                <th style="padding:6px 10px;text-align:left;font-weight:600;color:#374151">NCM</th>
+                <th style="padding:6px 10px;text-align:left;font-weight:600;color:#374151">Grupo</th>
+                <th style="padding:6px 10px;text-align:center;font-weight:600;color:#374151">Taxa %</th>
+                <th style="padding:6px 10px;text-align:center;font-weight:600;color:#374151">ROI %</th>
+            </tr></thead>
+            <tbody>${ncmRowsForm}</tbody>
+        </table>
+        </div>` : ''}
+    </div>`;
+
+    // ---- Seção C: histórico ----
+    const linhasHist = versoes.map(v => {
+        const isAtiva = v.id === ptv.versaoAtiva;
+        return `<tr style="background:${isAtiva ? '#f0fdf4' : ''}">
+            <td style="padding:6px 12px;font-size:0.82rem">${new Date(v.data).toLocaleDateString('pt-BR')}</td>
+            <td style="padding:6px 12px;font-size:0.82rem;font-weight:${isAtiva ? '700' : '400'}">${_escapeHtml(v.descricao)} ${isAtiva ? '<span style="background:#22c55e;color:#fff;padding:1px 6px;border-radius:8px;font-size:0.7rem;margin-left:4px">vigente</span>' : ''}</td>
+            <td style="padding:6px 12px;text-align:right;font-size:0.82rem">${v.taxaPadrao != null ? v.taxaPadrao + '%' : '—'}</td>
+            <td style="padding:6px 12px;text-align:right;font-size:0.82rem">${v.roiPadrao  != null ? v.roiPadrao  + '%' : '—'}</td>
+            <td style="padding:6px 10px;white-space:nowrap">
+                <button onclick="abrirDetalheVersaoTabelaVenda(${v.id})" style="padding:3px 10px;font-size:0.76rem;border:1px solid #e2e8f0;border-radius:5px;cursor:pointer;background:#f8fafc;color:#374151;margin-right:4px">Detalhes</button>
+                ${!isAtiva ? `<button onclick="ativarVersaoTabelaVenda(${v.id})" style="padding:3px 10px;font-size:0.76rem;border:none;border-radius:5px;cursor:pointer;background:#1e3a5f;color:#fff">Ativar</button>` : ''}
+            </td>
+        </tr>`;
+    }).join('');
+
+    const secaoHist = versoes.length ? `
+        <div>
+            <div onclick="var h=document.getElementById('tvHistBody');var ic=document.getElementById('tvHistIc');h.style.display=h.style.display==='none'?'block':'none';ic.textContent=h.style.display==='none'?'▶':'▼'"
+                style="padding:9px 16px;cursor:pointer;display:flex;align-items:center;gap:8px;background:#f8fafc;user-select:none">
+                <span id="tvHistIc" style="font-size:0.72rem;color:#64748b">▶</span>
+                <span style="font-weight:600;font-size:0.84rem;color:#374151">Histórico de versões (${versoes.length})</span>
+            </div>
+            <div id="tvHistBody" style="display:none;overflow-x:auto">
+                <table style="width:100%;border-collapse:collapse;font-size:0.82rem">
+                    <thead><tr style="background:#f1f5f9">
+                        <th style="padding:6px 12px;text-align:left;font-weight:600;color:#374151">Data</th>
+                        <th style="padding:6px 12px;text-align:left;font-weight:600;color:#374151">Descrição</th>
+                        <th style="padding:6px 12px;text-align:right;font-weight:600;color:#374151">Taxa</th>
+                        <th style="padding:6px 12px;text-align:right;font-weight:600;color:#374151">ROI</th>
+                        <th style="padding:6px 12px"></th>
+                    </tr></thead>
+                    <tbody>${linhasHist}</tbody>
+                </table>
+            </div>
+        </div>` : '';
+
+    return `<div id="tvPainelParams" style="background:#fff;border:1px solid #e2e8f0;border-radius:10px;margin-bottom:16px;overflow:hidden">
+        <div onclick="var b=document.getElementById('tvPainelParamsBody');var ic=document.getElementById('tvPainelIc');b.style.display=b.style.display==='none'?'block':'none';ic.textContent=b.style.display==='none'?'▶':'▼'"
             style="padding:10px 16px;cursor:pointer;display:flex;align-items:center;gap:10px;background:#eef2ff;user-select:none">
             <span id="tvPainelIc" style="font-size:0.75rem;color:#4f46e5">▼</span>
-            <span style="font-weight:700;color:#1e3a5f;font-size:0.88rem">Parâmetros de Cálculo</span>
-            <span style="font-size:0.77rem;color:#64748b;margin-left:4px">Taxa e ROI padrão para a tabela (por produto individual sobrepõe estes valores)</span>
+            <span style="font-weight:700;color:#1e3a5f;font-size:0.88rem">Parâmetros de Cálculo (Taxa e ROI por NCM)</span>
+            <span style="font-size:0.77rem;color:#64748b;margin-left:4px">por produto individual sobrepõe estes valores</span>
         </div>
-        <div id="tvPainelParamsBody" style="padding:14px 16px">
-            <div style="display:flex;gap:20px;align-items:flex-end;flex-wrap:wrap;margin-bottom:14px">
-                <div>
-                    <label style="font-size:0.78rem;font-weight:600;color:#374151;display:block;margin-bottom:4px">Taxa % (global)</label>
-                    <input type="number" step="0.1" min="0" max="9999" id="tvParamTaxa" value="${taxa}" placeholder="Ex: 20"
-                        style="width:110px;border:1px solid #c7d2fe;border-radius:6px;padding:6px 10px;font-size:0.9rem;text-align:right">
-                </div>
-                <div>
-                    <label style="font-size:0.78rem;font-weight:600;color:#374151;display:block;margin-bottom:4px">ROI % padrão (global)</label>
-                    <input type="number" step="0.1" min="0" max="9999" id="tvParamROI" value="${roi}" placeholder="Ex: 30"
-                        style="width:110px;border:1px solid #c7d2fe;border-radius:6px;padding:6px 10px;font-size:0.9rem;text-align:right">
-                </div>
-                <button onclick="salvarParametrosTabelaVenda()"
-                    style="padding:7px 20px;background:#1e3a5f;color:#fff;border:none;border-radius:6px;font-size:0.85rem;font-weight:700;cursor:pointer">
-                    Salvar e Recalcular
-                </button>
-            </div>
-            ${ncms.length ? `
-            <div style="font-size:0.78rem;font-weight:600;color:#374151;margin-bottom:6px">ROI % por NCM <span style="font-weight:400;color:#64748b">(deixe em branco para usar o padrão global)</span></div>
-            <div style="overflow-x:auto;max-height:240px;overflow-y:auto;border:1px solid #e2e8f0;border-radius:6px">
-            <table style="width:100%;border-collapse:collapse;font-size:0.82rem">
-                <thead><tr style="background:#f1f5f9;position:sticky;top:0">
-                    <th style="padding:6px 10px;text-align:left;font-weight:600;color:#374151">NCM</th>
-                    <th style="padding:6px 10px;text-align:left;font-weight:600;color:#374151">Grupo</th>
-                    <th style="padding:6px 10px;text-align:left;font-weight:600;color:#374151">ROI %</th>
-                </tr></thead>
-                <tbody>${ncmRows}</tbody>
-            </table>
-            </div>` : ''}
+        <div id="tvPainelParamsBody">
+            ${secaoAtiva}
+            ${secaoForm}
+            ${secaoHist}
         </div>
     </div>`;
 }
@@ -14267,21 +14441,24 @@ function abrirDetalhePrecoVenda(nomeProduto, uf, tipoPessoa) {
 
     // Determinar fonte de taxa e ROI para exibir badge informativo
     const prec = precificacao[nomeProduto] || {};
-    const params = (estoque && estoque.parametrosTabelaVenda) || {};
     const prodObj = (estoque.produtos || []).find(p => p.nome === nomeProduto);
     const ncm = prodObj ? (prodObj.ncm || '') : '';
+    const _versaoDetalhe = _obterVersaoAtivaTabelaVenda();
+    const _ncmParamsDetalhe = _versaoDetalhe ? ((_versaoDetalhe.params || {})[ncm] || {}) : {};
+    const _versaoLabel = _versaoDetalhe ? _versaoDetalhe.descricao : '';
     let taxaFonte = '', roiFonte = '';
     if (prec.taxa !== null && prec.taxa !== undefined && prec.taxa !== '') taxaFonte = 'por produto';
-    else if (Number.isFinite(parseFloat(params.taxa))) taxaFonte = 'padrão global';
+    else if (Number.isFinite(parseFloat(_ncmParamsDetalhe.taxa))) taxaFonte = `NCM ${ncm}`;
+    else if (_versaoDetalhe && Number.isFinite(parseFloat(_versaoDetalhe.taxaPadrao))) taxaFonte = _versaoLabel;
     else taxaFonte = 'fallback';
     if (prec.roi !== null && prec.roi !== undefined && prec.roi !== '') roiFonte = 'por produto';
-    else if (ncm && Number.isFinite(parseFloat((params.roiPorNCM||{})[ncm]))) roiFonte = `NCM ${ncm}`;
-    else if (Number.isFinite(parseFloat(params.roi))) roiFonte = 'padrão global';
+    else if (Number.isFinite(parseFloat(_ncmParamsDetalhe.roi))) roiFonte = `NCM ${ncm}`;
+    else if (_versaoDetalhe && Number.isFinite(parseFloat(_versaoDetalhe.roiPadrao))) roiFonte = _versaoLabel;
     else roiFonte = 'fallback';
 
     function badge(fonte) {
-        const cor = fonte === 'por produto' ? '#16a34a' : fonte.startsWith('NCM') ? '#7c3aed' : fonte === 'padrão global' ? '#0f766e' : '#94a3b8';
-        return `<span style="font-size:0.68rem;background:${cor}20;color:${cor};border:1px solid ${cor}40;border-radius:8px;padding:1px 6px;margin-left:6px;vertical-align:middle">${fonte}</span>`;
+        const cor = fonte === 'por produto' ? '#16a34a' : fonte.startsWith('NCM') ? '#7c3aed' : fonte === 'fallback' ? '#94a3b8' : '#0f766e';
+        return `<span style="font-size:0.68rem;background:${cor}20;color:${cor};border:1px solid ${cor}40;border-radius:8px;padding:1px 6px;margin-left:6px;vertical-align:middle">${_escapeHtml(fonte)}</span>`;
     }
 
     function linha(label, valor, destaque) {
