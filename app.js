@@ -13829,7 +13829,35 @@ function trocarSubabaPrecif(subaba) {
 // TABELA DE PREÇOS POR ESTADO
 // ========================================
 
-const UF_BRASIL = ['AC','AL','AM','AP','BA','CE','DF','ES','GO','MA','MG','MS','MT','PA','PB','PE','PI','PR','RJ','RN','RO','RR','RS','SC','SE','SP','TO'];
+// Grupos de UF para precificação
+const GRUPOS_PRECO_ESTADO = [
+    {
+        id: 'grupo1',
+        label: 'Grupo 1',
+        ufs: ['PR','RS','RJ','SC','SP'],
+        cor: '#1e3a5f',
+        descricao: 'PR, RS, RJ, SC, SP'
+    },
+    {
+        id: 'grupo2',
+        label: 'Grupo 2',
+        ufs: ['MG'],
+        cor: '#6d28d9',
+        descricao: 'MG'
+    },
+    {
+        id: 'grupo3',
+        label: 'Demais Estados',
+        ufs: ['AC','AL','AM','AP','BA','CE','DF','ES','GO','MA','MS','MT','PA','PB','PE','PI','RN','RO','RR','SE','TO'],
+        cor: '#0f766e',
+        descricao: 'AC, AL, AM, AP, BA, CE, DF, ES, GO, MA, MS, MT, PA, PB, PE, PI, RN, RO, RR, SE, TO'
+    }
+];
+
+function getGrupoPrecoEstado(uf) {
+    const u = (uf || '').trim().toUpperCase();
+    return GRUPOS_PRECO_ESTADO.find(g => g.ufs.includes(u)) || GRUPOS_PRECO_ESTADO[2];
+}
 
 function getTabelaPrecoEstado() {
     if (!estoque.tabelaPrecoEstado || typeof estoque.tabelaPrecoEstado !== 'object') {
@@ -13850,43 +13878,62 @@ function renderizarTabelaPrecoEstado() {
         return;
     }
 
-    let html = `
-        <div style="display:flex;gap:8px;align-items:center;margin-bottom:16px;flex-wrap:wrap">
-            <h3 style="margin:0;font-size:1rem;color:#1e3a5f;font-weight:700">Tabela de Preços por Estado (UF)</h3>
-            <button class="btn btn-primary btn-sm" onclick="salvarTabelaPrecoEstado()">💾 Salvar</button>
-            <span style="font-size:0.78rem;color:#64748b">Defina o preço base de cada produto por UF. Quando o cliente tiver UF cadastrada, o preço é preenchido automaticamente na venda.</span>
-        </div>
-        <div style="overflow-x:auto">
-        <table style="border-collapse:collapse;min-width:100%;font-size:0.82rem">
-            <thead>
-                <tr style="background:#1e3a5f;color:#fff">
-                    <th style="padding:8px 12px;text-align:left;position:sticky;left:0;background:#1e3a5f;z-index:2;min-width:160px">Produto</th>`;
+    // Cabeçalho com legenda dos grupos
+    let legendaHtml = GRUPOS_PRECO_ESTADO.map(g => `
+        <span style="display:inline-flex;align-items:center;gap:5px;font-size:0.78rem;color:#374151">
+            <span style="width:12px;height:12px;border-radius:3px;background:${g.cor};display:inline-block"></span>
+            <strong>${g.label}:</strong> ${g.descricao}
+        </span>`).join('<span style="color:#cbd5e1;margin:0 4px">|</span>');
 
-    UF_BRASIL.forEach(uf => {
-        html += `<th style="padding:8px 8px;text-align:center;min-width:80px">${uf}</th>`;
+    let html = `
+        <div style="margin-bottom:14px">
+            <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px;flex-wrap:wrap">
+                <h3 style="margin:0;font-size:1rem;color:#1e3a5f;font-weight:700">Tabela de Preços por Grupo de Estado</h3>
+                <button class="btn btn-primary btn-sm" onclick="salvarTabelaPrecoEstado()">💾 Salvar</button>
+            </div>
+            <div style="display:flex;gap:12px;flex-wrap:wrap;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:10px 14px;font-size:0.78rem">
+                ${legendaHtml}
+            </div>
+            <p style="margin:8px 0 0;font-size:0.77rem;color:#64748b">O preço definido para cada grupo é aplicado automaticamente quando o cliente tiver UF cadastrada pertencente a esse grupo.</p>
+        </div>
+        <table style="border-collapse:collapse;width:100%;font-size:0.88rem">
+            <thead>
+                <tr>
+                    <th style="padding:10px 14px;text-align:left;background:#1e3a5f;color:#fff;border-radius:6px 0 0 0;min-width:180px">Produto</th>`;
+
+    GRUPOS_PRECO_ESTADO.forEach(g => {
+        html += `<th style="padding:10px 16px;text-align:center;background:${g.cor};color:#fff;min-width:160px">${g.label}</th>`;
     });
     html += `</tr></thead><tbody>`;
 
     produtos.forEach((prod, i) => {
         const bg = i % 2 === 0 ? '#fff' : '#f8fafc';
         html += `<tr style="background:${bg}">
-            <td style="padding:6px 12px;font-weight:600;color:#1e3a5f;position:sticky;left:0;background:${bg};z-index:1">${_escapeHtml(prod.nome)}</td>`;
-        UF_BRASIL.forEach(uf => {
-            const val = (tabela[prod.id] && tabela[prod.id][uf] !== undefined) ? tabela[prod.id][uf] : '';
+            <td style="padding:8px 14px;font-weight:600;color:#1e3a5f;border-bottom:1px solid #f1f5f9">${_escapeHtml(prod.nome)}</td>`;
+
+        GRUPOS_PRECO_ESTADO.forEach(g => {
+            // Usar o primeiro UF do grupo como chave de armazenamento
+            const chave = g.id;
+            const val = (tabela[prod.id] && tabela[prod.id][chave] !== undefined) ? tabela[prod.id][chave] : '';
             const displayVal = val !== '' ? Number(val).toLocaleString('pt-BR', {minimumFractionDigits:2,maximumFractionDigits:2}) : '';
-            html += `<td style="padding:4px 4px;text-align:center">
-                <input type="text" inputmode="decimal"
-                    data-prod="${prod.id}" data-uf="${uf}"
-                    value="${displayVal}"
-                    placeholder="-"
-                    oninput="formatarMoedaPrecoEstado(this)"
-                    style="width:72px;text-align:right;border:1px solid #e2e8f0;border-radius:4px;padding:3px 6px;font-size:0.8rem">
+            html += `<td style="padding:6px 10px;text-align:center;border-bottom:1px solid #f1f5f9">
+                <div style="display:flex;align-items:center;justify-content:center;gap:4px">
+                    <span style="font-size:0.75rem;color:#94a3b8">R$</span>
+                    <input type="text" inputmode="decimal"
+                        data-prod="${prod.id}" data-grupo="${chave}"
+                        value="${displayVal}"
+                        placeholder="0,00"
+                        oninput="formatarMoedaPrecoEstado(this)"
+                        style="width:100px;text-align:right;border:1px solid #e2e8f0;border-radius:5px;padding:5px 8px;font-size:0.85rem;font-weight:600;outline:none"
+                        onfocus="this.style.borderColor='${g.cor}';this.style.boxShadow='0 0 0 2px ${g.cor}22'"
+                        onblur="this.style.borderColor='#e2e8f0';this.style.boxShadow=''">
+                </div>
             </td>`;
         });
         html += `</tr>`;
     });
 
-    html += `</tbody></table></div>`;
+    html += `</tbody></table>`;
     container.innerHTML = html;
 }
 
@@ -13899,32 +13946,32 @@ function salvarTabelaPrecoEstado() {
     const container = document.getElementById('subaba-precif-precoestado');
     if (!container) return;
     const tabela = getTabelaPrecoEstado();
-    container.querySelectorAll('input[data-prod][data-uf]').forEach(inp => {
+    container.querySelectorAll('input[data-prod][data-grupo]').forEach(inp => {
         const prodId = parseInt(inp.dataset.prod);
-        const uf = inp.dataset.uf;
+        const grupo = inp.dataset.grupo;
         const rawVal = (inp.value || '').replace(/\./g, '').replace(',', '.');
         const num = parseFloat(rawVal);
         if (!tabela[prodId]) tabela[prodId] = {};
         if (!isNaN(num) && num > 0) {
-            tabela[prodId][uf] = num;
+            tabela[prodId][grupo] = num;
         } else {
-            delete tabela[prodId][uf];
+            delete tabela[prodId][grupo];
         }
     });
     estoque.tabelaPrecoEstado = tabela;
     salvarDados();
     salvarNoCloud().catch(e => console.error('Auto-save tabelaPrecoEstado falhou:', e));
-    mostrarNotificacao('Tabela de preços por estado salva com sucesso.', 'success');
+    mostrarNotificacao('Tabela de preços por grupo de estado salva com sucesso.', 'success');
 }
 
 function obterPrecoEstadoParaClienteProduto(lojaNome, produtoId) {
     try {
         const cliente = (clientes || []).find(c => (c.nome || '').trim().toLowerCase() === (lojaNome || '').trim().toLowerCase());
         if (!cliente || !cliente.uf) return null;
-        const uf = cliente.uf.trim().toUpperCase();
+        const grupo = getGrupoPrecoEstado(cliente.uf);
         const tabela = getTabelaPrecoEstado();
-        if (tabela[produtoId] && tabela[produtoId][uf] !== undefined) {
-            return Number(tabela[produtoId][uf]);
+        if (tabela[produtoId] && tabela[produtoId][grupo.id] !== undefined) {
+            return Number(tabela[produtoId][grupo.id]);
         }
     } catch (e) {}
     return null;
