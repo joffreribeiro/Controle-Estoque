@@ -1551,7 +1551,8 @@ function carregarDados() {
                 propostas: [],
                 precificacao: {},
                 precificacaoConfig: null,
-                precificacoesCliente: []
+                precificacoesCliente: [],
+                parametrosTabelaVenda: {}
             };
         }
         // Garantir que registroVendas existe
@@ -1597,6 +1598,9 @@ function carregarDados() {
         }
         if (!estoque.tabelaPrecoEstado || typeof estoque.tabelaPrecoEstado !== 'object') {
             estoque.tabelaPrecoEstado = {};
+        }
+        if (!estoque.parametrosTabelaVenda || typeof estoque.parametrosTabelaVenda !== 'object') {
+            estoque.parametrosTabelaVenda = {};
         }
         // Carregar configuração de alertas se presente
         try {
@@ -13465,14 +13469,25 @@ function calcularPreco(nomeProduto, estado = null, tipoPessoa = null, taxaOverri
     const aliq = tabelaAliquotas[nomeProduto] || {};
 
     const ci = parseFloat(prec.ci) || 0;
+    // Parâmetros globais da Tabela de Preço de Venda (taxa/roi padrão + roi por NCM)
+    const _tvParams = (estoque && estoque.parametrosTabelaVenda) || {};
+    const _taxaGlobal = parseFloat(_tvParams.taxa);
+    const _roiGlobal  = parseFloat(_tvParams.roi);
+    const _produto = (estoque && estoque.produtos || []).find(p => p.nome === nomeProduto);
+    const _ncm = _produto ? (_produto.ncm || '') : '';
+    const _roiNCM = _ncm ? parseFloat((_tvParams.roiPorNCM || {})[_ncm]) : NaN;
+
     // Prefer explicit overrides when provided (used by comparativo)
     let taxaPct = (taxaOverride !== null && taxaOverride !== undefined && !isNaN(Number(taxaOverride)))
         ? Number(taxaOverride)
-        : ((prec.taxa !== null && prec.taxa !== undefined && prec.taxa !== '') ? parseFloat(prec.taxa) : parseFloat(document.getElementById('taxaPadrao')?.value));
+        : ((prec.taxa !== null && prec.taxa !== undefined && prec.taxa !== '') ? parseFloat(prec.taxa)
+            : (Number.isFinite(_taxaGlobal) ? _taxaGlobal : parseFloat(document.getElementById('taxaPadrao')?.value)));
     if (!Number.isFinite(taxaPct)) taxaPct = 1;
     let roiPct = (roiOverride !== null && roiOverride !== undefined && !isNaN(Number(roiOverride)))
         ? Number(roiOverride)
-        : ((prec.roi !== null && prec.roi !== undefined && prec.roi !== '') ? parseFloat(prec.roi) : parseFloat(document.getElementById('roiPadrao')?.value));
+        : ((prec.roi !== null && prec.roi !== undefined && prec.roi !== '') ? parseFloat(prec.roi)
+            : (Number.isFinite(_roiNCM) ? _roiNCM
+                : (Number.isFinite(_roiGlobal) ? _roiGlobal : parseFloat(document.getElementById('roiPadrao')?.value))));
     if (!Number.isFinite(roiPct)) roiPct = 1;
     const comissao = (comissaoOverride !== null && comissaoOverride !== undefined && !isNaN(Number(comissaoOverride)))
         ? Number(comissaoOverride)
@@ -14026,8 +14041,11 @@ function renderizarTabelaPrecoVenda() {
     // Filtro de tipo de cliente
     const tipoPessoaAtual = container._tipoPessoa || 'PJ';
 
+    // Painel de parâmetros (taxa/ROI global + ROI por NCM)
+    let html = _renderizarPainelParametrosTabelaVenda();
+
     // Header com seletor de tipo de cliente
-    let html = `
+    html += `
         <div style="display:flex;gap:10px;align-items:center;margin-bottom:14px;flex-wrap:wrap">
             <h3 style="margin:0;font-size:1rem;color:#1e3a5f;font-weight:700">Tabela de Preço de Venda por Estado</h3>
             <div style="display:flex;border:1px solid #e2e8f0;border-radius:6px;overflow:hidden">
@@ -14148,6 +14166,95 @@ function exportarTabelaPrecoVenda() {
     mostrarNotificacao(`Tabela exportada: ${label}`, 'success');
 }
 
+function salvarParametrosTabelaVenda() {
+    if (!estoque.parametrosTabelaVenda) estoque.parametrosTabelaVenda = {};
+    const taxa = parseFloat(document.getElementById('tvParamTaxa')?.value);
+    const roi  = parseFloat(document.getElementById('tvParamROI')?.value);
+    if (!isNaN(taxa)) estoque.parametrosTabelaVenda.taxa = taxa;
+    if (!isNaN(roi))  estoque.parametrosTabelaVenda.roi  = roi;
+
+    // ROI por NCM
+    if (!estoque.parametrosTabelaVenda.roiPorNCM) estoque.parametrosTabelaVenda.roiPorNCM = {};
+    document.querySelectorAll('[data-tv-ncm-roi]').forEach(inp => {
+        const ncm = inp.dataset.tvNcmRoi;
+        const val = parseFloat(inp.value);
+        if (!isNaN(val) && val > 0) estoque.parametrosTabelaVenda.roiPorNCM[ncm] = val;
+        else delete estoque.parametrosTabelaVenda.roiPorNCM[ncm];
+    });
+
+    salvarDados();
+    mostrarNotificacao('Parâmetros salvos. Tabela atualizada.', 'success');
+    renderizarTabelaPrecoVenda();
+}
+
+function _renderizarPainelParametrosTabelaVenda() {
+    const params = (estoque && estoque.parametrosTabelaVenda) || {};
+    const taxa = params.taxa ?? '';
+    const roi  = params.roi  ?? '';
+    const roiPorNCM = params.roiPorNCM || {};
+
+    // coletar NCMs únicos dos produtos
+    const ncmsSet = new Set();
+    (estoque.produtos || []).forEach(p => { if (p.ncm) ncmsSet.add(p.ncm); });
+    const ncms = [...ncmsSet].sort();
+
+    const ncmRows = ncms.map(ncm => {
+        const valNCM = roiPorNCM[ncm] ?? '';
+        return `<tr>
+            <td style="padding:5px 10px;font-family:monospace;font-size:0.82rem;color:#374151">${_escapeHtml(ncm)}</td>
+            <td style="padding:5px 10px;font-size:0.78rem;color:#64748b">${_escapeHtml(
+                (estoque.produtos || []).filter(p => p.ncm === ncm).map(p => p.categoria || '').filter((v,i,a)=>v&&a.indexOf(v)===i).join(', ') || '—'
+            )}</td>
+            <td style="padding:5px 10px">
+                <input type="number" step="0.1" min="0" max="9999"
+                    data-tv-ncm-roi="${_escapeHtml(ncm)}"
+                    value="${valNCM}"
+                    placeholder="Padrão (${roi !== '' ? roi : '—'}%)"
+                    style="width:110px;border:1px solid #e2e8f0;border-radius:5px;padding:4px 7px;font-size:0.82rem;text-align:right">
+            </td>
+        </tr>`;
+    }).join('');
+
+    return `<div id="tvPainelParams" style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;margin-bottom:16px;overflow:hidden">
+        <div onclick="var p=document.getElementById('tvPainelParamsBody');var ic=document.getElementById('tvPainelIc');p.style.display=p.style.display==='none'?'block':'none';ic.textContent=p.style.display==='none'?'▶':'▼'"
+            style="padding:10px 16px;cursor:pointer;display:flex;align-items:center;gap:10px;background:#eef2ff;user-select:none">
+            <span id="tvPainelIc" style="font-size:0.75rem;color:#4f46e5">▼</span>
+            <span style="font-weight:700;color:#1e3a5f;font-size:0.88rem">Parâmetros de Cálculo</span>
+            <span style="font-size:0.77rem;color:#64748b;margin-left:4px">Taxa e ROI padrão para a tabela (por produto individual sobrepõe estes valores)</span>
+        </div>
+        <div id="tvPainelParamsBody" style="padding:14px 16px">
+            <div style="display:flex;gap:20px;align-items:flex-end;flex-wrap:wrap;margin-bottom:14px">
+                <div>
+                    <label style="font-size:0.78rem;font-weight:600;color:#374151;display:block;margin-bottom:4px">Taxa % (global)</label>
+                    <input type="number" step="0.1" min="0" max="9999" id="tvParamTaxa" value="${taxa}" placeholder="Ex: 20"
+                        style="width:110px;border:1px solid #c7d2fe;border-radius:6px;padding:6px 10px;font-size:0.9rem;text-align:right">
+                </div>
+                <div>
+                    <label style="font-size:0.78rem;font-weight:600;color:#374151;display:block;margin-bottom:4px">ROI % padrão (global)</label>
+                    <input type="number" step="0.1" min="0" max="9999" id="tvParamROI" value="${roi}" placeholder="Ex: 30"
+                        style="width:110px;border:1px solid #c7d2fe;border-radius:6px;padding:6px 10px;font-size:0.9rem;text-align:right">
+                </div>
+                <button onclick="salvarParametrosTabelaVenda()"
+                    style="padding:7px 20px;background:#1e3a5f;color:#fff;border:none;border-radius:6px;font-size:0.85rem;font-weight:700;cursor:pointer">
+                    Salvar e Recalcular
+                </button>
+            </div>
+            ${ncms.length ? `
+            <div style="font-size:0.78rem;font-weight:600;color:#374151;margin-bottom:6px">ROI % por NCM <span style="font-weight:400;color:#64748b">(deixe em branco para usar o padrão global)</span></div>
+            <div style="overflow-x:auto;max-height:240px;overflow-y:auto;border:1px solid #e2e8f0;border-radius:6px">
+            <table style="width:100%;border-collapse:collapse;font-size:0.82rem">
+                <thead><tr style="background:#f1f5f9;position:sticky;top:0">
+                    <th style="padding:6px 10px;text-align:left;font-weight:600;color:#374151">NCM</th>
+                    <th style="padding:6px 10px;text-align:left;font-weight:600;color:#374151">Grupo</th>
+                    <th style="padding:6px 10px;text-align:left;font-weight:600;color:#374151">ROI %</th>
+                </tr></thead>
+                <tbody>${ncmRows}</tbody>
+            </table>
+            </div>` : ''}
+        </div>
+    </div>`;
+}
+
 function abrirDetalhePrecoVenda(nomeProduto, uf, tipoPessoa) {
     const r = calcularPreco(nomeProduto, uf, tipoPessoa);
     if (!r) {
@@ -14157,6 +14264,25 @@ function abrirDetalhePrecoVenda(nomeProduto, uf, tipoPessoa) {
 
     const tipoLabel = tipoPessoa === 'PJ' ? 'Lojista (PJ)' : 'Pessoa Física (PF)';
     const fmt = v => 'R$ ' + _fmtMoeda(v);
+
+    // Determinar fonte de taxa e ROI para exibir badge informativo
+    const prec = precificacao[nomeProduto] || {};
+    const params = (estoque && estoque.parametrosTabelaVenda) || {};
+    const prodObj = (estoque.produtos || []).find(p => p.nome === nomeProduto);
+    const ncm = prodObj ? (prodObj.ncm || '') : '';
+    let taxaFonte = '', roiFonte = '';
+    if (prec.taxa !== null && prec.taxa !== undefined && prec.taxa !== '') taxaFonte = 'por produto';
+    else if (Number.isFinite(parseFloat(params.taxa))) taxaFonte = 'padrão global';
+    else taxaFonte = 'fallback';
+    if (prec.roi !== null && prec.roi !== undefined && prec.roi !== '') roiFonte = 'por produto';
+    else if (ncm && Number.isFinite(parseFloat((params.roiPorNCM||{})[ncm]))) roiFonte = `NCM ${ncm}`;
+    else if (Number.isFinite(parseFloat(params.roi))) roiFonte = 'padrão global';
+    else roiFonte = 'fallback';
+
+    function badge(fonte) {
+        const cor = fonte === 'por produto' ? '#16a34a' : fonte.startsWith('NCM') ? '#7c3aed' : fonte === 'padrão global' ? '#0f766e' : '#94a3b8';
+        return `<span style="font-size:0.68rem;background:${cor}20;color:${cor};border:1px solid ${cor}40;border-radius:8px;padding:1px 6px;margin-left:6px;vertical-align:middle">${fonte}</span>`;
+    }
 
     function linha(label, valor, destaque) {
         const style = destaque
@@ -14170,8 +14296,8 @@ function abrirDetalhePrecoVenda(nomeProduto, uf, tipoPessoa) {
 
     const rows = [
         linha('CI (Custo de Importação)', fmt(r.ci)),
-        linha(`Taxa (${r.taxa}%)`, fmt(r.ci * r.taxa / 100)),
-        linha(`ROI (${r.roi}%)`, fmt(r.ci * r.roi / 100)),
+        linha(`Taxa (${r.taxa}%) ${badge(taxaFonte)}`, fmt(r.ci * r.taxa / 100)),
+        linha(`ROI (${r.roi}%) ${badge(roiFonte)}`, fmt(r.ci * r.roi / 100)),
         linha('Valor Base  [CI × (1 + Taxa% + ROI%)]', fmt(r.valorBase), true),
         linha(`ICMS — ${uf} (${r.icms}%)`, fmt(r.icmsR)),
         linha(`PIS (${r.pis}%)`, fmt(r.pisR)),
