@@ -14084,8 +14084,13 @@ function renderizarTabelaPrecoVenda() {
                 const r = calcularPreco(prod.nome, uf, tipoPessoaAtual);
                 preco = r ? r.precoFinal : null;
             } catch (e) {}
-            const precoStr = (preco !== null && preco > 0) ? _fmtMoeda(preco) : '<span style="color:#cbd5e1">—</span>';
-            html += `<td style="padding:6px 8px;text-align:right;border-left:1px solid #f1f5f9">${precoStr}</td>`;
+            if (preco !== null && preco > 0) {
+                const nomeEsc = _escapeJsString(prod.nome);
+                const tipoEsc = _escapeJsString(tipoPessoaAtual);
+                html += `<td style="padding:6px 8px;text-align:right;border-left:1px solid #f1f5f9;cursor:pointer;transition:background 0.15s" onmouseenter="this.style.background='#dbeafe'" onmouseleave="this.style.background=''" onclick="abrirDetalhePrecoVenda('${nomeEsc}','${uf}','${tipoEsc}')">${_fmtMoeda(preco)}</td>`;
+            } else {
+                html += `<td style="padding:6px 8px;text-align:right;border-left:1px solid #f1f5f9"><span style="color:#cbd5e1">—</span></td>`;
+            }
         });
 
         html += `</tr>`;
@@ -14141,6 +14146,70 @@ function exportarTabelaPrecoVenda() {
     a.click();
     URL.revokeObjectURL(url);
     mostrarNotificacao(`Tabela exportada: ${label}`, 'success');
+}
+
+function abrirDetalhePrecoVenda(nomeProduto, uf, tipoPessoa) {
+    const r = calcularPreco(nomeProduto, uf, tipoPessoa);
+    if (!r) {
+        mostrarNotificacao('CI não definido para este produto.', 'warning');
+        return;
+    }
+
+    const tipoLabel = tipoPessoa === 'PJ' ? 'Lojista (PJ)' : 'Pessoa Física (PF)';
+    const fmt = v => 'R$ ' + _fmtMoeda(v);
+
+    function linha(label, valor, destaque) {
+        const style = destaque
+            ? 'font-weight:700;color:#1e3a5f;background:#dbeafe'
+            : 'color:#374151';
+        return `<tr style="${style}">
+            <td style="padding:7px 14px;border-bottom:1px solid #e2e8f0">${label}</td>
+            <td style="padding:7px 14px;border-bottom:1px solid #e2e8f0;text-align:right;font-family:monospace">${valor}</td>
+        </tr>`;
+    }
+
+    const rows = [
+        linha('CI (Custo de Importação)', fmt(r.ci)),
+        linha(`Taxa (${r.taxa}%)`, fmt(r.ci * r.taxa / 100)),
+        linha(`ROI (${r.roi}%)`, fmt(r.ci * r.roi / 100)),
+        linha('Valor Base  [CI × (1 + Taxa% + ROI%)]', fmt(r.valorBase), true),
+        linha(`ICMS — ${uf} (${r.icms}%)`, fmt(r.icmsR)),
+        linha(`PIS (${r.pis}%)`, fmt(r.pisR)),
+        linha(`COFINS (${r.cofins}%)`, fmt(r.cofinsR)),
+        linha('Subtotal com Impostos', fmt(r.valorImpostos), true),
+        linha(`IPI (${r.ipi}%)`, fmt(r.ipiR)),
+        linha(`Comissão (${r.comissao}%)`, fmt(r.comissaoR)),
+        linha('PREÇO FINAL DE VENDA', fmt(r.precoFinal), true),
+    ];
+
+    const html = `
+        <div id="modalDetalhePreco" style="position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.45)" onclick="if(event.target===this)this.remove()">
+            <div style="background:#fff;border-radius:12px;box-shadow:0 8px 40px rgba(0,0,0,0.22);min-width:400px;max-width:520px;overflow:hidden">
+                <div style="background:#1e3a5f;color:#fff;padding:16px 20px;display:flex;justify-content:space-between;align-items:center">
+                    <div>
+                        <div style="font-weight:700;font-size:1rem">${_escapeHtml(nomeProduto)}</div>
+                        <div style="font-size:0.78rem;opacity:0.8;margin-top:2px">Estado: <b>${uf}</b> &nbsp;|&nbsp; Tipo: <b>${tipoLabel}</b></div>
+                    </div>
+                    <button onclick="document.getElementById('modalDetalhePreco').remove()" style="background:none;border:none;color:#fff;font-size:1.4rem;cursor:pointer;line-height:1">&times;</button>
+                </div>
+                <div style="padding:8px 0">
+                    <table style="width:100%;border-collapse:collapse;font-size:0.88rem">
+                        <thead>
+                            <tr style="background:#f8fafc;font-size:0.75rem;color:#64748b">
+                                <th style="padding:6px 14px;text-align:left;font-weight:600">Componente</th>
+                                <th style="padding:6px 14px;text-align:right;font-weight:600">Valor</th>
+                            </tr>
+                        </thead>
+                        <tbody>${rows.join('')}</tbody>
+                    </table>
+                </div>
+                ${r.isManual ? '<div style="padding:8px 16px 14px;font-size:0.77rem;color:#b45309;background:#fefce8;border-top:1px solid #fde68a">* Preço final definido manualmente.</div>' : ''}
+            </div>
+        </div>`;
+
+    const existing = document.getElementById('modalDetalhePreco');
+    if (existing) existing.remove();
+    document.body.insertAdjacentHTML('beforeend', html);
 }
 
 // ========================================
