@@ -8516,7 +8516,7 @@ function adicionarItemVendaRow(preProdutoId = '', preQuantidade = 1, preValor = 
         }
 
         row.innerHTML = `
-            <select class="item-produto" onchange="autoPreencherPrecoProduto(this); atualizarItemRow(this); atualizarBadgeEstoqueItem(this)">${opcoesHtml}</select>
+            <select class="item-produto" onchange="onTrocarProdutoVenda(this)">${opcoesHtml}</select>
             <span class="item-estoque-badge" style="font-size:0.75rem;white-space:nowrap;color:#64748b;background:#f1f5f9;border-radius:4px;padding:2px 7px;border:1px solid #e2e8f0"></span>
             <input type="number" class="item-quantidade" min="1" value="${preQuantidade}" style="width:90px" onchange="atualizarItemRow(this)" />
             <input type="text" class="item-valor" placeholder="Valor unit. (obrigatório)" style="width:140px" oninput="formatarMoeda(this); atualizarItemRow(this)" />
@@ -8583,6 +8583,23 @@ function atualizarBadgeEstoqueItem(selectEl) {
     badge.style.color = disp > 0 ? '#15803d' : '#dc2626';
     badge.style.background = disp > 0 ? '#f0fdf4' : '#fef2f2';
     badge.style.borderColor = disp > 0 ? '#bbf7d0' : '#fecaca';
+}
+
+function onTrocarProdutoVenda(selectEl) {
+    // Ao trocar o produto, sempre limpar o valor anterior (auto ou manual)
+    // para que o novo preço seja buscado
+    const row = selectEl.closest('.item-venda-row');
+    if (row) {
+        const valorInput = row.querySelector('.item-valor');
+        if (valorInput) {
+            valorInput.value = '';
+            valorInput.removeAttribute('data-autofilled');
+            valorInput.style.background = '';
+        }
+    }
+    autoPreencherPrecoProduto(selectEl);
+    atualizarItemRow(selectEl);
+    atualizarBadgeEstoqueItem(selectEl);
 }
 
 function atualizarUFClienteVenda(nomeCliente) {
@@ -16907,7 +16924,8 @@ function autoPreencherPrecoProduto(selectEl) {
     if (!row) return;
     const valorInput = row.querySelector('.item-valor');
     if (!valorInput) return;
-    if (valorInput.value && valorInput.value.trim() !== '') return;
+    // Só preservar o valor se foi digitado manualmente pelo usuário (sem data-autofilled)
+    if (valorInput.value && valorInput.value.trim() !== '' && !valorInput.hasAttribute('data-autofilled')) return;
 
     const produtoId = parseInt(selectEl.value);
     const produto = (estoque.produtos || []).find(p => p.id === produtoId);
@@ -16919,7 +16937,7 @@ function autoPreencherPrecoProduto(selectEl) {
     try {
         const precoEstado = obterPrecoEstadoParaClienteProduto(lojaNome, produtoId);
         if (precoEstado !== null && !isNaN(precoEstado) && precoEstado > 0) {
-            valorInput.value = Number(precoEstado).toFixed(2).replace('.', ',');
+            valorInput.value = _fmtMoeda(precoEstado);
             valorInput.style.background = '#eff6ff';
             valorInput.setAttribute('data-autofilled', 'estado');
             return;
@@ -16931,7 +16949,7 @@ function autoPreencherPrecoProduto(selectEl) {
     try { precoSalvo = obterPrecoFinalSalvoParaClienteProduto(lojaNome, produtoId); } catch (e) { precoSalvo = null; }
 
     if (precoSalvo !== null && !isNaN(precoSalvo) && Number(precoSalvo) > 0) {
-        valorInput.value = Number(precoSalvo).toFixed(2).replace('.', ',');
+        valorInput.value = _fmtMoeda(precoSalvo);
         valorInput.style.background = '#ecfdf5';
         valorInput.setAttribute('data-autofilled', '1');
         return;
@@ -16943,7 +16961,7 @@ function autoPreencherPrecoProduto(selectEl) {
         if (clienteObj && ultimaPrecificacaoCalculada && String(ultimaPrecificacaoCalculada.clienteId) === String(clienteObj.id)) {
             const item = (ultimaPrecificacaoCalculada.itens || []).find(it => Number(it.produtoId) === Number(produtoId) || (it.produto && it.produto.toLowerCase() === (produto.nome||'').toLowerCase()));
             if (item && Number(item.precoFinal) > 0) {
-                valorInput.value = Number(item.precoFinal).toFixed(2).replace('.', ',');
+                valorInput.value = _fmtMoeda(item.precoFinal);
                 valorInput.style.background = '#ecfdf5';
                 valorInput.setAttribute('data-autofilled', '1');
                 return;
