@@ -7814,6 +7814,8 @@ function abrirModalEditarProduto(produtoId) {
     const pnInput = document.getElementById('produtoPN');
     const compInput = document.getElementById('produtoComponente');
     if (pnInput) pnInput.value = produto.pn || '';
+    const nomeFabricaInput = document.getElementById('produtoNomeFabrica');
+    if (nomeFabricaInput) nomeFabricaInput.value = produto.nomeFabrica || '';
     if (compInput) compInput.value = produto.componente || '';
     const exibirEstoqueInput = document.getElementById('produtoExibirNoEstoque');
     if (exibirEstoqueInput) exibirEstoqueInput.checked = produto.exibirNoEstoque === true;
@@ -10436,6 +10438,7 @@ function salvarProduto(event) {
     const observacoes = (document.getElementById('produtoObservacoes')?.value || '').trim();
     const exibirNoEstoque = document.getElementById('produtoExibirNoEstoque')?.checked === true;
     const pn = (document.getElementById('produtoPN')?.value || '').trim();
+    const nomeFabrica = (document.getElementById('produtoNomeFabrica')?.value || '').trim();
     const componente = (document.getElementById('produtoComponente')?.value || '').trim();
 
     if (!nome) {
@@ -10476,6 +10479,7 @@ function salvarProduto(event) {
         produto.observacoes = observacoes;
         produto.exibirNoEstoque = exibirNoEstoque;
         produto.pn = pn;
+        produto.nomeFabrica = nomeFabrica;
         produto.componente = componente;
         produto.atualizadoEm = new Date().toISOString();
         produto.dataAtualizacao = Date.now();
@@ -10546,6 +10550,7 @@ function salvarProduto(event) {
         observacoes,
         exibirNoEstoque,
         pn,
+        nomeFabrica,
         componente,
         criadoEm: new Date().toISOString(),
         atualizadoEm: new Date().toISOString(),
@@ -14095,8 +14100,9 @@ function renderizarTabelaPrecoVenda() {
                     <th style="padding:8px 10px;text-align:left;position:sticky;left:0;background:#1e3a5f;z-index:3;min-width:120px;border-right:1px solid #2d4f7c">NCM</th>
                     <th style="padding:8px 10px;text-align:left;background:#1e3a5f;min-width:80px;border-right:1px solid #2d4f7c">Grupo</th>
                     <th style="padding:8px 10px;text-align:left;background:#1e3a5f;min-width:110px;border-right:1px solid #2d4f7c">PN</th>
-                    <th style="padding:8px 10px;text-align:left;background:#1e3a5f;min-width:160px;border-right:1px solid #2d4f7c">Nome</th>
+                    <th style="padding:8px 10px;text-align:left;background:#1e3a5f;min-width:140px;border-right:1px solid #2d4f7c">Nome Fábrica</th>
                     <th style="padding:8px 10px;text-align:left;background:#1e3a5f;min-width:140px;border-right:1px solid #2d4f7c">Componente</th>
+                    <th style="padding:8px 10px;text-align:left;background:#1e3a5f;min-width:160px;border-right:1px solid #2d4f7c">Nome</th>
                     <th style="padding:8px 10px;text-align:right;background:#1e3a5f;min-width:90px;border-right:2px solid #4a6fa5">CI</th>`;
 
     ESTADOS_BR.forEach(uf => {
@@ -14109,6 +14115,7 @@ function renderizarTabelaPrecoVenda() {
         const ci = Number(precificacao[prod.nome]?.ci ?? prod.ci ?? 0);
         const grupo = prod.categoria || '—';
         const pn = prod.pn || '—';
+        const nomeFab = prod.nomeFabrica || '—';
         const comp = prod.componente || '—';
         const ncm = prod.ncm || '—';
         const ciStr = ci > 0 ? _fmtMoeda(ci) : '—';
@@ -14117,8 +14124,9 @@ function renderizarTabelaPrecoVenda() {
             <td style="padding:6px 10px;position:sticky;left:0;background:${bg};z-index:1;border-right:1px solid #e2e8f0;font-family:monospace;font-size:0.77rem">${_escapeHtml(ncm)}</td>
             <td style="padding:6px 10px;border-right:1px solid #e2e8f0;color:#64748b">${_escapeHtml(grupo)}</td>
             <td style="padding:6px 10px;border-right:1px solid #e2e8f0;font-family:monospace;font-size:0.77rem">${_escapeHtml(pn)}</td>
-            <td style="padding:6px 10px;border-right:1px solid #e2e8f0;font-weight:600;color:#1e3a5f">${_escapeHtml(prod.nome)}</td>
+            <td style="padding:6px 10px;border-right:1px solid #e2e8f0;color:#374151">${_escapeHtml(nomeFab)}</td>
             <td style="padding:6px 10px;border-right:1px solid #e2e8f0;color:#374151">${_escapeHtml(comp)}</td>
+            <td style="padding:6px 10px;border-right:1px solid #e2e8f0;font-weight:600;color:#1e3a5f">${_escapeHtml(prod.nome)}</td>
             <td style="padding:6px 10px;text-align:right;border-right:2px solid #e2e8f0;font-weight:600;color:#0f766e">${ciStr}</td>`;
 
         ESTADOS_BR.forEach(uf => {
@@ -14157,15 +14165,16 @@ function exportarTabelaPrecoVenda() {
     const label = tipo === 'PJ' ? 'Lojista' : 'Pessoa Fisica';
     const produtos = (estoque.produtos || []).filter(p => p.nome);
 
-    const linhas = [['NCM','Grupo','PN','Nome','Componente','CI (R$)', ...ESTADOS_BR]];
+    const linhas = [['NCM','Grupo','PN','Nome Fábrica','Componente','Nome','CI (R$)', ...ESTADOS_BR]];
     produtos.forEach(prod => {
         const ci = Number(precificacao[prod.nome]?.ci ?? prod.ci ?? 0);
         const linha = [
             prod.ncm || '',
             prod.categoria || '',
             prod.pn || '',
-            prod.nome,
+            prod.nomeFabrica || '',
             prod.componente || '',
+            prod.nome,
             ci > 0 ? ci.toFixed(2).replace('.',',') : ''
         ];
         ESTADOS_BR.forEach(uf => {
