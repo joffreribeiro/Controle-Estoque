@@ -2115,7 +2115,9 @@ tr.total-row:hover {
 
 .header-actions {
     display: flex;
+    flex-wrap: wrap;
     gap: 10px;
+    align-items: center;
 }
 
 /* Make the section header inside the Estoque tab sticky below the actions bar */

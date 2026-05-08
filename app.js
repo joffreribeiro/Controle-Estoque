@@ -8363,6 +8363,7 @@ function abrirModalVendaDetalhada(vendaId = null, propostaId = null) {
         if (lojaEl) {
             lojaEl.oninput = function() {
                 try { preencherDadosCliente(lojaEl.value); } catch(e) {}
+                try { atualizarUFClienteVenda(lojaEl.value); } catch(e) {}
                 try { atualizarPrecosVendaPorCliente(); } catch(e) {}
                 try { atualizarBadgesEstoqueTodasLinhas(); } catch(e) {}
             };
@@ -8398,6 +8399,7 @@ function abrirModalVendaDetalhada(vendaId = null, propostaId = null) {
                 }
             } catch (e) {}
             document.getElementById('lojaVenda').value = proposta.cliente || '';
+            try { atualizarUFClienteVenda(proposta.cliente || ''); } catch(e) {}
             document.getElementById('representanteVendaDet').value = proposta.representante || '';
             document.getElementById('observacoesVenda').value = 'Gerado a partir da proposta ' + proposta.numero + (proposta.observacoes ? '\n' + proposta.observacoes : '');
             try { document.getElementById('dataVenda').value = new Date().toISOString().slice(0, 10); } catch (e) {}
@@ -8461,6 +8463,7 @@ function abrirModalVendaDetalhada(vendaId = null, propostaId = null) {
 
     document.getElementById('contratoVenda').value = venda.contrato || '';
     document.getElementById('lojaVenda').value = venda.loja || '';
+    try { atualizarUFClienteVenda(venda.loja || ''); } catch(e) {}
     document.getElementById('representanteVendaDet').value = venda.representante || '';
     document.getElementById('observacoesVenda').value = venda.observacoes || '';
     // Preencher campo de data com valor existente (normalizado para YYYY-MM-DD)
@@ -8580,6 +8583,13 @@ function atualizarBadgeEstoqueItem(selectEl) {
     badge.style.color = disp > 0 ? '#15803d' : '#dc2626';
     badge.style.background = disp > 0 ? '#f0fdf4' : '#fef2f2';
     badge.style.borderColor = disp > 0 ? '#bbf7d0' : '#fecaca';
+}
+
+function atualizarUFClienteVenda(nomeCliente) {
+    const ufEl = document.getElementById('ufClienteVenda');
+    if (!ufEl) return;
+    const cliente = (clientes || []).find(c => (c.nome || '').trim().toLowerCase() === (nomeCliente || '').trim().toLowerCase());
+    ufEl.value = (cliente && cliente.uf) ? cliente.uf.trim().toUpperCase() : '';
 }
 
 function atualizarBadgesEstoqueTodasLinhas() {

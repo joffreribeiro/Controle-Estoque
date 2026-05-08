@@ -370,7 +370,7 @@
                                oninput="renderizarClientes(this.value)"
                                style="width:100%;max-width:340px;padding:8px 12px;
                                       border:1px solid #e2e8f0;border-radius:8px;
-                                      font-size:0.9rem;margin-bottom:12px">
+                                      font-size:0.9rem">
                         <button class="btn btn-primary" data-admin="true" onclick="abrirModalCliente()">
                             <span class="btn-icon">+</span> Novo Cliente
                         </button>
@@ -2641,77 +2641,61 @@
                 </div>
                 <form id="formVendaDetalhada" onsubmit="salvarVendaDetalhada(event)">
                     <div class="modal-body">
-                        <div class="modal-inner">
-                            <nav class="modal-nav">
-                                <ul>
-                                    <li><a href="#sec-contrato">Contrato</a></li>
-                                    <li><a href="#sec-loja">Loja / Cliente</a></li>
-                                    <li><a href="#sec-representante">Representante</a></li>
-                                    <li><a href="#sec-itens">Itens</a></li>
-                                    <li><a href="#sec-totais">Totais</a></li>
-                                    <li><a href="#sec-observacoes">Observações</a></li>
-                                </ul>
-                            </nav>
+                        <div class="modal-form">
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="contratoVenda">Nº Contrato <span class="required">*</span></label>
+                                    <input type="text" id="contratoVenda" required placeholder="Ex: 123">
+                                </div>
+                                <div class="form-group" style="flex:2">
+                                    <label for="lojaVenda">Loja/Cliente <span class="required">*</span></label>
+                                    <input type="text" id="lojaVenda" required placeholder="Nome da loja ou cliente" list="clientesDatalist">
+                                    <datalist id="clientesDatalist"></datalist>
+                                </div>
+                                <div class="form-group" style="flex:0 0 80px">
+                                    <label for="ufClienteVenda">Estado (UF)</label>
+                                    <input type="text" id="ufClienteVenda" maxlength="2" placeholder="SP" readonly
+                                        style="background:#f8fafc;text-transform:uppercase;font-weight:700;color:#1e3a5f;text-align:center">
+                                </div>
+                                <div class="form-group">
+                                    <label for="dataVenda">Data da Venda</label>
+                                    <input type="date" id="dataVenda" placeholder="YYYY-MM-DD">
+                                </div>
+                            </div>
 
-                            <div class="modal-form">
-                                <section id="sec-contrato" class="form-section">
-                                    <div class="form-row">
-                                        <div class="form-group">
-                                            <label for="contratoVenda">Nº Contrato <span class="required">*</span></label>
-                                            <input type="text" id="contratoVenda" required placeholder="Ex: 123">
-                                        </div>
-                                        <div class="form-group">
-                                            <label for="lojaVenda">Loja/Cliente <span class="required">*</span></label>
-                                            <input type="text" id="lojaVenda" required placeholder="Nome da loja ou cliente" list="clientesDatalist">
-                                            <datalist id="clientesDatalist"></datalist>
-                                        </div>
-                                        <div class="form-group">
-                                            <label for="dataVenda">Data da Venda</label>
-                                            <input type="date" id="dataVenda" placeholder="YYYY-MM-DD">
-                                        </div>
-                                    </div>
-                                </section>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="representanteVendaDet">Representante <span class="required">*</span></label>
+                                    <select id="representanteVendaDet" required onchange="atualizarBadgesEstoqueTodasLinhas()"></select>
+                                </div>
+                            </div>
 
-                                <section id="sec-representante" class="form-section">
-                                    <div class="form-row">
-                                        <div class="form-group">
-                                            <label for="representanteVendaDet">Representante <span class="required">*</span></label>
-                                            <select id="representanteVendaDet" required onchange="atualizarBadgesEstoqueTodasLinhas()"></select>
-                                        </div>
+                            <div class="form-row">
+                                <div class="form-group full-width">
+                                    <label>Itens da Venda</label>
+                                    <div id="itensVendaContainer" class="itens-venda-container itens-layout-vertical"></div>
+                                    <div style="margin-top:8px">
+                                        <button type="button" class="btn btn-outline btn-sm" onclick="adicionarItemVendaRow()">+ Adicionar Item</button>
                                     </div>
-                                </section>
+                                </div>
+                            </div>
 
-                                <section id="sec-itens" class="form-section">
-                                    <div class="form-row">
-                                        <div class="form-group full-width">
-                                            <label>Itens da Venda</label>
-                                            <div id="itensVendaContainer" class="itens-venda-container itens-layout-vertical"></div>
-                                            <div style="margin-top:8px">
-                                                <button type="button" class="btn btn-outline btn-sm" onclick="adicionarItemVendaRow()">+ Adicionar Item</button>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </section>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="valorUnitarioVenda">Valor Unitário (média)</label>
+                                    <input type="text" id="valorUnitarioVenda" readonly class="readonly-field">
+                                </div>
+                                <div class="form-group">
+                                    <label for="valorTotalVenda">Valor Total (R$)</label>
+                                    <input type="text" id="valorTotalVenda" readonly class="readonly-field highlight-field">
+                                </div>
+                            </div>
 
-                                <section id="sec-totais" class="form-section">
-                                    <div class="form-row">
-                                        <div class="form-group">
-                                            <label for="valorUnitarioVenda">Valor Unitário (média)</label>
-                                            <input type="text" id="valorUnitarioVenda" readonly class="readonly-field">
-                                        </div>
-                                        <div class="form-group">
-                                            <label for="valorTotalVenda">Valor Total (R$)</label>
-                                            <input type="text" id="valorTotalVenda" readonly class="readonly-field highlight-field">
-                                        </div>
-                                    </div>
-                                </section>
-
-                                <section id="sec-observacoes" class="form-section">
-                                    <div class="form-group">
-                                        <label for="observacoesVenda">Observações</label>
-                                        <textarea id="observacoesVenda" rows="3" placeholder="Observações adicionais sobre a venda..."></textarea>
-                                    </div>
-                                </section>
+                            <div class="form-row">
+                                <div class="form-group full-width">
+                                    <label for="observacoesVenda">Observações</label>
+                                    <textarea id="observacoesVenda" rows="3" placeholder="Observações adicionais sobre a venda..."></textarea>
+                                </div>
                             </div>
                         </div>
                     </div>
