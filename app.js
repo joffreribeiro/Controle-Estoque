@@ -1595,6 +1595,9 @@ function carregarDados() {
         if (!Array.isArray(estoque.tabelaCI)) {
             estoque.tabelaCI = [];
         }
+        if (!estoque.tabelaPrecoEstado || typeof estoque.tabelaPrecoEstado !== 'object') {
+            estoque.tabelaPrecoEstado = {};
+        }
         // Carregar configuração de alertas se presente
         try {
             const cfg = localStorage.getItem('configAlertas');
@@ -8357,6 +8360,7 @@ function abrirModalVendaDetalhada(vendaId = null, propostaId = null) {
             lojaEl.oninput = function() {
                 try { preencherDadosCliente(lojaEl.value); } catch(e) {}
                 try { atualizarPrecosVendaPorCliente(); } catch(e) {}
+                try { atualizarBadgesEstoqueTodasLinhas(); } catch(e) {}
             };
         }
     } catch (e) {}
@@ -8505,7 +8509,8 @@ function adicionarItemVendaRow(preProdutoId = '', preQuantidade = 1, preValor = 
         }
 
         row.innerHTML = `
-            <select class="item-produto" onchange="autoPreencherPrecoProduto(this); atualizarItemRow(this)">${opcoesHtml}</select>
+            <select class="item-produto" onchange="autoPreencherPrecoProduto(this); atualizarItemRow(this); atualizarBadgeEstoqueItem(this)">${opcoesHtml}</select>
+            <span class="item-estoque-badge" style="font-size:0.75rem;white-space:nowrap;color:#64748b;background:#f1f5f9;border-radius:4px;padding:2px 7px;border:1px solid #e2e8f0"></span>
             <input type="number" class="item-quantidade" min="1" value="${preQuantidade}" style="width:90px" onchange="atualizarItemRow(this)" />
             <input type="text" class="item-valor" placeholder="Valor unit. (obrigatório)" style="width:140px" oninput="formatarMoeda(this); atualizarItemRow(this)" />
             <div class="item-subtotal" style="min-width:120px">-</div>
@@ -8553,6 +8558,33 @@ function removerItemRow(btn) {
         row.remove();
         atualizarTotalVendaDetalhada();
     }
+}
+
+function atualizarBadgeEstoqueItem(selectEl) {
+    const row = selectEl.closest('.item-venda-row');
+    if (!row) return;
+    const badge = row.querySelector('.item-estoque-badge');
+    if (!badge) return;
+    const produtoId = parseInt(selectEl.value);
+    if (!produtoId) { badge.textContent = ''; return; }
+    const produto = (estoque.produtos || []).find(p => p.id === produtoId);
+    if (!produto) { badge.textContent = ''; return; }
+    const rep = (document.getElementById('representanteVendaDet')?.value || '').trim();
+    if (!rep) { badge.textContent = ''; return; }
+    const disp = (produto.distribuicao[rep] || 0) - (produto.vendas[rep] || 0);
+    badge.textContent = `Disp. ${rep}: ${disp}`;
+    badge.style.color = disp > 0 ? '#15803d' : '#dc2626';
+    badge.style.background = disp > 0 ? '#f0fdf4' : '#fef2f2';
+    badge.style.borderColor = disp > 0 ? '#bbf7d0' : '#fecaca';
+}
+
+function atualizarBadgesEstoqueTodasLinhas() {
+    const container = document.getElementById('itensVendaContainer');
+    if (!container) return;
+    container.querySelectorAll('.item-venda-row').forEach(row => {
+        const sel = row.querySelector('.item-produto');
+        if (sel) atualizarBadgeEstoqueItem(sel);
+    });
 }
 
 function atualizarItemRow(el) {
@@ -8702,6 +8734,19 @@ function finalizarSalvamentoVendaDetalhada(params) {
 
         mostrarNotificacao(`Venda atualizada: Contrato ${contrato} - ${totalQtd} itens - ${formatarMoedaValor(totalValor)}`, 'success');
         return;
+    }
+
+    // Verificar se já existe contrato com mesmo número E mesmo cliente (loja)
+    const contratoExistente = (estoque.registroVendas || []).find(v =>
+        v.contrato === contrato &&
+        (v.loja || '').trim().toLowerCase() === (loja || '').trim().toLowerCase()
+    );
+    if (contratoExistente) {
+        const dataEx = contratoExistente.data ? new Date(contratoExistente.data).toLocaleDateString('pt-BR') : '';
+        mostrarNotificacao(
+            `⚠️ Atenção: já existe o contrato ${contrato} para "${loja}"${dataEx ? ' registrado em ' + dataEx : ''}. Verifique se não é duplicidade.`,
+            'warning'
+        );
     }
 
     // Criar registro de venda com múltiplos itens (novo)
@@ -12530,6 +12575,25 @@ function salvarCliente(event) {
         }
     } catch (e) {}
 
+    // Verificar duplicidade de nome e/ou CNPJ
+    const cnpjNorm = (dados.cnpj || '').replace(/\D/g, '');
+    const nomeNorm = (dados.nome || '').trim().toLowerCase();
+    const duplicado = (clientes || []).find(c => {
+        if (editId && c.id === editId) return false;
+        const cNome = (c.nome || '').trim().toLowerCase();
+        const cCnpj = (c.cnpj || '').replace(/\D/g, '');
+        const mesmNome = nomeNorm && cNome === nomeNorm;
+        const mesmDoc  = cnpjNorm && cCnpj && cCnpj === cnpjNorm;
+        return mesmNome || mesmDoc;
+    });
+    if (duplicado) {
+        const motivo = [];
+        if ((duplicado.nome || '').trim().toLowerCase() === nomeNorm) motivo.push(`nome "${duplicado.nome}"`);
+        if (cnpjNorm && (duplicado.cnpj || '').replace(/\D/g, '') === cnpjNorm) motivo.push(`documento ${duplicado.cnpj}`);
+        mostrarNotificacao(`⚠️ Cliente duplicado: já existe cadastro com ${motivo.join(' e ')}.`, 'error');
+        return;
+    }
+
     if (editId) {
         const idx = clientes.findIndex(c => c.id === editId);
         if (idx !== -1) {
@@ -13707,7 +13771,7 @@ function resetarPrecoManual(nomeProduto) {
 
 // ── SUB-TAB NAVIGATION FOR PRECIFICAÇÃO ─────────────────────────
 function trocarSubabaPrecif(subaba) {
-    const tabs = ['porcliente','consultaPrec','comparativo','rastreabilidade','tabelaci','icms','federais'];
+    const tabs = ['porcliente','consultaPrec','comparativo','rastreabilidade','tabelaci','icms','federais','precoestado'];
     tabs.forEach(s => {
         let el = null;
         if (s === 'consultaPrec') el = document.getElementById('painel-consultaPrec');
@@ -13756,6 +13820,114 @@ function trocarSubabaPrecif(subaba) {
         if (res) res.style.display = 'none';
         if (empty) empty.style.display = 'block';
     }
+    if (subaba === 'precoestado') {
+        try { renderizarTabelaPrecoEstado(); } catch (e) {}
+    }
+}
+
+// ========================================
+// TABELA DE PREÇOS POR ESTADO
+// ========================================
+
+const UF_BRASIL = ['AC','AL','AM','AP','BA','CE','DF','ES','GO','MA','MG','MS','MT','PA','PB','PE','PI','PR','RJ','RN','RO','RR','RS','SC','SE','SP','TO'];
+
+function getTabelaPrecoEstado() {
+    if (!estoque.tabelaPrecoEstado || typeof estoque.tabelaPrecoEstado !== 'object') {
+        estoque.tabelaPrecoEstado = {};
+    }
+    return estoque.tabelaPrecoEstado;
+}
+
+function renderizarTabelaPrecoEstado() {
+    const container = document.getElementById('subaba-precif-precoestado');
+    if (!container) return;
+
+    const tabela = getTabelaPrecoEstado();
+    const produtos = estoque.produtos || [];
+
+    if (!produtos.length) {
+        container.innerHTML = '<p style="color:#64748b;padding:20px">Nenhum produto cadastrado.</p>';
+        return;
+    }
+
+    let html = `
+        <div style="display:flex;gap:8px;align-items:center;margin-bottom:16px;flex-wrap:wrap">
+            <h3 style="margin:0;font-size:1rem;color:#1e3a5f;font-weight:700">Tabela de Preços por Estado (UF)</h3>
+            <button class="btn btn-primary btn-sm" onclick="salvarTabelaPrecoEstado()">💾 Salvar</button>
+            <span style="font-size:0.78rem;color:#64748b">Defina o preço base de cada produto por UF. Quando o cliente tiver UF cadastrada, o preço é preenchido automaticamente na venda.</span>
+        </div>
+        <div style="overflow-x:auto">
+        <table style="border-collapse:collapse;min-width:100%;font-size:0.82rem">
+            <thead>
+                <tr style="background:#1e3a5f;color:#fff">
+                    <th style="padding:8px 12px;text-align:left;position:sticky;left:0;background:#1e3a5f;z-index:2;min-width:160px">Produto</th>`;
+
+    UF_BRASIL.forEach(uf => {
+        html += `<th style="padding:8px 8px;text-align:center;min-width:80px">${uf}</th>`;
+    });
+    html += `</tr></thead><tbody>`;
+
+    produtos.forEach((prod, i) => {
+        const bg = i % 2 === 0 ? '#fff' : '#f8fafc';
+        html += `<tr style="background:${bg}">
+            <td style="padding:6px 12px;font-weight:600;color:#1e3a5f;position:sticky;left:0;background:${bg};z-index:1">${_escapeHtml(prod.nome)}</td>`;
+        UF_BRASIL.forEach(uf => {
+            const val = (tabela[prod.id] && tabela[prod.id][uf] !== undefined) ? tabela[prod.id][uf] : '';
+            const displayVal = val !== '' ? Number(val).toLocaleString('pt-BR', {minimumFractionDigits:2,maximumFractionDigits:2}) : '';
+            html += `<td style="padding:4px 4px;text-align:center">
+                <input type="text" inputmode="decimal"
+                    data-prod="${prod.id}" data-uf="${uf}"
+                    value="${displayVal}"
+                    placeholder="-"
+                    oninput="formatarMoedaPrecoEstado(this)"
+                    style="width:72px;text-align:right;border:1px solid #e2e8f0;border-radius:4px;padding:3px 6px;font-size:0.8rem">
+            </td>`;
+        });
+        html += `</tr>`;
+    });
+
+    html += `</tbody></table></div>`;
+    container.innerHTML = html;
+}
+
+function formatarMoedaPrecoEstado(input) {
+    let v = input.value.replace(/[^\d,]/g, '');
+    input.value = v;
+}
+
+function salvarTabelaPrecoEstado() {
+    const container = document.getElementById('subaba-precif-precoestado');
+    if (!container) return;
+    const tabela = getTabelaPrecoEstado();
+    container.querySelectorAll('input[data-prod][data-uf]').forEach(inp => {
+        const prodId = parseInt(inp.dataset.prod);
+        const uf = inp.dataset.uf;
+        const rawVal = (inp.value || '').replace(/\./g, '').replace(',', '.');
+        const num = parseFloat(rawVal);
+        if (!tabela[prodId]) tabela[prodId] = {};
+        if (!isNaN(num) && num > 0) {
+            tabela[prodId][uf] = num;
+        } else {
+            delete tabela[prodId][uf];
+        }
+    });
+    estoque.tabelaPrecoEstado = tabela;
+    salvarDados();
+    salvarNoCloud().catch(e => console.error('Auto-save tabelaPrecoEstado falhou:', e));
+    mostrarNotificacao('Tabela de preços por estado salva com sucesso.', 'success');
+}
+
+function obterPrecoEstadoParaClienteProduto(lojaNome, produtoId) {
+    try {
+        const cliente = (clientes || []).find(c => (c.nome || '').trim().toLowerCase() === (lojaNome || '').trim().toLowerCase());
+        if (!cliente || !cliente.uf) return null;
+        const uf = cliente.uf.trim().toUpperCase();
+        const tabela = getTabelaPrecoEstado();
+        if (tabela[produtoId] && tabela[produtoId][uf] !== undefined) {
+            return Number(tabela[produtoId][uf]);
+        }
+    } catch (e) {}
+    return null;
 }
 
 // ========================================
@@ -16571,7 +16743,18 @@ function autoPreencherPrecoProduto(selectEl) {
         }
     } catch (e) {}
 
-    // Caso não haja preço salvo nem versão calculada para este cliente, manter em branco (usuário preencherá manualmente)
+    // Terceiro: tentar preço da tabela por estado (UF do cliente)
+    try {
+        const precoEstado = obterPrecoEstadoParaClienteProduto(lojaNome, produtoId);
+        if (precoEstado !== null && !isNaN(precoEstado) && precoEstado > 0) {
+            valorInput.value = Number(precoEstado).toFixed(2).replace('.', ',');
+            valorInput.style.background = '#eff6ff';
+            valorInput.setAttribute('data-autofilled', 'estado');
+            return;
+        }
+    } catch (e) {}
+
+    // Caso não haja nenhuma fonte de preço, manter em branco (usuário preencherá manualmente)
 }
 
 // Retorna o preço final salvo (number) para um produto em uma precificação do cliente, ou null

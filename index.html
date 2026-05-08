@@ -547,7 +547,11 @@
                                     <button class="precif-subtab-btn" onclick="trocarSubabaPrecif('tabelaci'); renderizarTabelaCI();" id="sbtn-tabelaci" style="padding:10px 20px; border:none; background:transparent; font-size:0.9rem; font-weight:600; color:#64748b; border-bottom:2px solid transparent; margin-bottom:-2px; cursor:pointer">📑 Tabela de CI</button>
                                     <button class="precif-subtab-btn" onclick="trocarSubabaPrecif('icms')" id="sbtn-icms" style="padding:10px 20px; border:none; background:transparent; font-size:0.9rem; font-weight:600; color:#64748b; border-bottom:2px solid transparent; margin-bottom:-2px; cursor:pointer">🗺️ ICMS por Estado</button>
                                     <button class="precif-subtab-btn" onclick="trocarSubabaPrecif('federais')" id="sbtn-federais" style="padding:10px 20px; border:none; background:transparent; font-size:0.9rem; font-weight:600; color:#64748b; border-bottom:2px solid transparent; margin-bottom:-2px; cursor:pointer">📋 Impostos Federais</button>
+                                    <button class="precif-subtab-btn" onclick="trocarSubabaPrecif('precoestado')" id="sbtn-precoestado" style="padding:10px 20px; border:none; background:transparent; font-size:0.9rem; font-weight:600; color:#64748b; border-bottom:2px solid transparent; margin-bottom:-2px; cursor:pointer">🗂️ Preço por Estado</button>
                                 </div>
+
+                                <!-- Sub-aba Preço por Estado -->
+                                <div id="subaba-precif-precoestado" style="display:none;padding:4px 0"></div>
 
                                 <!-- Sub-aba Impostos Federais -->
                                 <div id="subaba-precif-federais" style="display:none">
@@ -2658,7 +2662,7 @@
                                     <div class="form-row">
                                         <div class="form-group">
                                             <label for="representanteVendaDet">Representante <span class="required">*</span></label>
-                                            <select id="representanteVendaDet" required></select>
+                                            <select id="representanteVendaDet" required onchange="atualizarBadgesEstoqueTodasLinhas()"></select>
                                         </div>
                                     </div>
                                 </section>
