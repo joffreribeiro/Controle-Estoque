@@ -548,10 +548,14 @@
                                     <button class="precif-subtab-btn" onclick="trocarSubabaPrecif('icms')" id="sbtn-icms" style="padding:10px 20px; border:none; background:transparent; font-size:0.9rem; font-weight:600; color:#64748b; border-bottom:2px solid transparent; margin-bottom:-2px; cursor:pointer">🗺️ ICMS por Estado</button>
                                     <button class="precif-subtab-btn" onclick="trocarSubabaPrecif('federais')" id="sbtn-federais" style="padding:10px 20px; border:none; background:transparent; font-size:0.9rem; font-weight:600; color:#64748b; border-bottom:2px solid transparent; margin-bottom:-2px; cursor:pointer">📋 Impostos Federais</button>
                                     <button class="precif-subtab-btn" onclick="trocarSubabaPrecif('precoestado')" id="sbtn-precoestado" style="padding:10px 20px; border:none; background:transparent; font-size:0.9rem; font-weight:600; color:#64748b; border-bottom:2px solid transparent; margin-bottom:-2px; cursor:pointer">🗂️ Preço por Estado</button>
+                                    <button class="precif-subtab-btn" onclick="trocarSubabaPrecif('tabelavenda')" id="sbtn-tabelavenda" style="padding:10px 20px; border:none; background:transparent; font-size:0.9rem; font-weight:600; color:#64748b; border-bottom:2px solid transparent; margin-bottom:-2px; cursor:pointer">📋 Tabela de Preço de Venda</button>
                                 </div>
 
                                 <!-- Sub-aba Preço por Estado -->
                                 <div id="subaba-precif-precoestado" style="display:none;padding:4px 0"></div>
+
+                                <!-- Sub-aba Tabela de Preço de Venda -->
+                                <div id="subaba-precif-tabelavenda" style="display:none;padding:4px 0"></div>
 
                                 <!-- Sub-aba Impostos Federais -->
                                 <div id="subaba-precif-federais" style="display:none">
@@ -2413,6 +2417,16 @@
                         <div class="form-group">
                             <label for="nomeProduto">Nome do Produto <span class="required">*</span></label>
                             <input type="text" id="nomeProduto" required placeholder="Ex: CARABINA IA2 5,56">
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="produtoPN">PN (Part Number)</label>
+                                <input type="text" id="produtoPN" placeholder="Ex: IA2-556-001">
+                            </div>
+                            <div class="form-group" style="flex:2">
+                                <label for="produtoComponente">Componente</label>
+                                <input type="text" id="produtoComponente" placeholder="Ex: CONJUNTO SUPERIOR">
+                            </div>
                         </div>
                         <div class="form-row">
                             <div class="form-group">

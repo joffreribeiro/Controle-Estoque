@@ -7792,6 +7792,10 @@ function abrirModalEditarProduto(produtoId) {
     if (margemInput) margemInput.value = Number(regra.margemMinima ?? produto.margemMinima ?? 0) || '';
     if (descInput) descInput.value = Number(regra.descontoMaximo ?? produto.descontoMaximo ?? 0) || '';
     if (obsInput) obsInput.value = produto.observacoes || '';
+    const pnInput = document.getElementById('produtoPN');
+    const compInput = document.getElementById('produtoComponente');
+    if (pnInput) pnInput.value = produto.pn || '';
+    if (compInput) compInput.value = produto.componente || '';
     const exibirEstoqueInput = document.getElementById('produtoExibirNoEstoque');
     if (exibirEstoqueInput) exibirEstoqueInput.checked = produto.exibirNoEstoque === true;
     // Ajustar título e botão para modo edição
@@ -10385,6 +10389,8 @@ function salvarProduto(event) {
     const descontoMaximo = Number(document.getElementById('produtoDescMax')?.value || 0) || 0;
     const observacoes = (document.getElementById('produtoObservacoes')?.value || '').trim();
     const exibirNoEstoque = document.getElementById('produtoExibirNoEstoque')?.checked === true;
+    const pn = (document.getElementById('produtoPN')?.value || '').trim();
+    const componente = (document.getElementById('produtoComponente')?.value || '').trim();
 
     if (!nome) {
         mostrarNotificacao('Informe o nome do produto.', 'error');
@@ -10423,6 +10429,8 @@ function salvarProduto(event) {
         produto.descMax = descontoMaximo;
         produto.observacoes = observacoes;
         produto.exibirNoEstoque = exibirNoEstoque;
+        produto.pn = pn;
+        produto.componente = componente;
         produto.atualizadoEm = new Date().toISOString();
         produto.dataAtualizacao = Date.now();
         // Preserve existing rep data, only add missing reps
@@ -10491,6 +10499,8 @@ function salvarProduto(event) {
         descMax: descontoMaximo,
         observacoes,
         exibirNoEstoque,
+        pn,
+        componente,
         criadoEm: new Date().toISOString(),
         atualizadoEm: new Date().toISOString(),
         dataAtualizacao: Date.now(),
@@ -13771,7 +13781,7 @@ function resetarPrecoManual(nomeProduto) {
 
 // ── SUB-TAB NAVIGATION FOR PRECIFICAÇÃO ─────────────────────────
 function trocarSubabaPrecif(subaba) {
-    const tabs = ['porcliente','consultaPrec','comparativo','rastreabilidade','tabelaci','icms','federais','precoestado'];
+    const tabs = ['porcliente','consultaPrec','comparativo','rastreabilidade','tabelaci','icms','federais','precoestado','tabelavenda'];
     tabs.forEach(s => {
         let el = null;
         if (s === 'consultaPrec') el = document.getElementById('painel-consultaPrec');
@@ -13822,6 +13832,9 @@ function trocarSubabaPrecif(subaba) {
     }
     if (subaba === 'precoestado') {
         try { renderizarTabelaPrecoEstado(); } catch (e) {}
+    }
+    if (subaba === 'tabelavenda') {
+        try { renderizarTabelaPrecoVenda(); } catch (e) {}
     }
 }
 
@@ -13967,6 +13980,140 @@ function obterPrecoEstadoParaClienteProduto(lojaNome, produtoId) {
         }
     } catch (e) {}
     return null;
+}
+
+// ========================================
+// TABELA DE PREÇO DE VENDA POR ESTADO
+// ========================================
+
+function renderizarTabelaPrecoVenda() {
+    const container = document.getElementById('subaba-precif-tabelavenda');
+    if (!container) return;
+
+    const produtos = (estoque.produtos || []).filter(p => p.nome);
+    if (!produtos.length) {
+        container.innerHTML = '<p style="color:#64748b;padding:20px">Nenhum produto cadastrado.</p>';
+        return;
+    }
+
+    // Filtro de tipo de cliente
+    const tipoPessoaAtual = container._tipoPessoa || 'PJ';
+
+    // Header com seletor de tipo de cliente
+    let html = `
+        <div style="display:flex;gap:10px;align-items:center;margin-bottom:14px;flex-wrap:wrap">
+            <h3 style="margin:0;font-size:1rem;color:#1e3a5f;font-weight:700">Tabela de Preço de Venda por Estado</h3>
+            <div style="display:flex;border:1px solid #e2e8f0;border-radius:6px;overflow:hidden">
+                <button onclick="renderizarTabelaPrecoVendaTipo('PJ')" id="btnTpvPJ"
+                    style="padding:5px 16px;border:none;cursor:pointer;font-size:0.82rem;font-weight:700;
+                    background:${tipoPessoaAtual==='PJ'?'#1e3a5f':'#f8fafc'};color:${tipoPessoaAtual==='PJ'?'#fff':'#64748b'}">
+                    Lojista (PJ)
+                </button>
+                <button onclick="renderizarTabelaPrecoVendaTipo('PF')" id="btnTpvPF"
+                    style="padding:5px 16px;border:none;cursor:pointer;font-size:0.82rem;font-weight:700;
+                    background:${tipoPessoaAtual==='PF'?'#1e3a5f':'#f8fafc'};color:${tipoPessoaAtual==='PF'?'#fff':'#64748b'}">
+                    Pessoa Física (PF)
+                </button>
+            </div>
+            <button class="btn btn-outline btn-sm" onclick="exportarTabelaPrecoVenda()">📤 Exportar Excel</button>
+            <span style="font-size:0.77rem;color:#64748b">Preços calculados com impostos de cada estado. CI definido no cadastro do produto.</span>
+        </div>
+        <div style="overflow-x:auto">
+        <table id="tabelaPrecoVendaGrid" style="border-collapse:collapse;font-size:0.78rem;white-space:nowrap">
+            <thead>
+                <tr style="background:#1e3a5f;color:#fff">
+                    <th style="padding:8px 10px;text-align:left;position:sticky;left:0;background:#1e3a5f;z-index:3;min-width:120px;border-right:1px solid #2d4f7c">NCM</th>
+                    <th style="padding:8px 10px;text-align:left;background:#1e3a5f;min-width:80px;border-right:1px solid #2d4f7c">Grupo</th>
+                    <th style="padding:8px 10px;text-align:left;background:#1e3a5f;min-width:110px;border-right:1px solid #2d4f7c">PN</th>
+                    <th style="padding:8px 10px;text-align:left;background:#1e3a5f;min-width:160px;border-right:1px solid #2d4f7c">Nome</th>
+                    <th style="padding:8px 10px;text-align:left;background:#1e3a5f;min-width:140px;border-right:1px solid #2d4f7c">Componente</th>
+                    <th style="padding:8px 10px;text-align:right;background:#1e3a5f;min-width:90px;border-right:2px solid #4a6fa5">CI</th>`;
+
+    ESTADOS_BR.forEach(uf => {
+        html += `<th style="padding:8px 8px;text-align:center;background:#1e3a5f;min-width:72px">${uf}</th>`;
+    });
+    html += `</tr></thead><tbody>`;
+
+    produtos.forEach((prod, i) => {
+        const bg = i % 2 === 0 ? '#fff' : '#f8fafc';
+        const ci = Number(precificacao[prod.nome]?.ci ?? prod.ci ?? 0);
+        const grupo = prod.categoria || '—';
+        const pn = prod.pn || '—';
+        const comp = prod.componente || '—';
+        const ncm = prod.ncm || '—';
+        const ciStr = ci > 0 ? _fmtMoeda(ci) : '—';
+
+        html += `<tr style="background:${bg}">
+            <td style="padding:6px 10px;position:sticky;left:0;background:${bg};z-index:1;border-right:1px solid #e2e8f0;font-family:monospace;font-size:0.77rem">${_escapeHtml(ncm)}</td>
+            <td style="padding:6px 10px;border-right:1px solid #e2e8f0;color:#64748b">${_escapeHtml(grupo)}</td>
+            <td style="padding:6px 10px;border-right:1px solid #e2e8f0;font-family:monospace;font-size:0.77rem">${_escapeHtml(pn)}</td>
+            <td style="padding:6px 10px;border-right:1px solid #e2e8f0;font-weight:600;color:#1e3a5f">${_escapeHtml(prod.nome)}</td>
+            <td style="padding:6px 10px;border-right:1px solid #e2e8f0;color:#374151">${_escapeHtml(comp)}</td>
+            <td style="padding:6px 10px;text-align:right;border-right:2px solid #e2e8f0;font-weight:600;color:#0f766e">${ciStr}</td>`;
+
+        ESTADOS_BR.forEach(uf => {
+            let preco = null;
+            try {
+                const r = calcularPreco(prod.nome, uf, tipoPessoaAtual);
+                preco = r ? r.precoFinal : null;
+            } catch (e) {}
+            const precoStr = (preco !== null && preco > 0) ? _fmtMoeda(preco) : '<span style="color:#cbd5e1">—</span>';
+            html += `<td style="padding:6px 8px;text-align:right;border-left:1px solid #f1f5f9">${precoStr}</td>`;
+        });
+
+        html += `</tr>`;
+    });
+
+    html += `</tbody></table></div>`;
+    container.innerHTML = html;
+    container._tipoPessoa = tipoPessoaAtual;
+}
+
+function renderizarTabelaPrecoVendaTipo(tipo) {
+    const container = document.getElementById('subaba-precif-tabelavenda');
+    if (!container) return;
+    container._tipoPessoa = tipo;
+    renderizarTabelaPrecoVenda();
+}
+
+function exportarTabelaPrecoVenda() {
+    const container = document.getElementById('subaba-precif-tabelavenda');
+    const tipo = (container && container._tipoPessoa) || 'PJ';
+    const label = tipo === 'PJ' ? 'Lojista' : 'Pessoa Fisica';
+    const produtos = (estoque.produtos || []).filter(p => p.nome);
+
+    const linhas = [['NCM','Grupo','PN','Nome','Componente','CI (R$)', ...ESTADOS_BR]];
+    produtos.forEach(prod => {
+        const ci = Number(precificacao[prod.nome]?.ci ?? prod.ci ?? 0);
+        const linha = [
+            prod.ncm || '',
+            prod.categoria || '',
+            prod.pn || '',
+            prod.nome,
+            prod.componente || '',
+            ci > 0 ? ci.toFixed(2).replace('.',',') : ''
+        ];
+        ESTADOS_BR.forEach(uf => {
+            let preco = '';
+            try {
+                const r = calcularPreco(prod.nome, uf, tipo);
+                if (r && r.precoFinal > 0) preco = r.precoFinal.toFixed(2).replace('.',',');
+            } catch (e) {}
+            linha.push(preco);
+        });
+        linhas.push(linha);
+    });
+
+    const csv = linhas.map(r => r.map(c => '"' + String(c).replace(/"/g,'""') + '"').join(';')).join('\r\n');
+    const bom = '﻿';
+    const blob = new Blob([bom + csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `tabela_preco_venda_${label}_${new Date().toLocaleDateString('pt-BR').replace(/\//g,'-')}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    mostrarNotificacao(`Tabela exportada: ${label}`, 'success');
 }
 
 // ========================================
