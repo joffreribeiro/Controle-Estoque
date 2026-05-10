@@ -13965,24 +13965,58 @@ function getTabelaPrecoEstado() {
     return estoque.tabelaPrecoEstado;
 }
 
+function getHistoricoTabelasLojistas() {
+    if (!Array.isArray(estoque.historicoTabelasLojistas)) {
+        estoque.historicoTabelasLojistas = [];
+    }
+    return estoque.historicoTabelasLojistas;
+}
+
 function renderizarTabelaPrecoEstado() {
     const container = document.getElementById('subaba-precif-precoestado');
     if (!container) return;
 
     const tabela = getTabelaPrecoEstado();
     const produtos = estoque.produtos || [];
+    const historico = getHistoricoTabelasLojistas();
 
     if (!produtos.length) {
         container.innerHTML = '<p style="color:#64748b;padding:20px">Nenhum produto cadastrado.</p>';
         return;
     }
 
+    // Seção histórico
+    let historicoHtml = '';
+    if (historico.length) {
+        historicoHtml = `
+        <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:14px 16px;margin-bottom:20px">
+            <div style="font-size:0.85rem;font-weight:700;color:#1e3a5f;margin-bottom:10px">📂 Tabelas Salvas Anteriormente</div>
+            <div style="display:flex;flex-direction:column;gap:6px">`;
+        historico.slice().reverse().forEach((h, i) => {
+            const idx = historico.length - 1 - i;
+            historicoHtml += `
+                <div style="display:flex;align-items:center;gap:10px;background:#fff;border:1px solid #e2e8f0;border-radius:6px;padding:8px 12px">
+                    <span style="font-size:0.85rem;color:#475569;flex:1">
+                        <strong>${_escapeHtml(h.nome)}</strong>
+                        <span style="color:#94a3b8;margin-left:8px;font-size:0.78rem">${h.data}</span>
+                    </span>
+                    <button class="btn btn-outline btn-sm" onclick="visualizarTabelaLojistasHistorico(${idx})">🔍 Visualizar</button>
+                    <button class="btn btn-outline btn-sm" onclick="restaurarTabelaLojistas(${idx})" title="Restaurar como tabela atual">↩️ Restaurar</button>
+                    <button class="btn btn-outline btn-sm" style="color:#cf222e" onclick="excluirTabelaLojistasHistorico(${idx})">🗑️</button>
+                </div>`;
+        });
+        historicoHtml += `</div></div>`;
+    }
+
     let html = `
         <div style="display:flex;gap:8px;align-items:center;margin-bottom:14px;flex-wrap:wrap">
-            <h3 style="margin:0;font-size:1rem;color:#1e3a5f;font-weight:700">Tabela de Preços por Estado</h3>
+            <h3 style="margin:0;font-size:1rem;color:#1e3a5f;font-weight:700">Tabela de Preços para Lojistas</h3>
             <button class="btn btn-primary btn-sm" onclick="salvarTabelaPrecoEstado()">💾 Salvar</button>
+            <button class="btn btn-outline btn-sm" onclick="salvarNovaVersaoTabelaLojistas()">📋 Salvar como nova versão</button>
             <span style="font-size:0.77rem;color:#64748b">O preço é preenchido automaticamente na venda conforme a UF do cliente.</span>
         </div>
+        ${historicoHtml}
+        <div id="precoEstadoTabelaWrap">
         <table style="border-collapse:collapse;width:100%;font-size:0.88rem">
             <thead>
                 <tr>
@@ -14002,7 +14036,6 @@ function renderizarTabelaPrecoEstado() {
             <td style="padding:8px 14px;font-weight:600;color:#1e3a5f;border-bottom:1px solid #f1f5f9">${_escapeHtml(prod.nome)}</td>`;
 
         GRUPOS_PRECO_ESTADO.forEach(g => {
-            // Usar o primeiro UF do grupo como chave de armazenamento
             const chave = g.id;
             const val = (tabela[prod.id] && tabela[prod.id][chave] !== undefined) ? tabela[prod.id][chave] : '';
             const displayVal = val !== '' ? Number(val).toLocaleString('pt-BR', {minimumFractionDigits:2,maximumFractionDigits:2}) : '';
@@ -14023,7 +14056,7 @@ function renderizarTabelaPrecoEstado() {
         html += `</tr>`;
     });
 
-    html += `</tbody></table>`;
+    html += `</tbody></table></div>`;
     container.innerHTML = html;
 }
 
@@ -14036,9 +14069,9 @@ function formatarMoedaPrecoEstado(input) {
     input.value = valor;
 }
 
-function salvarTabelaPrecoEstado() {
+function _lerTabelaDoFormulario() {
     const container = document.getElementById('subaba-precif-precoestado');
-    if (!container) return;
+    if (!container) return null;
     const tabela = getTabelaPrecoEstado();
     container.querySelectorAll('input[data-prod][data-grupo]').forEach(inp => {
         const prodId = parseInt(inp.dataset.prod);
@@ -14052,10 +14085,101 @@ function salvarTabelaPrecoEstado() {
             delete tabela[prodId][grupo];
         }
     });
+    return tabela;
+}
+
+function salvarTabelaPrecoEstado() {
+    const tabela = _lerTabelaDoFormulario();
+    if (!tabela) return;
     estoque.tabelaPrecoEstado = tabela;
     salvarDados();
     salvarNoCloud().catch(e => console.error('Auto-save tabelaPrecoEstado falhou:', e));
-    mostrarNotificacao('Tabela de preços por grupo de estado salva com sucesso.', 'success');
+    mostrarNotificacao('Tabela de preços para lojistas salva com sucesso.', 'success');
+}
+
+function salvarNovaVersaoTabelaLojistas() {
+    const nome = prompt('Nome para esta versão (ex: Tabela Maio 2026):');
+    if (!nome || !nome.trim()) return;
+    const tabela = _lerTabelaDoFormulario();
+    if (!tabela) return;
+    estoque.tabelaPrecoEstado = tabela;
+    const historico = getHistoricoTabelasLojistas();
+    const agora = new Date();
+    const data = agora.toLocaleDateString('pt-BR') + ' ' + agora.toLocaleTimeString('pt-BR', {hour:'2-digit',minute:'2-digit'});
+    historico.push({ nome: nome.trim(), data, tabela: JSON.parse(JSON.stringify(tabela)) });
+    estoque.historicoTabelasLojistas = historico;
+    salvarDados();
+    salvarNoCloud().catch(e => console.error('Auto-save historico lojistas falhou:', e));
+    mostrarNotificacao(`Versão "${nome.trim()}" salva no histórico.`, 'success');
+    renderizarTabelaPrecoEstado();
+}
+
+function visualizarTabelaLojistasHistorico(idx) {
+    const historico = getHistoricoTabelasLojistas();
+    const h = historico[idx];
+    if (!h) return;
+    const produtos = estoque.produtos || [];
+
+    let html = `<div style="font-size:0.9rem;font-weight:700;color:#1e3a5f;margin-bottom:12px">📋 ${_escapeHtml(h.nome)} <span style="font-size:0.78rem;color:#94a3b8;font-weight:400">${h.data}</span></div>`;
+    html += `<table style="border-collapse:collapse;width:100%;font-size:0.85rem"><thead><tr>
+        <th style="padding:8px 12px;text-align:left;background:#1e3a5f;color:#fff">Produto</th>`;
+    GRUPOS_PRECO_ESTADO.forEach(g => {
+        html += `<th style="padding:6px 14px;text-align:center;background:${g.cor};color:#fff">${g.ufs.join(' · ')}</th>`;
+    });
+    html += `</tr></thead><tbody>`;
+    produtos.forEach((prod, i) => {
+        const bg = i % 2 === 0 ? '#fff' : '#f8fafc';
+        html += `<tr style="background:${bg}"><td style="padding:6px 12px;font-weight:600;color:#1e3a5f;border-bottom:1px solid #f1f5f9">${_escapeHtml(prod.nome)}</td>`;
+        GRUPOS_PRECO_ESTADO.forEach(g => {
+            const val = (h.tabela[prod.id] && h.tabela[prod.id][g.id] !== undefined) ? h.tabela[prod.id][g.id] : '';
+            const txt = val !== '' ? 'R$ ' + Number(val).toLocaleString('pt-BR', {minimumFractionDigits:2,maximumFractionDigits:2}) : '-';
+            html += `<td style="padding:6px 10px;text-align:center;border-bottom:1px solid #f1f5f9">${txt}</td>`;
+        });
+        html += `</tr>`;
+    });
+    html += `</tbody></table>`;
+
+    let overlay = document.getElementById('_modalGenericoOverlay');
+    if (!overlay) {
+        overlay = document.createElement('div');
+        overlay.id = '_modalGenericoOverlay';
+        overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
+        overlay.onclick = e => { if (e.target === overlay) overlay.remove(); };
+        document.body.appendChild(overlay);
+    }
+    overlay.innerHTML = `
+        <div style="background:#fff;border-radius:10px;box-shadow:0 8px 40px rgba(0,0,0,0.18);max-width:900px;width:100%;max-height:85vh;display:flex;flex-direction:column;overflow:hidden">
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid #e2e8f0;background:#1e3a5f;border-radius:10px 10px 0 0">
+                <span style="font-size:1rem;font-weight:700;color:#fff">Tabela: ${_escapeHtml(h.nome)}</span>
+                <button onclick="document.getElementById('_modalGenericoOverlay').remove()" style="background:transparent;border:none;color:#fff;font-size:1.3rem;cursor:pointer;line-height:1">×</button>
+            </div>
+            <div style="overflow:auto;padding:20px">${html}</div>
+        </div>`;
+}
+
+function restaurarTabelaLojistas(idx) {
+    const historico = getHistoricoTabelasLojistas();
+    const h = historico[idx];
+    if (!h) return;
+    if (!confirm(`Restaurar a tabela "${h.nome}" como tabela atual? Os valores atuais serão sobrescritos.`)) return;
+    estoque.tabelaPrecoEstado = JSON.parse(JSON.stringify(h.tabela));
+    salvarDados();
+    salvarNoCloud().catch(() => {});
+    mostrarNotificacao(`Tabela "${h.nome}" restaurada com sucesso.`, 'success');
+    renderizarTabelaPrecoEstado();
+}
+
+function excluirTabelaLojistasHistorico(idx) {
+    const historico = getHistoricoTabelasLojistas();
+    const h = historico[idx];
+    if (!h) return;
+    if (!confirm(`Excluir a versão "${h.nome}" do histórico?`)) return;
+    historico.splice(idx, 1);
+    estoque.historicoTabelasLojistas = historico;
+    salvarDados();
+    salvarNoCloud().catch(() => {});
+    mostrarNotificacao('Versão removida do histórico.', 'success');
+    renderizarTabelaPrecoEstado();
 }
 
 function obterPrecoEstadoParaClienteProduto(lojaNome, produtoId) {
