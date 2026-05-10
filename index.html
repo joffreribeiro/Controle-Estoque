@@ -547,9 +547,7 @@
                                     <button class="precif-subtab-btn" onclick="trocarSubabaPrecif('rastreabilidade')" id="sbtn-rastreabilidade" style="padding:10px 20px; border:none; background:transparent; font-size:0.9rem; font-weight:600; color:#64748b; border-bottom:2px solid transparent; margin-bottom:-2px; cursor:pointer">
                                         🔗 Rastreabilidade
                                     </button>
-                                    <button class="precif-subtab-btn" onclick="trocarSubabaPrecif('tabelaci'); renderizarTabelaCI();" id="sbtn-tabelaci" style="padding:10px 20px; border:none; background:transparent; font-size:0.9rem; font-weight:600; color:#64748b; border-bottom:2px solid transparent; margin-bottom:-2px; cursor:pointer">📑 Tabela de CI</button>
-                                    <button class="precif-subtab-btn" onclick="trocarSubabaPrecif('icms')" id="sbtn-icms" style="padding:10px 20px; border:none; background:transparent; font-size:0.9rem; font-weight:600; color:#64748b; border-bottom:2px solid transparent; margin-bottom:-2px; cursor:pointer">🗺️ ICMS por Estado</button>
-                                    <button class="precif-subtab-btn" onclick="trocarSubabaPrecif('federais')" id="sbtn-federais" style="padding:10px 20px; border:none; background:transparent; font-size:0.9rem; font-weight:600; color:#64748b; border-bottom:2px solid transparent; margin-bottom:-2px; cursor:pointer">📋 Impostos Federais</button>
+                                    <button class="precif-subtab-btn" onclick="trocarSubabaPrecif('impostos')" id="sbtn-impostos" style="padding:10px 20px; border:none; background:transparent; font-size:0.9rem; font-weight:600; color:#64748b; border-bottom:2px solid transparent; margin-bottom:-2px; cursor:pointer">🧾 Impostos</button>
                                     <button class="precif-subtab-btn" onclick="trocarSubabaPrecif('precoestado')" id="sbtn-precoestado" style="padding:10px 20px; border:none; background:transparent; font-size:0.9rem; font-weight:600; color:#64748b; border-bottom:2px solid transparent; margin-bottom:-2px; cursor:pointer">🗂️ Preço por Estado</button>
                                     <button class="precif-subtab-btn" onclick="trocarSubabaPrecif('tabelavenda')" id="sbtn-tabelavenda" style="padding:10px 20px; border:none; background:transparent; font-size:0.9rem; font-weight:600; color:#64748b; border-bottom:2px solid transparent; margin-bottom:-2px; cursor:pointer">📋 Tabela de Preço de Venda</button>
                                 </div>
@@ -560,39 +558,50 @@
                                 <!-- Sub-aba Tabela de Preço de Venda -->
                                 <div id="subaba-precif-tabelavenda" style="display:none;padding:4px 0"></div>
 
-                                <!-- Sub-aba Impostos Federais -->
-                                <div id="subaba-precif-federais" style="display:none">
+                                <!-- Sub-aba Impostos (ICMS por Estado + Impostos Federais) -->
+                                <div id="subaba-precif-impostos" style="display:none">
 
-                                    <div style="background:#fff8f0; border:1px solid #fed7aa; border-radius:8px; padding:12px 16px; margin-bottom:16px; font-size:0.85rem; color:#92400e">
-                                        ℹ️ Estes impostos são pré-carregados por NCM e aplicados automaticamente na precificação. Alterações aqui sobrescrevem os valores padrão para todos os produtos com esse NCM.
+                                    <!-- Tabs internas -->
+                                    <div style="display:flex; gap:0; border-bottom:2px solid #e2e8f0; margin-bottom:20px">
+                                        <button id="ibtn-federais" onclick="trocarSubabaImpostos('federais')" style="padding:8px 18px; border:none; background:transparent; font-size:0.85rem; font-weight:600; color:#64748b; border-bottom:2px solid transparent; margin-bottom:-2px; cursor:pointer">📋 Impostos Federais</button>
+                                        <button id="ibtn-icms" onclick="trocarSubabaImpostos('icms')" style="padding:8px 18px; border:none; background:transparent; font-size:0.85rem; font-weight:600; color:#64748b; border-bottom:2px solid transparent; margin-bottom:-2px; cursor:pointer">🗺️ ICMS por Estado</button>
                                     </div>
 
-                                    <div style="display:flex; gap:8px; margin-bottom:14px">
-                                        <button class="btn btn-primary btn-sm" onclick="adicionarNCM()">+ Novo NCM</button>
-                                        <button class="btn btn-outline btn-sm" onclick="exportarImpostosFederais()">📤 Exportar Excel</button>
-                                        <button class="btn btn-outline btn-sm" onclick="importarImpostosFederais()">📥 Importar Excel</button>
-                                        <input type="file" id="inputImportarFederais" accept=".xlsx,.xls,.csv" style="display:none" onchange="importarImpostosFederaisArquivo(event)">
-                                    </div>
+                                    <!-- Painel: Impostos Federais -->
+                                    <div id="impostos-painel-federais">
+                                        <div style="background:#fff8f0; border:1px solid #fed7aa; border-radius:8px; padding:12px 16px; margin-bottom:16px; font-size:0.85rem; color:#92400e">
+                                            ℹ️ Estes impostos são pré-carregados por NCM e aplicados automaticamente na precificação. Alterações aqui sobrescrevem os valores padrão para todos os produtos com esse NCM.
+                                        </div>
 
-                                    <div class="table-container">
-                                        <div class="table-wrapper">
-                                            <table class="dashboard-table" id="tabelaImpostosFederais">
-                                                <thead>
-                                                    <tr>
-                                                        <th style="text-align:left; padding-left:15px; min-width:130px">NCM</th>
-                                                        <th style="text-align:left; min-width:220px">Descrição</th>
-                                                        <th style="min-width:80px">PIS (%)</th>
-                                                        <th style="min-width:80px">COFINS (%)</th>
-                                                        <th style="min-width:80px">IPI (%)</th>
-                                                        <th style="min-width:80px">Produtos vinculados</th>
-                                                        <th style="min-width:80px">Ações</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody id="tabelaImpostosFederaisBody"></tbody>
-                                            </table>
+                                        <div style="display:flex; gap:8px; margin-bottom:14px">
+                                            <button class="btn btn-primary btn-sm" onclick="adicionarNCM()">+ Novo NCM</button>
+                                            <button class="btn btn-outline btn-sm" onclick="exportarImpostosFederais()">📤 Exportar Excel</button>
+                                            <button class="btn btn-outline btn-sm" onclick="importarImpostosFederais()">📥 Importar Excel</button>
+                                            <input type="file" id="inputImportarFederais" accept=".xlsx,.xls,.csv" style="display:none" onchange="importarImpostosFederaisArquivo(event)">
+                                        </div>
+
+                                        <div class="table-container">
+                                            <div class="table-wrapper">
+                                                <table class="dashboard-table" id="tabelaImpostosFederais">
+                                                    <thead>
+                                                        <tr>
+                                                            <th style="text-align:left; padding-left:15px; min-width:130px">NCM</th>
+                                                            <th style="text-align:left; min-width:220px">Descrição</th>
+                                                            <th style="min-width:80px">PIS (%)</th>
+                                                            <th style="min-width:80px">COFINS (%)</th>
+                                                            <th style="min-width:80px">IPI (%)</th>
+                                                            <th style="min-width:80px">Produtos vinculados</th>
+                                                            <th style="min-width:80px">Ações</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody id="tabelaImpostosFederaisBody"></tbody>
+                                                </table>
+                                            </div>
                                         </div>
                                     </div>
-                                                                </div>
+
+                                    <!-- Painel: ICMS por Estado -->
+                                    <div id="impostos-painel-icms" style="display:none">
 
                                                                 <!-- Sub-aba Consulta de Precificações -->
                                                                 <div id="painel-consultaPrec" style="display:none">
@@ -757,9 +766,6 @@
 </div>
 
 
-                                                                <!-- Sub-aba ICMS por Estado -->
-                                <div id="subaba-precif-icms" style="display:none">
-
                                     <div style="display:flex; gap:10px; margin-bottom:16px; align-items:center; flex-wrap:wrap">
                                         <div class="form-group" style="margin:0">
                                             <label style="font-size:0.8rem; color:#64748b">Filtrar por NCM</label>
@@ -797,8 +803,10 @@
                                                 <tbody id="tabelaICMSEstadosBody"></tbody>
                                             </table>
                                         </div>
-                                                                        </div>
-                                                                </div>
+                                    </div>
+                                    </div><!-- /impostos-painel-icms -->
+
+                                </div><!-- /subaba-precif-impostos -->
 
                                                                 <!-- Sub-aba Precificação por Cliente -->
                                                                 <div id="subaba-precif-porcliente" style="display:block">
@@ -3447,7 +3455,7 @@
     <div id="modalSimuladorICMS" class="modal">
         <div class="modal-content modal-lg">
             <div class="modal-header">
-                <h2><span>🧮</span> Simulador de Preço por Estado</h2>
+                <h2><span>🧮</span> Simulador de Preço para Lojistas</h2>
                 <span class="close" onclick="fecharModal('modalSimuladorICMS')">&times;</span>
             </div>
             <div class="modal-body" style="padding:16px">

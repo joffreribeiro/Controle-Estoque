@@ -13860,7 +13860,7 @@ function resetarPrecoManual(nomeProduto) {
 
 // ── SUB-TAB NAVIGATION FOR PRECIFICAÇÃO ─────────────────────────
 function trocarSubabaPrecif(subaba) {
-    const tabs = ['porcliente','consultaPrec','comparativo','rastreabilidade','tabelaci','icms','federais','precoestado','tabelavenda'];
+    const tabs = ['porcliente','consultaPrec','comparativo','rastreabilidade','impostos','precoestado','tabelavenda'];
     tabs.forEach(s => {
         let el = null;
         if (s === 'consultaPrec') el = document.getElementById('painel-consultaPrec');
@@ -13875,10 +13875,8 @@ function trocarSubabaPrecif(subaba) {
         }
     });
 
-    if (subaba === 'federais') renderizarImpostosFederais();
-    if (subaba === 'icms') renderizarICMSPorEstado();
+    if (subaba === 'impostos') trocarSubabaImpostos('federais');
     if (subaba === 'porcliente') {
-        // preparar dropdown e estado inicial da sub-aba
         try {
             try { verificarExpiracaoPrecificacoes(); } catch (e) {}
             popularSelectClientesPrecif();
@@ -13896,9 +13894,6 @@ function trocarSubabaPrecif(subaba) {
         try { if (typeof _cpPopularFiltroCliente === 'function') _cpPopularFiltroCliente(); filtrarConsultaPrecificacoes(); } catch (e) {}
     }
 
-    if (subaba === 'tabelaci') {
-        try { popularSelectProdutosCI(); renderizarTabelaCI(); } catch (e) {}
-    }
     if (subaba === 'rastreabilidade') {
         try { renderizarRastreabilidade(); } catch (e) { if (window.__showRuntimeErrorOverlay) window.__showRuntimeErrorOverlay(e); }
     }
@@ -13915,6 +13910,21 @@ function trocarSubabaPrecif(subaba) {
     if (subaba === 'tabelavenda') {
         try { renderizarTabelaPrecoVenda(); } catch (e) {}
     }
+}
+
+function trocarSubabaImpostos(painel) {
+    const paineis = ['federais', 'icms'];
+    paineis.forEach(p => {
+        const el = document.getElementById('impostos-painel-' + p);
+        if (el) el.style.display = (p === painel) ? 'block' : 'none';
+        const btn = document.getElementById('ibtn-' + p);
+        if (btn) {
+            btn.style.color = (p === painel) ? '#1e3a5f' : '#64748b';
+            btn.style.borderBottomColor = (p === painel) ? '#1e3a5f' : 'transparent';
+        }
+    });
+    if (painel === 'federais') try { renderizarImpostosFederais(); } catch (e) {}
+    if (painel === 'icms') try { renderizarICMSPorEstado(); } catch (e) {}
 }
 
 // ========================================
