@@ -3097,7 +3097,6 @@ function renderizarCadastroProdutos() {
 
         const tr = document.createElement('tr');
         tr.innerHTML = `
-            <td style="text-align:left; font-weight:600">${nome}</td>
             <td>
                 <div style="display:flex;gap:6px;align-items:center">
                     <select onchange="salvarNCMProduto(${Number(produto.id)}, this.value)" style="width:240px;padding:6px;border:1px solid #e2e8f0;border-radius:6px;font-family:monospace">
@@ -3110,6 +3109,7 @@ function renderizarCadastroProdutos() {
             <td style="font-family:monospace">${pn}</td>
             <td>${nomeFabrica}</td>
             <td>${componente}</td>
+            <td style="text-align:left; font-weight:600">${nome}</td>
             <td>${ci > 0 ? formatarMoedaValor(ci) : '-'}</td>
             <td>${margemMin > 0 ? margemMin.toFixed(1).replace('.', ',') : '-'}</td>
             <td>${descontoMax > 0 ? descontoMax.toFixed(1).replace('.', ',') : '-'}</td>
