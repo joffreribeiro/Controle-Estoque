@@ -3091,6 +3091,10 @@ function renderizarCadastroProdutos() {
         const noEstoqueBadge = noEstoque
             ? `<span style="display:inline-block;background:#dcfce7;color:#166534;border-radius:10px;padding:2px 10px;font-size:0.78rem;font-weight:700">Sim</span>`
             : `<span style="display:inline-block;background:#f1f5f9;color:#94a3b8;border-radius:10px;padding:2px 10px;font-size:0.78rem">Não</span>`;
+        const pn = produto.pn || '-';
+        const nomeFabrica = produto.nomeFabrica || '-';
+        const componente = produto.componente || '-';
+
         const tr = document.createElement('tr');
         tr.innerHTML = `
             <td style="text-align:left; font-weight:600">${nome}</td>
@@ -3103,6 +3107,9 @@ function renderizarCadastroProdutos() {
                 </div>
             </td>
             <td>${categoria}</td>
+            <td style="font-family:monospace">${pn}</td>
+            <td>${nomeFabrica}</td>
+            <td>${componente}</td>
             <td>${ci > 0 ? formatarMoedaValor(ci) : '-'}</td>
             <td>${margemMin > 0 ? margemMin.toFixed(1).replace('.', ',') : '-'}</td>
             <td>${descontoMax > 0 ? descontoMax.toFixed(1).replace('.', ',') : '-'}</td>
