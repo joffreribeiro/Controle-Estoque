@@ -14001,7 +14001,7 @@ const GRUPOS_PRECO_ESTADO = [
 
 function getGrupoPrecoEstado(uf) {
     const u = (uf || '').trim().toUpperCase();
-    return GRUPOS_PRECO_ESTADO.find(g => g.ufs.includes(u)) || GRUPOS_PRECO_ESTADO[2];
+    return GRUPOS_PRECO_ESTADO.find(g => g.ufs.includes(u)) || GRUPOS_PRECO_ESTADO[0];
 }
 
 function getTabelaPrecoEstado() {
@@ -14234,6 +14234,12 @@ function obterPrecoEstadoParaClienteProduto(lojaNome, produtoId) {
         if (!cliente || !cliente.uf) return null;
         const grupo = getGrupoPrecoEstado(cliente.uf);
         const tabela = getTabelaPrecoEstado();
+        // chaves do objeto são sempre strings — normalizar produtoId
+        const chave = String(produtoId);
+        if (tabela[chave] && tabela[chave][grupo.id] !== undefined) {
+            return Number(tabela[chave][grupo.id]);
+        }
+        // fallback: também tentar como número inteiro (compatibilidade com dados antigos)
         if (tabela[produtoId] && tabela[produtoId][grupo.id] !== undefined) {
             return Number(tabela[produtoId][grupo.id]);
         }
