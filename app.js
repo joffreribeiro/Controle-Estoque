@@ -14549,10 +14549,18 @@ function importarTabelaPrecoVendaExcel(event) {
 
                 if (existente) {
                     if (ci !== null && !isNaN(ci) && ci > 0) {
+                        // Atualiza CI no precificacao usando o nome novo (da planilha)
+                        const nomeChave = nome || existente.nome;
+                        if (!precificacao[nomeChave]) precificacao[nomeChave] = {};
+                        precificacao[nomeChave].ci = ci;
+                        // Se o nome mudou, migra o precificacao do nome antigo
+                        if (nome && nome !== existente.nome && precificacao[existente.nome]) {
+                            precificacao[nome] = Object.assign({}, precificacao[existente.nome], { ci });
+                        }
                         existente.ci = ci;
-                        if (!precificacao[existente.nome]) precificacao[existente.nome] = {};
-                        precificacao[existente.nome].ci = ci;
                     }
+                    if (nome) existente.nome = nome;
+                    if (nomeFab) existente.nomeFabrica = nomeFab;
                     if (ncm) existente.ncm = ncm;
                     if (comp) existente.componente = comp;
                     atualizados++;
