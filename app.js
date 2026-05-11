@@ -14282,12 +14282,18 @@ function renderizarTabelaPrecoVenda() {
     if (!container) return;
 
     const produtos = (estoque.produtos || []).filter(p => p.nome);
+    const tipoPessoaAtual = container._tipoPessoa || 'PJ';
+
     if (!produtos.length) {
-        container.innerHTML = '<p style="color:#64748b;padding:20px">Nenhum produto cadastrado.</p>';
+        container.innerHTML = `
+            <div style="display:flex;gap:10px;align-items:center;margin-bottom:14px;flex-wrap:wrap">
+                <h3 style="margin:0;font-size:1rem;color:#1e3a5f;font-weight:700">Tabela de Preço de Venda por Estado</h3>
+                <button class="btn btn-outline btn-sm" onclick="document.getElementById('inputImportarTabelaVenda').click()">📥 Importar Excel</button>
+                <input type="file" id="inputImportarTabelaVenda" accept=".xlsx,.xls,.csv" style="display:none" onchange="importarTabelaPrecoVendaExcel(event)">
+            </div>
+            <p style="color:#64748b;padding:20px">Nenhum produto cadastrado. Use o botão Importar Excel para adicionar produtos.</p>`;
         return;
     }
-
-    const tipoPessoaAtual = container._tipoPessoa || 'PJ';
 
     // Agrupar por nome (case-insensitive, trimado)
     const grupos = {};
