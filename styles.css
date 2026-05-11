@@ -2313,6 +2313,25 @@ tr.total-row:hover {
     background: #fafbfc;
 }
 
+/* Tabela de Preço de Venda — linhas de peças */
+.pecas-row {
+    background: #f4f7ff !important;
+}
+.pecas-row td {
+    border-left: 3px solid #4a7ab5;
+    font-size: 0.82rem;
+    color: #475569;
+}
+.pn-expandir {
+    cursor: pointer;
+    color: #1e3a5f;
+    font-weight: 700;
+    font-family: monospace;
+    text-decoration: underline dotted;
+    white-space: nowrap;
+}
+.pn-expandir:hover { color: #2a5298; }
+
 .btn-expand-contrato {
     border: none;
     background: transparent;
