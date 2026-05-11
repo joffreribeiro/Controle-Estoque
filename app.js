@@ -9165,6 +9165,13 @@ function renderizarRegistroVendas() {
         const contratoCancelado = vendasDoContrato.length > 0 && vendasDoContrato.every(v => !!v.cancelado);
         const cancelBadgeHtml = contratoCancelado ? '<span class="badge-cancelado">CANCELADO</span>' : '';
 
+        // badge de envio: verificar controleEnvio pelo contrato bruto ou pela chave normalizada
+        const envioData = (estoque.controleEnvio || {})[primeira.contratoRaw]
+                       || (estoque.controleEnvio || {})[contratoKey]
+                       || {};
+        const enviadoBadgeHtml = campoMarcado(envioData.enviado)
+            ? '<span class="badge-enviado">✓ Enviado</span>' : '';
+
         const resumo = document.createElement('tr');
         resumo.className = 'row-contrato-resumo' + (contratoCancelado ? ' contrato-cancelado' : '');
         const fallbackYear = primeira.dataNorm ? (primeira.dataNorm.slice(0,4)) : new Date().getFullYear();
@@ -9181,7 +9188,7 @@ function renderizarRegistroVendas() {
         }
 
         resumo.innerHTML = `
-            <td class="col-contrato">${contratoDisplay || '-'} ${cancelBadgeHtml}</td>
+            <td class="col-contrato">${contratoDisplay || '-'} ${cancelBadgeHtml}${enviadoBadgeHtml}</td>
             <td class="col-loja" title="${primeira.loja}">${primeira.loja}</td>
             <td class="col-representante"><span class="badge-rep ${repClass}">${primeira.representante}</span></td>
             <td class="col-produto-venda"><button class="btn-expand-contrato" onclick="toggleContratoExpandido('${contratoKey}')">${expandido ? '▾' : '▸'} ${linhasDoContrato} item(ns)</button></td>
@@ -11528,10 +11535,11 @@ function renderizarControleEnvio() {
     const filtroSistema = document.getElementById('filtroControleEnvioSistema')?.value || '';
     const filtroAssinado = document.getElementById('filtroControleEnvioAssinado')?.value || '';
     const filtroEnviado = document.getElementById('filtroControleEnvioEnviado')?.value || '';
+    const filtroProgresso = document.getElementById('filtroControleEnvioProgresso')?.value || '';
+    const filtroBusca = (document.getElementById('filtroControleEnvioBusca')?.value || '').trim().toLowerCase();
 
     // Agrupa vendas por contrato (pega a primeira ocorrência de cada contrato)
     const contratoMap = {};
-    
     estoque.registroVendas.forEach(venda => {
         if (!contratoMap[venda.contrato]) {
             contratoMap[venda.contrato] = {
@@ -11548,24 +11556,32 @@ function renderizarControleEnvio() {
     if (filtroRep) {
         contratos = contratos.filter(c => c.representante === filtroRep);
     }
-
-    if (filtroSistema || filtroAssinado || filtroEnviado) {
-        contratos = contratos.filter(c => {
-            const envio = estoque.controleEnvio[c.contrato] || {};
-            const sistemaMarcado = campoMarcado(envio.sistema);
-            const assinadoMarcado = campoMarcado(envio.assinado);
-            const enviadoMarcado = campoMarcado(envio.enviado);
-
-            if (filtroSistema === 'sim' && !sistemaMarcado) return false;
-            if (filtroSistema === 'nao' && sistemaMarcado) return false;
-            if (filtroAssinado === 'sim' && !assinadoMarcado) return false;
-            if (filtroAssinado === 'nao' && assinadoMarcado) return false;
-            if (filtroEnviado === 'sim' && !enviadoMarcado) return false;
-            if (filtroEnviado === 'nao' && enviadoMarcado) return false;
-
-            return true;
-        });
+    if (filtroBusca) {
+        contratos = contratos.filter(c =>
+            String(c.contrato || '').toLowerCase().includes(filtroBusca) ||
+            (c.loja || '').toLowerCase().includes(filtroBusca)
+        );
     }
+
+    contratos = contratos.filter(c => {
+        const envio = estoque.controleEnvio[c.contrato] || {};
+        const sistemaMarcado = campoMarcado(envio.sistema);
+        const assinadoMarcado = campoMarcado(envio.assinado);
+        const enviadoMarcado = campoMarcado(envio.enviado);
+        const concluidos = Number(sistemaMarcado) + Number(assinadoMarcado) + Number(enviadoMarcado);
+
+        if (filtroSistema === 'sim' && !sistemaMarcado) return false;
+        if (filtroSistema === 'nao' && sistemaMarcado) return false;
+        if (filtroAssinado === 'sim' && !assinadoMarcado) return false;
+        if (filtroAssinado === 'nao' && assinadoMarcado) return false;
+        if (filtroEnviado === 'sim' && !enviadoMarcado) return false;
+        if (filtroEnviado === 'nao' && enviadoMarcado) return false;
+        if (filtroProgresso === 'completo' && concluidos !== 3) return false;
+        if (filtroProgresso === 'parcial' && (concluidos === 0 || concluidos === 3)) return false;
+        if (filtroProgresso === 'pendente' && concluidos !== 0) return false;
+
+        return true;
+    });
 
     contratos = contratos.sort((a, b) => {
         const contratoA = parseInt(a.contrato) || 0;
@@ -11575,13 +11591,32 @@ function renderizarControleEnvio() {
 
     tbody.innerHTML = '';
 
+    // KPIs
+    const totalContratos = contratos.length;
+    let concluidos = 0, enviados = 0, pendentes = 0;
+    contratos.forEach(c => {
+        const envio = estoque.controleEnvio[c.contrato] || {};
+        const s = campoMarcado(envio.sistema);
+        const a = campoMarcado(envio.assinado);
+        const e = campoMarcado(envio.enviado);
+        const cnt = Number(s) + Number(a) + Number(e);
+        if (cnt === 3) concluidos++;
+        if (e) enviados++;
+        if (cnt === 0) pendentes++;
+    });
+    const el = id => document.getElementById(id);
+    if (el('kpiEnvioTotal')) el('kpiEnvioTotal').textContent = totalContratos;
+    if (el('kpiEnvioConcluidos')) el('kpiEnvioConcluidos').textContent = concluidos;
+    if (el('kpiEnvioEnviados')) el('kpiEnvioEnviados').textContent = enviados;
+    if (el('kpiEnvioPendentes')) el('kpiEnvioPendentes').textContent = pendentes;
+
     if (contratos.length === 0) {
         tbody.innerHTML = `
             <tr>
                 <td colspan="8" class="empty-state">
                     <div class="empty-icon">📮</div>
-                    <div class="empty-text">Nenhum contrato registrado</div>
-                    <div class="empty-hint">Registre vendas na aba "Registro de Vendas" para aparecerem aqui</div>
+                    <div class="empty-text">Nenhum contrato encontrado</div>
+                    <div class="empty-hint">Ajuste os filtros ou registre vendas na aba "Registro de Vendas"</div>
                 </td>
             </tr>
         `;
@@ -11594,7 +11629,9 @@ function renderizarControleEnvio() {
         const assinadoMarcado = campoMarcado(envio.assinado);
         const enviadoMarcado = campoMarcado(envio.enviado);
         const repClass = (contrato.representante || '').toLowerCase();
-        const concluidos = Number(sistemaMarcado) + Number(assinadoMarcado) + Number(enviadoMarcado);
+        const qtdConcluidos = Number(sistemaMarcado) + Number(assinadoMarcado) + Number(enviadoMarcado);
+
+        const progressCor = qtdConcluidos === 3 ? '#2da44e' : qtdConcluidos > 0 ? '#d97706' : '#94a3b8';
 
         const statusBtn = (checked, campo) => `
             <button type="button" class="status-indicator ${checked ? 'checked' : ''}" onclick="salvarControleEnvio('${contrato.contrato}', '${campo}', ${!checked})" title="${campo}">
@@ -11603,25 +11640,20 @@ function renderizarControleEnvio() {
         `;
 
         const tr = document.createElement('tr');
-        if (concluidos === 3) tr.classList.add('row-envio-completo');
+        if (qtdConcluidos === 3) tr.classList.add('row-envio-completo');
+        if (qtdConcluidos === 0) tr.classList.add('row-envio-pendente');
         tr.innerHTML = `
             <td class="col-contrato">
                 <div class="ctr-cell">
-                    <span>${contrato.contrato}</span>
-                    <span class="ctr-progress">${concluidos}/3</span>
+                    <span style="font-weight:700">${contrato.contrato}</span>
+                    <span class="ctr-progress" style="background:${progressCor}22;border-color:${progressCor};color:${progressCor}">${qtdConcluidos}/3</span>
                 </div>
             </td>
             <td class="col-loja" title="${contrato.loja}">${contrato.loja}</td>
             <td class="col-representante"><span class="badge-rep ${repClass}">${contrato.representante}</span></td>
-            <td class="col-sistema">
-                ${statusBtn(sistemaMarcado, 'sistema')}
-            </td>
-            <td class="col-assinado">
-                ${statusBtn(assinadoMarcado, 'assinado')}
-            </td>
-            <td class="col-enviado">
-                ${statusBtn(enviadoMarcado, 'enviado')}
-            </td>
+            <td class="col-sistema">${statusBtn(sistemaMarcado, 'sistema')}</td>
+            <td class="col-assinado">${statusBtn(assinadoMarcado, 'assinado')}</td>
+            <td class="col-enviado">${statusBtn(enviadoMarcado, 'enviado')}</td>
             <td class="col-solicitacao">
                 <input type="text" class="campo-editavel" value="${envio.solicitacao || ''}" placeholder="Data ou observação" onchange="salvarControleEnvio('${contrato.contrato}', 'solicitacao', this.value)">
             </td>
@@ -11649,16 +11681,9 @@ function salvarControleEnvio(contrato, campo, valor) {
 }
 
 function limparFiltrosControleEnvio() {
-    const filtroRep = document.getElementById('filtroControleEnvioRep');
-    const filtroSistema = document.getElementById('filtroControleEnvioSistema');
-    const filtroAssinado = document.getElementById('filtroControleEnvioAssinado');
-    const filtroEnviado = document.getElementById('filtroControleEnvioEnviado');
-
-    if (filtroRep) filtroRep.value = '';
-    if (filtroSistema) filtroSistema.value = '';
-    if (filtroAssinado) filtroAssinado.value = '';
-    if (filtroEnviado) filtroEnviado.value = '';
-
+    ['filtroControleEnvioRep','filtroControleEnvioSistema','filtroControleEnvioAssinado',
+     'filtroControleEnvioEnviado','filtroControleEnvioProgresso','filtroControleEnvioBusca']
+        .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
     renderizarControleEnvio();
 }
 

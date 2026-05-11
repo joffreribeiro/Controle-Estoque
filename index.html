@@ -1940,38 +1940,80 @@
                     </div>
                 </div>
 
+                <!-- KPIs Controle de Envio -->
+                <div class="kpi-grid" style="grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px">
+                    <article class="kpi-card kpi-info">
+                        <div class="kpi-label">Total de Contratos</div>
+                        <div class="kpi-value" id="kpiEnvioTotal">0</div>
+                        <div class="kpi-subtitle">No filtro atual</div>
+                    </article>
+                    <article class="kpi-card kpi-success">
+                        <div class="kpi-label">Concluídos</div>
+                        <div class="kpi-value" id="kpiEnvioConcluidos">0</div>
+                        <div class="kpi-subtitle">Sistema + Assinado + Enviado</div>
+                    </article>
+                    <article class="kpi-card kpi-accent">
+                        <div class="kpi-label">Enviados</div>
+                        <div class="kpi-value" id="kpiEnvioEnviados">0</div>
+                        <div class="kpi-subtitle">Campo Enviado marcado</div>
+                    </article>
+                    <article class="kpi-card kpi-danger">
+                        <div class="kpi-label">Pendentes</div>
+                        <div class="kpi-value" id="kpiEnvioPendentes">0</div>
+                        <div class="kpi-subtitle">Nenhum campo marcado</div>
+                    </article>
+                </div>
+
                 <div class="filtros-container">
                     <div class="filtro-group">
                         <label>Representante:</label>
                         <select id="filtroControleEnvioRep" onchange="renderizarControleEnvio()"></select>
                     </div>
+                    <div class="filtro-group" style="min-width:200px;">
+                        <label>Buscar:</label>
+                        <input type="text" id="filtroControleEnvioBusca"
+                               placeholder="Contrato ou cliente..."
+                               oninput="renderizarControleEnvio()"
+                               style="padding:7px 10px;border:1px solid #e2e8f0;border-radius:6px;font-size:0.85rem;width:100%">
+                    </div>
                     <div class="filtro-group">
                         <label>Sistema:</label>
                         <select id="filtroControleEnvioSistema" onchange="renderizarControleEnvio()">
                             <option value="">Todos</option>
-                            <option value="sim">Marcado</option>
-                            <option value="nao">Não marcado</option>
+                            <option value="sim">✅ Marcado</option>
+                            <option value="nao">⬜ Não marcado</option>
                         </select>
                     </div>
                     <div class="filtro-group">
                         <label>Assinado:</label>
                         <select id="filtroControleEnvioAssinado" onchange="renderizarControleEnvio()">
                             <option value="">Todos</option>
-                            <option value="sim">Marcado</option>
-                            <option value="nao">Não marcado</option>
+                            <option value="sim">✅ Marcado</option>
+                            <option value="nao">⬜ Não marcado</option>
                         </select>
                     </div>
                     <div class="filtro-group">
                         <label>Enviado:</label>
                         <select id="filtroControleEnvioEnviado" onchange="renderizarControleEnvio()">
                             <option value="">Todos</option>
-                            <option value="sim">Marcado</option>
-                            <option value="nao">Não marcado</option>
+                            <option value="sim">✅ Marcado</option>
+                            <option value="nao">⬜ Não marcado</option>
                         </select>
                     </div>
-                    <button class="btn btn-outline btn-sm" onclick="limparFiltrosControleEnvio()">
-                        <span>🔄</span> Limpar Filtros
-                    </button>
+                    <div class="filtro-group">
+                        <label>Progresso:</label>
+                        <select id="filtroControleEnvioProgresso" onchange="renderizarControleEnvio()">
+                            <option value="">Todos</option>
+                            <option value="completo">🟢 Completo (3/3)</option>
+                            <option value="parcial">🟡 Parcial (1-2/3)</option>
+                            <option value="pendente">🔴 Pendente (0/3)</option>
+                        </select>
+                    </div>
+                    <div style="align-self:flex-end">
+                        <button class="btn btn-outline btn-sm" onclick="limparFiltrosControleEnvio()">
+                            <span>🔄</span> Limpar Filtros
+                        </button>
+                    </div>
                 </div>
 
                 <div class="table-container">
@@ -1982,9 +2024,9 @@
                                     <th style="width: 110px;">CTR</th>
                                     <th class="col-loja">NOME</th>
                                     <th style="width: 120px;">REPRESENTANTE</th>
-                                    <th style="width: 100px;">SISTEMA</th>
-                                    <th style="width: 100px;">ASSINADO</th>
-                                    <th style="width: 100px;">ENVIADO</th>
+                                    <th style="width: 100px;" title="Lançado no Sistema">SISTEMA</th>
+                                    <th style="width: 100px;" title="Contrato Assinado">ASSINADO</th>
+                                    <th style="width: 100px;" title="Contrato Enviado">ENVIADO</th>
                                     <th style="width: 150px;">SOLICITAÇÃO</th>
                                     <th style="width: 80px;">Ações</th>
                                 </tr>

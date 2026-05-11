@@ -4014,6 +4014,32 @@ th.sortable.sort-desc .sort-icon::after { content: ' ▼'; opacity: 1; }
 #tabelaControleEnvio tr.row-envio-completo {
     background: linear-gradient(90deg, #f0fff4 0%, transparent 80%);
 }
+#tabelaControleEnvio tr.row-envio-completo:hover {
+    background: linear-gradient(90deg, #dcfce7 0%, #f8fafc 80%) !important;
+}
+#tabelaControleEnvio tr.row-envio-pendente {
+    background: linear-gradient(90deg, #fff7ed 0%, transparent 80%);
+}
+#tabelaControleEnvio tr.row-envio-pendente:hover {
+    background: linear-gradient(90deg, #ffedd5 0%, #f8fafc 80%) !important;
+}
+#tabelaControleEnvio tbody tr:hover {
+    background: #f1f5f9;
+    cursor: default;
+}
+.badge-enviado {
+    display: inline-block;
+    background: rgba(45,164,78,0.15);
+    color: #1a7f37;
+    border: 1px solid rgba(45,164,78,0.3);
+    font-size: 10px;
+    font-weight: 700;
+    padding: 1px 6px;
+    border-radius: 10px;
+    margin-left: 5px;
+    vertical-align: middle;
+    letter-spacing: 0.2px;
+}
 
 /* Responsive sidebar modes */
 @media (max-width: 1200px) {
