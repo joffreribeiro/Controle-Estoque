@@ -14523,6 +14523,7 @@ function importarTabelaPrecoVendaExcel(event) {
                 if (!pn && !nome) { ignorados++; return; }
 
                 const ciValBruto = colCI ? row[colCI] : '';
+                if (idx === 0) console.log('Linha 0 — colCI:', colCI, '| ciValBruto:', ciValBruto, '| tipo:', typeof ciValBruto);
                 // Se o Excel entregou número direto, usa direto; senão parse texto BR/EN
                 let ci = null;
                 if (ciValBruto !== '' && ciValBruto !== null && ciValBruto !== undefined) {
