@@ -14480,7 +14480,8 @@ function importarTabelaPrecoVendaExcel(event) {
         try {
             const wb = XLSX.read(e.target.result, { type: 'array' });
             const ws = wb.Sheets[wb.SheetNames[0]];
-            const dados = XLSX.utils.sheet_to_json(ws, { defval: '' });
+            // raw:false faz o XLSX retornar os valores formatados como texto (ex: "4.688,11")
+            const dados = XLSX.utils.sheet_to_json(ws, { defval: '', raw: false });
 
             if (!dados.length) {
                 mostrarNotificacao('Arquivo vazio ou sem dados reconhecíveis.', 'warning');
