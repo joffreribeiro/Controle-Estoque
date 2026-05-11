@@ -14510,23 +14510,26 @@ function importarTabelaPrecoVendaExcel(event) {
                 const nome = String(row[colNome] || '').trim();
                 if (!pn && !nome) { ignorados++; return; }
 
-                const ciRaw = colCI ? String(row[colCI] || '').trim() : '';
-                // Suporta formato BR (1.234,56) e EN (1234.56)
-                const ciNorm = ciRaw === '' ? '' : (() => {
-                    const s = ciRaw.replace(/\s/g, '');
-                    // Se tem vírgula e ponto: decide qual é decimal
-                    const lastComma = s.lastIndexOf(',');
-                    const lastDot   = s.lastIndexOf('.');
-                    if (lastComma > lastDot) {
-                        // Formato BR: pontos são milhar, vírgula é decimal
-                        return s.replace(/\./g, '').replace(',', '.');
-                    } else if (lastDot > lastComma) {
-                        // Formato EN: vírgulas são milhar, ponto é decimal
-                        return s.replace(/,/g, '');
+                const ciValBruto = colCI ? row[colCI] : '';
+                // Se o Excel entregou número direto, usa direto; senão parse texto BR/EN
+                let ci = null;
+                if (ciValBruto !== '' && ciValBruto !== null && ciValBruto !== undefined) {
+                    if (typeof ciValBruto === 'number') {
+                        ci = ciValBruto;
+                    } else {
+                        const s = String(ciValBruto).replace(/\s/g, '');
+                        const lastComma = s.lastIndexOf(',');
+                        const lastDot   = s.lastIndexOf('.');
+                        let norm;
+                        if (lastComma > lastDot) {
+                            norm = s.replace(/\./g, '').replace(',', '.');
+                        } else {
+                            norm = s.replace(/,/g, '');
+                        }
+                        const n = Number(norm);
+                        if (!isNaN(n)) ci = n;
                     }
-                    return s;
-                })();
-                const ci = ciNorm !== '' ? Number(ciNorm) : null;
+                }
                 const ncm   = colNCM  ? String(row[colNCM]  || '').trim() : '';
                 const comp  = colComp ? String(row[colComp] || '').trim() : '';
 
