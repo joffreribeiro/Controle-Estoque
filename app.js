@@ -9006,11 +9006,18 @@ function renderizarRegistroVendas() {
     const filtroProdutoId = filtroProduto ? parseInt(filtroProduto) : null;
     const filtroDataInicio = document.getElementById('filtroVendasDataInicio')?.value || '';
     const filtroDataFim = document.getElementById('filtroVendasDataFim')?.value || '';
-    
+    const filtroBusca = (document.getElementById('filtroVendasBusca')?.value || '').trim().toLowerCase();
+
     let vendasFiltradas = estoque.registroVendas || [];
-    
+
     if (filtroRep) {
         vendasFiltradas = vendasFiltradas.filter(v => v.representante === filtroRep);
+    }
+    if (filtroBusca) {
+        vendasFiltradas = vendasFiltradas.filter(v =>
+            (v.loja || '').toLowerCase().includes(filtroBusca) ||
+            String(v.contrato || '').toLowerCase().includes(filtroBusca)
+        );
     }
 
     // Expandir vendas para linhas de item (cada produto vira uma linha)
@@ -9147,6 +9154,9 @@ function renderizarRegistroVendas() {
                 ? `${formatDateToDDMMYYYY(minData)} até ${formatDateToDDMMYYYY(maxData)}`
                 : formatDateToDDMMYYYY(minData))
             : '-';
+        const seteDiasAtras = new Date(Date.now() - 7*24*60*60*1000).toISOString().slice(0,10);
+        const isRecente = maxData && maxData >= seteDiasAtras;
+        const badgeNova = isRecente ? ' <span class="badge-nova-venda">Nova</span>' : '';
 
         const expandido = !!_contratosExpandidos[contratoKey];
 
@@ -9167,7 +9177,7 @@ function renderizarRegistroVendas() {
                           `<button class="btn-action btn-delete" onclick="excluirVenda(${primeira.vendaId})" title="Excluir venda">🗑</button>` +
                           `<button class="btn-action" onclick="abrirHistoricoContrato('${contratoKey}')" title="Histórico do Contrato">🕘</button>` +
                           `<button class="btn-action btn-cancel" onclick="cancelarContrato('${contratoKey}')" title="Cancelar contrato">✖</button>` +
-                          `<button class="btn btn-outline btn-sm" onclick="gerarContratoVenda('${primeira.vendaId || primeira.contratoRaw}')" title="Gerar contrato .docx" style="color:#1e3a5f;border-color:#1e3a5f">📄 Contrato</button>`;
+                          `<button class="btn-contrato-docx" onclick="gerarContratoVenda('${primeira.vendaId || primeira.contratoRaw}')" title="Gerar contrato .docx">📄 Contrato</button>`;
         }
 
         resumo.innerHTML = `
@@ -9178,7 +9188,7 @@ function renderizarRegistroVendas() {
             <td class="col-qtd">${totalQtdContrato}</td>
             <td class="col-valor-un">-</td>
             <td class="col-valor-total">${formatarMoedaValor(totalContrato)}</td>
-            <td class="col-data">${dataDisplay}</td>
+            <td class="col-data">${dataDisplay}${badgeNova}</td>
             <td class="col-obs" title="${obsGrupo}">${obsGrupo}</td>
             <td class="col-acoes">${actionsHtml}</td>
         `;
@@ -9199,7 +9209,7 @@ function renderizarRegistroVendas() {
                                 ? '<span class="badge-cancelado">CANCELADO</span>'
                                 : `<button class="btn-action btn-edit" onclick="abrirModalVendaDetalhada(${linha.vendaId})" title="Editar venda">✎</button>` +
                                     `<button class="btn-action btn-delete" onclick="excluirVenda(${linha.vendaId})" title="Excluir venda">🗑</button>` +
-                                    `<button class="btn btn-outline btn-sm" onclick="gerarContratoVenda('${linha.vendaId || linha.contratoKey}')" title="Gerar contrato .docx" style="color:#1e3a5f;border-color:#1e3a5f">📄 Contrato</button>`;
+                                    `<button class="btn-contrato-docx" onclick="gerarContratoVenda('${linha.vendaId || linha.contratoKey}')" title="Gerar contrato .docx">📄 Contrato</button>`;
 
             tr.innerHTML = `
                 <td class="col-contrato detalhe-vazio"></td>
@@ -9218,6 +9228,7 @@ function renderizarRegistroVendas() {
         });
     });
     
+    try { atualizarKPIsVendas(grupos); } catch(e) {}
     atualizarTotaisVendas(totalQtd, totalValor);
     // Rodapé resumido para o período filtrado
     try {
@@ -9258,6 +9269,40 @@ function toggleContratoExpandido(contratoKey) {
     renderizarRegistroVendas();
 }
 
+function expandirTodosContratos() {
+    (estoque.registroVendas || []).forEach(v => {
+        const k = normalizarContratoKey(v.contrato);
+        if (k) _contratosExpandidos[k] = true;
+    });
+    renderizarRegistroVendas();
+}
+
+function colapsarTodosContratos() {
+    _contratosExpandidos = {};
+    renderizarRegistroVendas();
+}
+
+function atualizarKPIsVendas(grupos) {
+    const todasVendas = estoque.registroVendas || [];
+    let ativos = 0, cancelados = 0, totalAtivo = 0;
+    Object.keys(grupos).forEach(k => {
+        const vendas = todasVendas.filter(v => normalizarContratoKey(v.contrato) === k);
+        const todoCancelado = vendas.length > 0 && vendas.every(v => !!v.cancelado);
+        if (todoCancelado) {
+            cancelados++;
+        } else {
+            ativos++;
+            totalAtivo += grupos[k].reduce((s, l) => s + (Number(l.valorTotal) || 0), 0);
+        }
+    });
+    const ticket = ativos > 0 ? totalAtivo / ativos : 0;
+    const el = id => document.getElementById(id);
+    if (el('kpiVendasContratos')) el('kpiVendasContratos').textContent = ativos;
+    if (el('kpiVendasTotal')) el('kpiVendasTotal').textContent = formatarMoedaValor(totalAtivo);
+    if (el('kpiVendasTicket')) el('kpiVendasTicket').textContent = formatarMoedaValor(ticket);
+    if (el('kpiVendasCancelados')) el('kpiVendasCancelados').textContent = cancelados;
+}
+
 function abrirHistoricoContrato(contratoInformado = '') {
     const contrato = (contratoInformado || prompt('Informe o contrato para visualizar o histórico:') || '').trim();
     if (!contrato) return;
@@ -9294,7 +9339,8 @@ function limparFiltrosVendas() {
         'filtroRepresentante',
         'filtroProduto',
         'filtroVendasDataInicio',
-        'filtroVendasDataFim'
+        'filtroVendasDataFim',
+        'filtroVendasBusca'
     ];
     fields.forEach(id => {
         const el = document.getElementById(id);
