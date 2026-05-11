@@ -14510,8 +14510,23 @@ function importarTabelaPrecoVendaExcel(event) {
                 const nome = String(row[colNome] || '').trim();
                 if (!pn && !nome) { ignorados++; return; }
 
-                const ciRaw = colCI ? String(row[colCI] || '').replace(',', '.').trim() : '';
-                const ci    = ciRaw !== '' ? Number(ciRaw) : null;
+                const ciRaw = colCI ? String(row[colCI] || '').trim() : '';
+                // Suporta formato BR (1.234,56) e EN (1234.56)
+                const ciNorm = ciRaw === '' ? '' : (() => {
+                    const s = ciRaw.replace(/\s/g, '');
+                    // Se tem vírgula e ponto: decide qual é decimal
+                    const lastComma = s.lastIndexOf(',');
+                    const lastDot   = s.lastIndexOf('.');
+                    if (lastComma > lastDot) {
+                        // Formato BR: pontos são milhar, vírgula é decimal
+                        return s.replace(/\./g, '').replace(',', '.');
+                    } else if (lastDot > lastComma) {
+                        // Formato EN: vírgulas são milhar, ponto é decimal
+                        return s.replace(/,/g, '');
+                    }
+                    return s;
+                })();
+                const ci = ciNorm !== '' ? Number(ciNorm) : null;
                 const ncm   = colNCM  ? String(row[colNCM]  || '').trim() : '';
                 const comp  = colComp ? String(row[colComp] || '').trim() : '';
 
