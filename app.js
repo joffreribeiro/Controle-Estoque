@@ -14330,6 +14330,7 @@ function renderizarTabelaPrecoVenda() {
             <button class="btn btn-outline btn-sm" onclick="exportarTabelaPrecoVenda()">📤 Exportar Excel</button>
             <button class="btn btn-outline btn-sm" onclick="document.getElementById('inputImportarTabelaVenda').click()">📥 Importar Excel</button>
             <input type="file" id="inputImportarTabelaVenda" accept=".xlsx,.xls,.csv" style="display:none" onchange="importarTabelaPrecoVendaExcel(event)">
+            <button class="btn btn-outline btn-sm" style="color:#dc2626;border-color:#dc2626" onclick="limparTabelaPrecoVenda()">🗑️ Limpar Tabela</button>
             <span style="font-size:0.77rem;color:#64748b">Preços calculados com impostos de cada estado. CI definido no cadastro do produto.</span>
         </div>
         <div style="overflow-x:auto">
@@ -14464,6 +14465,20 @@ function togglePecasTabelaVenda(chaveGrupo) {
         btn.innerHTML = btn.innerHTML
             .replace(expandido ? '▸' : '▾', expandido ? '▾' : '▸');
     }
+}
+
+function limparTabelaPrecoVenda() {
+    const total = (estoque.produtos || []).length;
+    if (!confirm(`Atenção! Isso vai apagar TODOS os ${total} produtos da tabela.\n\nEssa ação não pode ser desfeita. Deseja continuar?`)) return;
+    estoque.produtos = [];
+    // Limpa também os CIs do precificacao
+    Object.keys(precificacao).forEach(k => {
+        if (precificacao[k]) delete precificacao[k].ci;
+    });
+    _pecasExpandidas = {};
+    salvarDados();
+    renderizarTabelaPrecoVenda();
+    mostrarNotificacao('Tabela limpa. Faça a importação do arquivo para repovoar.', 'success');
 }
 
 function importarTabelaPrecoVendaExcel(event) {
