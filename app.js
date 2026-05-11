@@ -14488,6 +14488,9 @@ function importarTabelaPrecoVendaExcel(event) {
             }
 
             const headers = Object.keys(dados[0]);
+            console.log('=== IMPORTAÇÃO DEBUG ===');
+            console.log('Cabeçalhos encontrados:', headers);
+            console.log('Primeira linha:', dados[0]);
             const colPN       = _detectarColuna(headers, ['PN','PART NUMBER','CODIGO','CODE']);
             // Nome Fábrica deve ser detectado antes de Nome para não colidir
             const colNomeFab  = _detectarColuna(headers, ['NOME FÁBRICA','NOME FABRICA','NOME FAB']);
@@ -14500,6 +14503,7 @@ function importarTabelaPrecoVendaExcel(event) {
             const colCI    = _detectarColuna(headers, ['CI','CUSTO','VALOR','COST','VALOR CI']);
             const colNCM   = _detectarColuna(headers, ['NCM']);
             const colComp  = _detectarColuna(headers, ['COMPONENTE','COMPONENT']);
+            console.log('colPN:', colPN, '| colNomeFab:', colNomeFab, '| colNome:', colNome, '| colCI:', colCI, '| colComp:', colComp);
 
             if (!colPN) {
                 mostrarNotificacao('Coluna de PN não encontrada. Use cabeçalho PN, Part Number ou Codigo.', 'erro');
