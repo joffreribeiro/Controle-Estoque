@@ -14488,8 +14488,15 @@ function importarTabelaPrecoVendaExcel(event) {
             }
 
             const headers = Object.keys(dados[0]);
-            const colPN    = _detectarColuna(headers, ['PN','PART NUMBER','CODIGO','CODE']);
-            const colNome  = _detectarColuna(headers, ['NOME','DESCRICAO','DESCRIÇÃO','DESCRIPTION','NOME FÁBRICA','NOME FABRICA']);
+            const colPN       = _detectarColuna(headers, ['PN','PART NUMBER','CODIGO','CODE']);
+            // Nome Fábrica deve ser detectado antes de Nome para não colidir
+            const colNomeFab  = _detectarColuna(headers, ['NOME FÁBRICA','NOME FABRICA','NOME FAB']);
+            // Nome/grupo: coluna que NÃO é Nome Fábrica
+            const colNome     = headers.find(h => {
+                const u = h.trim().toUpperCase();
+                return (u === 'NOME' || u === 'DESCRICAO' || u === 'DESCRIÇÃO' || u === 'DESCRIPTION')
+                    && h !== colNomeFab;
+            }) || _detectarColuna(headers, ['NOME','DESCRICAO','DESCRIÇÃO','DESCRIPTION']);
             const colCI    = _detectarColuna(headers, ['CI','CUSTO','VALOR','COST','VALOR CI']);
             const colNCM   = _detectarColuna(headers, ['NCM']);
             const colComp  = _detectarColuna(headers, ['COMPONENTE','COMPONENT']);
@@ -14506,8 +14513,9 @@ function importarTabelaPrecoVendaExcel(event) {
             let criados = 0, atualizados = 0, ignorados = 0;
 
             dados.forEach((row, idx) => {
-                const pn   = String(row[colPN]  || '').trim();
-                const nome = String(row[colNome] || '').trim();
+                const pn      = String(row[colPN]      || '').trim();
+                const nome    = String(row[colNome]    || '').trim();
+                const nomeFab = colNomeFab ? String(row[colNomeFab] || '').trim() : nome;
                 if (!pn && !nome) { ignorados++; return; }
 
                 const ciValBruto = colCI ? row[colCI] : '';
@@ -14553,7 +14561,7 @@ function importarTabelaPrecoVendaExcel(event) {
                         ci: (ci !== null && !isNaN(ci) && ci > 0) ? ci : 0,
                         ncm: ncm,
                         componente: comp,
-                        nomeFabrica: nome,
+                        nomeFabrica: nomeFab,
                         categoria: '',
                         distribuicao: {},
                         vendas: {}
