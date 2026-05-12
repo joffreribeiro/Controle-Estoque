@@ -11374,134 +11374,133 @@ function importarVendas(event) {
     
     const reader = new FileReader();
     
-    reader.onload = function(e) {
+    const processarImportacaoVendas = (linhas) => {
         try {
-            const conteudo = e.target.result;
-            console.debug('Conteúdo do arquivo:', conteudo); // Debug
-            
-            const linhas = conteudo.split(/\r?\n/).filter(l => l.trim());
-            
-            console.debug('Linhas encontradas:', linhas.length); // Debug
-            console.debug('Primeira linha:', linhas[0]); // Debug
-            if (linhas[1]) console.debug('Segunda linha:', linhas[1]); // Debug
-            
-            // Pular cabeçalho
             if (linhas.length < 2) {
                 mostrarNotificacao('Arquivo vazio ou sem dados!', 'error');
                 return;
             }
-            
-            let vendasImportadas = 0;
+
+            const novasVendas = [];
             let erros = [];
-            
-            // Processar cada linha (começando da segunda - pular cabeçalho)
+            const baseTs = Date.now();
+
             for (let i = 1; i < linhas.length; i++) {
                 const linha = linhas[i].trim();
                 if (!linha || linha.toLowerCase().includes('total')) continue;
-                
-                // Parse do CSV com suporte a aspas
+
                 const colunas = parseCsvLinha(linha);
-                
-                console.debug(`Linha ${i + 1} - Colunas:`, colunas); // Debug
-                
-                // Pular linha se primeira coluna estiver vazia (linha de total ou vazia)
                 if (!colunas[0] || colunas[0].trim() === '') continue;
-                
                 if (colunas.length < 5) {
-                    erros.push(`Linha ${i + 1}: formato inválido (${colunas.length} colunas encontradas)`);
+                    erros.push(`Linha ${i + 1}: formato inválido`);
                     continue;
                 }
-                
-                const contrato = colunas[0]?.trim();
-                const loja = colunas[1]?.trim().replace(/"/g, '').toUpperCase();
+
+                const contrato    = colunas[0]?.trim();
+                const loja        = colunas[1]?.trim().replace(/"/g, '').toUpperCase();
                 const representante = colunas[2]?.trim().toUpperCase();
                 const produtoNome = colunas[3]?.trim().replace(/"/g, '').toUpperCase();
-                const quantidade = parseInt(colunas[4]?.trim()) || 0;
+                const quantidade  = parseInt(colunas[4]?.trim()) || 0;
                 const observacoes = colunas[7]?.trim()?.replace(/"/g, '') || '';
-                
-                console.debug(`Dados: contrato=${contrato}, loja=${loja}, rep=${representante}, produto=${produtoNome}, qtd=${quantidade}`); // Debug
-                
+
                 if (!contrato || !loja || !representante || !produtoNome || quantidade <= 0) {
-                    erros.push(`Linha ${i + 1}: dados obrigatórios faltando (contrato=${contrato}, loja=${loja}, rep=${representante}, produto=${produtoNome}, qtd=${quantidade})`);
+                    erros.push(`Linha ${i + 1}: dados obrigatórios faltando`);
                     continue;
                 }
-                
-                // Verificar se representante é válido
+
                 const repsValidos = ['KOLTE', 'ISA', 'LC', 'ADES', 'FL', 'IMBEL'];
                 if (!repsValidos.includes(representante)) {
                     erros.push(`Linha ${i + 1}: representante inválido (${representante})`);
                     continue;
                 }
-                
-                // Buscar produto pelo nome (correspondência parcial)
-                let produto = estoque.produtos.find(p => 
-                    p.nome.toUpperCase() === produtoNome || 
+
+                const produto = estoque.produtos.find(p =>
+                    p.nome.toUpperCase() === produtoNome ||
                     p.nome.toUpperCase().includes(produtoNome) ||
                     produtoNome.includes(p.nome.toUpperCase())
                 );
-                
                 if (!produto) {
                     erros.push(`Linha ${i + 1}: produto não encontrado (${produtoNome})`);
                     continue;
                 }
-                
-                // Valor deve vir do registro da venda (arquivo), sem vínculo com cadastro de produto
-                const valorUnitario = parseFloat((colunas[5] || '0').toString().replace(/\./g, '').replace(',', '.')) || 0;
+
+                const valorUnitario    = parseFloat((colunas[5] || '0').toString().replace(/\./g, '').replace(',', '.')) || 0;
                 const valorTotalArquivo = parseFloat((colunas[6] || '0').toString().replace(/\./g, '').replace(',', '.')) || 0;
                 const valorTotal = valorTotalArquivo > 0 ? valorTotalArquivo : (valorUnitario * quantidade);
-                
-                // Criar registro da venda
-                const novaVenda = {
-                    id: Date.now() + i,
-                    contrato: contrato,
-                    loja: loja,
-                    representante: representante,
+
+                novasVendas.push({
+                    id: baseTs + i,
+                    contrato,
+                    loja,
+                    representante,
                     produtoId: produto.id,
                     produtoNome: produto.nome,
-                    quantidade: quantidade,
-                    valorUnitario: valorUnitario,
-                    valorTotal: valorTotal,
-                    observacoes: observacoes,
+                    quantidade,
+                    valorUnitario,
+                    valorTotal,
+                    observacoes,
                     data: new Date().toISOString()
-                };
-                
-                // Apenas registrar a venda (NÃO mexer na distribuição)
-                // A distribuição deve ser feita separadamente na aba Distribuição
-                produto.vendas[representante] = (produto.vendas[representante] || 0) + quantidade;
-                
-                // Adicionar ao registro
-                estoque.registroVendas.push(novaVenda);
-                vendasImportadas++;
+                });
             }
-            
-            if (vendasImportadas > 0) {
-                salvarDados();
-                renderizarTabela();
-                renderizarDashboard();
-                renderizarRegistroVendas();
+
+            if (novasVendas.length === 0) {
+                mostrarNotificacao('Nenhuma venda válida encontrada no arquivo.', 'error');
+                event.target.value = '';
+                return;
             }
-            
-            // Limpar input
+
+            const confirmar = confirm(
+                `Serão importadas ${novasVendas.length} venda(s).\n\n` +
+                `⚠️ ATENÇÃO: todos os ${(estoque.registroVendas || []).length} registros de venda atuais serão SUBSTITUÍDOS.\n\n` +
+                `Deseja continuar?`
+            );
+            if (!confirmar) { event.target.value = ''; return; }
+
+            // Zera e substitui
+            estoque.registroVendas = novasVendas;
+
+            // Recalcula produto.vendas do zero
+            estoque.produtos.forEach(p => { p.vendas = {}; });
+            novasVendas.forEach(v => {
+                const prod = estoque.produtos.find(p => p.id === v.produtoId);
+                if (prod) prod.vendas[v.representante] = (prod.vendas[v.representante] || 0) + v.quantidade;
+            });
+
+            salvarDados();
+            renderizarTabela();
+            renderizarDashboard();
+            renderizarRegistroVendas();
             event.target.value = '';
-            
-            // Mostrar resultado
-            if (erros.length > 0 && vendasImportadas === 0) {
-                mostrarNotificacao(`Nenhuma venda importada. Verifique o formato do arquivo.`, 'error');
-                console.debug('Erros de importação:', erros);
-            } else if (erros.length > 0) {
-                mostrarNotificacao(`${vendasImportadas} vendas importadas. ${erros.length} linhas com erro.`, 'warning');
-                console.debug('Erros de importação:', erros);
+
+            if (erros.length > 0) {
+                mostrarNotificacao(`${novasVendas.length} vendas importadas. ${erros.length} linha(s) ignoradas.`, 'warning');
             } else {
-                mostrarNotificacao(`${vendasImportadas} vendas importadas com sucesso!`, 'success');
+                mostrarNotificacao(`${novasVendas.length} vendas importadas com sucesso!`, 'success');
             }
-            
+
         } catch (error) {
-            console.error('Erro ao importar:', error);
+            console.error('Erro ao importar vendas:', error);
             mostrarNotificacao('Erro ao processar o arquivo. Verifique o formato.', 'error');
         }
     };
-    
-    reader.readAsText(file, 'UTF-8');
+
+    const ext = file.name.split('.').pop().toLowerCase();
+    if (ext === 'xlsx' || ext === 'xls') {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const wb = XLSX.read(e.target.result, { type: 'array' });
+            const ws = wb.Sheets[wb.SheetNames[0]];
+            const csv = XLSX.utils.sheet_to_csv(ws, { FS: ';' });
+            processarImportacaoVendas(csv.split('\n').filter(l => l.trim()));
+        };
+        reader.readAsArrayBuffer(file);
+    } else {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            processarImportacaoVendas(e.target.result.split(/\r?\n/).filter(l => l.trim()));
+        };
+        reader.readAsText(file, 'UTF-8');
+    }
 }
 
 function parseCsvLinha(linha) {
