@@ -10518,8 +10518,13 @@ function salvarProduto(event) {
             fecharModal('modalProduto');
             return;
         }
-        // Verificar duplicidade de nome em outro produto
-        if (estoque.produtos.some(p => p.nome === nome && p.id !== produtoEditandoId)) {
+        // Verificar duplicidade de nome em outro produto (ignora conflito entre principal e componente)
+        const ehComponente = componente && componente.trim() !== '' && componente.trim() !== '-';
+        if (estoque.produtos.some(p => {
+            if (p.nome !== nome || p.id === produtoEditandoId) return false;
+            const pEhComponente = p.componente && p.componente.trim() !== '' && p.componente.trim() !== '-';
+            return ehComponente === pEhComponente;
+        })) {
             mostrarNotificacao('Outro produto com este nome já existe!', 'error');
             return;
         }
@@ -10589,8 +10594,13 @@ function salvarProduto(event) {
         return;
     }
 
-    // Criar novo produto
-    if (estoque.produtos.some(p => p.nome === nome)) {
+    // Criar novo produto (ignora conflito entre principal e componente)
+    const ehComponenteNovo = componente && componente.trim() !== '' && componente.trim() !== '-';
+    if (estoque.produtos.some(p => {
+        if (p.nome !== nome) return false;
+        const pEhComponente = p.componente && p.componente.trim() !== '' && p.componente.trim() !== '-';
+        return ehComponenteNovo === pEhComponente;
+    })) {
         mostrarNotificacao('Este produto já existe no sistema!', 'error');
         return;
     }
@@ -14474,17 +14484,15 @@ function togglePecasTabelaVenda(chaveGrupo) {
 }
 
 function limparTabelaPrecoVenda() {
-    const total = (estoque.produtos || []).length;
-    if (!confirm(`Atenção! Isso vai apagar TODOS os ${total} produtos da tabela.\n\nEssa ação não pode ser desfeita. Deseja continuar?`)) return;
-    estoque.produtos = [];
-    // Limpa também os CIs do precificacao
+    if (!confirm(`Atenção! Isso vai limpar os CIs e preços calculados da tabela.\n\nOs produtos do estoque NÃO serão removidos. Deseja continuar?`)) return;
+    // Limpa apenas os CIs do precificacao, sem tocar nos produtos do estoque
     Object.keys(precificacao).forEach(k => {
         if (precificacao[k]) delete precificacao[k].ci;
     });
     _pecasExpandidas = {};
     salvarDados();
     renderizarTabelaPrecoVenda();
-    mostrarNotificacao('Tabela limpa. Faça a importação do arquivo para repovoar.', 'success');
+    mostrarNotificacao('CIs e preços limpos. Faça a importação do arquivo para repovoar.', 'success');
 }
 
 function importarTabelaPrecoVendaExcel(event) {
