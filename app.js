@@ -8013,6 +8013,32 @@ function atualizarSelectsRelatorios() {
     }
 }
 
+function _atualizarIndicadorFiltros() {
+    const rep = (document.getElementById('filtroRelatoriosRep') || {}).value || '';
+    const prod = (document.getElementById('filtroRelatoriosProduto') || {}).value || '';
+    const de = (document.getElementById('filtroRelatoriosDataInicio') || {}).value || '';
+    const ate = (document.getElementById('filtroRelatoriosDataFim') || {}).value || '';
+    const tipo = (document.getElementById('filtroRelatoriosTipo') || {}).value || 'inventario';
+    const ativo = rep || prod || de || ate || tipo !== 'inventario';
+    const btn = document.getElementById('btnLimparFiltrosRelatorio');
+    if (btn) btn.style.display = ativo ? 'inline-flex' : 'none';
+}
+
+function _limparFiltrosRelatorio() {
+    const rep = document.getElementById('filtroRelatoriosRep');
+    const prod = document.getElementById('filtroRelatoriosProduto');
+    const de = document.getElementById('filtroRelatoriosDataInicio');
+    const ate = document.getElementById('filtroRelatoriosDataFim');
+    const tipo = document.getElementById('filtroRelatoriosTipo');
+    if (rep) rep.value = '';
+    if (prod) prod.value = '';
+    if (de) de.value = '';
+    if (ate) ate.value = '';
+    if (tipo) tipo.value = 'inventario';
+    _atualizarIndicadorFiltros();
+    prepararRelatorioInventario();
+}
+
 function atualizarSelectDistribuicaoProduto() {
     const select = document.getElementById('filtroDistribuicaoProduto');
     if (select) {

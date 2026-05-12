@@ -1636,78 +1636,78 @@
              ======================================== -->
         <div class="tab-content" id="tab-relatorios">
             <div class="content-area">
-                <div class="section-header">
+                <div class="section-header" style="flex-direction:column;align-items:flex-start;gap:12px;padding-bottom:14px">
                     <h2 class="section-title">Relatórios</h2>
-                    <div class="header-actions">
-                        <label style="margin-right:8px">Representante:</label>
-                        <select id="filtroRelatoriosRep" onchange="prepararRelatorioInventario()"></select>
-                        <label style="margin:0 8px">Produto:</label>
-                        <select id="filtroRelatoriosProduto" onchange="prepararRelatorioInventario()">
-                            <option value="">Todos</option>
-                        </select>
-                        <label style="margin:0 8px">De:</label>
-                        <input type="date" id="filtroRelatoriosDataInicio" onchange="visualizarRelatorioSelecionado()" />
-                        <label style="margin:0 8px">Até:</label>
-                        <input type="date" id="filtroRelatoriosDataFim" onchange="visualizarRelatorioSelecionado()" />
-                        <label style="margin:0 8px">Tipo:</label>
-                        <select id="filtroRelatoriosTipo" style="margin-right:8px" onchange="visualizarRelatorioSelecionado()">
-                            <option value="inventario">Inventário</option>
-                            <option value="comissoes">Comissões</option>
-                            <option value="distribuicao">Distribuição</option>
-                        </select>
-                        <button class="btn btn-outline" onclick="visualizarRelatorioSelecionado()">
-                            <span class="btn-icon">🔍</span>
-                            Visualizar Relatório
-                        </button>
-                        <button class="btn btn-primary" onclick="imprimirRelatorioSelecionado()">
-                            <span class="btn-icon">🖨️</span>
-                            Imprimir Selecionado
-                        </button>
-                        <button class="btn btn-primary" onclick="prepararRelatorioComissoes()" style="margin-left:8px">
-                            <span class="btn-icon">📑</span>
-                            Relatório Comissões
-                        </button>
-                        <button class="btn btn-outline" onclick="imprimirComissoes()" style="margin-left:6px">
-                            <span class="btn-icon">🖨️</span>
-                            Imprimir Comissões
-                        </button>
-                        <button class="btn btn-outline" onclick="exportarComissoesCSV()" style="margin-left:6px">
-                            <span class="btn-icon">📤</span>
-                            Exportar Comissões
-                        </button>
-                        <button class="btn btn-outline" onclick="gerarFechamentoMensalComissoes()" style="margin-left:6px">
-                            <span class="btn-icon">🧊</span>
-                            Fechar Mês
-                        </button>
-                        <button class="btn btn-outline" onclick="abrirFechamentosComissoes()" style="margin-left:6px">
-                            <span class="btn-icon">📚</span>
-                            Ver Fechamentos
-                        </button>
-                        <button class="btn btn-success" onclick="exportarExcelCompleto()" style="margin-left:6px">
-                            <span class="btn-icon">📗</span>
-                            Exportar Excel (.xlsx)
-                        </button>
-                        <button class="btn btn-info" onclick="exportarRelatorioPDF()" style="margin-left:6px">
-                            <span class="btn-icon">📄</span>
-                            Exportar PDF
-                        </button>
-                        <label style="margin:0 8px">Orientação:</label>
-                        <select id="filtroRelatoriosOrientacao" style="margin-right:8px">
-                            <option value="landscape">Paisagem</option>
-                            <option value="portrait">Retrato</option>
-                        </select>
-                        <button class="btn btn-outline" onclick="prepararRelatorioInventario()">
-                            <span class="btn-icon">🔍</span>
-                            Atualizar Preview
-                        </button>
-                        <button class="btn btn-primary" onclick="imprimirRelatorioPreview()" style="margin-left:8px">
-                            <span class="btn-icon">🖨️</span>
-                            Imprimir Relatório Visualizado
-                        </button>
-                        <button class="btn btn-secondary" onclick="imprimirRelatorioSelecionado()" title="Imprimir o relatório atualmente selecionado" style="margin-left:8px">
-                            <span class="btn-icon">🖨️</span>
-                            Imprimir Selecionado
-                        </button>
+
+                    <!-- Linha 1: Filtros -->
+                    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;width:100%">
+                        <div style="display:flex;align-items:center;gap:6px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:6px 12px;flex-wrap:wrap;gap:8px">
+                            <span style="font-size:0.75rem;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:.05em">Filtros</span>
+                            <div style="width:1px;height:20px;background:#e2e8f0"></div>
+                            <label style="font-size:0.82rem;color:#374151;white-space:nowrap">Representante:</label>
+                            <select id="filtroRelatoriosRep" onchange="prepararRelatorioInventario(); _atualizarIndicadorFiltros()" style="font-size:0.82rem;padding:4px 8px;border:1px solid #d1d5db;border-radius:6px"></select>
+                            <label style="font-size:0.82rem;color:#374151;white-space:nowrap">Produto:</label>
+                            <select id="filtroRelatoriosProduto" onchange="prepararRelatorioInventario(); _atualizarIndicadorFiltros()" style="font-size:0.82rem;padding:4px 8px;border:1px solid #d1d5db;border-radius:6px">
+                                <option value="">Todos</option>
+                            </select>
+                            <label style="font-size:0.82rem;color:#374151;white-space:nowrap">De:</label>
+                            <input type="date" id="filtroRelatoriosDataInicio" onchange="visualizarRelatorioSelecionado(); _atualizarIndicadorFiltros()" style="font-size:0.82rem;padding:4px 8px;border:1px solid #d1d5db;border-radius:6px" />
+                            <label style="font-size:0.82rem;color:#374151;white-space:nowrap">Até:</label>
+                            <input type="date" id="filtroRelatoriosDataFim" onchange="visualizarRelatorioSelecionado(); _atualizarIndicadorFiltros()" style="font-size:0.82rem;padding:4px 8px;border:1px solid #d1d5db;border-radius:6px" />
+                            <label style="font-size:0.82rem;color:#374151;white-space:nowrap">Tipo:</label>
+                            <select id="filtroRelatoriosTipo" onchange="visualizarRelatorioSelecionado(); _atualizarIndicadorFiltros()" style="font-size:0.82rem;padding:4px 8px;border:1px solid #d1d5db;border-radius:6px">
+                                <option value="inventario">Inventário</option>
+                                <option value="comissoes">Comissões</option>
+                                <option value="distribuicao">Distribuição</option>
+                            </select>
+                            <button onclick="_limparFiltrosRelatorio()" id="btnLimparFiltrosRelatorio" title="Limpar todos os filtros"
+                                style="font-size:0.78rem;padding:4px 10px;border:1px solid #fca5a5;border-radius:6px;background:#fff;color:#dc2626;cursor:pointer;display:none;white-space:nowrap">
+                                ✕ Limpar filtros
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Linha 2: Ações agrupadas -->
+                    <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;width:100%">
+
+                        <!-- Grupo: Inventário -->
+                        <div style="display:flex;align-items:center;gap:4px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:5px 8px">
+                            <span style="font-size:0.7rem;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.06em;margin-right:4px">Inventário</span>
+                            <button class="btn btn-outline btn-sm" onclick="visualizarRelatorioSelecionado()" title="Atualizar visualização">
+                                Visualizar
+                            </button>
+                            <div style="display:flex;align-items:center;gap:4px">
+                                <label style="font-size:0.78rem;color:#64748b;white-space:nowrap">Orient.:</label>
+                                <select id="filtroRelatoriosOrientacao" style="font-size:0.78rem;padding:3px 6px;border:1px solid #d1d5db;border-radius:5px">
+                                    <option value="landscape">Paisagem</option>
+                                    <option value="portrait">Retrato</option>
+                                </select>
+                            </div>
+                            <button class="btn btn-outline btn-sm" onclick="imprimirRelatorioPreview()">Imprimir</button>
+                            <button class="btn btn-outline btn-sm" style="color:#16a34a;border-color:#16a34a" onclick="exportarExcelCompleto()">Excel</button>
+                            <button class="btn btn-outline btn-sm" style="color:#2563eb;border-color:#2563eb" onclick="exportarRelatorioPDF()">PDF</button>
+                        </div>
+
+                        <!-- Separador -->
+                        <div style="width:1px;height:32px;background:#e2e8f0;margin:0 2px"></div>
+
+                        <!-- Grupo: Comissões -->
+                        <div style="display:flex;align-items:center;gap:4px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:5px 8px">
+                            <span style="font-size:0.7rem;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.06em;margin-right:4px">Comissões</span>
+                            <button class="btn btn-outline btn-sm" onclick="prepararRelatorioComissoes()">Visualizar</button>
+                            <button class="btn btn-outline btn-sm" onclick="imprimirComissoes()">Imprimir</button>
+                            <button class="btn btn-outline btn-sm" onclick="exportarComissoesCSV()">Exportar</button>
+                        </div>
+
+                        <!-- Separador -->
+                        <div style="width:1px;height:32px;background:#e2e8f0;margin:0 2px"></div>
+
+                        <!-- Grupo: Fechamento -->
+                        <div style="display:flex;align-items:center;gap:4px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:5px 8px">
+                            <span style="font-size:0.7rem;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.06em;margin-right:4px">Fechamento</span>
+                            <button class="btn btn-outline btn-sm" onclick="gerarFechamentoMensalComissoes()">Fechar Mês</button>
+                            <button class="btn btn-outline btn-sm" onclick="abrirFechamentosComissoes()">Ver Histórico</button>
+                        </div>
                     </div>
                 </div>
 
