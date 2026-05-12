@@ -1747,14 +1747,15 @@ function _executarSalvarLocal() {
     // agendar salvamento no cloud (debounced) se habilitado
     try { scheduleCloudSaveDebounced(); } catch (e) {}
     try {
-        if (!window._cloudSyncedRecently) window._dadosAlterados = true;
+        if (!window._cloudSyncedRecently && !window._carregandoDoCloud) window._dadosAlterados = true;
     } catch (e) {}
 }
 
 function salvarDados(opcoes = {}) {
-    // Marcar imediatamente como alterado para proteger contra sobrescrita pelo onSnapshot
-    // antes mesmo do debounce de 300ms terminar
-    try { window._dadosAlterados = true; } catch (e) {}
+    // Não marcar como alterado se viemos de uma carga do cloud (evita bloquear sync futuro)
+    if (!window._carregandoDoCloud) {
+        try { window._dadosAlterados = true; } catch (e) {}
+    }
     if (opcoes && opcoes.imediato) {
         if (__localSaveTimer) { clearTimeout(__localSaveTimer); __localSaveTimer = null; }
         _executarSalvarLocal();
@@ -1899,6 +1900,7 @@ async function carregarDoCloud({confirmOverwrite=true} = {}) {
         console.warn('Firestore não inicializado. Impossível carregar do cloud.');
         return false;
     }
+    window._carregandoDoCloud = true;
     try {
         const docRef = window.firestoreDB.collection('app_data').doc('latest');
         const doc = await docRef.get();
@@ -2002,18 +2004,17 @@ async function carregarDoCloud({confirmOverwrite=true} = {}) {
                 : [];
             setTimeout(() => {
                 try {
-                    const abaAtiva = document.querySelector(
-                        '#subaba-precif-consulta, #subaba-precif-rastreabilidade, ' +
-                        '#subaba-precif-comparativo, #subaba-precif-imagem'
-                    );
                     renderizarConsultaPrecificacao && renderizarConsultaPrecificacao();
                     renderizarRastreabilidade && renderizarRastreabilidade();
                 } catch(e) {}
             }, 400);
         } catch(e) {}
+        window._carregandoDoCloud = false;
+        window._dadosAlterados = false;
         return true;
     } catch (e) {
         console.error('Erro carregando do Firestore:', e);
+        window._carregandoDoCloud = false;
         return false;
     }
 }
@@ -2030,15 +2031,16 @@ async function carregarDoCloudAuto() {
     } catch (e) {
         return false;
     }
+    window._carregandoDoCloud = true;
     try {
         const docRef = window.firestoreDB.collection('app_data').doc('latest');
         const doc = await docRef.get();
-        if (!doc.exists) return false;
+        if (!doc.exists) { window._carregandoDoCloud = false; return false; }
         const data = doc.data();
         const remoteUpdated = data.updatedAt ? data.updatedAt.toDate().getTime() : null;
         const localUpdated = estoque._localUpdatedAt ? new Date(estoque._localUpdatedAt).getTime() : 0;
         // Não sobrescrever se há alterações locais pendentes não sincronizadas
-        if (window._dadosAlterados) return false;
+        if (window._dadosAlterados) { window._carregandoDoCloud = false; return false; }
         if (remoteUpdated && remoteUpdated > localUpdated + 1000) {
             // substituir local automaticamente
             estoque = data.estado;
@@ -2111,12 +2113,16 @@ async function carregarDoCloudAuto() {
             } catch (e) {}
             console.debug('Dados carregados automaticamente do Firestore (remoto mais recente).');
             try { mostrarNotificacao('✅ Dados sincronizados do Cloud.', 'success'); } catch(e) {}
+            window._carregandoDoCloud = false;
+            window._dadosAlterados = false;
             return true;
         }
+        window._carregandoDoCloud = false;
         return false;
     } catch (e) {
         // Quando regras bloquearem leitura, não poluir console com erro fatal
         console.warn('carregarDoCloudAuto: leitura não permitida pelo perfil atual.');
+        window._carregandoDoCloud = false;
         return false;
     }
 }
