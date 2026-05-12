@@ -14318,7 +14318,8 @@ function renderizarTabelaPrecoVenda() {
     const container = document.getElementById('subaba-precif-tabelavenda');
     if (!container) return;
 
-    const produtos = (estoque.produtos || []).filter(p => p.nome);
+    // Exibir apenas produtos principais (sem componente) na tabela de preço
+    const produtos = (estoque.produtos || []).filter(p => p.nome && (!p.componente || p.componente.trim() === '' || p.componente.trim() === '-'));
     const tipoPessoaAtual = container._tipoPessoa || 'PJ';
 
     if (!produtos.length) {
@@ -17846,14 +17847,19 @@ function autoPreencherPrecoProduto(selectEl) {
 
     const lojaNome = (document.getElementById('lojaVenda')?.value || '').trim();
 
-    // PRIORIDADE 1: tabela de preços por grupo de estado (sempre sobrepõe qualquer outra precificação)
+    // PRIORIDADE 1: Tabela de Preço de Venda por Estado (CI + impostos, PJ)
+    // Busca o UF do cliente para calcular o preço correto por estado
     try {
-        const precoEstado = obterPrecoEstadoParaClienteProduto(lojaNome, produtoId);
-        if (precoEstado !== null && !isNaN(precoEstado) && precoEstado > 0) {
-            valorInput.value = _fmtMoeda(precoEstado);
-            valorInput.style.background = '#eff6ff';
-            valorInput.setAttribute('data-autofilled', 'estado');
-            return;
+        const clienteObj = (clientes || []).find(c => (c.nome||'').trim().toLowerCase() === lojaNome.toLowerCase());
+        const uf = clienteObj && clienteObj.uf ? clienteObj.uf.trim().toUpperCase() : null;
+        if (uf) {
+            const resultadoPJ = calcularPreco(produto.nome, uf, 'PJ');
+            if (resultadoPJ && Number(resultadoPJ.precoFinal) > 0) {
+                valorInput.value = _fmtMoeda(resultadoPJ.precoFinal);
+                valorInput.style.background = '#eff6ff';
+                valorInput.setAttribute('data-autofilled', 'tabelavenda');
+                return;
+            }
         }
     } catch (e) {}
 
@@ -17870,8 +17876,8 @@ function autoPreencherPrecoProduto(selectEl) {
 
     // PRIORIDADE 3: última precificação calculada para o cliente
     try {
-        const clienteObj = (clientes || []).find(c => (c.nome||'').toLowerCase() === (lojaNome||'').toLowerCase());
-        if (clienteObj && ultimaPrecificacaoCalculada && String(ultimaPrecificacaoCalculada.clienteId) === String(clienteObj.id)) {
+        const clienteObj2 = (clientes || []).find(c => (c.nome||'').toLowerCase() === (lojaNome||'').toLowerCase());
+        if (clienteObj2 && ultimaPrecificacaoCalculada && String(ultimaPrecificacaoCalculada.clienteId) === String(clienteObj2.id)) {
             const item = (ultimaPrecificacaoCalculada.itens || []).find(it => Number(it.produtoId) === Number(produtoId) || (it.produto && it.produto.toLowerCase() === (produto.nome||'').toLowerCase()));
             if (item && Number(item.precoFinal) > 0) {
                 valorInput.value = _fmtMoeda(item.precoFinal);
