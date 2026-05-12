@@ -8587,8 +8587,8 @@ function adicionarItemVendaRow(preProdutoId = '', preQuantidade = 1, preValor = 
 
         container.appendChild(row);
 
-        // Preencher valores se fornecidos
-        if (preProdutoId) row.querySelector('.item-produto').value = preProdutoId;
+        // Preencher valores se fornecidos (forçar string para bater com value das options)
+        if (preProdutoId) row.querySelector('.item-produto').value = String(preProdutoId);
         if (preValor) row.querySelector('.item-valor').value = preValor;
 
         // Garantir que o input de valor remova o estado "auto-preenchido" quando o usuário editar
