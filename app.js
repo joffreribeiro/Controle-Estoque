@@ -7856,8 +7856,10 @@ function atualizarSelectsProdutos() {
             const valorAtual = select.value;
             const primeiraOpcao = (selectId === 'filtroProduto' || selectId === 'filtroDistribuicaoProduto') ? 'Todos' : 'Selecione um produto';
             select.innerHTML = `<option value="">${primeiraOpcao}</option>`;
-            // Preencher em ordem alfabética
-            const produtosOrdenados = [...estoque.produtos].sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
+            // Preencher em ordem alfabética (apenas produtos principais, sem componentes)
+            const produtosOrdenados = [...estoque.produtos]
+                .filter(p => !p.componente || p.componente.trim() === '' || p.componente.trim() === '-')
+                .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
             produtosOrdenados.forEach(produto => {
                 const option = document.createElement('option');
                 option.value = produto.id;
@@ -8544,7 +8546,9 @@ function abrirModalVendaDetalhada(vendaId = null, propostaId = null) {
 // Constrói opções de produtos (HTML) para selects dinâmicos
 function construirOpcoesProdutos() {
     let html = '<option value="">Selecione um produto</option>';
-    const produtosOrdenados = [...estoque.produtos].sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
+    const produtosOrdenados = [...estoque.produtos]
+        .filter(p => !p.componente || p.componente.trim() === '' || p.componente.trim() === '-')
+        .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
     produtosOrdenados.forEach(produto => {
         html += `<option value="${produto.id}">${produto.nome}</option>`;
     });
