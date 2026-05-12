@@ -19485,10 +19485,10 @@ if (window.firebase && firebase.auth) {
                                         if (!remoteUpdated) return;
                                         // Ignorar se o remoto não é mais recente que o local
                                         if (remoteUpdated <= localUpdated + 1000) { console.log('[SYNC] ignorado: remoto não é mais recente'); return; }
-                                        // Ignorar apenas se o timestamp remoto for EXATAMENTE o que este PC enviou
-                                        if (window._lastCloudSaveTimestamp && remoteUpdated === window._lastCloudSaveTimestamp) { console.log('[SYNC] ignorado: eco do próprio save'); return; }
-                                        // Se há edições locais pendentes de envio (auto-save em andamento), aguardar
-                                        if (window._dadosAlterados && !window._cloudSyncedRecently) {
+                                        // Se este PC salvou recentemente, só aceitar se o remoto for POSTERIOR ao nosso save
+                                        if (window._lastCloudSaveTimestamp && remoteUpdated <= window._lastCloudSaveTimestamp) { console.log('[SYNC] ignorado: remoto não é mais novo que nosso save'); return; }
+                                        // Se há edições locais pendentes (ainda não enviadas ao cloud), não sobrescrever
+                                        if (window._dadosAlterados) {
                                             console.log('[SYNC] aguardando: edições locais pendentes');
                                             try { updateFirestoreStatus(true, new Date(remoteUpdated), 'Cloud: atualização disponível'); } catch(e) {}
                                             window.__cloudHasRemoteUpdate = true;
