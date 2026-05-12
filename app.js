@@ -1801,7 +1801,6 @@ async function salvarNoCloud() {
             if (imbelDataToSave) estoque._imbelData = imbelDataToSave;
         } catch (e) { /* ignore */ }
         const docRef = window.firestoreDB.collection('app_data').doc('latest');
-        console.log('[SYNC] salvarNoCloud: salvando. vendas='+((estoque.registroVendas||[]).length)+' _localUpdatedAt='+estoque._localUpdatedAt);
         await docRef.set({
             estado: estoque,
             precificacao,
@@ -19493,22 +19492,18 @@ if (window.firebase && firebase.auth) {
                                         const data = doc.data();
                                         const remoteUpdated = data && data.updatedAt ? data.updatedAt.toDate().getTime() : null;
                                         const localUpdated = estoque && estoque._localUpdatedAt ? new Date(estoque._localUpdatedAt).getTime() : 0;
-                                        const diff = remoteUpdated - localUpdated;
-                                        console.log('[SYNC] snapshot: diff='+diff+'ms dadosAlterados='+window._dadosAlterados+' syncedRecently='+window._cloudSyncedRecently+' lastSaveTs='+window._lastCloudSaveTimestamp);
                                         if (!remoteUpdated) return;
                                         // Ignorar se o remoto não é mais recente que o local
-                                        if (remoteUpdated <= localUpdated + 1000) { console.log('[SYNC] ignorado: remoto não é mais recente'); return; }
+                                        if (remoteUpdated <= localUpdated + 1000) return;
                                         // Ignorar snapshots nos 10s após este PC ter salvado (eco do Firestore)
-                                        if (window._lastCloudSaveAt && (Date.now() - window._lastCloudSaveAt) < 10000) { console.log('[SYNC] ignorado: dentro de 10s após save local'); return; }
+                                        if (window._lastCloudSaveAt && (Date.now() - window._lastCloudSaveAt) < 10000) return;
                                         // Se há edições locais pendentes (ainda não enviadas ao cloud), não sobrescrever
                                         if (window._dadosAlterados) {
-                                            console.log('[SYNC] aguardando: edições locais pendentes');
                                             try { updateFirestoreStatus(true, new Date(remoteUpdated), 'Cloud: atualização disponível'); } catch(e) {}
                                             window.__cloudHasRemoteUpdate = true;
                                             return;
                                         }
                                         // Remoto é mais recente — carregar automaticamente
-                                        console.log('[SYNC] carregando do cloud...');
                                         await carregarDoCloud({ confirmOverwrite: false });
                                         try { if (window.__SHOW_AUTO_UPDATE_NOTIFICATION) mostrarNotificacao('Dados atualizados automaticamente do Cloud.', 'success'); } catch (e) {}
                                     } catch (e) {
