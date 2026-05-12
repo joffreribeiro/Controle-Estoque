@@ -1830,14 +1830,15 @@ async function salvarNoCloud() {
         try {
             window._cloudSyncedRecently = true;
             window._dadosAlterados = false;
-            // Guardar timestamp do save para identificar o eco no onSnapshot
+            // Guardar o momento exato do save — ignorar snapshots por 10s após salvar
+            window._lastCloudSaveAt = Date.now();
             try {
                 const savedDoc2 = await docRef.get();
                 const d2 = savedDoc2 && savedDoc2.exists ? savedDoc2.data() : null;
                 window._lastCloudSaveTimestamp = d2 && d2.updatedAt ? d2.updatedAt.toDate().getTime() : Date.now();
             } catch(e) { window._lastCloudSaveTimestamp = Date.now(); }
             if (__cloudSyncResetTimer) clearTimeout(__cloudSyncResetTimer);
-            __cloudSyncResetTimer = setTimeout(() => { window._cloudSyncedRecently = false; }, 30000);
+            __cloudSyncResetTimer = setTimeout(() => { window._cloudSyncedRecently = false; window._lastCloudSaveAt = 0; }, 30000);
         } catch (e) {}
         console.debug('Dados salvos no Firestore (coleção app_data / doc latest)');
         return true;
@@ -19486,8 +19487,8 @@ if (window.firebase && firebase.auth) {
                                         if (!remoteUpdated) return;
                                         // Ignorar se o remoto não é mais recente que o local
                                         if (remoteUpdated <= localUpdated + 1000) { console.log('[SYNC] ignorado: remoto não é mais recente'); return; }
-                                        // Se este PC salvou recentemente, só aceitar se o remoto for POSTERIOR ao nosso save
-                                        if (window._lastCloudSaveTimestamp && remoteUpdated <= window._lastCloudSaveTimestamp) { console.log('[SYNC] ignorado: remoto não é mais novo que nosso save'); return; }
+                                        // Ignorar snapshots nos 10s após este PC ter salvado (eco do Firestore)
+                                        if (window._lastCloudSaveAt && (Date.now() - window._lastCloudSaveAt) < 10000) { console.log('[SYNC] ignorado: dentro de 10s após save local'); return; }
                                         // Se há edições locais pendentes (ainda não enviadas ao cloud), não sobrescrever
                                         if (window._dadosAlterados) {
                                             console.log('[SYNC] aguardando: edições locais pendentes');
