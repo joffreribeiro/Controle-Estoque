@@ -600,8 +600,84 @@
                                         </div>
                                     </div>
 
-                                    <!-- Sub-aba Consulta de Precificações -->
-                                    <div id="painel-consultaPrec" style="display:none">
+                                                                <!-- Sub-aba Rastreabilidade (PRECIF) -->
+                                                                <div id="subaba-precif-rastreabilidade" style="display:none">
+
+    <div style="display:flex; gap:10px; margin-bottom:16px; align-items:end">
+        <div class="form-group" style="margin:0; min-width:280px">
+            <label style="font-size:0.85rem">Filtrar por cliente</label>
+            <select id="rastreaCliente" onchange="renderizarRastreabilidade()"
+                            style="width:100%; padding:8px 10px; border:1px solid #e2e8f0;
+                                         border-radius:6px; font-size:0.9rem">
+                <option value="">Todos os clientes</option>
+            </select>
+        </div>
+        <div class="form-group" style="margin:0">
+            <label style="font-size:0.85rem">Período</label>
+            <select id="rastreaPeriodo" onchange="renderizarRastreabilidade()"
+                            style="padding:8px 10px; border:1px solid #e2e8f0;
+                                         border-radius:6px; font-size:0.9rem">
+                <option value="todos">Todo o período</option>
+                <option value="mes">Este mês</option>
+                <option value="trimestre">Este trimestre</option>
+                <option value="ano">Este ano</option>
+            </select>
+        </div>
+        <button class="btn btn-outline btn-sm" onclick="exportarRastreabilidade()">
+            📤 Exportar Excel
+        </button>
+    </div>
+
+    <div id="painelRastreabilidade"></div>
+</div>
+
+
+                                    <!-- Painel: ICMS por Estado -->
+                                    <div id="impostos-painel-icms" style="display:none">
+                                    <div style="display:flex; gap:10px; margin-bottom:16px; align-items:center; flex-wrap:wrap">
+                                        <div class="form-group" style="margin:0">
+                                            <label style="font-size:0.8rem; color:#64748b">Filtrar por NCM</label>
+                                            <select id="filtroICMS_NCM" onchange="renderizarICMSPorEstado()" style="padding:7px 10px; border:1px solid #e2e8f0; border-radius:6px; font-size:0.85rem">
+                                                <option value="">Todos</option>
+                                            </select>
+                                        </div>
+                                        <div class="form-group" style="margin:0">
+                                            <label style="font-size:0.8rem; color:#64748b">Tipo de Pessoa</label>
+                                            <select id="filtroICMS_Tipo" onchange="renderizarICMSPorEstado()" style="padding:7px 10px; border:1px solid #e2e8f0; border-radius:6px; font-size:0.85rem">
+                                                <option value="PJ">PJ — Lojista</option>
+                                                <option value="PF">PF — Pessoa Física</option>
+                                            </select>
+                                        </div>
+                                        <div style="margin-left:auto; display:flex; gap:8px">
+                                            <button class="btn btn-outline btn-sm" onclick="exportarICMSEstados()">📤 Exportar Excel</button>
+                                            <button class="btn btn-outline btn-sm" onclick="importarICMSEstados()">📥 Importar Excel</button>
+                                            <input type="file" id="inputImportarICMSEstados" accept=".xlsx,.xls,.csv" style="display:none" onchange="importarICMSEstadosArquivo(event)">
+                                        </div>
+                                    </div>
+
+                                    <div style="background:#f0f9ff; border:1px solid #bae6fd; border-radius:8px; padding:12px 16px; margin-bottom:16px; font-size:0.85rem; color:#0369a1">
+                                        ℹ️ Clique em qualquer célula de alíquota para editar. As alterações são salvas automaticamente.
+                                    </div>
+
+                                    <!-- Matrix table: rows = NCM, cols = States -->
+                                    <div class="table-container">
+                                        <div class="table-wrapper">
+                                            <table class="dashboard-table" id="tabelaICMSEstados" style="font-size:0.8rem">
+                                                <thead>
+                                                    <tr id="icmsEstadosHeader">
+                                                        <!-- Built by JS: NCM | Descrição | AC | AL | AM | ... -->
+                                                    </tr>
+                                                </thead>
+                                                <tbody id="tabelaICMSEstadosBody"></tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                    </div><!-- /impostos-painel-icms -->
+
+                                </div><!-- /subaba-precif-impostos -->
+
+                                <!-- Sub-aba Consulta de Precificações -->
+                                <div id="painel-consultaPrec" style="display:none">
     <div class="content-area">
 
         <!-- FILTROS -->
@@ -730,82 +806,6 @@
 
     </div><!-- /content-area -->
 </div><!-- /painel-consultaPrec -->
-
-                                                                <!-- Sub-aba Rastreabilidade (PRECIF) -->
-                                                                <div id="subaba-precif-rastreabilidade" style="display:none">
-
-    <div style="display:flex; gap:10px; margin-bottom:16px; align-items:end">
-        <div class="form-group" style="margin:0; min-width:280px">
-            <label style="font-size:0.85rem">Filtrar por cliente</label>
-            <select id="rastreaCliente" onchange="renderizarRastreabilidade()"
-                            style="width:100%; padding:8px 10px; border:1px solid #e2e8f0;
-                                         border-radius:6px; font-size:0.9rem">
-                <option value="">Todos os clientes</option>
-            </select>
-        </div>
-        <div class="form-group" style="margin:0">
-            <label style="font-size:0.85rem">Período</label>
-            <select id="rastreaPeriodo" onchange="renderizarRastreabilidade()"
-                            style="padding:8px 10px; border:1px solid #e2e8f0;
-                                         border-radius:6px; font-size:0.9rem">
-                <option value="todos">Todo o período</option>
-                <option value="mes">Este mês</option>
-                <option value="trimestre">Este trimestre</option>
-                <option value="ano">Este ano</option>
-            </select>
-        </div>
-        <button class="btn btn-outline btn-sm" onclick="exportarRastreabilidade()">
-            📤 Exportar Excel
-        </button>
-    </div>
-
-    <div id="painelRastreabilidade"></div>
-</div>
-
-
-                                    <!-- Painel: ICMS por Estado -->
-                                    <div id="impostos-painel-icms" style="display:none">
-                                    <div style="display:flex; gap:10px; margin-bottom:16px; align-items:center; flex-wrap:wrap">
-                                        <div class="form-group" style="margin:0">
-                                            <label style="font-size:0.8rem; color:#64748b">Filtrar por NCM</label>
-                                            <select id="filtroICMS_NCM" onchange="renderizarICMSPorEstado()" style="padding:7px 10px; border:1px solid #e2e8f0; border-radius:6px; font-size:0.85rem">
-                                                <option value="">Todos</option>
-                                            </select>
-                                        </div>
-                                        <div class="form-group" style="margin:0">
-                                            <label style="font-size:0.8rem; color:#64748b">Tipo de Pessoa</label>
-                                            <select id="filtroICMS_Tipo" onchange="renderizarICMSPorEstado()" style="padding:7px 10px; border:1px solid #e2e8f0; border-radius:6px; font-size:0.85rem">
-                                                <option value="PJ">PJ — Lojista</option>
-                                                <option value="PF">PF — Pessoa Física</option>
-                                            </select>
-                                        </div>
-                                        <div style="margin-left:auto; display:flex; gap:8px">
-                                            <button class="btn btn-outline btn-sm" onclick="exportarICMSEstados()">📤 Exportar Excel</button>
-                                            <button class="btn btn-outline btn-sm" onclick="importarICMSEstados()">📥 Importar Excel</button>
-                                            <input type="file" id="inputImportarICMSEstados" accept=".xlsx,.xls,.csv" style="display:none" onchange="importarICMSEstadosArquivo(event)">
-                                        </div>
-                                    </div>
-
-                                    <div style="background:#f0f9ff; border:1px solid #bae6fd; border-radius:8px; padding:12px 16px; margin-bottom:16px; font-size:0.85rem; color:#0369a1">
-                                        ℹ️ Clique em qualquer célula de alíquota para editar. As alterações são salvas automaticamente.
-                                    </div>
-
-                                    <!-- Matrix table: rows = NCM, cols = States -->
-                                    <div class="table-container">
-                                        <div class="table-wrapper">
-                                            <table class="dashboard-table" id="tabelaICMSEstados" style="font-size:0.8rem">
-                                                <thead>
-                                                    <tr id="icmsEstadosHeader">
-                                                        <!-- Built by JS: NCM | Descrição | AC | AL | AM | ... -->
-                                                    </tr>
-                                                </thead>
-                                                <tbody id="tabelaICMSEstadosBody"></tbody>
-                                            </table>
-                                        </div>
-                                    </div>
-                                    </div><!-- /impostos-painel-icms -->
-
-                                </div><!-- /subaba-precif-impostos -->
 
                                                                 <!-- Sub-aba Precificação por Cliente -->
                                                                 <div id="subaba-precif-porcliente" style="display:block">
