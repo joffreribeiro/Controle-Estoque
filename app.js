@@ -11602,7 +11602,7 @@ function limparTodosDados() {
 // ========================================
 
 function campoMarcado(valor) {
-    return valor === true || valor === 'Sim' || valor === 'SAP' || valor === 'Outro' || valor === 'true';
+    return valor === true || valor === 'Sim' || valor === 'SAP' || valor === 'Outro' || valor === 'true' || (typeof valor === 'string' && valor.length > 0);
 }
 
 function renderizarControleEnvio() {
@@ -11867,7 +11867,7 @@ function importarControleEnvioArquivo(event) {
         // Se já há data gravada e o excel confirma "Sim", preserva a data original.
         // Se excel diz "Sim" e não há data, registra agora. Se diz "Não", limpa.
         const resolverCampo = (valorExcel, valorAtual) => {
-            if (ehSim(valorExcel)) return valorAtual || new Date().toISOString();
+            if (ehSim(valorExcel)) return valorAtual !== undefined && valorAtual !== '' ? valorAtual : true;
             return '';
         };
 
