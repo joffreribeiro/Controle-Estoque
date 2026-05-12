@@ -2039,7 +2039,7 @@ async function carregarDoCloudAuto() {
         const localUpdated = estoque._localUpdatedAt ? new Date(estoque._localUpdatedAt).getTime() : 0;
         // Não sobrescrever se há alterações locais pendentes não sincronizadas
         if (window._dadosAlterados) return false;
-        if (remoteUpdated && remoteUpdated > localUpdated) {
+        if (remoteUpdated && remoteUpdated > localUpdated + 1000) {
             // substituir local automaticamente
             estoque = data.estado;
             // Restaurar dados IMBEL salvos no backup principal (se existirem)
@@ -8416,12 +8416,14 @@ function abrirModalVendaDetalhada(vendaId = null, propostaId = null) {
     try {
         const lojaEl = document.getElementById('lojaVenda');
         if (lojaEl) {
-            lojaEl.oninput = function() {
+            const _onLojaChange = function() {
                 try { preencherDadosCliente(lojaEl.value); } catch(e) {}
                 try { atualizarUFClienteVenda(lojaEl.value); } catch(e) {}
-                try { atualizarPrecosVendaPorCliente(); } catch(e) {}
+                try { atualizarPrecosVendaPorCliente(true); } catch(e) {}
                 try { atualizarBadgesEstoqueTodasLinhas(); } catch(e) {}
             };
+            lojaEl.oninput = _onLojaChange;
+            lojaEl.onchange = _onLojaChange;
         }
     } catch (e) {}
 
@@ -17906,7 +17908,7 @@ function obterPrecoFinalSalvoParaClienteProduto(lojaNome, produtoId) {
 }
 
 // Atualiza preços de todas as linhas do modal de venda de acordo com o cliente preenchido
-function atualizarPrecosVendaPorCliente() {
+function atualizarPrecosVendaPorCliente(forcarAtualizacao = false) {
     try {
         const lojaNome = (document.getElementById('lojaVenda')?.value || '').trim();
         if (!lojaNome) return;
@@ -17914,7 +17916,16 @@ function atualizarPrecosVendaPorCliente() {
         if (!container) return;
         container.querySelectorAll('.item-venda-row').forEach(row => {
             const sel = row.querySelector('.item-produto');
-            if (!sel) return;
+            if (!sel || !sel.value) return;
+            if (forcarAtualizacao) {
+                // Ao mudar de cliente, limpar autofill anterior para recalcular com novo UF
+                const valorInput = row.querySelector('.item-valor');
+                if (valorInput && valorInput.hasAttribute('data-autofilled')) {
+                    valorInput.value = '';
+                    valorInput.removeAttribute('data-autofilled');
+                    valorInput.style.background = '';
+                }
+            }
             autoPreencherPrecoProduto(sel);
         });
     } catch (e) { console.error('atualizarPrecosVendaPorCliente erro', e); }
@@ -19447,8 +19458,8 @@ if (window.firebase && firebase.auth) {
                                             return;
                                         }
                                         // Se remoto for mais recente que local, carregar automaticamente
-                                        // Margem de 5s para cobrir o debounce local (300ms) + upload cloud (2500ms) + latência
-                                        if (remoteUpdated > localUpdated + 5000) {
+                                        // Margem de 1s para cobrir latência sem bloquear sincronização real
+                                        if (remoteUpdated > localUpdated + 1000) {
                                             await carregarDoCloud({ confirmOverwrite: false });
                                             try { if (window.__SHOW_AUTO_UPDATE_NOTIFICATION) mostrarNotificacao('Dados atualizados automaticamente do Cloud.', 'success'); } catch (e) {}
                                         }
