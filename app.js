@@ -11885,7 +11885,7 @@ function toggleMenuMobile() {
 let _ordenVendas = { campo: 'contrato', direcao: 'asc' };
 let _ordenDistribuicao = { campo: 'data', direcao: 'desc' };
 let _contratosExpandidos = {};
-let _pecasExpandidas = {};
+let _pecasExpandidas = {}; // mantido para compatibilidade, não usado
 
 function ordenarVendas(campo) {
     if (_ordenVendas.campo === campo) {
@@ -14366,97 +14366,56 @@ function renderizarTabelaPrecoVenda() {
     });
     html += `</tr></thead><tbody>`;
 
+    // Expor grupos para a gaveta lateral
+    window._tabelaPrecoGrupos = grupos;
+    window._tabelaPrecoTipoPessoa = tipoPessoaAtual;
+
     let rowIdx = 0;
     ordemGrupos.forEach(chave => {
         const grupo = grupos[chave];
         const principal = grupo[0];
-        const pecas = grupo.slice(1);
-        const temPecas = pecas.length > 0;
-        const expandido = !!_pecasExpandidas[chave];
+        const temPecas = grupo.slice(1).length > 0;
 
-        const _renderLinhaProduto = (prod, isPrincipal, bg) => {
-            const ci = Number(precificacao[prod.nome]?.ci ?? prod.ci ?? 0);
-            const grupoCat = prod.categoria || '—';
-            const pn = prod.pn || '—';
-            const nomeFab = prod.nomeFabrica || '—';
-            const comp = prod.componente || '—';
-            const ncm = prod.ncm || '—';
-            const ciStr = ci > 0 ? _fmtMoeda(ci) : '—';
-            const chaveEsc = _escapeJsString(chave);
+        const ci = Number(precificacao[principal.nome]?.ci ?? principal.ci ?? 0);
+        const grupoCat = principal.categoria || '—';
+        const pn = principal.pn || '—';
+        const nomeFab = principal.nomeFabrica || '—';
+        const comp = principal.componente || '—';
+        const ncm = principal.ncm || '—';
+        const ciStr = ci > 0 ? _fmtMoeda(ci) : '—';
+        const chaveEsc = _escapeJsString(chave);
 
-            const pnCell = (isPrincipal && temPecas)
-                ? `<span class="pn-expandir" data-grupo="${_escapeHtml(chave)}" onclick="togglePecasTabelaVenda('${chaveEsc}')" title="Clique para ver as peças deste produto">${_escapeHtml(pn)} ${expandido ? '▾' : '▸'}</span>`
-                : `<span style="font-family:monospace">${_escapeHtml(pn)}</span>`;
-
-            const nomeCell = isPrincipal
-                ? `<span style="font-weight:600;color:#1e3a5f">${_escapeHtml(prod.nome)}</span>`
-                : `<span style="color:#64748b">↳ ${_escapeHtml(prod.nome)}</span>`;
-
-            let row = `<tr style="background:${bg}">
-                <td style="padding:6px 10px;position:sticky;left:0;background:${bg};z-index:1;border-right:1px solid #e2e8f0;font-family:monospace;font-size:0.77rem">${_escapeHtml(ncm)}</td>
-                <td style="padding:6px 10px;border-right:1px solid #e2e8f0;color:#64748b">${_escapeHtml(grupoCat)}</td>
-                <td style="padding:6px 10px;border-right:1px solid #e2e8f0">${pnCell}</td>
-                <td style="padding:6px 10px;border-right:1px solid #e2e8f0;color:#374151">${_escapeHtml(nomeFab)}</td>
-                <td style="padding:6px 10px;border-right:1px solid #e2e8f0;color:#374151">${_escapeHtml(comp)}</td>
-                <td style="padding:6px 10px;border-right:1px solid #e2e8f0">${nomeCell}</td>
-                <td style="padding:6px 10px;text-align:right;border-right:2px solid #e2e8f0;font-weight:600;color:#0f766e">${ciStr}</td>`;
-
-            ESTADOS_BR.forEach(uf => {
-                let preco = null;
-                try {
-                    const r = calcularPreco(prod.nome, uf, tipoPessoaAtual);
-                    preco = r ? r.precoFinal : null;
-                } catch (e) {}
-                if (preco !== null && preco > 0) {
-                    const nomeEsc = _escapeJsString(prod.nome);
-                    const tipoEsc = _escapeJsString(tipoPessoaAtual);
-                    row += `<td style="padding:6px 8px;text-align:right;border-left:1px solid #f1f5f9;cursor:pointer;transition:background 0.15s" onmouseenter="this.style.background='#dbeafe'" onmouseleave="this.style.background=''" onclick="abrirDetalhePrecoVenda('${nomeEsc}','${uf}','${tipoEsc}')">${_fmtMoeda(preco)}</td>`;
-                } else {
-                    row += `<td style="padding:6px 8px;text-align:right;border-left:1px solid #f1f5f9"><span style="color:#cbd5e1">—</span></td>`;
-                }
-            });
-
-            row += `</tr>`;
-            return row;
-        };
+        const pnCell = temPecas
+            ? `<span class="pn-expandir" data-grupo="${_escapeHtml(chave)}" onclick="abrirGavetaComponentes('${chaveEsc}')" title="Clique para ver os componentes" style="cursor:pointer;color:#1e3a5f;text-decoration:underline;text-underline-offset:3px">${_escapeHtml(pn)} ▸</span>`
+            : `<span style="font-family:monospace">${_escapeHtml(pn)}</span>`;
 
         const bg = rowIdx % 2 === 0 ? '#fff' : '#f8fafc';
-        html += _renderLinhaProduto(principal, true, bg);
-        rowIdx++;
+        let row = `<tr style="background:${bg}">
+            <td style="padding:6px 10px;position:sticky;left:0;background:${bg};z-index:1;border-right:1px solid #e2e8f0;font-family:monospace;font-size:0.77rem">${_escapeHtml(ncm)}</td>
+            <td style="padding:6px 10px;border-right:1px solid #e2e8f0;color:#64748b">${_escapeHtml(grupoCat)}</td>
+            <td style="padding:6px 10px;border-right:1px solid #e2e8f0">${pnCell}</td>
+            <td style="padding:6px 10px;border-right:1px solid #e2e8f0;color:#374151">${_escapeHtml(nomeFab)}</td>
+            <td style="padding:6px 10px;border-right:1px solid #e2e8f0;color:#374151">${_escapeHtml(comp)}</td>
+            <td style="padding:6px 10px;border-right:1px solid #e2e8f0"><span style="font-weight:600;color:#1e3a5f">${_escapeHtml(principal.nome)}</span></td>
+            <td style="padding:6px 10px;text-align:right;border-right:2px solid #e2e8f0;font-weight:600;color:#0f766e">${ciStr}</td>`;
 
-        // Linhas de peças
-        pecas.forEach(peca => {
-            const display = expandido ? '' : 'display:none';
-            html += `<tr class="pecas-row pecas-grupo-${_escapeHtml(chave)}" style="${display}">`;
-            const ci = Number(precificacao[peca.nome]?.ci ?? peca.ci ?? 0);
-            const ciStr = ci > 0 ? _fmtMoeda(ci) : '—';
-            const pn = peca.pn || '—';
-            const nomeFab = peca.nomeFabrica || '—';
-            const comp = peca.componente || '—';
-            html += `<td style="padding:5px 10px;position:sticky;left:0;background:#f4f7ff;z-index:1;border-right:1px solid #e2e8f0"></td>
-                <td style="padding:5px 10px;border-right:1px solid #e2e8f0"></td>
-                <td style="padding:5px 10px 5px 24px;border-right:1px solid #e2e8f0;font-family:monospace;font-size:0.77rem">${_escapeHtml(pn)}</td>
-                <td style="padding:5px 10px;border-right:1px solid #e2e8f0">${_escapeHtml(nomeFab)}</td>
-                <td style="padding:5px 10px;border-right:1px solid #e2e8f0">${_escapeHtml(comp)}</td>
-                <td style="padding:5px 10px;border-right:1px solid #e2e8f0;color:#64748b">↳ ${_escapeHtml(peca.nome)}</td>
-                <td style="padding:5px 10px;text-align:right;border-right:2px solid #e2e8f0;font-weight:600;color:#0f766e">${ciStr}</td>`;
-
-            ESTADOS_BR.forEach(uf => {
-                let preco = null;
-                try {
-                    const r = calcularPreco(peca.nome, uf, tipoPessoaAtual);
-                    preco = r ? r.precoFinal : null;
-                } catch (e) {}
-                if (preco !== null && preco > 0) {
-                    const nomeEsc = _escapeJsString(peca.nome);
-                    const tipoEsc = _escapeJsString(tipoPessoaAtual);
-                    html += `<td style="padding:5px 8px;text-align:right;border-left:1px solid #f1f5f9;cursor:pointer" onmouseenter="this.style.background='#dbeafe'" onmouseleave="this.style.background=''" onclick="abrirDetalhePrecoVenda('${nomeEsc}','${uf}','${tipoEsc}')">${_fmtMoeda(preco)}</td>`;
-                } else {
-                    html += `<td style="padding:5px 8px;text-align:right;border-left:1px solid #f1f5f9"><span style="color:#cbd5e1">—</span></td>`;
-                }
-            });
-            html += `</tr>`;
+        ESTADOS_BR.forEach(uf => {
+            let preco = null;
+            try {
+                const r = calcularPreco(principal.nome, uf, tipoPessoaAtual);
+                preco = r ? r.precoFinal : null;
+            } catch (e) {}
+            if (preco !== null && preco > 0) {
+                const nomeEsc = _escapeJsString(principal.nome);
+                const tipoEsc = _escapeJsString(tipoPessoaAtual);
+                row += `<td style="padding:6px 8px;text-align:right;border-left:1px solid #f1f5f9;cursor:pointer;transition:background 0.15s" onmouseenter="this.style.background='#dbeafe'" onmouseleave="this.style.background=''" onclick="abrirDetalhePrecoVenda('${nomeEsc}','${uf}','${tipoEsc}')">${_fmtMoeda(preco)}</td>`;
+            } else {
+                row += `<td style="padding:6px 8px;text-align:right;border-left:1px solid #f1f5f9"><span style="color:#cbd5e1">—</span></td>`;
+            }
         });
+        row += `</tr>`;
+        html += row;
+        rowIdx++;
     });
 
     html += `</tbody></table></div>`;
@@ -14471,16 +14430,88 @@ function renderizarTabelaPrecoVendaTipo(tipo) {
     renderizarTabelaPrecoVenda();
 }
 
-function togglePecasTabelaVenda(chaveGrupo) {
-    _pecasExpandidas[chaveGrupo] = !_pecasExpandidas[chaveGrupo];
-    const expandido = !!_pecasExpandidas[chaveGrupo];
-    const rows = document.querySelectorAll('.pecas-grupo-' + CSS.escape(chaveGrupo));
-    rows.forEach(r => { r.style.display = expandido ? '' : 'none'; });
-    const btn = document.querySelector(`.pn-expandir[data-grupo="${chaveGrupo.replace(/\\/g,'\\\\').replace(/"/g,'&quot;')}"]`);
-    if (btn) {
-        btn.innerHTML = btn.innerHTML
-            .replace(expandido ? '▸' : '▾', expandido ? '▾' : '▸');
+function abrirGavetaComponentes(chaveGrupo) {
+    const grupos = window._tabelaPrecoGrupos || {};
+    const tipoPessoa = window._tabelaPrecoTipoPessoa || 'PJ';
+    const grupo = grupos[chaveGrupo];
+    if (!grupo) return;
+
+    const principal = grupo[0];
+    const componentes = grupo.slice(1);
+    if (!componentes.length) return;
+
+    // Monta linhas da tabela de componentes
+    let linhas = '';
+    componentes.forEach(peca => {
+        const ci = Number(precificacao[peca.nome]?.ci ?? peca.ci ?? 0);
+        const ciStr = ci > 0 ? _fmtMoeda(ci) : '—';
+        linhas += `<tr style="border-bottom:1px solid #e2e8f0">
+            <td style="padding:6px 10px;font-family:monospace;font-size:0.77rem;white-space:nowrap;border-right:1px solid #e2e8f0">${_escapeHtml(peca.pn || '—')}</td>
+            <td style="padding:6px 10px;white-space:nowrap;border-right:1px solid #e2e8f0">${_escapeHtml(peca.nomeFabrica || '—')}</td>
+            <td style="padding:6px 10px;white-space:nowrap;border-right:1px solid #e2e8f0;color:#64748b">${_escapeHtml(peca.componente || '—')}</td>
+            <td style="padding:6px 10px;text-align:right;border-right:2px solid #b2c7e8;font-weight:600;color:#0f766e">${ciStr}</td>`;
+        ESTADOS_BR.forEach(uf => {
+            let preco = null;
+            try { const r = calcularPreco(peca.nome, uf, tipoPessoa); preco = r ? r.precoFinal : null; } catch (e) {}
+            if (preco !== null && preco > 0) {
+                const nomeEsc = _escapeJsString(peca.nome);
+                const tipoEsc = _escapeJsString(tipoPessoa);
+                linhas += `<td style="padding:6px 8px;text-align:right;white-space:nowrap;border-left:1px solid #f1f5f9;cursor:pointer" onmouseenter="this.style.background='#dbeafe'" onmouseleave="this.style.background=''" onclick="abrirDetalhePrecoVenda('${nomeEsc}','${uf}','${tipoEsc}')">${_fmtMoeda(preco)}</td>`;
+            } else {
+                linhas += `<td style="padding:6px 8px;text-align:right;border-left:1px solid #f1f5f9"><span style="color:#cbd5e1">—</span></td>`;
+            }
+        });
+        linhas += `</tr>`;
+    });
+
+    // Cabeçalho dos estados
+    let thEstados = ESTADOS_BR.map(uf => `<th style="padding:6px 8px;text-align:center;min-width:64px">${uf}</th>`).join('');
+
+    const html = `
+    <div id="gavetaOverlay" onclick="fecharGavetaComponentes()" style="position:fixed;inset:0;background:rgba(0,0,0,0.35);z-index:9999"></div>
+    <div id="gavetaComponentes" style="position:fixed;top:0;right:0;height:100vh;width:820px;max-width:96vw;background:#fff;z-index:10000;box-shadow:-4px 0 32px rgba(0,0,0,0.18);display:flex;flex-direction:column;transform:translateX(100%);transition:transform 0.25s ease">
+        <div style="background:#1e3a5f;color:#fff;padding:14px 20px;display:flex;justify-content:space-between;align-items:center;flex-shrink:0">
+            <div>
+                <div style="font-weight:700;font-size:1rem">Componentes: ${_escapeHtml(principal.nome)}</div>
+                <div style="font-size:0.78rem;opacity:0.75;margin-top:2px">${componentes.length} componente(s) · ${tipoPessoa === 'PJ' ? 'Lojista (PJ)' : 'Pessoa Física (PF)'}</div>
+            </div>
+            <button onclick="fecharGavetaComponentes()" style="background:none;border:none;color:#fff;font-size:1.4rem;cursor:pointer;line-height:1;padding:4px 8px" title="Fechar">✕</button>
+        </div>
+        <div style="overflow:auto;flex:1;padding:0">
+            <table style="border-collapse:collapse;font-size:0.78rem;white-space:nowrap;width:100%">
+                <thead>
+                    <tr style="background:#f1f5f9;position:sticky;top:0;z-index:2">
+                        <th style="padding:8px 10px;text-align:left;border-right:1px solid #e2e8f0;min-width:120px">PN</th>
+                        <th style="padding:8px 10px;text-align:left;border-right:1px solid #e2e8f0;min-width:160px">Nome Fábrica</th>
+                        <th style="padding:8px 10px;text-align:left;border-right:1px solid #e2e8f0;min-width:100px">Componente</th>
+                        <th style="padding:8px 10px;text-align:right;border-right:2px solid #b2c7e8;min-width:80px">CI</th>
+                        ${thEstados}
+                    </tr>
+                </thead>
+                <tbody>${linhas}</tbody>
+            </table>
+        </div>
+    </div>`;
+
+    // Remove gaveta anterior se existir
+    document.getElementById('gavetaComponentes')?.remove();
+    document.getElementById('gavetaOverlay')?.remove();
+    document.body.insertAdjacentHTML('beforeend', html);
+    // Animar entrada
+    setTimeout(() => {
+        const g = document.getElementById('gavetaComponentes');
+        if (g) g.style.transform = 'translateX(0)';
+    }, 10);
+}
+
+function fecharGavetaComponentes() {
+    const gaveta = document.getElementById('gavetaComponentes');
+    const overlay = document.getElementById('gavetaOverlay');
+    if (gaveta) {
+        gaveta.style.transform = 'translateX(100%)';
+        gaveta.addEventListener('transitionend', () => { gaveta.remove(); }, { once: true });
     }
+    if (overlay) overlay.remove();
 }
 
 function limparTabelaPrecoVenda() {
@@ -14489,7 +14520,7 @@ function limparTabelaPrecoVenda() {
     Object.keys(precificacao).forEach(k => {
         if (precificacao[k]) delete precificacao[k].ci;
     });
-    _pecasExpandidas = {};
+    fecharGavetaComponentes();
     salvarDados();
     renderizarTabelaPrecoVenda();
     mostrarNotificacao('CIs e preços limpos. Faça a importação do arquivo para repovoar.', 'success');
