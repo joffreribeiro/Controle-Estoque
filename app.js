@@ -11816,6 +11816,109 @@ function exportarControleEnvio() {
     link.click();
 }
 
+function importarControleEnvioArquivo(event) {
+    const file = event.target.files[0];
+    event.target.value = '';
+    if (!file) return;
+
+    const ext = file.name.split('.').pop().toLowerCase();
+    const isXlsx = ext === 'xlsx' || ext === 'xls';
+
+    const processarLinhas = (linhas) => {
+        if (linhas.length < 2) {
+            alert('Arquivo sem dados.');
+            return;
+        }
+
+        // detectar separador (ponto-e-vírgula ou vírgula)
+        const sep = linhas[0].includes(';') ? ';' : ',';
+        const parseRow = (linha) => {
+            const cols = [];
+            let cur = '', inQ = false;
+            for (let i = 0; i < linha.length; i++) {
+                const ch = linha[i];
+                if (ch === '"') { inQ = !inQ; }
+                else if (ch === sep && !inQ) { cols.push(cur.trim()); cur = ''; }
+                else { cur += ch; }
+            }
+            cols.push(cur.trim());
+            return cols;
+        };
+
+        const headers = parseRow(linhas[0]).map(h => h.replace(/^"|"$/g, '').toLowerCase().trim());
+        const idx = (nome) => headers.findIndex(h => h === nome || h === nome.replace('ã','a').replace('ç','c'));
+
+        const iCtr       = idx('ctr');
+        const iSistema   = idx('sistema');
+        const iAssinado  = idx('assinado');
+        const iEnviado   = idx('enviado');
+        const iSolic     = idx('solicitação') !== -1 ? idx('solicitação') : idx('solicitacao');
+
+        if (iCtr === -1) {
+            alert('Coluna "CTR" não encontrada. Use o arquivo exportado pelo sistema.');
+            return;
+        }
+
+        let importados = 0, ignorados = 0;
+
+        const ehSim = (v) => {
+            const s = (v || '').toLowerCase().trim();
+            return s === 'sim' || s === '1' || s === 'true' || s === 'x';
+        };
+        // Se já há data gravada e o excel confirma "Sim", preserva a data original.
+        // Se excel diz "Sim" e não há data, registra agora. Se diz "Não", limpa.
+        const resolverCampo = (valorExcel, valorAtual) => {
+            if (ehSim(valorExcel)) return valorAtual || new Date().toISOString();
+            return '';
+        };
+
+        linhas.slice(1).forEach(linha => {
+            if (!linha.trim()) return;
+            const cols = parseRow(linha).map(c => c.replace(/^"|"$/g, '').trim());
+            const contrato = cols[iCtr] || '';
+            if (!contrato) { ignorados++; return; }
+
+            if (!estoque.controleEnvio) estoque.controleEnvio = {};
+            const atual = estoque.controleEnvio[contrato] || {};
+
+            estoque.controleEnvio[contrato] = {
+                sistema:     iSistema  !== -1 ? resolverCampo(cols[iSistema],  atual.sistema)  : (atual.sistema  || ''),
+                assinado:    iAssinado !== -1 ? resolverCampo(cols[iAssinado], atual.assinado) : (atual.assinado || ''),
+                enviado:     iEnviado  !== -1 ? resolverCampo(cols[iEnviado],  atual.enviado)  : (atual.enviado  || ''),
+                solicitacao: iSolic    !== -1 ? (cols[iSolic] || atual.solicitacao || '')       : (atual.solicitacao || '')
+            };
+
+            importados++;
+        });
+
+        salvarDados();
+        renderizarControleEnvio();
+        alert(`Importação concluída: ${importados} contrato(s) atualizados${ignorados ? ', ' + ignorados + ' ignorados' : ''}.`);
+    };
+
+    if (isXlsx) {
+        if (typeof XLSX === 'undefined') {
+            alert('Biblioteca XLSX não carregada. Use o formato CSV.');
+            return;
+        }
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const wb = XLSX.read(e.target.result, { type: 'array' });
+            const ws = wb.Sheets[wb.SheetNames[0]];
+            const csv = XLSX.utils.sheet_to_csv(ws, { FS: ';' });
+            processarLinhas(csv.split('\n'));
+        };
+        reader.readAsArrayBuffer(file);
+    } else {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const text = e.target.result;
+            processarLinhas(text.split('\n'));
+        };
+        reader.readAsText(file, 'UTF-8');
+    }
+}
+
 function gerarCSV(dados) {
     if (!dados || dados.length === 0) return '';
     

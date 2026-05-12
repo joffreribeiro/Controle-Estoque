@@ -1929,6 +1929,11 @@
                             <span class="btn-icon">📤</span>
                             Exportar Excel
                         </button>
+                        <button class="btn btn-outline" onclick="document.getElementById('inputImportarControleEnvio').click()">
+                            <span class="btn-icon">📥</span>
+                            Importar Excel
+                        </button>
+                        <input type="file" id="inputImportarControleEnvio" accept=".xlsx,.xls,.csv" style="display:none" onchange="importarControleEnvioArquivo(event)">
                         <button class="btn btn-outline" onclick="imprimirControleEnvio()">
                             <span class="btn-icon">🖨️</span>
                             Imprimir
