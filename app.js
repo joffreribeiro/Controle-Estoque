@@ -2875,35 +2875,25 @@ function renderizarTabela() {
         });
         const totalDevolvido = Object.values(devPorRep).reduce((s, v) => s + v, 0);
 
-        // === STEP 4: vendas por representante - preferir o agregado em produto.vendas
+        // === STEP 4: vendas por representante - sempre recalcular do registroVendas
         const vendasPorRep = {};
-        let agregadoTemValores = false;
-        if (produto.vendas && typeof produto.vendas === 'object') {
-            Object.keys(produto.vendas).forEach(k => {
-                const val = Number(produto.vendas[k]) || 0;
-                if (val !== 0) agregadoTemValores = true;
-                vendasPorRep[(k||'').toString().toUpperCase()] = val;
-            });
-        }
-        // Se o agregado estiver zerado (produto.vendas não confiável), popular a partir de registroVendas
-        if (!agregadoTemValores) {
-            (estoque.registroVendas || []).forEach(v => {
-                try {
-                    const rep = (v.representante || '').toString().toUpperCase();
-                    if (Array.isArray(v.items) && v.items.length) {
-                        v.items.forEach(it => {
-                            if (Number(it.produtoId) === Number(produtoId) || (it.produto === produto.nome) || (it.produtoNome === produto.nome)) {
-                                vendasPorRep[rep] = (vendasPorRep[rep] || 0) + (Number(it.quantidade) || 0);
-                            }
-                        });
-                    } else {
-                        if (Number(v.produtoId) === Number(produtoId) || (v.produtoNome === produto.nome)) {
-                            vendasPorRep[rep] = (vendasPorRep[rep] || 0) + (Number(v.quantidade) || 0);
+        (estoque.registroVendas || []).forEach(v => {
+            try {
+                if (v.cancelado) return;
+                const rep = (v.representante || '').toString().toUpperCase();
+                if (Array.isArray(v.items) && v.items.length) {
+                    v.items.forEach(it => {
+                        if (Number(it.produtoId) === Number(produtoId) || (it.produtoNome === produto.nome)) {
+                            vendasPorRep[rep] = (vendasPorRep[rep] || 0) + (Number(it.quantidade) || 0);
                         }
+                    });
+                } else {
+                    if (Number(v.produtoId) === Number(produtoId) || (v.produtoNome === produto.nome)) {
+                        vendasPorRep[rep] = (vendasPorRep[rep] || 0) + (Number(v.quantidade) || 0);
                     }
-                } catch (e) {}
-            });
-        }
+                }
+            } catch (e) {}
+        });
 
         // total vendas do produto (em todos os reps)
         const totalVendasProduto = Object.values(vendasPorRep).reduce((s, v) => s + v, 0);
