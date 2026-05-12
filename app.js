@@ -1829,6 +1829,12 @@ async function salvarNoCloud() {
         try {
             window._cloudSyncedRecently = true;
             window._dadosAlterados = false;
+            // Guardar timestamp do save para identificar o eco no onSnapshot
+            try {
+                const savedDoc2 = await docRef.get();
+                const d2 = savedDoc2 && savedDoc2.exists ? savedDoc2.data() : null;
+                window._lastCloudSaveTimestamp = d2 && d2.updatedAt ? d2.updatedAt.toDate().getTime() : Date.now();
+            } catch(e) { window._lastCloudSaveTimestamp = Date.now(); }
             if (__cloudSyncResetTimer) clearTimeout(__cloudSyncResetTimer);
             __cloudSyncResetTimer = setTimeout(() => { window._cloudSyncedRecently = false; }, 30000);
         } catch (e) {}
@@ -1921,9 +1927,14 @@ async function carregarDoCloud({confirmOverwrite=true} = {}) {
         } catch (inner) { updateFirestoreStatus(true, null, 'Cloud: carregado'); }
         if (confirmOverwrite) {
             const ok = confirm('Carregar dados do cloud irá substituir os dados locais. Deseja continuar?');
-            if (!ok) return false;
+            if (!ok) { window._carregandoDoCloud = false; return false; }
         }
         estoque = data.estado;
+        // Sincronizar _localUpdatedAt com o timestamp remoto para evitar re-trigger do onSnapshot
+        try {
+            const tsRemoto = data.updatedAt ? data.updatedAt.toDate().toISOString() : new Date().toISOString();
+            estoque._localUpdatedAt = tsRemoto;
+        } catch(e) {}
         // Restaurar dados IMBEL salvos no backup principal (se existirem)
         try {
             if (data && data.estado && data.estado._imbelData) {
@@ -2044,6 +2055,8 @@ async function carregarDoCloudAuto() {
         if (remoteUpdated && remoteUpdated > localUpdated + 1000) {
             // substituir local automaticamente
             estoque = data.estado;
+            // Sincronizar _localUpdatedAt com o timestamp remoto
+            try { estoque._localUpdatedAt = data.updatedAt.toDate().toISOString(); } catch(e) {}
             // Restaurar dados IMBEL salvos no backup principal (se existirem)
             try {
                 if (data && data.estado && data.estado._imbelData) {
@@ -19468,20 +19481,19 @@ if (window.firebase && firebase.auth) {
                                         const remoteUpdated = data && data.updatedAt ? data.updatedAt.toDate().getTime() : null;
                                         const localUpdated = estoque && estoque._localUpdatedAt ? new Date(estoque._localUpdatedAt).getTime() : 0;
                                         if (!remoteUpdated) return;
-                                        // Se acabamos de sincronizar local->cloud, ignorar o snapshot
-                                        if (window._cloudSyncedRecently) return;
-                                        // Se há alterações locais não sincronizadas, não sobrescrever automaticamente
-                                        if (window._dadosAlterados) {
+                                        // Ignorar se o remoto não é mais recente que o local
+                                        if (remoteUpdated <= localUpdated + 1000) return;
+                                        // Se acabamos de enviar este exato timestamp para o cloud, ignorar (é o eco do nosso próprio save)
+                                        if (window._cloudSyncedRecently && window._lastCloudSaveTimestamp && Math.abs(remoteUpdated - window._lastCloudSaveTimestamp) < 5000) return;
+                                        // Se há edições locais pendentes de envio (auto-save em andamento), aguardar
+                                        if (window._dadosAlterados && !window._cloudSyncedRecently) {
                                             try { updateFirestoreStatus(true, new Date(remoteUpdated), 'Cloud: atualização disponível'); } catch(e) {}
                                             window.__cloudHasRemoteUpdate = true;
                                             return;
                                         }
-                                        // Se remoto for mais recente que local, carregar automaticamente
-                                        // Margem de 1s para cobrir latência sem bloquear sincronização real
-                                        if (remoteUpdated > localUpdated + 1000) {
-                                            await carregarDoCloud({ confirmOverwrite: false });
-                                            try { if (window.__SHOW_AUTO_UPDATE_NOTIFICATION) mostrarNotificacao('Dados atualizados automaticamente do Cloud.', 'success'); } catch (e) {}
-                                        }
+                                        // Remoto é mais recente — carregar automaticamente
+                                        await carregarDoCloud({ confirmOverwrite: false });
+                                        try { if (window.__SHOW_AUTO_UPDATE_NOTIFICATION) mostrarNotificacao('Dados atualizados automaticamente do Cloud.', 'success'); } catch (e) {}
                                     } catch (e) {
                                         console.error('Erro no snapshot do Firestore:', e);
                                     }
