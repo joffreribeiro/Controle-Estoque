@@ -7879,7 +7879,7 @@ function atualizarSelectsProdutos() {
             sel.innerHTML = '<option value="">Selecione um produto</option>';
             produtosOrdenados.forEach(produto => {
                 const opt = document.createElement('option');
-                opt.value = produto.id;
+                opt.value = String(produto.id);
                 opt.textContent = produto.nome;
                 sel.appendChild(opt);
             });
@@ -8588,7 +8588,22 @@ function adicionarItemVendaRow(preProdutoId = '', preQuantidade = 1, preValor = 
         container.appendChild(row);
 
         // Preencher valores se fornecidos (forçar string para bater com value das options)
-        if (preProdutoId) row.querySelector('.item-produto').value = String(preProdutoId);
+        if (preProdutoId) {
+            const selProd = row.querySelector('.item-produto');
+            const idStr = String(preProdutoId);
+            selProd.dataset.preselect = idStr;
+            const _aplicarSelecao = (sel, id) => {
+                for (let i = 0; i < sel.options.length; i++) {
+                    if (sel.options[i].value === id) { sel.options[i].selected = true; return true; }
+                }
+                sel.value = id;
+                return sel.value === id;
+            };
+            const ok = _aplicarSelecao(selProd, idStr);
+            console.log('[adicionarItemVendaRow] preProdutoId='+idStr+' achou='+ok+' currentVal='+selProd.value+' opts='+selProd.options.length);
+            setTimeout(() => { if (selProd.isConnected && selProd.value !== idStr) { _aplicarSelecao(selProd, idStr); console.log('[row t50] val='+selProd.value); } }, 50);
+            setTimeout(() => { if (selProd.isConnected && selProd.value !== idStr) { _aplicarSelecao(selProd, idStr); console.log('[row t300] val='+selProd.value); } }, 300);
+        }
         if (preValor) row.querySelector('.item-valor').value = preValor;
 
         // Garantir que o input de valor remova o estado "auto-preenchido" quando o usuário editar
