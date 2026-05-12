@@ -1801,6 +1801,7 @@ async function salvarNoCloud() {
             if (imbelDataToSave) estoque._imbelData = imbelDataToSave;
         } catch (e) { /* ignore */ }
         const docRef = window.firestoreDB.collection('app_data').doc('latest');
+        console.log('[SYNC] salvarNoCloud: salvando. vendas='+((estoque.registroVendas||[]).length)+' _localUpdatedAt='+estoque._localUpdatedAt);
         await docRef.set({
             estado: estoque,
             precificacao,
