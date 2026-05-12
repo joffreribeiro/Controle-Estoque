@@ -8487,7 +8487,7 @@ function abrirModalVendaDetalhada(vendaId = null, propostaId = null) {
             if (Array.isArray(proposta.itens) && proposta.itens.length > 0) {
                 proposta.itens.forEach(it => {
                     const preValor = it.valorUnitario ? it.valorUnitario.toLocaleString('pt-BR', { minimumFractionDigits: 2 }) : '';
-                    adicionarItemVendaRow(it.produtoId, it.quantidade, preValor);
+                    adicionarItemVendaRow(it.produtoId, it.quantidade, preValor, it.produtoNome || '');
                 });
             } else {
                 adicionarItemVendaRow();
@@ -8552,12 +8552,12 @@ function abrirModalVendaDetalhada(vendaId = null, propostaId = null) {
     if (Array.isArray(venda.items) && venda.items.length > 0) {
         venda.items.forEach(it => {
             const preValor = it.valorUnitario ? it.valorUnitario.toLocaleString('pt-BR', { minimumFractionDigits: 2 }) : '';
-            adicionarItemVendaRow(it.produtoId, it.quantidade, preValor);
+            adicionarItemVendaRow(it.produtoId, it.quantidade, preValor, it.produtoNome || '');
         });
     } else {
         // compatibilidade com registro antigo
         const preValor = venda.valorUnitario ? venda.valorUnitario.toLocaleString('pt-BR', { minimumFractionDigits: 2 }) : '';
-        adicionarItemVendaRow(venda.produtoId, venda.quantidade || 1, preValor);
+        adicionarItemVendaRow(venda.produtoId, venda.quantidade || 1, preValor, venda.produtoNome || '');
     }
 
     atualizarTotalVendaDetalhada();
@@ -8576,7 +8576,7 @@ function construirOpcoesProdutos() {
     return html;
 }
 
-function adicionarItemVendaRow(preProdutoId = '', preQuantidade = 1, preValor = '') {
+function adicionarItemVendaRow(preProdutoId = '', preQuantidade = 1, preValor = '', preProdutoNome = '') {
     try {
         const container = document.getElementById('itensVendaContainer');
         if (!container) return;
@@ -8613,9 +8613,20 @@ function adicionarItemVendaRow(preProdutoId = '', preQuantidade = 1, preValor = 
             const selProd = row.querySelector('.item-produto');
             const idStr = String(preProdutoId);
             selProd.dataset.preselect = idStr;
+            if (preProdutoNome) selProd.dataset.produtoNome = preProdutoNome;
             const _aplicarSelecao = (sel, id) => {
                 for (let i = 0; i < sel.options.length; i++) {
                     if (sel.options[i].value === id) { sel.options[i].selected = true; return true; }
+                }
+                // Fallback: tentar encontrar pelo nome do produto gravado no item
+                if (sel.dataset.produtoNome) {
+                    const nomeLower = sel.dataset.produtoNome.trim().toLowerCase();
+                    for (let i = 0; i < sel.options.length; i++) {
+                        if (sel.options[i].textContent.trim().toLowerCase() === nomeLower) {
+                            sel.options[i].selected = true;
+                            return true;
+                        }
+                    }
                 }
                 sel.value = id;
                 return sel.value === id;
