@@ -17849,19 +17849,14 @@ function autoPreencherPrecoProduto(selectEl) {
 
     const lojaNome = (document.getElementById('lojaVenda')?.value || '').trim();
 
-    // PRIORIDADE 1: Tabela de Preço de Venda por Estado (CI + impostos, PJ)
-    // Busca o UF do cliente para calcular o preço correto por estado
+    // PRIORIDADE 1: Tabela de Preço para Lojista (manual, por grupo de estado)
     try {
-        const clienteObj = (clientes || []).find(c => (c.nome||'').trim().toLowerCase() === lojaNome.toLowerCase());
-        const uf = clienteObj && clienteObj.uf ? clienteObj.uf.trim().toUpperCase() : null;
-        if (uf) {
-            const resultadoPJ = calcularPreco(produto.nome, uf, 'PJ');
-            if (resultadoPJ && Number(resultadoPJ.precoFinal) > 0) {
-                valorInput.value = _fmtMoeda(resultadoPJ.precoFinal);
-                valorInput.style.background = '#eff6ff';
-                valorInput.setAttribute('data-autofilled', 'tabelavenda');
-                return;
-            }
+        const precoLojista = obterPrecoEstadoParaClienteProduto(lojaNome, produtoId);
+        if (precoLojista !== null && !isNaN(precoLojista) && precoLojista > 0) {
+            valorInput.value = _fmtMoeda(precoLojista);
+            valorInput.style.background = '#eff6ff';
+            valorInput.setAttribute('data-autofilled', 'lojista');
+            return;
         }
     } catch (e) {}
 
