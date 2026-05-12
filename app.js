@@ -1804,6 +1804,7 @@ async function salvarNoCloud() {
         await docRef.set({
             estado: estoque,
             precificacao,
+            precificacoesCliente: precificacoesCliente || [],
             tabelaAliquotas,
             tabelaICMS,
             categoriaPorProduto,
@@ -16716,11 +16717,9 @@ function salvarPrecificacaoCliente() {
     try { registro.clienteUF = registro.clienteUF || registro.uf || (document.getElementById('precifClienteUF')?.value || ''); } catch (e) {}
     try { registro.uf = registro.uf || registro.clienteUF || (document.getElementById('precifClienteUF')?.value || ''); } catch (e) {}
     try { registro.representante = registro.representante || (document.getElementById('precifRepresentanteSelect')?.value || ''); } catch (e) {}
-    try { console.log('salvarPrecificacaoCliente -> registro.representante:', registro.representante); console.log('salvarPrecificacaoCliente -> registro summary:', { id: registro.id, clienteId: registro.clienteId, versao: registro.versao, representante: registro.representante, itensCount: (registro.itens||[]).length }); } catch (e) {}
     precificacoesCliente.push(registro);
-    try { console.log('precificacoesCliente pushed. last item:', precificacoesCliente[precificacoesCliente.length-1] || null); } catch (e) {}
     ultimaVersaoSalva = proximaVersao;
-    try { estoque.precificacoesCliente = precificacoesCliente; } catch (e) {}
+    estoque.precificacoesCliente = precificacoesCliente;
     salvarDados();
     try { atualizarIndicadoresPrecificacao(); } catch (e) {}
     const infoEl = document.getElementById('precifSalvoInfo');
