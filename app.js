@@ -1878,12 +1878,12 @@ async function carregarDoCloudUI() {
     if (typeof requireAdminOrNotify === 'function' && !requireAdminOrNotify()) return false;
     if (typeof showProgressBar === 'function') showProgressBar('Carregando do Cloud...');
     try {
-        const confirmed = confirm('Carregar do cloud substituirá os dados locais. Deseja continuar?');
-        if (!confirmed) return false;
         mostrarNotificacao('Carregando dados do cloud...', 'info');
+        // Resetar flag antes do carregamento manual para não bloquear
+        window._dadosAlterados = false;
         const ok = await carregarDoCloud({ confirmOverwrite: false });
-        if (ok) mostrarNotificacao('Dados carregados do Firestore com sucesso.', 'success');
-        else mostrarNotificacao('Nenhum backup encontrado no Firestore ou falha ao carregar.', 'warning');
+        if (ok) mostrarNotificacao('✅ Dados carregados do Cloud com sucesso.', 'success');
+        else mostrarNotificacao('Nenhum backup encontrado no Cloud ou falha ao carregar.', 'warning');
         return ok;
     } catch (e) {
         console.error('carregarDoCloudUI erro:', e);
@@ -2110,6 +2110,7 @@ async function carregarDoCloudAuto() {
                 if (isRastreaVis && typeof renderizarRastreabilidade === 'function') renderizarRastreabilidade();
             } catch (e) {}
             console.debug('Dados carregados automaticamente do Firestore (remoto mais recente).');
+            try { mostrarNotificacao('✅ Dados sincronizados do Cloud.', 'success'); } catch(e) {}
             return true;
         }
         return false;
@@ -19409,6 +19410,10 @@ if (window.firebase && firebase.auth) {
 
                         // Auto-load somente uma vez por usuário autenticado
                         if (window.__cloudAutoLoadDoneForUid !== user.uid) {
+                            // Resetar flag de "dados alterados" antes do auto-load:
+                            // neste ponto só houve carga inicial do localStorage, sem edição real do usuário.
+                            // Sem esse reset, carregarDoCloudAuto retorna false imediatamente.
+                            window._dadosAlterados = false;
                             const autoLoaded = await carregarDoCloudAuto();
                             window.__cloudAutoLoadDoneForUid = user.uid;
                             if (autoLoaded) {
