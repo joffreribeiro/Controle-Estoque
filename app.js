@@ -8528,8 +8528,13 @@ function abrirModalVendaDetalhada(vendaId = null, propostaId = null) {
     // Preencher campo de data com valor existente (normalizado para YYYY-MM-DD)
     try { document.getElementById('dataVenda').value = parseDateToYYYYMMDD(venda.data) || ''; } catch (e) {}
 
+    console.log('[abrirModal] vendaId='+vendaId+' typeof='+typeof vendaId);
+    console.log('[abrirModal] venda.id='+venda.id+' typeof='+typeof venda.id);
+    console.log('[abrirModal] venda.items=', JSON.stringify(venda.items));
+    console.log('[abrirModal] venda.produtoId='+venda.produtoId+' typeof='+typeof venda.produtoId);
     if (Array.isArray(venda.items) && venda.items.length > 0) {
         venda.items.forEach(it => {
+            console.log('[abrirModal] item produtoId='+it.produtoId+' typeof='+typeof it.produtoId);
             const preValor = it.valorUnitario ? it.valorUnitario.toLocaleString('pt-BR', { minimumFractionDigits: 2 }) : '';
             adicionarItemVendaRow(it.produtoId, it.quantidade, preValor);
         });
