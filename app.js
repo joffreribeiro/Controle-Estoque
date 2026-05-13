@@ -1734,7 +1734,9 @@ function _executarSalvarLocal() {
     try { estoque.icmsEditavelPJ = icmsEditavelPJ || {}; } catch (e) {}
     try { estoque.icmsEditavelPF = icmsEditavelPF || {}; } catch (e) {}
     // marca hora local de atualização para comparação com o remoto
-    try { estoque._localUpdatedAt = new Date().toISOString(); } catch (e) {}
+    // Quando carregando do cloud, preservar o timestamp remoto (já setado em carregarDoCloud)
+    // para que onSnapshot não compare com um "now()" mais recente que o remoto
+    try { if (!window._carregandoDoCloud) estoque._localUpdatedAt = new Date().toISOString(); } catch (e) {}
     // Include IMBEL data in main save
     try {
         const imbelData = loadImbel();
@@ -1745,7 +1747,8 @@ function _executarSalvarLocal() {
     atualizarEstatisticas();
 
     // agendar salvamento no cloud (debounced) se habilitado
-    try { scheduleCloudSaveDebounced(); } catch (e) {}
+    // Não re-enviar ao cloud quando estamos apenas persistindo dados recebidos do cloud
+    try { if (!window._carregandoDoCloud) scheduleCloudSaveDebounced(); } catch (e) {}
     try {
         if (!window._cloudSyncedRecently && !window._carregandoDoCloud) window._dadosAlterados = true;
     } catch (e) {}
