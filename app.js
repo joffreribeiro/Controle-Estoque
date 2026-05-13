@@ -83,6 +83,10 @@ if (location.hostname !== 'localhost') {
 window._dadosAlterados = false;
 // Marca que houve sincronização recente com o cloud (evita warning ao fechar)
 window._cloudSyncedRecently = false;
+// Marca que o usuário realmente editou algo após a inicialização (evita auto-save periódico sem edição real)
+window._userHasEdited = false;
+// Marca que a inicialização do app foi concluída
+window._appInitialized = false;
 // Feature flags: controlar painel debug e notificações automáticas do cloud
 try { window.__SHOW_DEBUG_PANEL = window.__SHOW_DEBUG_PANEL || false; } catch(e) { window.__SHOW_DEBUG_PANEL = false; }
 try { window.__SHOW_AUTO_UPDATE_NOTIFICATION = window.__SHOW_AUTO_UPDATE_NOTIFICATION || false; } catch(e) { window.__SHOW_AUTO_UPDATE_NOTIFICATION = false; }
@@ -966,6 +970,9 @@ async function inicializar() {
     // Reativar auto-save: habilita salvamento automático (debounced + periódico)
     try { window.__AUTO_SAVE_CLOUD.enabled = true; } catch (e) {}
     try { iniciarAutoSaveCloud(); } catch (e) { console.warn('Falha ao iniciar auto-save:', e); }
+
+    // Marcar que a inicialização foi concluída — a partir daqui edições são do usuário
+    window._appInitialized = true;
 }
 
 // INÍCIO AJUSTE PRECIFICAÇÃO: normalizarPrecificacoesCliente
@@ -1758,6 +1765,10 @@ function salvarDados(opcoes = {}) {
     // Não marcar como alterado se viemos de uma carga do cloud (evita bloquear sync futuro)
     if (!window._carregandoDoCloud) {
         try { window._dadosAlterados = true; } catch (e) {}
+        // Registrar edição real do usuário (só após init completa — não durante renderizações iniciais)
+        if (window._appInitialized) {
+            try { window._userHasEdited = true; } catch (e) {}
+        }
     }
     if (opcoes && opcoes.imediato) {
         if (__localSaveTimer) { clearTimeout(__localSaveTimer); __localSaveTimer = null; }
@@ -2027,6 +2038,7 @@ async function carregarDoCloud({confirmOverwrite=true} = {}) {
         } catch(e) {}
         window._carregandoDoCloud = false;
         window._dadosAlterados = false;
+        window._userHasEdited = false;
         return true;
     } catch (e) {
         console.error('Erro carregando do Firestore:', e);
@@ -2133,6 +2145,7 @@ async function carregarDoCloudAuto() {
             try { mostrarNotificacao('✅ Dados sincronizados do Cloud.', 'success'); } catch(e) {}
             window._carregandoDoCloud = false;
             window._dadosAlterados = false;
+            window._userHasEdited = false;
             return true;
         }
         window._carregandoDoCloud = false;
@@ -2188,7 +2201,9 @@ function iniciarAutoSaveCloud() {
     // salvar a cada X minutos também (fallback periódico)
     if (!window.__AUTO_SAVE_CLOUD.periodicId) {
         window.__AUTO_SAVE_CLOUD.periodicId = setInterval(() => {
-            if (!window.__AUTO_SAVE_CLOUD.inProgress) {
+            // Só executar save periódico se o usuário realmente editou algo após a inicialização
+            // Evita sobrescrever dados do cloud com estado antigo do localStorage ao abrir o sistema
+            if (!window.__AUTO_SAVE_CLOUD.inProgress && window._userHasEdited) {
                 salvarNoCloud().catch(e => console.error('Auto-save periódico falhou:', e));
             }
         }, 1000 * 60 * 5); // a cada 5 minutos
