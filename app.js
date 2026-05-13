@@ -10248,7 +10248,14 @@ function renderizarRegistroDistribuicao() {
     }
     
     if (filtroProduto) {
-        distribuicoesFiltradas = distribuicoesFiltradas.filter(d => d.produtoId === parseInt(filtroProduto));
+        const _fpNum = parseInt(filtroProduto);
+        const _fpStr = String(filtroProduto);
+        const _prodFilt = (estoque.produtos || []).find(p => String(p.id) === _fpStr);
+        distribuicoesFiltradas = distribuicoesFiltradas.filter(d =>
+            String(d.produtoId) === _fpStr ||
+            Number(d.produtoId) === _fpNum ||
+            (_prodFilt && (d.produtoNome || '').toUpperCase() === (_prodFilt.nome || '').toUpperCase())
+        );
     }
     
     // Ordenar por data (mais recente primeiro)
@@ -19281,7 +19288,16 @@ renderizarRegistroDistribuicao = function() {
     let combinado = [...distrib, ...devol];
 
     if (filtroRep) combinado = combinado.filter(d => (d.representante || '') === filtroRep);
-    if (filtroProduto) combinado = combinado.filter(d => (d.produtoId || 0) === parseInt(filtroProduto));
+    if (filtroProduto) {
+        const filtroProdutoNum = parseInt(filtroProduto);
+        const filtroProdutoStr = String(filtroProduto);
+        const produtoFiltrado = (estoque.produtos || []).find(p => String(p.id) === filtroProdutoStr);
+        combinado = combinado.filter(d =>
+            String(d.produtoId) === filtroProdutoStr ||
+            Number(d.produtoId) === filtroProdutoNum ||
+            (produtoFiltrado && (d.produtoNome || '').toUpperCase() === (produtoFiltrado.nome || '').toUpperCase())
+        );
+    }
 
     // Filtro por data com boundaries
     if (dataInicio || dataFim) {
