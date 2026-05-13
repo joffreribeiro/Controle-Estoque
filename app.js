@@ -1751,6 +1751,7 @@ function _executarSalvarLocal() {
     } catch(e) {}
     localStorage.setItem('estoqueArmasV2', JSON.stringify(estoque));
     try { localStorage.setItem('precificacoesClienteBackupV1', JSON.stringify(precificacoesCliente || [])); } catch (e) {}
+    console.debug('[SYNC] _executarSalvarLocal — _localUpdatedAt:', estoque._localUpdatedAt, '| _carregandoDoCloud:', window._carregandoDoCloud, '| _appInitialized:', window._appInitialized, '| _userHasEdited:', window._userHasEdited);
     atualizarEstatisticas();
 
     // agendar salvamento no cloud (debounced) se habilitado
@@ -1802,6 +1803,7 @@ async function salvarNoCloud() {
         console.warn('Firestore não inicializado. Impossível salvar no cloud.');
         return false;
     }
+    console.info('[SYNC] salvarNoCloud — iniciando | _userHasEdited:', window._userHasEdited, '| _localUpdatedAt:', estoque._localUpdatedAt);
     const indicator = document.getElementById('cloudSaveIndicator');
     if (indicator) { indicator.textContent = '☁️ Salvando...'; indicator.style.color = '#d97706'; }
     try {
@@ -2063,12 +2065,13 @@ async function carregarDoCloudAuto() {
     try {
         const docRef = window.firestoreDB.collection('app_data').doc('latest');
         const doc = await docRef.get();
-        if (!doc.exists) { window._carregandoDoCloud = false; return false; }
+        if (!doc.exists) { window._carregandoDoCloud = false; console.warn('[SYNC] carregarDoCloudAuto: doc não existe'); return false; }
         const data = doc.data();
         const remoteUpdated = data.updatedAt ? data.updatedAt.toDate().getTime() : null;
         const localUpdated = estoque._localUpdatedAt ? new Date(estoque._localUpdatedAt).getTime() : 0;
+        console.info('[SYNC] carregarDoCloudAuto — remoto:', remoteUpdated ? new Date(remoteUpdated).toISOString() : 'null', '| local:', localUpdated ? new Date(localUpdated).toISOString() : 'zero', '| _dadosAlterados:', window._dadosAlterados, '| _userHasEdited:', window._userHasEdited, '| diff(s):', remoteUpdated ? Math.round((remoteUpdated - localUpdated)/1000) : 'n/a');
         // Não sobrescrever se há alterações locais pendentes não sincronizadas
-        if (window._dadosAlterados) { window._carregandoDoCloud = false; return false; }
+        if (window._dadosAlterados) { window._carregandoDoCloud = false; console.warn('[SYNC] carregarDoCloudAuto: BLOQUEADO por _dadosAlterados'); return false; }
         if (remoteUpdated && remoteUpdated > localUpdated + 1000) {
             // substituir local automaticamente
             estoque = data.estado;
@@ -19617,18 +19620,21 @@ if (window.firebase && firebase.auth) {
                                         const data = doc.data();
                                         const remoteUpdated = data && data.updatedAt ? data.updatedAt.toDate().getTime() : null;
                                         const localUpdated = estoque && estoque._localUpdatedAt ? new Date(estoque._localUpdatedAt).getTime() : 0;
+                                        console.info('[SYNC] onSnapshot — remoto:', remoteUpdated ? new Date(remoteUpdated).toISOString() : 'null', '| local:', localUpdated ? new Date(localUpdated).toISOString() : 'zero', '| _dadosAlterados:', window._dadosAlterados, '| _lastCloudSaveAt:', window._lastCloudSaveAt ? Math.round((Date.now()-window._lastCloudSaveAt)/1000)+'s atrás' : 'nunca', '| diff(s):', remoteUpdated ? Math.round((remoteUpdated - localUpdated)/1000) : 'n/a');
                                         if (!remoteUpdated) return;
                                         // Ignorar se o remoto não é mais recente que o local
-                                        if (remoteUpdated <= localUpdated + 1000) return;
+                                        if (remoteUpdated <= localUpdated + 1000) { console.info('[SYNC] onSnapshot: IGNORADO — remoto não é mais recente'); return; }
                                         // Ignorar snapshots nos 10s após este PC ter salvado (eco do Firestore)
-                                        if (window._lastCloudSaveAt && (Date.now() - window._lastCloudSaveAt) < 10000) return;
+                                        if (window._lastCloudSaveAt && (Date.now() - window._lastCloudSaveAt) < 10000) { console.info('[SYNC] onSnapshot: IGNORADO — eco do save local (< 10s)'); return; }
                                         // Se há edições locais pendentes (ainda não enviadas ao cloud), não sobrescrever
                                         if (window._dadosAlterados) {
+                                            console.warn('[SYNC] onSnapshot: BLOQUEADO por _dadosAlterados — marcando atualização disponível');
                                             try { updateFirestoreStatus(true, new Date(remoteUpdated), 'Cloud: atualização disponível'); } catch(e) {}
                                             window.__cloudHasRemoteUpdate = true;
                                             return;
                                         }
                                         // Remoto é mais recente — carregar automaticamente
+                                        console.info('[SYNC] onSnapshot: carregando do cloud...');
                                         await carregarDoCloud({ confirmOverwrite: false });
                                         try { if (window.__SHOW_AUTO_UPDATE_NOTIFICATION) mostrarNotificacao('Dados atualizados automaticamente do Cloud.', 'success'); } catch (e) {}
                                     } catch (e) {
