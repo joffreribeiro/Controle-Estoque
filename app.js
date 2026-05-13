@@ -2174,6 +2174,9 @@ window.__AUTO_SAVE_CLOUD = {
 function scheduleCloudSaveDebounced() {
     if (!window.__AUTO_SAVE_CLOUD.enabled) return;
     if (!window.firestoreDB) return;
+    // Não salvar no cloud se o usuário não editou nada desde a inicialização
+    // (evita sobrescrever dados do cloud com estado antigo do localStorage ao abrir o sistema)
+    if (!window._userHasEdited) { console.debug('[SYNC] scheduleCloudSaveDebounced: ignorado — _userHasEdited=false'); return; }
     // permitir auto-save para usuários autenticados OU para admin (fallback)
     try {
         const fbUser = (typeof firebase !== 'undefined' && firebase.auth) ? firebase.auth().currentUser : null;
