@@ -2125,8 +2125,14 @@ tr.total-row:hover {
     position: sticky;
     top: var(--acoes-height, 52px);
     z-index: 1350 !important;
-    background: var(--bg-white);
-    margin-bottom: 0;
+    background: var(--bg-white) !important;
+    background: linear-gradient(135deg, #f8faff 0%, #f0f5fc 100%) !important;
+    margin-bottom: 0 !important;
+    border-radius: 0 !important;
+    border-left: none !important;
+    border-right: none !important;
+    border-top: none !important;
+    box-shadow: 0 2px 6px rgba(8,14,24,0.06) !important;
 }
 
 /* Ensure thead sticks above body but below section header/actions */
@@ -4690,6 +4696,442 @@ th.sortable.sort-desc .sort-icon::after { content: ' ▼'; opacity: 1; }
     #controleImbelMovContainer table thead th { font-size: .72rem; padding: 8px 6px !important; }
     #controleImbelMovContainer table td { padding: 8px 6px !important; font-size: .78rem; }
     #controleImbelMovContainer td:last-child { right: 0; }
+}
+
+/* ============================================================
+   MELHORIAS VISUAIS GLOBAIS v3.0
+   Hierarquia, filtros, tabelas, subabas, KPIs, botões
+   ============================================================ */
+
+/* ── 1. SECTION HEADER — mais impacto visual ── */
+.section-header {
+    background: var(--bg-white);
+    border-radius: var(--radius-md);
+    padding: 14px 20px !important;
+    margin-bottom: 16px !important;
+    border: 1px solid var(--border-color);
+    box-shadow: var(--shadow-xs);
+    gap: 12px;
+}
+
+.section-header .section-title,
+.section-title {
+    font-size: 1.05rem !important;
+    font-weight: 700 !important;
+    color: var(--primary-color) !important;
+    letter-spacing: -0.01em;
+}
+
+.section-header .section-title::before,
+.section-title::before {
+    width: 3px !important;
+    height: 18px !important;
+    background: linear-gradient(180deg, var(--accent-color), var(--accent-hover)) !important;
+    border-radius: 2px !important;
+}
+
+.header-actions {
+    gap: 8px !important;
+    flex-wrap: wrap;
+}
+
+/* ── 2. FILTROS — destaque e hierarquia clara ── */
+.filtros-container {
+    background: linear-gradient(135deg, #f8faff 0%, #f0f5fc 100%) !important;
+    border: 1px solid #dce6f5 !important;
+    border-left: 3px solid var(--primary-light) !important;
+    border-radius: var(--radius-md) !important;
+    padding: 16px 20px !important;
+    margin-bottom: 16px !important;
+    gap: 14px !important;
+    align-items: flex-end !important;
+    flex-wrap: wrap !important;
+    box-shadow: var(--shadow-xs) !important;
+    position: relative;
+}
+
+.filtros-container::before {
+    content: '⚙ Filtros';
+    position: absolute;
+    top: -10px;
+    left: 16px;
+    background: var(--primary-color);
+    color: #fff;
+    font-size: 0.65rem;
+    font-weight: 700;
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+    padding: 2px 10px;
+    border-radius: 20px;
+    line-height: 1.6;
+}
+
+.filtro-group {
+    gap: 5px !important;
+    min-width: 160px !important;
+}
+
+.filtro-group label {
+    font-size: 0.7rem !important;
+    font-weight: 700 !important;
+    color: var(--primary-color) !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.6px !important;
+}
+
+.filtro-group select,
+.filtros-container select,
+.filtros-container input[type="date"],
+.filtros-container input[type="text"] {
+    padding: 8px 12px;
+    border: 1.5px solid #cdd8ea;
+    border-radius: var(--radius-sm);
+    font-size: 0.875rem;
+    background: #fff;
+    color: var(--text-primary);
+    transition: var(--transition);
+    box-shadow: var(--shadow-xs);
+    min-height: 36px;
+}
+
+.filtro-group select:hover,
+.filtros-container select:hover,
+.filtros-container input[type="date"]:hover,
+.filtros-container input[type="text"]:hover {
+    border-color: var(--primary-light);
+}
+
+.filtro-group select:focus,
+.filtros-container select:focus,
+.filtros-container input[type="date"]:focus,
+.filtros-container input[type="text"]:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(26,48,80,0.1);
+}
+
+/* Botão limpar filtros */
+.filtros-container .btn-outline {
+    border-color: #cdd8ea !important;
+    color: var(--text-secondary) !important;
+    font-size: 0.8rem !important;
+    padding: 8px 14px !important;
+    align-self: flex-end;
+    min-height: 36px;
+}
+.filtros-container .btn-outline:hover {
+    background: #e8f0fa !important;
+    border-color: var(--primary-color) !important;
+    color: var(--primary-color) !important;
+}
+
+/* Botões de filtro rápido (hoje, 7 dias, etc.) */
+.filtros-container .btn-sm {
+    padding: 7px 12px !important;
+    font-size: 0.78rem !important;
+    min-height: 32px;
+    border-radius: var(--radius-sm) !important;
+}
+
+/* ── 3. TABELAS — linhas mais limpas, hover mais forte ── */
+.dashboard-table tbody tr {
+    transition: background 0.12s ease, box-shadow 0.12s ease;
+    border-left: 3px solid transparent;
+}
+
+.dashboard-table tbody tr:hover {
+    background: #ebf2fd !important;
+    border-left-color: var(--primary-light);
+    box-shadow: inset 0 0 0 1px rgba(40,77,122,0.06);
+}
+
+.dashboard-table tbody tr:nth-child(even) {
+    background: #f9fbff;
+}
+
+.dashboard-table td {
+    padding: 11px 14px !important;
+    font-size: 0.875rem !important;
+    border-bottom: 1px solid #eef2f8 !important;
+    vertical-align: middle !important;
+}
+
+.dashboard-table th {
+    padding: 12px 14px !important;
+    font-size: 0.72rem !important;
+    letter-spacing: 0.6px !important;
+    background: linear-gradient(180deg, var(--primary-color) 0%, var(--primary-dark) 100%) !important;
+}
+
+/* Coluna de ações — centralizada e compacta */
+.dashboard-table td.col-acoes,
+.dashboard-table td:last-child:has(.btn-action) {
+    text-align: center !important;
+    white-space: nowrap;
+    padding: 8px 10px !important;
+}
+
+/* Total row */
+.dashboard-table tfoot tr td,
+.dashboard-table tr.total-row td {
+    background: linear-gradient(90deg, #f0f5fc, #e8f0fb) !important;
+    font-weight: 700 !important;
+    color: var(--primary-color) !important;
+    border-top: 2px solid #ccd8ee !important;
+    font-size: 0.875rem !important;
+}
+
+/* Coluna sortable — indicador mais claro */
+.dashboard-table th.sortable {
+    cursor: pointer;
+    user-select: none;
+}
+.dashboard-table th.sortable:hover {
+    background: var(--primary-light) !important;
+}
+.dashboard-table th .sort-icon {
+    opacity: 0.5;
+    font-size: 0.75rem;
+    margin-left: 4px;
+    transition: opacity 0.15s;
+}
+.dashboard-table th.sortable:hover .sort-icon {
+    opacity: 1;
+}
+
+/* ── 4. SUBABAS (tabs-navigation) — indicador ativo mais claro ── */
+.tabs-navigation {
+    padding: 0 16px !important;
+    gap: 0 !important;
+    border-bottom: 2px solid #dde4ed !important;
+    background: var(--bg-white) !important;
+    position: relative;
+}
+
+.tab-btn {
+    padding: 12px 18px !important;
+    font-size: 0.83rem !important;
+    font-weight: 500 !important;
+    color: var(--text-secondary) !important;
+    border-bottom: 3px solid transparent !important;
+    margin-bottom: -2px !important;
+    border-radius: var(--radius-sm) var(--radius-sm) 0 0 !important;
+    transition: color 0.15s, background 0.15s, border-color 0.15s !important;
+    gap: 6px !important;
+}
+
+.tab-btn:hover {
+    color: var(--primary-color) !important;
+    background: rgba(26,48,80,0.04) !important;
+    border-bottom-color: #c4cfd9 !important;
+}
+
+.tab-btn.active {
+    color: var(--primary-color) !important;
+    border-bottom-color: var(--accent-color) !important;
+    font-weight: 700 !important;
+    background: rgba(184,146,42,0.05) !important;
+}
+
+.tab-btn.active::after {
+    display: none !important;
+}
+
+/* ── 5. KPI CARDS — mais impacto, ícone de fundo ── */
+.kpi-card {
+    padding: 16px 18px !important;
+    border-radius: var(--radius-md) !important;
+    border: 1px solid var(--border-color) !important;
+    border-left: 4px solid var(--accent-color) !important;
+    box-shadow: var(--shadow-xs) !important;
+    transition: transform 0.15s, box-shadow 0.15s !important;
+    background: var(--bg-white) !important;
+}
+
+.kpi-card:hover {
+    transform: translateY(-2px) !important;
+    box-shadow: var(--shadow-sm) !important;
+}
+
+.kpi-accent { border-left-color: var(--accent-color) !important; }
+.kpi-success { border-left-color: var(--success-color) !important; }
+.kpi-info    { border-left-color: var(--info-color) !important; }
+.kpi-danger  { border-left-color: var(--danger-color) !important; }
+
+.kpi-label {
+    font-size: 0.65rem !important;
+    font-weight: 700 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 1px !important;
+    color: var(--text-muted) !important;
+    margin-bottom: 4px;
+}
+
+.kpi-value {
+    font-size: 1.5rem !important;
+    font-weight: 800 !important;
+    line-height: 1.15 !important;
+    color: var(--primary-color) !important;
+    font-variant-numeric: tabular-nums;
+}
+
+.kpi-subtitle {
+    font-size: 0.72rem !important;
+    color: var(--text-muted) !important;
+    margin-top: 3px !important;
+}
+
+/* ── 6. BOTÕES — distinção principal/secundário/destrutivo ── */
+.btn-success {
+    background: linear-gradient(135deg, #15803d, #16a34a) !important;
+    color: #fff !important;
+    font-weight: 600 !important;
+}
+.btn-success:hover {
+    background: linear-gradient(135deg, #166534, #15803d) !important;
+    box-shadow: 0 4px 12px rgba(21,128,61,0.3) !important;
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, var(--primary-color), var(--primary-light)) !important;
+    color: #fff !important;
+    font-weight: 600 !important;
+}
+.btn-primary:hover {
+    box-shadow: 0 4px 12px rgba(26,48,80,0.3) !important;
+}
+
+.btn-outline {
+    background: #fff !important;
+    border: 1.5px solid #cdd8ea !important;
+    color: var(--text-secondary) !important;
+    font-weight: 500 !important;
+}
+.btn-outline:hover {
+    background: #f0f5fc !important;
+    border-color: var(--primary-color) !important;
+    color: var(--primary-color) !important;
+    box-shadow: none !important;
+}
+
+/* Botão de ação nas tabelas */
+.btn-action {
+    padding: 5px 9px !important;
+    border-radius: var(--radius-xs) !important;
+    border: 1.5px solid var(--border-color) !important;
+    font-size: 0.82rem !important;
+    background: #fff !important;
+    transition: var(--transition) !important;
+    cursor: pointer;
+}
+.btn-action:hover {
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-xs);
+}
+.btn-action.btn-edit:hover { background: #dbeafe !important; border-color: #93c5fd !important; }
+.btn-action.btn-delete:hover { background: #fee2e2 !important; border-color: #fca5a5 !important; }
+
+/* ── 7. TABLE CONTAINER — borda superior colorida ── */
+.table-container {
+    border-top: 3px solid var(--primary-color) !important;
+    border-radius: 0 0 var(--radius-md) var(--radius-md) !important;
+    overflow: hidden;
+}
+
+/* ── 8. PAGINAÇÃO — mais visível ── */
+.pagination-container {
+    padding: 12px 16px;
+    background: var(--bg-white);
+    border-top: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px;
+    border-radius: 0 0 var(--radius-md) var(--radius-md);
+}
+
+.page-btn {
+    min-width: 32px;
+    height: 32px;
+    padding: 0 10px !important;
+    border-radius: var(--radius-sm) !important;
+    border: 1.5px solid #cdd8ea !important;
+    font-size: 0.82rem !important;
+    font-weight: 600 !important;
+    color: var(--text-secondary) !important;
+    background: #fff !important;
+    transition: var(--transition);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+.page-btn:hover {
+    background: #f0f5fc !important;
+    border-color: var(--primary-color) !important;
+    color: var(--primary-color) !important;
+}
+.page-btn.active {
+    background: var(--primary-color) !important;
+    color: #fff !important;
+    border-color: var(--primary-color) !important;
+}
+.page-btn[disabled] {
+    opacity: 0.4 !important;
+    cursor: default !important;
+}
+
+/* ── 9. CONTENT AREA — respiração entre seções ── */
+.content-area {
+    padding: 22px 26px !important;
+}
+
+/* ── 10. INPUT BUSCA global ── */
+.input-busca-tabela {
+    padding: 9px 14px 9px 36px !important;
+    border: 1.5px solid #cdd8ea !important;
+    border-radius: var(--radius-sm) !important;
+    font-size: 0.875rem !important;
+    background: #fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='15' height='15' viewBox='0 0 24 24' fill='none' stroke='%238fa0b4' stroke-width='2.5'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cpath d='m21 21-4.35-4.35'/%3E%3C/svg%3E") no-repeat 10px center !important;
+    transition: var(--transition);
+    min-width: 220px;
+    box-shadow: var(--shadow-xs);
+}
+.input-busca-tabela:focus {
+    outline: none !important;
+    border-color: var(--primary-color) !important;
+    box-shadow: 0 0 0 3px rgba(26,48,80,0.1) !important;
+}
+
+/* ── 11. BADGE representantes — já existe mas reforço ── */
+.badge-rep {
+    font-size: 0.7rem !important;
+    font-weight: 700 !important;
+    padding: 3px 10px !important;
+    border-radius: 20px !important;
+    letter-spacing: 0.3px;
+}
+
+/* ── 12. EMPTY STATE — mais elegante ── */
+.empty-state {
+    padding: 48px 20px !important;
+    text-align: center !important;
+}
+.empty-icon {
+    font-size: 2.8rem !important;
+    opacity: 0.35 !important;
+    display: block;
+    margin-bottom: 10px;
+}
+.empty-text {
+    font-size: 0.95rem !important;
+    font-weight: 600 !important;
+    color: var(--text-secondary) !important;
+}
+.empty-hint {
+    font-size: 0.82rem !important;
+    color: var(--text-muted) !important;
+    margin-top: 6px !important;
 }
 
 
