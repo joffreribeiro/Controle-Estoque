@@ -976,13 +976,6 @@ th[data-sort]:hover { background: rgba(30,58,95,0.03); }
     margin: 0 auto;
 }
 
-.section-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 20px;
-}
-
 /* Modal / Login Card styles */
 .modal {
     position: fixed;
@@ -1009,7 +1002,8 @@ th[data-sort]:hover { background: rgba(30,58,95,0.03); }
     padding: 26px 28px;
     /* Garantir que o conteúdo do modal esteja acima da sidebar */
     z-index: 3110;
-    overflow: hidden;
+    overflow-y: auto;
+    max-height: 90vh;
 }
 .modal-close {
     position: absolute;
@@ -2088,31 +2082,6 @@ tr.total-row:hover {
    REGISTRO DE VENDAS
    ======================================== */
 
-.section-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 20px;
-    padding: 0 5px;
-}
-
-.section-header .section-title {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    font-size: 1.2rem;
-    font-weight: 600;
-    color: var(--text-primary);
-}
-
-.section-header .section-title::before {
-    content: '';
-    width: 4px;
-    height: 24px;
-    background: var(--accent-color);
-    border-radius: 2px;
-}
-
 .header-actions {
     display: flex;
     flex-wrap: wrap;
@@ -2126,7 +2095,6 @@ tr.total-row:hover {
     top: var(--acoes-height, 52px);
     z-index: 1350 !important;
     background: var(--bg-white) !important;
-    background: linear-gradient(135deg, #f8faff 0%, #f0f5fc 100%) !important;
     margin-bottom: 0 !important;
     border-radius: 0 !important;
     border-left: none !important;
@@ -2151,17 +2119,7 @@ tr.total-row:hover {
     background: var(--bg-white) !important;
 }
 
-.filtros-container {
-    background: var(--bg-white);
-    border-radius: 10px;
-    padding: 20px;
-    margin-bottom: 20px;
-    box-shadow: var(--shadow-sm);
-    display: flex;
-    gap: 15px;
-    align-items: flex-end;
-    flex-wrap: wrap;
-}
+
 
 .filtro-group {
     display: flex;
@@ -3821,7 +3779,6 @@ th.sortable.sort-desc .sort-icon::after { content: ' ▼'; opacity: 1; }
 .kpi-value {
     font-size: 20px;
     font-weight: 800;
-    color: var(--text-primary);
     line-height: 1.15;
     margin-top: 5px;
     font-family: var(--font-display);
@@ -5134,4 +5091,63 @@ th.sortable.sort-desc .sort-icon::after { content: ' ▼'; opacity: 1; }
     margin-top: 6px !important;
 }
 
+/* ── 13. FOCO VISÍVEL — acessibilidade por teclado ── */
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+    outline: 2px solid var(--primary-light);
+    outline-offset: 1px;
+}
 
+/* ── 14. RESPONSIVIDADE MOBILE (≤768px) ── */
+@media (max-width: 768px) {
+    .content-area {
+        padding: 14px 12px;
+    }
+
+    .section-header {
+        flex-direction: column !important;
+        align-items: flex-start !important;
+        gap: 8px !important;
+    }
+
+    .header-actions {
+        width: 100% !important;
+        flex-wrap: wrap !important;
+    }
+
+    .filtros-container {
+        flex-direction: column !important;
+        gap: 10px !important;
+        padding: 20px 14px 14px !important;
+    }
+
+    .filtros-container::before {
+        display: none !important;
+    }
+
+    .filtro-group {
+        min-width: unset !important;
+        width: 100% !important;
+    }
+
+    .filtro-group select,
+    .filtros-container select,
+    .filtros-container input[type="date"],
+    .filtros-container input[type="text"] {
+        width: 100% !important;
+    }
+
+    .kpi-card {
+        min-width: unset !important;
+    }
+
+    .dashboard-table {
+        font-size: 0.78rem !important;
+    }
+
+    .dashboard-table th,
+    .dashboard-table td {
+        padding: 8px 6px !important;
+    }
+}
