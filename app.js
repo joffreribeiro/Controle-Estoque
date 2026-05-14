@@ -7206,24 +7206,12 @@ function exportarMovimentacoesImbel() {
         const prodMap = {};
         (data.produtos||[]).forEach(p => { prodMap[p.id] = p.nome; });
 
-        const rows = movs.map(m => {
-            const produtoDesc = (m.items && (m.items||[]).length)
-                ? (m.items||[]).map(it => prodMap[it.produtoId] || it.produtoId).join(' | ')
-                : (prodMap[m.produtoId] || m.produtoId || '');
-            const quantidade = (m.items && (m.items||[]).length)
-                ? (m.items||[]).reduce((s,it) => s + (Number(it.quantidade)||0), 0)
-                : Number(m.quantidade) || 0;
-            const valor = (m.items && (m.items||[]).length)
-                ? (m.items||[]).reduce((s,it) => s + (Number(it.valor)||0), 0)
-                : Number(m.valor) || 0;
-            return {
-                'Data':          m.data ? new Date(m.data).toLocaleDateString('pt-BR') : '',
-                'Produto':       produtoDesc,
+        const rows = movs.flatMap(m => {
+            const base = {
+                'Data':          m.data ? new Date(m.data + 'T12:00:00').toLocaleDateString('pt-BR') : '',
                 'Tipo':          m.tipo || '',
-                'Quantidade':    quantidade,
                 'Destinatário':  m.destinatario || '',
                 'CPF/CNPJ':      m.cpfCnpj     || '',
-                'Valor (R$)':    valor,
                 'Pagamento':     m.pagamento    || '',
                 'Entregue':      m.entregue     || '',
                 'FI':            m.fi           || '',
@@ -7232,9 +7220,25 @@ function exportarMovimentacoesImbel() {
                 'E-mail':        m.email        || '',
                 'Observações':   m.observacoes  || ''
             };
+            if (m.items && m.items.length) {
+                // Expandir: uma linha por produto
+                return m.items.map(it => ({
+                    ...base,
+                    'Produto':    it.produtoNome || prodMap[it.produtoId] || it.produtoId || '',
+                    'Quantidade': Number(it.quantidade) || 0,
+                    'Valor (R$)': Number(it.valor) || 0
+                }));
+            }
+            return [{
+                ...base,
+                'Produto':    prodMap[m.produtoId] || m.produtoId || '',
+                'Quantidade': Number(m.quantidade) || 0,
+                'Valor (R$)': Number(m.valor) || 0
+            }];
         });
 
-        const ws = XLSX.utils.json_to_sheet(rows);
+        const colOrder = ['Data','Produto','Tipo','Quantidade','Destinatário','CPF/CNPJ','Valor (R$)','Pagamento','Entregue','FI','Endereço','Telefone','E-mail','Observações'];
+        const ws = XLSX.utils.json_to_sheet(rows, { header: colOrder });
         ws['!cols'] = [
             {wch:12},{wch:30},{wch:10},{wch:10},{wch:30},{wch:18},
             {wch:14},{wch:12},{wch:10},{wch:8},
