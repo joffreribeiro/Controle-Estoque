@@ -5856,12 +5856,15 @@ function renderControleImbelDashboard() {
     const produtos = data.produtos || [];
     // função auxiliar para calcular saldo atual (usa categoria dos tipos)
     const calcSaldo = (prodId) => {
+        const inicial = Number((data.produtos||[]).find(p=>p.id===prodId)?.quantidadeInicial) || 0;
         return (data.movimentacoes||[]).reduce((saldo, m) => {
-            if (m.produtoId !== prodId) return saldo;
-            const q = Number(m.quantidade) || 0;
             const cfg = getImbelTipo(m.tipo);
-            return saldo + (cfg.categoria === 'entrada' ? q : -q);
-        }, Number((data.produtos||[]).find(p=>p.id===prodId)?.quantidadeInicial) || 0);
+            const sinal = cfg.categoria === 'entrada' ? 1 : -1;
+            const subItens = (m.items && m.items.length)
+                ? m.items.filter(it => it.produtoId === prodId).map(it => Number(it.quantidade)||0)
+                : (m.produtoId === prodId ? [Number(m.quantidade)||0] : []);
+            return saldo + sinal * subItens.reduce((s, q) => s + q, 0);
+        }, inicial);
     };
 
     // calcula tempo para zerar lote anterior (último ciclo completo)
@@ -6127,14 +6130,20 @@ function renderControleImbelEstoque() {
     const totSaida   = {};
     const totSaidaByTipo = {}; // { produtoId: { VENDA: n, SAIDA_MARKETING: n, ... } }
     (data.movimentacoes||[]).forEach(m => {
-        if (!m.produtoId) return;
-        const q = Number(m.quantidade) || 0;
-        if (imbelTipoAumentaEstoque(m.tipo)) totEntrada[m.produtoId] = (totEntrada[m.produtoId]||0) + q;
-        else {
-            totSaida[m.produtoId] = (totSaida[m.produtoId]||0) + q;
-            if (!totSaidaByTipo[m.produtoId]) totSaidaByTipo[m.produtoId] = {};
-            totSaidaByTipo[m.produtoId][m.tipo] = (totSaidaByTipo[m.produtoId][m.tipo]||0) + q;
-        }
+        const aumenta = imbelTipoAumentaEstoque(m.tipo);
+        const subItens = (m.items && m.items.length)
+            ? m.items.map(it => ({ produtoId: it.produtoId, quantidade: Number(it.quantidade)||0 }))
+            : (m.produtoId ? [{ produtoId: m.produtoId, quantidade: Number(m.quantidade)||0 }] : []);
+        subItens.forEach(({ produtoId, quantidade }) => {
+            if (!produtoId) return;
+            if (aumenta) {
+                totEntrada[produtoId] = (totEntrada[produtoId]||0) + quantidade;
+            } else {
+                totSaida[produtoId] = (totSaida[produtoId]||0) + quantidade;
+                if (!totSaidaByTipo[produtoId]) totSaidaByTipo[produtoId] = {};
+                totSaidaByTipo[produtoId][m.tipo] = (totSaidaByTipo[produtoId][m.tipo]||0) + quantidade;
+            }
+        });
     });
 
     const produtos = data.produtos || [];
