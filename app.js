@@ -6651,7 +6651,12 @@ function renderControleImbelMovimentacao() {
             const fFi    = document.getElementById('imbel_filter_fi_only')?.checked;
 
             const filtered = all.filter(m => {
-                if (fProd && m.produtoId !== fProd) return false;
+                if (fProd) {
+                    const ids = (m.items && m.items.length)
+                        ? m.items.map(it => it.produtoId)
+                        : [m.produtoId];
+                    if (!ids.includes(fProd)) return false;
+                }
                 if (fTipo && (m.tipo||'').toUpperCase() !== fTipo.toUpperCase()) return false;
                 if (fStart && (m.data||'') < fStart) return false;
                 if (fEnd   && (m.data||'') > fEnd)   return false;
@@ -6680,8 +6685,20 @@ function renderControleImbelMovimentacao() {
                 const dataFmt = first.data
                     ? new Date(first.data + 'T12:00:00').toLocaleDateString('pt-BR')
                     : '—';
-                const totalQtd = itens.reduce((s,m) => s+(Number(m.quantidade)||0), 0);
-                const totalVal = itens.reduce((s,m) => s+(Number(m.valor)||0), 0);
+
+                // Coletar sub-itens internos (m.items) de todas as movimentações do grupo
+                const allSubItems = itens.flatMap(m =>
+                    (m.items && m.items.length)
+                        ? m.items.map(it => ({
+                            ...it,
+                            produtoNome: it.produtoNome || (data.produtos||[]).find(p=>p.id===it.produtoId)?.nome || '',
+                            _parentId: m.id
+                          }))
+                        : [{ produtoId: m.produtoId, produtoNome: m.produtoNome || (data.produtos||[]).find(p=>p.id===m.produtoId)?.nome || '', quantidade: m.quantidade, valor: m.valor, _parentId: m.id }]
+                );
+
+                const totalQtd = allSubItems.reduce((s,it) => s+(Number(it.quantidade)||0), 0);
+                const totalVal = allSubItems.reduce((s,it) => s+(Number(it.valor)||0), 0);
                 const isFI     = itens.every(m => (m.fi||'').toUpperCase() === 'SIM');
                 const isPago   = itens.every(m => (m.pagamento||'').toUpperCase() === 'SIM');
                 const isEntregue = itens.every(m => (m.entregue||'').toUpperCase() === 'SIM');
@@ -6697,19 +6714,17 @@ function renderControleImbelMovimentacao() {
                     `font-weight:600`;
                 trGroup.title = 'Clique para ver os produtos';
 
-                                // resumo de produtos do grupo
-                                const produtosUnicos = [...new Set((itens||[]).map(m => m.produtoId))];
+                                // resumo de produtos do grupo (considera sub-itens internos)
+                                const produtosUnicos = [...new Set(allSubItems.map(it => it.produtoId))];
                                 const temMultiplosProdutos = produtosUnicos.length > 1;
                                 const cfgSafe = (typeof getImbelTipo === 'function') ? getImbelTipo(first.tipo) : { label: first.tipo||'—', cor:'#64748b', bg:'#f8fafc', icon:'' };
 
                                 // nome do produto (quando todos os itens forem do mesmo produto)
-                                const prodNome = itens[0]?.produtoNome
-                                    || (data.produtos||[]).find(p => p.id === itens[0]?.produtoId)?.nome
-                                    || '—';
+                                const prodNome = allSubItems[0]?.produtoNome || '—';
 
                                 const produtoCell = temMultiplosProdutos
                                     ? `<td style="${tdBase};color:#1d4ed8;font-weight:600;cursor:pointer" onclick="imbelToggleGrupo('${groupKey}',event)">
-                                         <span data-expand-ind>▸</span> ${itens.length} produto(s)
+                                         <span data-expand-ind>▸</span> ${allSubItems.length} produto(s)
                                        </td>`
                                     : `<td style="${tdBase};font-weight:500">${prodNome}</td>`;
 
@@ -6787,10 +6802,8 @@ function renderControleImbelMovimentacao() {
 
                 // ── PRODUCT DETAIL ROWS (hidden by default) ──
                 if (temMultiplosProdutos) {
-                    itens.forEach(m => {
-                        const pNome = m.produtoNome
-                            || (data.produtos||[]).find(p=>p.id===m.produtoId)?.nome
-                            || '—';
+                    allSubItems.forEach(it => {
+                        const pNome = it.produtoNome || '—';
                         const trItem = document.createElement('tr');
                         trItem.dataset.groupChild = groupKey;
                         trItem.style.cssText =
@@ -6803,8 +6816,8 @@ function renderControleImbelMovimentacao() {
                     </td>
                     <td></td>
                     <td style="${tdBase};font-weight:500;color:#1e293b">${pNome}</td>
-                    <td style="${tdCenter};font-weight:600">${m.quantidade||0}</td>
-                    <td style="${tdCenter};font-weight:600;color:#16a34a">R$ ${Number(m.valor||0).toLocaleString('pt-BR',{minimumFractionDigits:2})}</td>
+                    <td style="${tdCenter};font-weight:600">${it.quantidade||0}</td>
+                    <td style="${tdCenter};font-weight:600;color:#16a34a">R$ ${Number(it.valor||0).toLocaleString('pt-BR',{minimumFractionDigits:2})}</td>
                     <td colspan="4"></td>`;
                         tbody.appendChild(trItem);
                     });
