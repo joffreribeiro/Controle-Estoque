@@ -5152,8 +5152,7 @@ function calcularSaldosImbel(data, { ignorarId = null } = {}) {
     const saldos = {};
     (data.produtos || []).forEach(p => {
         const inicial = Number(p.quantidadeInicial) || 0;
-        saldos[p.id] = { inicial, entradas: 0, saidas: 0, saidaByTipo: {},
-            get saldo() { return this.inicial + this.entradas - this.saidas; } };
+        saldos[p.id] = { inicial, entradas: 0, saidas: 0, saidaByTipo: {} };
     });
     (data.movimentacoes || []).forEach(m => {
         if (ignorarId && m.id === ignorarId) return;
@@ -5171,6 +5170,8 @@ function calcularSaldosImbel(data, { ignorarId = null } = {}) {
             }
         });
     });
+    // Calcular saldo final como valor simples em cada entrada
+    Object.values(saldos).forEach(s => { s.saldo = s.inicial + s.entradas - s.saidas; });
     return saldos;
 }
 
@@ -6157,7 +6158,7 @@ function renderControleImbelEstoque() {
     }
 
     produtos.forEach((p, idx) => {
-        const s = saldosEstoque[p.id] || { inicial: 0, entradas: 0, saidas: 0, saldo: 0, saidaByTipo: {} };
+        const s = saldosEstoque[p.id] || { inicial: 0, entradas: 0, saidas: 0, saidaByTipo: {} };
         const entrada = s.entradas;
         const saida   = s.saidas;
         const saidaByTipo = s.saidaByTipo || {};
@@ -6179,7 +6180,7 @@ function renderControleImbelEstoque() {
                >${saida} ℹ️</span>`
             : `${saida}`;
         const inicial = s.inicial;
-        const estoqueAtual = s.saldo;
+        const estoqueAtual = s.inicial + s.entradas - s.saidas;
 
         const ponto = (p.pontoReposicao !== undefined && p.pontoReposicao !== '')
             ? Number(p.pontoReposicao)
