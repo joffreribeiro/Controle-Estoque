@@ -7092,6 +7092,10 @@ function renderControleImbelMovimentacao() {
         // Bloquear saída se saldo insuficiente (usa categoria dos tipos)
         if (!imbelTipoAumentaEstoque(tipoKey)) {
             const saldos = {};
+            // Inicializar saldos com a quantidade inicial de cada produto cadastrado
+            (data.produtos||[]).forEach(p => {
+                saldos[p.id] = Number(p.quantidadeInicial) || 0;
+            });
             // Calcular saldos a partir das movimentações existentes, ignorando a movimentação que está sendo editada
             (data.movimentacoes||[]).forEach(m2 => {
                 try {
@@ -7119,7 +7123,8 @@ function renderControleImbelMovimentacao() {
                 const req = solicitados[pid] || 0;
                 const saldoAtual = saldos[pid] || 0;
                 if (req > saldoAtual) {
-                    mostrarNotificacao(`Saldo insuficiente para ${pid}. Saldo atual: ${saldoAtual} un.`, 'error');
+                    const nomeProd = (data.produtos||[]).find(p => p.id === pid)?.nome || pid;
+                    mostrarNotificacao(`Saldo insuficiente para "${nomeProd}". Saldo atual: ${saldoAtual} un., solicitado: ${req} un.`, 'error');
                     return;
                 }
             }
