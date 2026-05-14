@@ -5145,6 +5145,35 @@ function saveImbel(data) {
     try { localStorage.setItem(IMBEL_KEY, JSON.stringify(data)); } catch (e) { console.error('Erro salvando IMBEL', e); }
 }
 
+// Função central de cálculo de saldo — única fonte de verdade para entradas/saídas por produto.
+// Percorre as movimentações uma única vez e retorna mapa { produtoId: { inicial, entradas, saidas, saldo, saidaByTipo } }.
+// Parâmetro ignorarId: ID de movimentação a ignorar (usado ao validar edição de registro existente).
+function calcularSaldosImbel(data, { ignorarId = null } = {}) {
+    const saldos = {};
+    (data.produtos || []).forEach(p => {
+        const inicial = Number(p.quantidadeInicial) || 0;
+        saldos[p.id] = { inicial, entradas: 0, saidas: 0, saidaByTipo: {},
+            get saldo() { return this.inicial + this.entradas - this.saidas; } };
+    });
+    (data.movimentacoes || []).forEach(m => {
+        if (ignorarId && m.id === ignorarId) return;
+        const aumenta = imbelTipoAumentaEstoque(m.tipo);
+        const subItens = (m.items && m.items.length)
+            ? m.items.map(it => ({ produtoId: it.produtoId, quantidade: Number(it.quantidade) || 0 }))
+            : (m.produtoId ? [{ produtoId: m.produtoId, quantidade: Number(m.quantidade) || 0 }] : []);
+        subItens.forEach(({ produtoId, quantidade }) => {
+            if (!saldos[produtoId]) return;
+            if (aumenta) {
+                saldos[produtoId].entradas += quantidade;
+            } else {
+                saldos[produtoId].saidas += quantidade;
+                saldos[produtoId].saidaByTipo[m.tipo] = (saldos[produtoId].saidaByTipo[m.tipo] || 0) + quantidade;
+            }
+        });
+    });
+    return saldos;
+}
+
 // Migrar movimentações antigas para novos tipos (executar uma vez no carregamento)
 function migrateImbelTipos() {
     const data = loadImbel();
@@ -5854,18 +5883,9 @@ function renderControleImbelDashboard() {
     const tb = tabela.querySelector('tbody');
 
     const produtos = data.produtos || [];
-    // função auxiliar para calcular saldo atual (usa categoria dos tipos)
-    const calcSaldo = (prodId) => {
-        const inicial = Number((data.produtos||[]).find(p=>p.id===prodId)?.quantidadeInicial) || 0;
-        return (data.movimentacoes||[]).reduce((saldo, m) => {
-            const cfg = getImbelTipo(m.tipo);
-            const sinal = cfg.categoria === 'entrada' ? 1 : -1;
-            const subItens = (m.items && m.items.length)
-                ? m.items.filter(it => it.produtoId === prodId).map(it => Number(it.quantidade)||0)
-                : (m.produtoId === prodId ? [Number(m.quantidade)||0] : []);
-            return saldo + sinal * subItens.reduce((s, q) => s + q, 0);
-        }, inicial);
-    };
+    // Calcular todos os saldos de uma vez usando função central
+    const _saldosDash = calcularSaldosImbel(data);
+    const calcSaldo = (prodId) => _saldosDash[prodId]?.saldo ?? 0;
 
     // calcula tempo para zerar lote anterior (último ciclo completo)
     function tempoParaZerar(prodId) {
@@ -6125,26 +6145,8 @@ function renderControleImbelEstoque() {
     const tdBase  = 'padding:8px 12px;border:1px solid #ddd;vertical-align:middle';
     const tdCenter = tdBase + ';text-align:center';
 
-    // Calcular totais de Entrada e Saída por produto
-    const totEntrada = {};
-    const totSaida   = {};
-    const totSaidaByTipo = {}; // { produtoId: { VENDA: n, SAIDA_MARKETING: n, ... } }
-    (data.movimentacoes||[]).forEach(m => {
-        const aumenta = imbelTipoAumentaEstoque(m.tipo);
-        const subItens = (m.items && m.items.length)
-            ? m.items.map(it => ({ produtoId: it.produtoId, quantidade: Number(it.quantidade)||0 }))
-            : (m.produtoId ? [{ produtoId: m.produtoId, quantidade: Number(m.quantidade)||0 }] : []);
-        subItens.forEach(({ produtoId, quantidade }) => {
-            if (!produtoId) return;
-            if (aumenta) {
-                totEntrada[produtoId] = (totEntrada[produtoId]||0) + quantidade;
-            } else {
-                totSaida[produtoId] = (totSaida[produtoId]||0) + quantidade;
-                if (!totSaidaByTipo[produtoId]) totSaidaByTipo[produtoId] = {};
-                totSaidaByTipo[produtoId][m.tipo] = (totSaidaByTipo[produtoId][m.tipo]||0) + quantidade;
-            }
-        });
-    });
+    // Calcular saldos usando função central — única fonte de verdade
+    const saldosEstoque = calcularSaldosImbel(data);
 
     const produtos = data.produtos || [];
 
@@ -6155,9 +6157,10 @@ function renderControleImbelEstoque() {
     }
 
     produtos.forEach((p, idx) => {
-        const entrada = totEntrada[p.id] || 0;
-        const saida   = totSaida[p.id]   || 0;
-        const saidaByTipo = totSaidaByTipo[p.id] || {};
+        const s = saldosEstoque[p.id] || { inicial: 0, entradas: 0, saidas: 0, saldo: 0, saidaByTipo: {} };
+        const entrada = s.entradas;
+        const saida   = s.saidas;
+        const saidaByTipo = s.saidaByTipo || {};
         const saidaTiposOrdenados = Object.keys(IMBEL_TIPOS).filter(k => {
             const t = IMBEL_TIPOS[k];
             return t.categoria === 'saida' && saidaByTipo[k];
@@ -6175,8 +6178,8 @@ function renderControleImbelEstoque() {
                     onmouseleave="ocultarTooltipSaida()"
                >${saida} ℹ️</span>`
             : `${saida}`;
-        const inicial = Number(p.quantidadeInicial) || 0;
-        const estoqueAtual = inicial + entrada - saida;
+        const inicial = s.inicial;
+        const estoqueAtual = s.saldo;
 
         const ponto = (p.pontoReposicao !== undefined && p.pontoReposicao !== '')
             ? Number(p.pontoReposicao)
@@ -7100,40 +7103,14 @@ function renderControleImbelMovimentacao() {
 
         // Bloquear saída se saldo insuficiente (usa categoria dos tipos)
         if (!imbelTipoAumentaEstoque(tipoKey)) {
-            const saldos = {};
-            // Inicializar saldos com a quantidade inicial de cada produto cadastrado
-            (data.produtos||[]).forEach(p => {
-                saldos[p.id] = Number(p.quantidadeInicial) || 0;
-            });
-            // Calcular saldos a partir das movimentações existentes, ignorando a movimentação que está sendo editada
-            (data.movimentacoes||[]).forEach(m2 => {
-                try {
-                    if (editId && m2.id === editId) return; // não contar a movimentação atual em edição
-                    if (m2.items && (m2.items||[]).length) {
-                        m2.items.forEach(it => {
-                            const q = Number(it.quantidade)||0;
-                            const s = imbelTipoAumentaEstoque(m2.tipo) ? 1 : -1;
-                            saldos[it.produtoId] = (saldos[it.produtoId]||0) + s * q;
-                        });
-                    } else {
-                        const q = Number(m2.quantidade)||0;
-                        const s = imbelTipoAumentaEstoque(m2.tipo) ? 1 : -1;
-                        saldos[m2.produtoId] = (saldos[m2.produtoId]||0) + s * q;
-                    }
-                } catch(e) { /* ignore malformed movimentacao */ }
-            });
-            // Somar quantidades solicitadas por produto (caso haja múltiplas linhas para o mesmo produto)
-            const solicitados = {};
+            // Usar função central ignorando o registro em edição (se houver)
+            const saldos = calcularSaldosImbel(data, { ignorarId: editId || null });
             for (const it of items) {
-                const pid = it.produtoId;
-                solicitados[pid] = (solicitados[pid]||0) + (Number(it.quantidade)||0);
-            }
-            for (const pid in solicitados) {
-                const req = solicitados[pid] || 0;
-                const saldoAtual = saldos[pid] || 0;
+                const req = Number(it.quantidade) || 0;
+                const saldoAtual = saldos[it.produtoId]?.saldo ?? 0;
                 if (req > saldoAtual) {
-                    const nomeProd = (data.produtos||[]).find(p => p.id === pid)?.nome || pid;
-                    mostrarNotificacao(`Saldo insuficiente para "${nomeProd}". Saldo atual: ${saldoAtual} un., solicitado: ${req} un.`, 'error');
+                    const nomeProd = (data.produtos||[]).find(p => p.id === it.produtoId)?.nome || it.produtoId;
+                    mostrarNotificacao(`Saldo insuficiente para "${nomeProd}". Saldo: ${saldoAtual} un., solicitado: ${req} un.`, 'error');
                     return;
                 }
             }
