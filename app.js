@@ -6235,11 +6235,8 @@ function renderControleImbelEstoque() {
 
     // Totais: valor total em estoque
     const totalValorEstoque = (data.produtos||[]).reduce((s, p) => {
-        const ent = totEntrada[p.id] || 0;
-        const sai = totSaida[p.id]   || 0;
-        const ini = Number(p.quantidadeInicial) || 0;
-        const saldo = Math.max(0, ini + ent - sai);
-        return s + saldo * (Number(p.valorUnitario)||0);
+        const ps = saldosEstoque[p.id] || { saldo: 0 };
+        return s + Math.max(0, ps.saldo) * (Number(p.valorUnitario)||0);
     }, 0);
 
     const tfootRow = document.createElement('tr');
@@ -6254,8 +6251,8 @@ function renderControleImbelEstoque() {
     // Linha de totais gerais
     if (produtos.length > 0) {
         const totalInicial = (produtos||[]).reduce((s,p)=>s + (Number(p.quantidadeInicial)||0),0);
-        const totalE = Object.values(totEntrada).reduce((a,b)=>a+b,0);
-        const totalS = Object.values(totSaida).reduce((a,b)=>a+b,0);
+        const totalE = Object.values(saldosEstoque).reduce((a,b)=>a+b.entradas,0);
+        const totalS = Object.values(saldosEstoque).reduce((a,b)=>a+b.saidas,0);
         const totalSaldo = totalInicial + totalE - totalS;
         const tr = document.createElement('tr');
         tr.style.cssText = 'background:#1e3a5f;color:#fff;font-weight:700';
