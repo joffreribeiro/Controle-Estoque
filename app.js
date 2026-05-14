@@ -7473,10 +7473,31 @@ function exportarImbelMovimentacao() {
     const produtos = (data.produtos||[]).reduce((acc,p)=>{acc[p.id]=p;return acc;},{})
     let csv = `ID${sep}PRODUTO_ID${sep}PRODUTO_NOME${sep}TIPO${sep}DATA${sep}QUANTIDADE${sep}DESTINATARIO${sep}CPF_CNPJ${sep}OBSERVACOES${sep}VALOR${sep}PAGAMENTO${sep}ENDERECO${sep}TELEFONE${sep}EMAIL${sep}ENTREGUE${sep}FI\n`;
     movs.forEach(m => {
-        const prod = produtos[m.produtoId] || {};
         const dataCsv = formatDateToDDMMYYYY(m.data);
-        const linha = `${m.id||''}${sep}${m.produtoId||''}${sep}${(prod.nome||'').toString().replace(/\n/g,' ')}${sep}${(m.tipo||'').toString()}${sep}${dataCsv}${sep}${m.quantidade||''}${sep}${(m.destinatario||'').toString().replace(/\n/g,' ')}${sep}${(m.cpfCnpj||'').toString()}${sep}${(m.observacoes||'').toString().replace(/\n/g,' ')}${sep}${(m.valor||'')}${sep}${(m.pagamento||'').toString()}${sep}${(m.endereco||'').toString().replace(/\n/g,' ')}${sep}${(m.telefone||'').toString()}${sep}${(m.email||'').toString()}${sep}${(m.entregue||'').toString()}${sep}${(m.fi||'').toString()}`;
-        csv += linha + '\n';
+        const base = [
+            m.tipo||'',
+            dataCsv,
+            (m.destinatario||'').toString().replace(/\n/g,' '),
+            (m.cpfCnpj||'').toString(),
+            (m.observacoes||'').toString().replace(/\n/g,' '),
+            (m.pagamento||'').toString(),
+            (m.endereco||'').toString().replace(/\n/g,' '),
+            (m.telefone||'').toString(),
+            (m.email||'').toString(),
+            (m.entregue||'').toString(),
+            (m.fi||'').toString()
+        ];
+        const linhas = (m.items && m.items.length)
+            ? m.items.map(it => {
+                const prod = produtos[it.produtoId] || {};
+                const nome = it.produtoNome || prod.nome || '';
+                return `${m.id||''}${sep}${it.produtoId||''}${sep}${nome.replace(/\n/g,' ')}${sep}${base[0]}${sep}${base[1]}${sep}${it.quantidade||0}${sep}${base[2]}${sep}${base[3]}${sep}${base[4]}${sep}${it.valor||0}${sep}${base[5]}${sep}${base[6]}${sep}${base[7]}${sep}${base[8]}${sep}${base[9]}${sep}${base[10]}`;
+              })
+            : (() => {
+                const prod = produtos[m.produtoId] || {};
+                return [`${m.id||''}${sep}${m.produtoId||''}${sep}${(prod.nome||'').toString().replace(/\n/g,' ')}${sep}${base[0]}${sep}${base[1]}${sep}${m.quantidade||''}${sep}${base[2]}${sep}${base[3]}${sep}${base[4]}${sep}${m.valor||''}${sep}${base[5]}${sep}${base[6]}${sep}${base[7]}${sep}${base[8]}${sep}${base[9]}${sep}${base[10]}`];
+              })();
+        linhas.forEach(l => { csv += l + '\n'; });
     });
     const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a'); const url = URL.createObjectURL(blob);
