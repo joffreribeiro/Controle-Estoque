@@ -5555,8 +5555,8 @@ function initControleImbel() {
 
 function trocarSubAbaControleImbel(sub) {
     // Atualizar botões ativos (sub-navegação IMBEL)
-    document.querySelectorAll('#imbelSubNav .tab-btn').forEach(btn => btn.classList.remove('active'));
-    const activeBtn = document.querySelector(`#imbelSubNav .tab-btn[data-imbeltab="${sub}"]`);
+    document.querySelectorAll('#imbelSubNav .precif-subtab-btn, #imbelSubNav .tab-btn').forEach(btn => btn.classList.remove('active'));
+    const activeBtn = document.querySelector(`#imbelSubNav [data-imbeltab="${sub}"]`);
     if (activeBtn) activeBtn.classList.add('active');
 
     // Mostrar / ocultar painéis
@@ -5919,19 +5919,31 @@ function renderControleImbelDashboard() {
     const ticketMedio = pedidosCount > 0 ? receitaTotal / pedidosCount : 0;
 
     const indicadores = document.createElement('div');
-    indicadores.style.cssText = 'display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:12px';
-    const card = (titulo, valor, destaque) => {
-        const c = document.createElement('div');
-        c.style.cssText = 'background:#fff;padding:14px;border-radius:10px;box-shadow:0 1px 6px rgba(0,0,0,.06)';
-        const innerVal = destaque ? `<span style="color:#1e3a5f">${valor}</span>` : `${valor}`;
-        c.innerHTML = `<div style="font-size:.78rem;color:#666">${titulo}</div><div style="font-size:1.3rem;font-weight:700;margin-top:6px">${innerVal}</div>`;
+    indicadores.className = 'kpi-grid';
+    indicadores.style.cssText = 'grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px';
+    const kpiV2 = (label, valor, subtitulo, variant, iconSvg) => {
+        const c = document.createElement('article');
+        c.className = `kpi-card-v2 ${variant}`;
+        c.innerHTML = `<div class="kpi-v2-top">
+            <div class="kpi-v2-body">
+                <div class="kpi-v2-label">${label}</div>
+                <div class="kpi-v2-value kpi-v2-value--sm">${valor}</div>
+                <div class="kpi-v2-subtitle">${subtitulo}</div>
+            </div>
+            <div class="kpi-v2-icon">${iconSvg}</div>
+        </div>`;
         return c;
     };
 
-    indicadores.appendChild(card('Receita total', 'R$ ' + receitaTotal.toLocaleString('pt-BR',{minimumFractionDigits:2}), true));
-    indicadores.appendChild(card('Unidades vendidas', unidadesVendidas.toString(), false));
-    indicadores.appendChild(card('Clientes ativos', clientesAtivos.toString(), false));
-    indicadores.appendChild(card('Ticket médio', 'R$ ' + ticketMedio.toLocaleString('pt-BR',{minimumFractionDigits:2}), false));
+    const fmtMoeda = v => 'R$ ' + v.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+    indicadores.appendChild(kpiV2('Receita Total', fmtMoeda(receitaTotal), 'Vendas com receita', 'kpi-success',
+        '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>'));
+    indicadores.appendChild(kpiV2('Unidades Vendidas', unidadesVendidas.toString(), 'Total de unidades', 'kpi-info',
+        '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>'));
+    indicadores.appendChild(kpiV2('Clientes Ativos', clientesAtivos.toString(), 'Destinatários únicos', 'kpi-accent-v2',
+        '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>'));
+    indicadores.appendChild(kpiV2('Ticket Médio', fmtMoeda(ticketMedio), 'Por pedido (receita)', 'kpi-warning',
+        '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>'));
 
     container.appendChild(indicadores);
 
@@ -5953,23 +5965,40 @@ function renderControleImbelDashboard() {
     const pagosCount = vendas.filter(v => (v.pagamento||'').toString().toUpperCase() === 'SIM').length;
     const naoConfirmadosCount = vendas.length - pagosCount;
 
+    const financeiroLabel = document.createElement('div');
+    financeiroLabel.className = 'imbel-section-divider';
+    financeiroLabel.innerHTML = '<span>Controle Financeiro</span>';
+    container.appendChild(financeiroLabel);
+
     const financeiroWrap = document.createElement('div');
-    financeiroWrap.style.cssText = 'display:flex;gap:12px;flex-wrap:wrap;margin-bottom:12px;align-items:stretch';
-    const finCard = (title, value, sub) => {
-        const el = document.createElement('div');
-        el.style.cssText = 'background:#fff;padding:12px;border-radius:10px;box-shadow:0 1px 6px rgba(0,0,0,.06);min-width:200px;flex:1';
-        el.innerHTML = `<div style="font-size:.78rem;color:#666">${title}</div><div style="font-size:1.1rem;font-weight:700;margin-top:6px">${value}</div>${sub?`<div style="font-size:.75rem;color:#888;margin-top:6px">${sub}</div>`:''}`;
-        return el;
+    financeiroWrap.className = 'kpi-grid';
+    financeiroWrap.style.cssText = 'grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px';
+
+    const finKpi = (label, valor, subtitulo, variant, iconSvg) => {
+        const c = document.createElement('article');
+        c.className = `kpi-card-v2 ${variant}`;
+        c.innerHTML = `<div class="kpi-v2-top">
+            <div class="kpi-v2-body">
+                <div class="kpi-v2-label">${label}</div>
+                <div class="kpi-v2-value">${valor}</div>
+                <div class="kpi-v2-subtitle">${subtitulo}</div>
+            </div>
+            <div class="kpi-v2-icon">${iconSvg}</div>
+        </div>`;
+        return c;
     };
 
-    financeiroWrap.appendChild(finCard('Valor pendente de recebimento', 'R$ ' + valorPendentes.toLocaleString('pt-BR',{minimumFractionDigits:2}), `${pendentes.length} pedidos pendentes`));
-    financeiroWrap.appendChild(finCard('Pedidos pagos', pagosCount.toString(), 'Confirmados'));
-    financeiroWrap.appendChild(finCard('Pedidos não confirmados', naoConfirmadosCount.toString(), 'Aguardando comprovante/GRU'));
+    financeiroWrap.appendChild(finKpi('Pendente Recebimento', fmtMoeda(valorPendentes), `${pendentes.length} pedido(s) pendentes`, 'kpi-warning',
+        '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>'));
+    financeiroWrap.appendChild(finKpi('Pedidos Pagos', pagosCount.toString(), 'Comprovante confirmado', 'kpi-success',
+        '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>'));
+    financeiroWrap.appendChild(finKpi('Não Confirmados', naoConfirmadosCount.toString(), 'Aguard. comprovante/GRU', 'kpi-danger',
+        '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>'));
 
-    // Chart area (paid x unconfirmed)
-    const chartCard = document.createElement('div');
-    chartCard.style.cssText = 'background:#fff;padding:12px;border-radius:10px;box-shadow:0 1px 6px rgba(0,0,0,.06);min-width:260px;flex:1';
-    chartCard.innerHTML = `<div style="font-size:.78rem;color:#666">Comparação: Pagos vs Não confirmados</div><canvas id="imbelPaidChart" style="height:80px;margin-top:8px"></canvas>`;
+    // Chart card
+    const chartCard = document.createElement('article');
+    chartCard.className = 'kpi-card-v2 kpi-info';
+    chartCard.innerHTML = `<div class="kpi-v2-label" style="margin-bottom:8px">Pagos vs Não Confirmados</div><canvas id="imbelPaidChart" style="height:70px"></canvas>`;
     financeiroWrap.appendChild(chartCard);
 
     container.appendChild(financeiroWrap);
@@ -6071,35 +6100,52 @@ function renderControleImbelDashboard() {
 
     // resumo rápido acima da tabela com alertas
     const resumo = document.createElement('div');
-    resumo.style.cssText = 'display:flex;gap:12px;flex-wrap:wrap;margin-bottom:8px;align-items:center';
-    const resumoItem = (label, value, color) => {
-        const el = document.createElement('div');
-        el.style.cssText = 'background:#fff;padding:8px;border-radius:8px;box-shadow:0 1px 4px rgba(0,0,0,.04);min-width:160px';
-        el.innerHTML = `<div style="font-size:.78rem;color:#666">${label}</div><div style="font-weight:700;margin-top:6px;color:${color}">${value}</div>`;
+    resumo.className = 'kpi-grid';
+    resumo.style.cssText = `grid-template-columns:repeat(${zerados.length ? 4 : 3},1fr);gap:10px;margin-bottom:12px`;
+
+    const estKpi = (label, value, variant, iconSvg) => {
+        const el = document.createElement('article');
+        el.className = `kpi-card-v2 ${variant}`;
+        el.innerHTML = `<div class="kpi-v2-top">
+            <div class="kpi-v2-body">
+                <div class="kpi-v2-label">${label}</div>
+                <div class="kpi-v2-value">${value}</div>
+            </div>
+            <div class="kpi-v2-icon">${iconSvg}</div>
+        </div>`;
         return el;
     };
-    resumo.appendChild(resumoItem('Produtos esgotados', esgotado.length.toString(), '#dc3545'));
-    resumo.appendChild(resumoItem('Produtos abaixo do ponto', baixo.length.toString(), '#856404'));
-    resumo.appendChild(resumoItem('Produtos OK', ok.length.toString(), '#155724'));
+
+    resumo.appendChild(estKpi('Esgotados', esgotado.length.toString(), 'kpi-danger',
+        '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>'));
+    resumo.appendChild(estKpi('Abaixo do Ponto', baixo.length.toString(), 'kpi-warning',
+        '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>'));
+    resumo.appendChild(estKpi('Produtos OK', ok.length.toString(), 'kpi-success',
+        '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>'));
+
     if (zerados.length) {
-        const listaZ = document.createElement('div');
-        listaZ.style.cssText = 'background:#fff;padding:8px;border-radius:8px;box-shadow:0 1px 4px rgba(0,0,0,.04);min-width:220px';
-        listaZ.innerHTML = `<div style="font-size:.78rem;color:#666">Zerados</div><div style="font-size:.85rem;margin-top:6px;color:#333">${zerados.map(z=>_escapeHtml(z.nome)).join(', ')}</div>`;
+        const listaZ = document.createElement('article');
+        listaZ.className = 'kpi-card-v2 kpi-danger';
+        listaZ.innerHTML = `<div class="kpi-v2-label">Zerados</div><div class="kpi-v2-subtitle" style="margin-top:6px;line-height:1.5">${zerados.map(z=>_escapeHtml(z.nome)).join(', ')}</div>`;
         resumo.appendChild(listaZ);
     }
 
-    // primeiro adiciona o resumo e depois a tabela (evita insertBefore com nó ainda não anexado)
     estoqueWrap.appendChild(resumo);
     estoqueWrap.appendChild(tabela);
     container.appendChild(estoqueWrap);
 
     // Acompanhamento de pedidos (pipeline)
+    const pipelineDivider = document.createElement('div');
+    pipelineDivider.className = 'imbel-section-divider';
+    pipelineDivider.innerHTML = '<span>Acompanhamento de Pedidos</span>';
+    container.appendChild(pipelineDivider);
+
     const pipelineWrap = document.createElement('div');
-    pipelineWrap.style.cssText = 'background:#fff;border-radius:10px;padding:12px;box-shadow:0 1px 6px rgba(0,0,0,.06);margin-top:12px';
-    pipelineWrap.innerHTML = `<h3 style="margin:0 0 8px 0;font-size:1rem">Acompanhamento de Pedidos</h3>`;
+    pipelineWrap.style.cssText = 'background:#fff;border-radius:10px;padding:12px;box-shadow:0 1px 4px rgba(0,0,0,.06);margin-top:0;overflow-x:auto';
     const tableP = document.createElement('table');
-    tableP.style.cssText = 'width:100%;border-collapse:collapse;font-size:.9rem';
-    tableP.innerHTML = `<thead><tr style="background:#1e3a5f;color:#fff"><th style="padding:8px">Nº</th><th style="padding:8px">Produto</th><th style="padding:8px">Data</th><th style="padding:8px">Cliente</th><th style="padding:8px">Pipeline</th><th style="padding:8px">Ações</th></tr></thead><tbody></tbody>`;
+    tableP.className = 'dashboard-table';
+    tableP.style.cssText = 'width:100%;font-size:.85rem';
+    tableP.innerHTML = `<thead><tr><th style="width:36px">#</th><th style="text-align:left">Produto</th><th style="width:100px">Data</th><th style="text-align:left">Cliente</th><th>Pipeline</th><th style="width:180px">Ações</th></tr></thead><tbody></tbody>`;
     const tpb = tableP.querySelector('tbody');
 
     const vendasLista = movimentacoes.filter(m => getImbelTipo(m.tipo).contaReceita).slice().reverse();
@@ -6114,7 +6160,7 @@ function renderControleImbelDashboard() {
             {label:'FI', ok: (v.fi||'').toString().toUpperCase()==='SIM'}
         ];
 
-        const passoHtml = passos.map(pas => `<span style="display:inline-block;margin-right:6px;padding:6px 8px;border-radius:12px;background:${pas.ok? '#d4edda':'#f8d7da'};color:${pas.ok? '#155724':'#721c24'};font-weight:600;font-size:.8rem">${pas.label}</span>`).join('');
+        const passoHtml = passos.map(pas => `<span class="imbel-pipeline-step ${pas.ok ? 'done' : 'pending'}">${pas.label}</span>`).join('');
 
         const tr = document.createElement('tr');
         tr.style.background = idx % 2 === 0 ? '#fff' : '#f7f9fc';
@@ -6679,28 +6725,34 @@ function renderControleImbelMovimentacao() {
 
     container.appendChild(topActions);
 
-    // ---- Filtros ----
+    // ---- Filtros v2 ----
     const filtrosWrap = document.createElement('div');
-    filtrosWrap.style.cssText = 'display:flex;flex-wrap:wrap;gap:8px;margin:8px 0 12px;align-items:center';
+    filtrosWrap.className = 'produtos-toolbar imbel-mov-toolbar';
+    filtrosWrap.style.marginBottom = '12px';
     filtrosWrap.innerHTML = `
-        <select id="imbel_filter_prod" style="padding:6px 8px;border:1px solid #ddd;border-radius:6px;font-size:.85rem">
+        <div class="prod-search-wrap">
+            <svg class="search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input type="text" id="imbel_filter_dest" class="prod-search-input" placeholder="Destinatário..." />
+        </div>
+        <input type="text" id="imbel_filter_cpf" class="prod-search-input" placeholder="CPF/CNPJ" style="max-width:150px" />
+        <select id="imbel_filter_prod" class="prod-filter-select">
             <option value="">Todos os produtos</option>
         </select>
-        <select id="imbel_filter_tipo" style="padding:6px 8px;border:1px solid #ddd;border-radius:6px;font-size:.85rem">
+        <select id="imbel_filter_tipo" class="prod-filter-select">
             <option value="">Todos os tipos</option>
-            <option value="ENTRADA">Entrada</option>
-            <option value="SAIDA">Saída</option>
+            <option value="ENTRADA">↑ Entrada</option>
+            <option value="SAIDA">↓ Saída</option>
         </select>
-        <label style="font-size:.8rem;color:#444">De</label>
-        <input type="date" id="imbel_filter_date_start" style="padding:6px;border:1px solid #ddd;border-radius:6px" />
-        <label style="font-size:.8rem;color:#444">Até</label>
-        <input type="date" id="imbel_filter_date_end" style="padding:6px;border:1px solid #ddd;border-radius:6px" />
-        <input type="text" id="imbel_filter_dest" placeholder="Destinatário" style="padding:6px;border:1px solid #ddd;border-radius:6px;min-width:160px" />
-        <input type="text" id="imbel_filter_cpf" placeholder="CPF/CNPJ" style="padding:6px;border:1px solid #ddd;border-radius:6px;min-width:140px" />
-        <label style="display:flex;align-items:center;gap:6px;margin-left:auto"><input type="checkbox" id="imbel_filter_pago"/> Somente pagos</label>
-        <label style="display:flex;align-items:center;gap:6px"><input type="checkbox" id="imbel_filter_entregue_only"/> Somente entregues</label>
-        <label style="display:flex;align-items:center;gap:6px"><input type="checkbox" id="imbel_filter_fi_only"/> Somente FI</label>
-        <button id="imbel_filter_reset" class="btn btn-outline" style="padding:6px 10px">Limpar filtros</button>
+        <div class="distrib-date-range">
+            <input type="date" id="imbel_filter_date_start" class="prod-date-input" />
+            <span class="date-sep">—</span>
+            <input type="date" id="imbel_filter_date_end" class="prod-date-input" />
+        </div>
+        <label class="imbel-check-pill"><input type="checkbox" id="imbel_filter_pago"/> Pagos</label>
+        <label class="imbel-check-pill"><input type="checkbox" id="imbel_filter_entregue_only"/> Entregues</label>
+        <label class="imbel-check-pill"><input type="checkbox" id="imbel_filter_fi_only"/> FI</label>
+        <button id="imbel_filter_reset" class="btn btn-outline btn-sm">🔄</button>
+        <span id="imbelMovContador" class="prod-result-count"></span>
     `;
     container.appendChild(filtrosWrap);
 
@@ -6808,6 +6860,12 @@ function renderControleImbelMovimentacao() {
                 if (!groups.has(key)) groups.set(key, []);
                 groups.get(key).push(m);
             });
+
+            const contadorEl = document.getElementById('imbelMovContador');
+            if (contadorEl) {
+                const total = (data.movimentacoes||[]).length;
+                contadorEl.textContent = groups.size < total ? `${groups.size} grupo(s) · ${filtered.length} de ${total}` : `${groups.size} grupo(s)`;
+            }
 
             const fmt = v => 'R$ ' + Number(v||0).toLocaleString('pt-BR',
                 {minimumFractionDigits:2});

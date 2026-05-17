@@ -1945,62 +1945,58 @@
              ======================================== -->
         <div class="tab-content" id="tab-controleimbel">
             <!-- HEADER da seção IMBEL -->
-            <div class="imbel-section-header">
-                <span class="imbel-dot" aria-hidden="true"></span>
-                <div class="imbel-label">IMBEL</div>
+            <div class="section-header" style="padding-bottom:0">
+                <div style="display:flex;align-items:center;gap:10px">
+                    <span class="imbel-dot" aria-hidden="true"></span>
+                    <h2 class="section-title" style="margin:0">IMBEL — Controle de Facas</h2>
+                </div>
             </div>
-            <!-- Sub-navegação (mesmo padrão do sistema principal) -->
-            <div class="tabs-navigation imbel-subnav" id="imbelSubNav" style="border-top:1px solid var(--border-color)">
-
-  <button class="tab-btn active" data-imbeltab="dashboard"
-          onclick="trocarSubAbaControleImbel('dashboard')">
-    <span>📊</span> Dashboard
-  </button>
-
-  <button class="tab-btn" data-imbeltab="movimentacao"
-          onclick="trocarSubAbaControleImbel('movimentacao')">
-    <span>🔄</span> Movimentação
-  </button>
-
-  <button class="tab-btn" data-imbeltab="precos"
-          onclick="trocarSubAbaControleImbel('precos')">
-    <span>💰</span> Tabela de Preços
-  </button>
-
-  <button class="tab-btn" data-imbeltab="cadastro"
-          onclick="trocarSubAbaControleImbel('cadastro')">
-    <span>📋</span> Cadastro
-  </button>
-
-</div>
+            <!-- Sub-navegação v2 -->
+            <div class="precif-subnav" id="imbelSubNav">
+                <button class="precif-subtab-btn active" data-imbeltab="dashboard" onclick="trocarSubAbaControleImbel('dashboard')">📊 Dashboard</button>
+                <button class="precif-subtab-btn" data-imbeltab="movimentacao" onclick="trocarSubAbaControleImbel('movimentacao')">🔄 Movimentação</button>
+                <button class="precif-subtab-btn" data-imbeltab="precos" onclick="trocarSubAbaControleImbel('precos')">💰 Tabela de Preços</button>
+                <button class="precif-subtab-btn" data-imbeltab="cadastro" onclick="trocarSubAbaControleImbel('cadastro')">📋 Cadastro</button>
+            </div>
 
             <div class="content-area">
 
-                <!-- Sub-aba: Cadastro -->
-                <div id="controleImbel-cadastro" class="controleimbel-subtab" style="display:none">
+                <!-- Sub-aba: Dashboard IMBEL -->
+                <div id="controleImbel-dashboard" class="controleimbel-subtab" style="display:none">
                     <div class="section-header">
-                        <h2 class="section-title">Cadastro de Produtos</h2>
+                        <h2 class="section-title">Dashboard</h2>
                         <div class="header-actions">
-                            <div class="imbel-toolbar">
-                                <button class="btn btn-info" onclick="document.getElementById('inputImportarImbelCadastro').click()">
-                                    <span class="btn-icon">📥</span> Importar Excel
-                                </button>
-                                <input type="file" id="inputImportarImbelCadastro" accept=".csv,.xlsx,.xls" style="display:none" onchange="importarImbelCadastro(event)">
-                                <button class="btn btn-outline" onclick="exportarImbelCadastro()" style="margin-left:6px">
-                                    <span class="btn-icon">📤</span> Exportar Excel
-                                </button>
-                            </div>
+                            <button class="btn btn-outline btn-sm" onclick="renderControleImbelDashboard()">
+                                <span class="btn-icon">🔄</span> Atualizar
+                            </button>
                         </div>
                     </div>
-                    <div id="controleImbelCadastroContainer"></div>
+                    <div id="controleImbelDashboardContainer"></div>
+                </div>
+
+                <!-- Sub-aba: Movimentação -->
+                <div id="controleImbel-movimentacao" class="controleimbel-subtab" style="display:none">
+                    <div class="section-header">
+                        <h2 class="section-title">Movimentação</h2>
+                        <div class="header-actions">
+                            <button class="btn btn-outline btn-sm" onclick="document.getElementById('inputImportarImbelMov').click()">
+                                <span class="btn-icon">📥</span> Importar
+                            </button>
+                            <input type="file" id="inputImportarImbelMov" accept=".csv,.xlsx,.xls" style="display:none" onchange="importarImbelMovimentacao(event)">
+                            <button class="btn btn-outline btn-sm" onclick="exportarImbelMovimentacao()">
+                                <span class="btn-icon">📤</span> Exportar
+                            </button>
+                        </div>
+                    </div>
+                    <div id="controleImbelMovContainer"></div>
                 </div>
 
                 <!-- Sub-aba: Preços -->
                 <div id="controleImbel-precos" class="controleimbel-subtab" style="display:none">
-                    <div class="section-header" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
-                        <h2 class="section-title" style="margin:0">Tabela de Preços — IMBEL Sede</h2>
+                    <div class="section-header">
+                        <h2 class="section-title">Tabela de Preços — IMBEL Sede</h2>
                         <div class="header-actions">
-                            <button class="btn btn-primary" onclick="abrirModalPrecoImbel()" style="display:inline-flex;align-items:center;gap:8px">
+                            <button class="btn btn-primary" onclick="abrirModalPrecoImbel()">
                                 <span class="btn-icon">➕</span> Novo Período
                             </button>
                         </div>
@@ -2008,38 +2004,21 @@
                     <div id="controleImbelPrecosContainer"></div>
                 </div>
 
-                <!-- Sub-aba: Movimentação -->
-                <div id="controleImbel-movimentacao" class="controleimbel-subtab" style="display:none">
+                <!-- Sub-aba: Cadastro -->
+                <div id="controleImbel-cadastro" class="controleimbel-subtab" style="display:none">
                     <div class="section-header">
-                        <h2 class="section-title">Registrar Movimentação</h2>
+                        <h2 class="section-title">Cadastro de Produtos</h2>
                         <div class="header-actions">
-                            <div class="imbel-toolbar">
-                                <button class="btn btn-info" onclick="document.getElementById('inputImportarImbelMov').click()">
-                                    <span class="btn-icon">📥</span> Importar Excel
-                                </button>
-                                <input type="file" id="inputImportarImbelMov" accept=".csv,.xlsx,.xls" style="display:none" onchange="importarImbelMovimentacao(event)">
-                                <button class="btn btn-outline" onclick="exportarImbelMovimentacao()" style="margin-left:6px">
-                                    <span class="btn-icon">📤</span> Exportar Excel
-                                </button>
-                            </div>
+                            <button class="btn btn-outline btn-sm" onclick="document.getElementById('inputImportarImbelCadastro').click()">
+                                <span class="btn-icon">📥</span> Importar
+                            </button>
+                            <input type="file" id="inputImportarImbelCadastro" accept=".csv,.xlsx,.xls" style="display:none" onchange="importarImbelCadastro(event)">
+                            <button class="btn btn-outline btn-sm" onclick="exportarImbelCadastro()">
+                                <span class="btn-icon">📤</span> Exportar
+                            </button>
                         </div>
                     </div>
-                    <div id="controleImbelMovContainer"></div>
-                </div>
-
-                <!-- Sub-aba: Dashboard IMBEL -->
-                <div id="controleImbel-dashboard" class="controleimbel-subtab" style="display:none">
-                    <div class="section-header">
-                        <h2 class="section-title">Dashboard — IMBEL (Facas)</h2>
-                        <div class="header-actions">
-                            <div class="imbel-toolbar">
-                                <button class="btn btn-outline" onclick="renderControleImbelDashboard()">
-                                    <span class="btn-icon">🔄</span> Atualizar
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                    <div id="controleImbelDashboardContainer"></div>
+                    <div id="controleImbelCadastroContainer"></div>
                 </div>
             </div>
         </div>

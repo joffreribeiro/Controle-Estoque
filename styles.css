@@ -5798,3 +5798,125 @@ textarea:focus-visible {
 }
 #tabelaRegistroVendas th.sort-asc .sort-icon,
 #tabelaRegistroVendas th.sort-desc .sort-icon { opacity: 1; color: var(--accent-bright); }
+
+/* ════════════════════════════════════════════
+   ABA IMBEL — melhorias v2
+   ════════════════════════════════════════════ */
+
+/* Dot do header IMBEL */
+.imbel-dot {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #1e3a5f;
+    flex-shrink: 0;
+}
+
+/* Divisor de seção no Dashboard */
+.imbel-section-divider {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 20px 0 12px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+}
+.imbel-section-divider::before,
+.imbel-section-divider::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border-color);
+}
+
+/* Toolbar de movimentação IMBEL */
+.imbel-mov-toolbar {
+    background: var(--bg-white);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md, 8px);
+    padding: 10px 14px;
+}
+
+/* Checkbox pills nos filtros de movimentação */
+.imbel-check-pill {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 5px 10px;
+    border: 1px solid var(--border-color);
+    border-radius: 20px;
+    white-space: nowrap;
+    background: var(--bg-white);
+    transition: background 0.12s, color 0.12s, border-color 0.12s;
+}
+.imbel-check-pill:hover {
+    background: var(--primary-light);
+    border-color: var(--primary-light);
+    color: var(--primary-color);
+}
+.imbel-check-pill input[type="checkbox"] {
+    accent-color: var(--primary-color);
+    width: 14px;
+    height: 14px;
+}
+
+/* KPI warning (ticket médio IMBEL) */
+.kpi-card-v2.kpi-warning {
+    border-left-color: var(--warning-color, #d97706);
+}
+.kpi-card-v2.kpi-warning .kpi-v2-icon {
+    background: #fef3c7;
+    color: #d97706;
+}
+
+/* Tabela de estoque IMBEL — badge de saldo */
+.imbel-saldo-badge {
+    display: inline-block;
+    padding: 2px 10px;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 700;
+}
+.imbel-saldo-badge.ok     { background: #dcfce7; color: #15803d; }
+.imbel-saldo-badge.baixo  { background: #fef3c7; color: #92400e; }
+.imbel-saldo-badge.esgotado { background: #fee2e2; color: #b91c1c; }
+
+/* Tabela gestão estoque IMBEL dentro do Dashboard */
+#controleImbelEstoqueContainer table,
+#controleImbelDashboardContainer table {
+    font-size: 0.85rem;
+}
+#controleImbelEstoqueContainer thead tr,
+#controleImbelDashboardContainer thead tr {
+    background: var(--primary-color) !important;
+    color: #fff;
+}
+#controleImbelEstoqueContainer thead th,
+#controleImbelDashboardContainer thead th {
+    padding: 9px 12px;
+    font-weight: 600;
+    font-size: 0.78rem;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+    border: none !important;
+}
+
+/* Pipeline steps no acompanhamento de pedidos */
+.imbel-pipeline-step {
+    display: inline-block;
+    margin-right: 4px;
+    padding: 3px 9px;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 700;
+}
+.imbel-pipeline-step.done   { background: #dcfce7; color: #15803d; }
+.imbel-pipeline-step.pending { background: #fee2e2; color: #b91c1c; }
