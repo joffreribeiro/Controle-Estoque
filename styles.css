@@ -5386,6 +5386,155 @@ textarea:focus-visible {
 }
 
 /* ════════════════════════════════════════════
+   ABA PRECIFICAÇÃO — MELHORIAS v2
+   ════════════════════════════════════════════ */
+
+/* ── Subnav de subabas ── */
+.precif-subnav {
+    display: flex;
+    gap: 0;
+    margin-bottom: 20px;
+    border-bottom: 2px solid var(--border-color);
+    background: var(--bg-white);
+    border-radius: var(--radius-md, 8px) var(--radius-md, 8px) 0 0;
+    border: 1px solid var(--border-color);
+    border-bottom: 2px solid var(--border-color);
+    padding: 0 8px;
+    overflow-x: auto;
+}
+
+.precif-subtab-btn {
+    padding: 11px 18px;
+    border: none;
+    background: transparent;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    border-bottom: 2px solid transparent;
+    margin-bottom: -2px;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: color 0.15s, border-color 0.15s;
+    font-family: var(--font-primary);
+}
+
+.precif-subtab-btn:hover {
+    color: var(--primary-color);
+    background: rgba(26, 48, 80, 0.04);
+    border-radius: 6px 6px 0 0;
+}
+
+.precif-subtab-btn.active {
+    color: var(--primary-color);
+    border-bottom-color: var(--primary-color);
+}
+
+/* Inner tabs (Impostos Federais / ICMS) */
+.precif-inner-nav {
+    display: flex;
+    gap: 0;
+    border-bottom: 2px solid var(--border-color);
+    margin-bottom: 20px;
+}
+
+.precif-inner-btn {
+    padding: 8px 18px;
+    border: none;
+    background: transparent;
+    font-size: 0.83rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    border-bottom: 2px solid transparent;
+    margin-bottom: -2px;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: color 0.15s, border-color 0.15s;
+    font-family: var(--font-primary);
+}
+
+.precif-inner-btn:hover { color: var(--primary-color); }
+.precif-inner-btn.active {
+    color: var(--primary-color);
+    border-bottom-color: var(--accent-color);
+}
+
+/* ── KPI card para aba CI ── */
+.kpi-card-v2.kpi-warning {
+    border-left-color: var(--warning-color);
+}
+
+.kpi-card-v2.kpi-warning .kpi-v2-icon {
+    background: var(--warning-bg);
+    color: var(--warning-color);
+}
+
+/* ── Alerta/info boxes — substituir inline styles recorrentes ── */
+.precif-info-box {
+    border-radius: 8px;
+    padding: 12px 16px;
+    margin-bottom: 16px;
+    font-size: 0.85rem;
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+}
+
+.precif-info-box.warning {
+    background: #fff8f0;
+    border: 1px solid #fed7aa;
+    color: #92400e;
+}
+
+.precif-info-box.info {
+    background: #f0f9ff;
+    border: 1px solid #bae6fd;
+    color: #0369a1;
+}
+
+/* ── Sort icons na tabela de Consulta Prec ── */
+#tabelaConsultaPrec th[data-sort] {
+    cursor: pointer;
+    user-select: none;
+    white-space: nowrap;
+}
+
+#tabelaConsultaPrec th[data-sort]:hover {
+    background: var(--primary-light) !important;
+}
+
+/* ── Sort icons na tabela de CI ── */
+#tabelaCIBody th.sortable {
+    cursor: pointer;
+    user-select: none;
+}
+
+#tabelaCIBody th.sortable:hover {
+    background: var(--primary-light) !important;
+}
+
+#tabelaCIBody th .sort-icon,
+#tabelaConsultaPrec th .sort-icon {
+    display: inline-block;
+    margin-left: 4px;
+    font-size: 0.7rem;
+    opacity: 0.45;
+    font-style: normal;
+}
+
+/* ── Toolbar da sub-aba rastreabilidade ── */
+.rastr-toolbar {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 16px;
+    align-items: flex-end;
+    flex-wrap: wrap;
+}
+
+.rastr-toolbar .prod-filter-select {
+    min-width: 220px;
+}
+
+/* ════════════════════════════════════════════
    ABA DISTRIBUIÇÃO — MELHORIAS v2
    ════════════════════════════════════════════ */
 

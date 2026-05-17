@@ -14373,7 +14373,7 @@ function resetarPrecoManual(nomeProduto) {
 
 // ── SUB-TAB NAVIGATION FOR PRECIFICAÇÃO ─────────────────────────
 function trocarSubabaPrecif(subaba) {
-    const tabs = ['porcliente','consultaPrec','comparativo','rastreabilidade','impostos','precoestado','tabelavenda'];
+    const tabs = ['porcliente','consultaPrec','comparativo','rastreabilidade','impostos','precoestado','tabelavenda','tabelaci'];
     tabs.forEach(s => {
         let el = null;
         if (s === 'consultaPrec') el = document.getElementById('painel-consultaPrec');
@@ -14383,8 +14383,9 @@ function trocarSubabaPrecif(subaba) {
         const btnId = (s === 'consultaPrec') ? 'btnConsultaPrecificacao' : ('sbtn-' + s);
         const btn = document.getElementById(btnId);
         if (btn) {
-            btn.style.color = (s === subaba) ? '#1e3a5f' : '#64748b';
-            btn.style.borderBottomColor = (s === subaba) ? '#1e3a5f' : 'transparent';
+            btn.classList.toggle('active', s === subaba);
+            btn.style.color = '';
+            btn.style.borderBottomColor = '';
         }
     });
 
@@ -14423,6 +14424,10 @@ function trocarSubabaPrecif(subaba) {
     if (subaba === 'tabelavenda') {
         try { renderizarTabelaPrecoVenda(); } catch (e) {}
     }
+    if (subaba === 'tabelaci') {
+        try { renderizarTabelaCI(); } catch (e) {}
+        try { atualizarKPIsCI(); } catch (e) {}
+    }
 }
 
 function trocarSubabaImpostos(painel) {
@@ -14432,12 +14437,41 @@ function trocarSubabaImpostos(painel) {
         if (el) el.style.display = (p === painel) ? 'block' : 'none';
         const btn = document.getElementById('ibtn-' + p);
         if (btn) {
-            btn.style.color = (p === painel) ? '#1e3a5f' : '#64748b';
-            btn.style.borderBottomColor = (p === painel) ? '#1e3a5f' : 'transparent';
+            btn.classList.toggle('active', p === painel);
+            btn.style.color = '';
+            btn.style.borderBottomColor = '';
         }
     });
     if (painel === 'federais') try { renderizarImpostosFederais(); } catch (e) {}
     if (painel === 'icms') try { renderizarICMSPorEstado(); } catch (e) {}
+}
+
+function atualizarKPIsCI() {
+    const produtos = Array.isArray(estoque.produtos) ? estoque.produtos : [];
+    const tabelaCI = Array.isArray(estoque.tabelaCI) ? estoque.tabelaCI : [];
+    const precif = estoque.precificacao || {};
+
+    const total = produtos.length;
+    const comCI = produtos.filter(p => {
+        const regProd = tabelaCI.filter(r => r.produtoNome === p.nome);
+        const ciHistorico = regProd.length > 0 ? regProd.sort((a,b) => new Date(b.data)-new Date(a.data))[0].ci : 0;
+        const ciPrec = parseFloat(precif[p.nome]?.ci) || 0;
+        return (ciHistorico || ciPrec) > 0;
+    }).length;
+    const semCI = total - comCI;
+    const pct = total > 0 ? Math.round((comCI / total) * 100) : 0;
+
+    const elTotal = document.getElementById('kpiCITotal');
+    const elBar = document.getElementById('kpiCIProgressBar');
+    const elLabel = document.getElementById('kpiCIProgressLabel');
+    const elRegistros = document.getElementById('kpiCIRegistros');
+    const elSemCI = document.getElementById('kpiCISemCI');
+
+    if (elTotal) elTotal.textContent = comCI;
+    if (elBar) elBar.style.width = pct + '%';
+    if (elLabel) elLabel.textContent = `${comCI} de ${total} produtos (${pct}%)`;
+    if (elRegistros) elRegistros.textContent = tabelaCI.length;
+    if (elSemCI) elSemCI.textContent = semCI;
 }
 
 // ========================================
@@ -15568,6 +15602,8 @@ function renderizarTabelaCI() {
             <td style="text-align:center">${histBtn}</td>
         </tr>`;
     }).join('');
+
+    try { atualizarKPIsCI(); } catch (e) {}
 }
 
 function exibirHistoricoCI(nomeProduto) {

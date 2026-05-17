@@ -598,36 +598,23 @@
                         <div class="content-area">
                                 <div class="section-header">
                                         <h2 class="section-title">Precificação de Produtos</h2>
-                                        <div class="header-actions">
-                                                <button class="btn btn-outline btn-sm" onclick="abrirModalICMS()">
-                                                        📋 Tabela de ICMS
-                                                </button>
-                                                <button class="btn btn-outline btn-sm" onclick="abrirSimuladorICMS()">
-                                                        🧮 Simulador por Estado
-                                                </button>
-                                                <button class="btn btn-outline btn-sm" onclick="exportarPrecificacaoExcel()">
-                                                        📊 Exportar Excel
-                                                </button>
-                                                <button class="btn btn-outline btn-sm" onclick="imprimirRelatorioAba('precificacao')">
-                                                        🖨️ Imprimir
-                                                </button>
+                                        <div class="header-actions produtos-toolbar">
+                                                <button class="btn btn-outline btn-sm" onclick="abrirModalICMS()">📋 ICMS</button>
+                                                <button class="btn btn-outline btn-sm" onclick="abrirSimuladorICMS()">🧮 Simulador</button>
+                                                <button class="btn btn-outline btn-sm" onclick="exportarPrecificacaoExcel()">📊 Excel</button>
+                                                <button class="btn btn-outline btn-sm" onclick="imprimirRelatorioAba('precificacao')">🖨️ Imprimir</button>
                                         </div>
                                 </div>
 
-                                <div class="precif-subnav" style="display:flex; gap:0; margin-bottom:20px; border-bottom:2px solid #e2e8f0;">
-                                    <button class="precif-subtab-btn active" onclick="trocarSubabaPrecif('porcliente')" id="sbtn-porcliente" style="padding:10px 20px; border:none; background:transparent; font-size:0.9rem; font-weight:600; color:#1e3a5f; border-bottom:2px solid #1e3a5f; margin-bottom:-2px; cursor:pointer">👤 Por Cliente</button>
-                                    <button class="tab-btn" id="btnConsultaPrecificacao"
-                                                    onclick="trocarSubabaPrecif('consultaPrec')"
-                                                    style="padding:10px 20px; border:none; background:transparent; font-size:0.9rem; font-weight:600; color:#64748b; border-bottom:2px solid transparent; margin-bottom:-2px; cursor:pointer">
-                                        🔍 Consulta
-                                    </button>
-                                    <button class="precif-subtab-btn" onclick="trocarSubabaPrecif('comparativo')" id="sbtn-comparativo" style="padding:10px 20px; border:none; background:transparent; font-size:0.9rem; font-weight:600; color:#64748b; border-bottom:2px solid transparent; margin-bottom:-2px; cursor:pointer">⚖️ Comparativo</button>
-                                    <button class="precif-subtab-btn" onclick="trocarSubabaPrecif('rastreabilidade')" id="sbtn-rastreabilidade" style="padding:10px 20px; border:none; background:transparent; font-size:0.9rem; font-weight:600; color:#64748b; border-bottom:2px solid transparent; margin-bottom:-2px; cursor:pointer">
-                                        🔗 Rastreabilidade
-                                    </button>
-                                    <button class="precif-subtab-btn" onclick="trocarSubabaPrecif('impostos')" id="sbtn-impostos" style="padding:10px 20px; border:none; background:transparent; font-size:0.9rem; font-weight:600; color:#64748b; border-bottom:2px solid transparent; margin-bottom:-2px; cursor:pointer">🧾 Impostos</button>
-                                    <button class="precif-subtab-btn" onclick="trocarSubabaPrecif('precoestado')" id="sbtn-precoestado" style="padding:10px 20px; border:none; background:transparent; font-size:0.9rem; font-weight:600; color:#64748b; border-bottom:2px solid transparent; margin-bottom:-2px; cursor:pointer">🗂️ Preço para Lojistas</button>
-                                    <button class="precif-subtab-btn" onclick="trocarSubabaPrecif('tabelavenda')" id="sbtn-tabelavenda" style="padding:10px 20px; border:none; background:transparent; font-size:0.9rem; font-weight:600; color:#64748b; border-bottom:2px solid transparent; margin-bottom:-2px; cursor:pointer">📋 Tabela de Preço de Venda</button>
+                                <div class="precif-subnav">
+                                    <button class="precif-subtab-btn active" onclick="trocarSubabaPrecif('porcliente')" id="sbtn-porcliente">👤 Por Cliente</button>
+                                    <button class="precif-subtab-btn" id="btnConsultaPrecificacao" onclick="trocarSubabaPrecif('consultaPrec')">🔍 Consulta</button>
+                                    <button class="precif-subtab-btn" onclick="trocarSubabaPrecif('comparativo')" id="sbtn-comparativo">⚖️ Comparativo</button>
+                                    <button class="precif-subtab-btn" onclick="trocarSubabaPrecif('rastreabilidade')" id="sbtn-rastreabilidade">🔗 Rastreabilidade</button>
+                                    <button class="precif-subtab-btn" onclick="trocarSubabaPrecif('impostos')" id="sbtn-impostos">🧾 Impostos</button>
+                                    <button class="precif-subtab-btn" onclick="trocarSubabaPrecif('precoestado')" id="sbtn-precoestado">🗂️ Preço p/ Lojistas</button>
+                                    <button class="precif-subtab-btn" onclick="trocarSubabaPrecif('tabelavenda')" id="sbtn-tabelavenda">📋 Tabela de Venda</button>
+                                    <button class="precif-subtab-btn" onclick="trocarSubabaPrecif('tabelaci')" id="sbtn-tabelaci">💲 Tabela CI</button>
                                 </div>
 
                                 <!-- Sub-aba Preço por Estado -->
@@ -640,18 +627,18 @@
                                 <div id="subaba-precif-impostos" style="display:none">
 
                                     <!-- Tabs internas -->
-                                    <div style="display:flex; gap:0; border-bottom:2px solid #e2e8f0; margin-bottom:20px">
-                                        <button id="ibtn-federais" onclick="trocarSubabaImpostos('federais')" style="padding:8px 18px; border:none; background:transparent; font-size:0.85rem; font-weight:600; color:#64748b; border-bottom:2px solid transparent; margin-bottom:-2px; cursor:pointer">📋 Impostos Federais</button>
-                                        <button id="ibtn-icms" onclick="trocarSubabaImpostos('icms')" style="padding:8px 18px; border:none; background:transparent; font-size:0.85rem; font-weight:600; color:#64748b; border-bottom:2px solid transparent; margin-bottom:-2px; cursor:pointer">🗺️ ICMS por Estado</button>
+                                    <div class="precif-inner-nav">
+                                        <button id="ibtn-federais" class="precif-inner-btn" onclick="trocarSubabaImpostos('federais')">📋 Impostos Federais</button>
+                                        <button id="ibtn-icms" class="precif-inner-btn" onclick="trocarSubabaImpostos('icms')">🗺️ ICMS por Estado</button>
                                     </div>
 
                                     <!-- Painel: Impostos Federais -->
                                     <div id="impostos-painel-federais">
-                                        <div style="background:#fff8f0; border:1px solid #fed7aa; border-radius:8px; padding:12px 16px; margin-bottom:16px; font-size:0.85rem; color:#92400e">
+                                        <div class="precif-info-box warning">
                                             ℹ️ Estes impostos são pré-carregados por NCM e aplicados automaticamente na precificação. Alterações aqui sobrescrevem os valores padrão para todos os produtos com esse NCM.
                                         </div>
 
-                                        <div style="display:flex; gap:8px; margin-bottom:14px">
+                                        <div class="produtos-toolbar" style="margin-bottom:14px">
                                             <button class="btn btn-primary btn-sm" onclick="adicionarNCM()">+ Novo NCM</button>
                                             <button class="btn btn-outline btn-sm" onclick="exportarImpostosFederais()">📤 Exportar Excel</button>
                                             <button class="btn btn-outline btn-sm" onclick="importarImpostosFederais()">📥 Importar Excel</button>
@@ -680,28 +667,20 @@
 
                                     <!-- Painel: ICMS por Estado -->
                                     <div id="impostos-painel-icms" style="display:none">
-                                    <div style="display:flex; gap:10px; margin-bottom:16px; align-items:center; flex-wrap:wrap">
-                                        <div class="form-group" style="margin:0">
-                                            <label style="font-size:0.8rem; color:#64748b">Filtrar por NCM</label>
-                                            <select id="filtroICMS_NCM" onchange="renderizarICMSPorEstado()" style="padding:7px 10px; border:1px solid #e2e8f0; border-radius:6px; font-size:0.85rem">
-                                                <option value="">Todos</option>
-                                            </select>
-                                        </div>
-                                        <div class="form-group" style="margin:0">
-                                            <label style="font-size:0.8rem; color:#64748b">Tipo de Pessoa</label>
-                                            <select id="filtroICMS_Tipo" onchange="renderizarICMSPorEstado()" style="padding:7px 10px; border:1px solid #e2e8f0; border-radius:6px; font-size:0.85rem">
-                                                <option value="PJ">PJ — Lojista</option>
-                                                <option value="PF">PF — Pessoa Física</option>
-                                            </select>
-                                        </div>
-                                        <div style="margin-left:auto; display:flex; gap:8px">
-                                            <button class="btn btn-outline btn-sm" onclick="exportarICMSEstados()">📤 Exportar Excel</button>
-                                            <button class="btn btn-outline btn-sm" onclick="importarICMSEstados()">📥 Importar Excel</button>
-                                            <input type="file" id="inputImportarICMSEstados" accept=".xlsx,.xls,.csv" style="display:none" onchange="importarICMSEstadosArquivo(event)">
-                                        </div>
+                                    <div class="produtos-toolbar" style="margin-bottom:16px">
+                                        <select id="filtroICMS_NCM" class="prod-filter-select" onchange="renderizarICMSPorEstado()" style="min-width:180px">
+                                            <option value="">Todos os NCMs</option>
+                                        </select>
+                                        <select id="filtroICMS_Tipo" class="prod-filter-select" onchange="renderizarICMSPorEstado()">
+                                            <option value="PJ">PJ — Lojista</option>
+                                            <option value="PF">PF — Pessoa Física</option>
+                                        </select>
+                                        <button class="btn btn-outline btn-sm" onclick="exportarICMSEstados()">📤 Exportar Excel</button>
+                                        <button class="btn btn-outline btn-sm" onclick="importarICMSEstados()">📥 Importar Excel</button>
+                                        <input type="file" id="inputImportarICMSEstados" accept=".xlsx,.xls,.csv" style="display:none" onchange="importarICMSEstadosArquivo(event)">
                                     </div>
 
-                                    <div style="background:#f0f9ff; border:1px solid #bae6fd; border-radius:8px; padding:12px 16px; margin-bottom:16px; font-size:0.85rem; color:#0369a1">
+                                    <div class="precif-info-box info" style="margin-bottom:16px">
                                         ℹ️ Clique em qualquer célula de alíquota para editar. As alterações são salvas automaticamente.
                                     </div>
 
@@ -724,51 +703,34 @@
 
                                 <!-- Sub-aba Rastreabilidade (PRECIF) -->
                                 <div id="subaba-precif-rastreabilidade" style="display:none">
-    <div style="display:flex; gap:10px; margin-bottom:16px; align-items:end">
-        <div class="form-group" style="margin:0; min-width:280px">
-            <label style="font-size:0.85rem">Filtrar por cliente</label>
-            <select id="rastreaCliente" onchange="renderizarRastreabilidade()"
-                            style="width:100%; padding:8px 10px; border:1px solid #e2e8f0;
-                                         border-radius:6px; font-size:0.9rem">
-                <option value="">Todos os clientes</option>
-            </select>
-        </div>
-        <div class="form-group" style="margin:0">
-            <label style="font-size:0.85rem">Período</label>
-            <select id="rastreaPeriodo" onchange="renderizarRastreabilidade()"
-                            style="padding:8px 10px; border:1px solid #e2e8f0;
-                                         border-radius:6px; font-size:0.9rem">
-                <option value="todos">Todo o período</option>
-                <option value="mes">Este mês</option>
-                <option value="trimestre">Este trimestre</option>
-                <option value="ano">Este ano</option>
-            </select>
-        </div>
-        <button class="btn btn-outline btn-sm" onclick="exportarRastreabilidade()">
-            📤 Exportar Excel
-        </button>
-    </div>
-    <div id="painelRastreabilidade"></div>
-</div><!-- /subaba-precif-rastreabilidade -->
+                                    <div class="rastr-toolbar">
+                                        <select id="rastreaCliente" class="prod-filter-select" onchange="renderizarRastreabilidade()" style="min-width:260px">
+                                            <option value="">Todos os clientes</option>
+                                        </select>
+                                        <select id="rastreaPeriodo" class="prod-filter-select" onchange="renderizarRastreabilidade()">
+                                            <option value="todos">Todo o período</option>
+                                            <option value="mes">Este mês</option>
+                                            <option value="trimestre">Este trimestre</option>
+                                            <option value="ano">Este ano</option>
+                                        </select>
+                                        <button class="btn btn-outline btn-sm" onclick="exportarRastreabilidade()">📤 Exportar Excel</button>
+                                    </div>
+                                    <div id="painelRastreabilidade"></div>
+                                </div><!-- /subaba-precif-rastreabilidade -->
 
                                 <!-- Sub-aba Consulta de Precificações -->
                                 <div id="painel-consultaPrec" style="display:none">
     <div class="content-area">
 
-        <!-- FILTROS -->
-        <div class="filtros-container" style="margin-bottom:16px">
-
-            <div class="filtro-group">
-                <label>Cliente</label>
-                <select id="fcp-cliente">
-                    <option value="">Todos</option>
+        <!-- BARRA DE FILTROS + AÇÕES -->
+        <div class="section-header" style="margin-bottom:16px">
+            <span class="section-title">Precificações Salvas</span>
+            <div class="header-actions produtos-toolbar">
+                <select id="fcp-cliente" class="prod-filter-select" style="min-width:180px">
+                    <option value="">Todos os clientes</option>
                 </select>
-            </div>
-
-            <div class="filtro-group">
-                <label>Representante</label>
-                <select id="fcp-rep">
-                    <option value="">Todos</option>
+                <select id="fcp-rep" class="prod-filter-select">
+                    <option value="">Todos os representantes</option>
                     <option value="KOLTE">KOLTE</option>
                     <option value="ISA">ISA</option>
                     <option value="LC">LC</option>
@@ -776,51 +738,20 @@
                     <option value="FL">FL</option>
                     <option value="IMBEL">IMBEL</option>
                 </select>
-            </div>
-
-            <div class="filtro-group">
-                <label>Status</label>
-                <select id="fcp-status">
-                    <option value="">Todos</option>
+                <select id="fcp-status" class="prod-filter-select">
+                    <option value="">Todos os status</option>
                     <option value="ativa">Ativa</option>
                     <option value="expirada">Expirada</option>
                 </select>
-            </div>
-
-            <div class="filtro-group">
-                <label>De</label>
-                <input type="date" id="fcp-de">
-            </div>
-
-            <div class="filtro-group">
-                <label>Até</label>
-                <input type="date" id="fcp-ate">
-            </div>
-
-            <div class="filtro-group" style="justify-content:flex-end;flex-direction:row;align-items:flex-end;gap:8px">
-                <button class="btn btn-primary btn-sm" onclick="filtrarConsultaPrecificacoes()">
-                    🔍 Filtrar
-                </button>
-                <button class="btn btn-outline btn-sm"
-                                onclick="limparFiltrosConsultaPrec()">
-                    🔄 Limpar
-                </button>
-            </div>
-
-        </div><!-- /filtros -->
-
-        <!-- BARRA DE AÇÕES -->
-        <div class="section-header" style="margin-bottom:12px">
-            <span class="section-title">Precificações Salvas</span>
-            <div class="header-actions">
-                <button class="btn btn-outline btn-sm"
-                                onclick="exportarPrecificacoesExcel()">
-                    📊 Exportar Excel
-                </button>
-                <button class="btn btn-outline btn-sm"
-                                onclick="window.print()">
-                    🖨️ Imprimir
-                </button>
+                <div class="distrib-date-range">
+                    <input type="date" id="fcp-de" class="prod-date-input" title="Data inicial">
+                    <span class="date-sep">→</span>
+                    <input type="date" id="fcp-ate" class="prod-date-input" title="Data final">
+                </div>
+                <button class="btn btn-primary btn-sm" onclick="filtrarConsultaPrecificacoes()">🔍 Filtrar</button>
+                <button class="btn btn-outline btn-sm" onclick="limparFiltrosConsultaPrec()">↺ Limpar</button>
+                <button class="btn btn-outline btn-sm" onclick="exportarPrecificacoesExcel()">📊 Excel</button>
+                <button class="btn btn-outline btn-sm" onclick="window.print()">🖨️ Imprimir</button>
             </div>
         </div>
 
@@ -1246,9 +1177,49 @@
                                 <!-- Sub-aba Tabela de CI -->
                                 <div id="subaba-precif-tabelaci" style="display:none">
                                     <div style="background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:20px;margin-bottom:16px">
-                                        <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;flex-wrap:wrap">
-                                            <h3 style="margin:0;font-size:1rem;color:#1e3a5f;font-weight:700">Histórico de CI por Produto</h3>
-                                            <span style="font-size:0.8rem;color:#64748b;flex:1">Registre o Custo Inicial (CI) de cada produto. O CI vigente é usado nos cálculos de precificação.</span>
+
+                                        <!-- KPIs CI -->
+                                        <div class="kpi-grid" style="grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:20px">
+                                            <article class="kpi-card-v2 kpi-info">
+                                                <div class="kpi-v2-top">
+                                                    <div class="kpi-v2-body">
+                                                        <div class="kpi-v2-label">Produtos com CI</div>
+                                                        <div class="kpi-v2-value" id="kpiCITotal">0</div>
+                                                        <div class="kpi-v2-subtitle">CI vigente definido</div>
+                                                    </div>
+                                                    <div class="kpi-v2-icon">
+                                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                                                    </div>
+                                                </div>
+                                                <div class="kpi-progress-wrap">
+                                                    <div class="kpi-progress-bar"><div class="kpi-progress-fill" id="kpiCIProgressBar" style="width:0%"></div></div>
+                                                    <div class="kpi-progress-label" id="kpiCIProgressLabel">0%</div>
+                                                </div>
+                                            </article>
+                                            <article class="kpi-card-v2 kpi-success">
+                                                <div class="kpi-v2-top">
+                                                    <div class="kpi-v2-body">
+                                                        <div class="kpi-v2-label">Total de Registros CI</div>
+                                                        <div class="kpi-v2-value" id="kpiCIRegistros">0</div>
+                                                        <div class="kpi-v2-subtitle">Histórico acumulado</div>
+                                                    </div>
+                                                    <div class="kpi-v2-icon">
+                                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+                                                    </div>
+                                                </div>
+                                            </article>
+                                            <article class="kpi-card-v2 kpi-warning">
+                                                <div class="kpi-v2-top">
+                                                    <div class="kpi-v2-body">
+                                                        <div class="kpi-v2-label">Sem CI</div>
+                                                        <div class="kpi-v2-value" id="kpiCISemCI">0</div>
+                                                        <div class="kpi-v2-subtitle">Produtos sem custo definido</div>
+                                                    </div>
+                                                    <div class="kpi-v2-icon">
+                                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                                                    </div>
+                                                </div>
+                                            </article>
                                         </div>
 
                                         <!-- Formulário de novo CI -->
@@ -1273,10 +1244,13 @@
                                             </div>
                                         </div>
 
-                                        <!-- Filtro de busca -->
-                                        <div style="display:flex;gap:10px;margin-bottom:12px;align-items:center">
-                                            <input type="text" id="ciFiltroProduto" oninput="renderizarTabelaCI()" placeholder="Buscar produto..." style="padding:7px 12px;border:1px solid #e2e8f0;border-radius:6px;font-size:0.88rem;min-width:220px">
-                                            <span id="ciContador" style="font-size:0.82rem;color:#64748b"></span>
+                                        <!-- Filtro de busca v2 -->
+                                        <div class="produtos-toolbar" style="margin-bottom:12px">
+                                            <div class="prod-search-wrap">
+                                                <svg class="search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                                                <input type="text" id="ciFiltroProduto" class="prod-search-input" oninput="renderizarTabelaCI()" placeholder="Buscar produto…" autocomplete="off">
+                                            </div>
+                                            <span id="ciContador" class="prod-result-count"></span>
                                         </div>
 
                                         <!-- Tabela -->
