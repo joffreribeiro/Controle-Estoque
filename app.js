@@ -939,6 +939,7 @@ async function inicializar() {
     try { renderizarDashboard(); } catch (e) { console.error('renderizarDashboard:', e); }
     try { renderizarRegistroVendas(); } catch (e) { console.error('renderizarVendas:', e); }
     try { renderizarRegistroDistribuicao(); } catch (e) { console.error('renderizarDist:', e); }
+    try { atualizarKPIsDistribuicao(); } catch (e) {}
     try { renderizarControleEnvio(); } catch (e) { console.error('renderizarEnvio:', e); }
     try { renderizarClientes(); } catch (e) { console.error('renderizarClientes:', e); }
     try { atualizarKPIsClientes(); } catch (e) {}
@@ -10480,6 +10481,38 @@ function atualizarTotaisDistribuicao(totalQtd) {
     if (spanQtd) spanQtd.innerHTML = `<strong>${totalQtd.toLocaleString('pt-BR')}</strong>`;
 }
 
+function atualizarKPIsDistribuicao() {
+    const distrib = estoque.registroDistribuicao || [];
+    const devol = estoque.registroDevolucoes || [];
+
+    const totalRegistros = distrib.length + devol.length;
+    const totalDistUnid = distrib.reduce((s, d) => s + (d.quantidade || 0), 0);
+    const totalDevUnid  = devol.reduce((s, d) => s + (d.quantidade || 0), 0);
+    const saldoLiquido  = totalDistUnid - totalDevUnid;
+
+    const produtosDistintos = new Set([
+        ...distrib.map(d => String(d.produtoId || d.produtoNome || '')),
+        ...devol.map(d => String(d.produtoId || d.produtoNome || ''))
+    ].filter(Boolean)).size;
+
+    const totalEl  = document.getElementById('kpiDistribTotal');
+    const unidEl   = document.getElementById('kpiDistribUnidades');
+    const prodEl   = document.getElementById('kpiDistribProdutos');
+    const barEl    = document.getElementById('kpiDistribProgressBar');
+    const barLblEl = document.getElementById('kpiDistribProgressLabel');
+
+    if (totalEl)  totalEl.textContent  = String(totalRegistros);
+    if (unidEl)   unidEl.textContent   = saldoLiquido.toLocaleString('pt-BR');
+    if (prodEl)   prodEl.textContent   = String(produtosDistintos);
+
+    const pct = totalDistUnid > 0 ? Math.min(100, Math.round((totalDevUnid / totalDistUnid) * 100)) : 0;
+    if (barEl) {
+        barEl.style.width = pct + '%';
+        barEl.style.background = pct > 30 ? 'var(--warning-color)' : 'var(--success-color)';
+    }
+    if (barLblEl) barLblEl.textContent = `${totalDistUnid.toLocaleString('pt-BR')} dist / ${totalDevUnid.toLocaleString('pt-BR')} dev`;
+}
+
 function limparFiltrosDistribuicao() {
     const filtroRep = document.getElementById('filtroDistribuicaoRep');
     const filtroProduto = document.getElementById('filtroDistribuicaoProduto');
@@ -19580,16 +19613,39 @@ renderizarRegistroDistribuicao = function() {
         tr.innerHTML = `
             <td class="col-contrato">${numero--}</td>
             <td class="col-loja"><span class="badge-rep ${repClass}">${item.representante || '-'}</span></td>
-            <td class="col-produto-venda" title="${item.produtoNome || '-'}">${item.produtoNome || '-'}</td>
-            <td class="col-qtd">${qtdDisplay}</td>
+            <td class="col-produto-venda" style="text-align:left" title="${item.produtoNome || '-'}">${item.produtoNome || '-'}</td>
+            <td class="col-qtd" style="font-weight:${item.tipo==='dev'?'700':'500'};color:${item.tipo==='dev'?'var(--danger-color)':'inherit'}">${qtdDisplay}</td>
             <td>${dataFormatada}</td>
-            <td class="col-obs" title="${obs}">${obs}</td>
+            <td class="col-obs" style="text-align:left" title="${obs}">${obs}</td>
             <td class="col-acoes">${acaoBtn}</td>`;
-        if (item.tipo === 'dev') tr.style.background = '#fff7f7';
+        if (item.tipo === 'dev') tr.classList.add('row-devolucao');
         tbody.appendChild(tr);
     });
 
     atualizarTotaisDistribuicao(totalQtd);
+    atualizarKPIsDistribuicao();
+
+    // ── Atualizar ícones de sort ──
+    document.querySelectorAll('#tabelaRegistroDistribuicao th.sortable').forEach(th => {
+        th.classList.remove('sort-asc', 'sort-desc');
+        const icon = th.querySelector('.sort-icon');
+        if (icon) icon.textContent = '↕';
+    });
+    const thAtivoDist = document.querySelector(`#tabelaRegistroDistribuicao th[data-sort="${_ordenDistribuicao.campo}"]`);
+    if (thAtivoDist) {
+        thAtivoDist.classList.add(_ordenDistribuicao.direcao === 'asc' ? 'sort-asc' : 'sort-desc');
+        const icon = thAtivoDist.querySelector('.sort-icon');
+        if (icon) icon.textContent = _ordenDistribuicao.direcao === 'asc' ? '↑' : '↓';
+    }
+
+    // ── Contador de resultados ──
+    const countElDist = document.getElementById('distribResultCount');
+    if (countElDist) {
+        const totalGeral = (estoque.registroDistribuicao || []).length + (estoque.registroDevolucoes || []).length;
+        const filtrado = (filtroRep || filtroProduto || dataInicio || dataFim);
+        countElDist.textContent = filtrado ? `${totalLinhas} de ${totalGeral} registro${totalGeral !== 1 ? 's' : ''}` : '';
+    }
+
     renderizarPaginacao('paginacaoDistribuicao', _paginaDistribuicao, totalLinhas, _itensPorPaginaDistribuicao, 'mudarPaginaDistribuicao', 'mudarItensPaginaDistribuicao');
 };
 

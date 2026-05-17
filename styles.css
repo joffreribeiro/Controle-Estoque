@@ -5386,6 +5386,92 @@ textarea:focus-visible {
 }
 
 /* ════════════════════════════════════════════
+   ABA DISTRIBUIÇÃO — MELHORIAS v2
+   ════════════════════════════════════════════ */
+
+/* Intervalo de datas inline */
+.distrib-date-range {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.prod-date-input {
+    padding: 7px 8px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm, 6px);
+    font-size: 0.82rem;
+    color: var(--text-primary);
+    background: var(--bg-white);
+    font-family: var(--font-primary);
+    transition: border-color 0.15s;
+    width: 130px;
+}
+
+.prod-date-input:focus {
+    outline: none;
+    border-color: var(--primary-light);
+    box-shadow: 0 0 0 3px rgba(40, 77, 122, 0.1);
+}
+
+.date-sep {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    font-weight: 600;
+}
+
+/* Sort icons na tabela de distribuição */
+#tabelaRegistroDistribuicao th.sortable {
+    cursor: pointer;
+    user-select: none;
+    white-space: nowrap;
+}
+
+#tabelaRegistroDistribuicao th.sortable:hover {
+    background: var(--primary-light) !important;
+}
+
+#tabelaRegistroDistribuicao th.sortable .sort-icon {
+    display: inline-block;
+    margin-left: 4px;
+    font-size: 0.7rem;
+    opacity: 0.45;
+    transition: opacity 0.15s;
+}
+
+#tabelaRegistroDistribuicao th.sortable:hover .sort-icon {
+    opacity: 0.85;
+}
+
+#tabelaRegistroDistribuicao th.sort-asc .sort-icon,
+#tabelaRegistroDistribuicao th.sort-desc .sort-icon {
+    opacity: 1;
+    color: var(--accent-bright);
+}
+
+/* Linha de devolução com tom levemente rosado */
+#tabelaRegistroDistribuicaoBody tr.row-devolucao {
+    background: #fff7f7 !important;
+}
+
+#tabelaRegistroDistribuicaoBody tr.row-devolucao:hover {
+    background: #feecec !important;
+}
+
+/* Badge de tipo no registro: Dist / Dev */
+.badge-dist-tipo {
+    display: inline-block;
+    padding: 1px 7px;
+    border-radius: 20px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.badge-dist-tipo.dist { background: #dbeafe; color: #1d4ed8; }
+.badge-dist-tipo.dev  { background: #fee2e2; color: #b91c1c; }
+
+/* ════════════════════════════════════════════
    ABA CLIENTES — MELHORIAS v2
    ════════════════════════════════════════════ */
 

@@ -1325,45 +1325,74 @@
             <div class="content-area">
                 <div class="section-header">
                     <h2 class="section-title">Registro de Distribuição</h2>
-                    <div class="header-actions">
+                    <div class="header-actions produtos-toolbar">
+                        <select id="filtroDistribuicaoRep" class="prod-filter-select" onchange="renderizarRegistroDistribuicao()"></select>
+                        <select id="filtroDistribuicaoProduto" class="prod-filter-select" onchange="renderizarRegistroDistribuicao()" style="min-width:180px">
+                            <option value="">Todos os produtos</option>
+                        </select>
+                        <div class="distrib-date-range">
+                            <input type="date" id="filtroDistribuicaoDataInicio" class="prod-date-input" onchange="renderizarRegistroDistribuicao()" title="Data inicial">
+                            <span class="date-sep">→</span>
+                            <input type="date" id="filtroDistribuicaoDataFim" class="prod-date-input" onchange="renderizarRegistroDistribuicao()" title="Data final">
+                        </div>
+                        <span class="prod-result-count" id="distribResultCount"></span>
+                        <button class="btn btn-outline btn-sm" onclick="limparFiltrosDistribuicao()" title="Limpar filtros">
+                            <span>↺</span> Limpar
+                        </button>
+                        <button class="btn btn-outline btn-sm" onclick="imprimirRelatorioAba('distribuicao')">
+                            <span class="btn-icon">🖨️</span> Imprimir
+                        </button>
+                        <button class="btn btn-outline" data-admin="true" onclick="abrirModalDevolucao()">
+                            <span class="btn-icon">↩</span> Devolução
+                        </button>
                         <button class="btn btn-success" data-admin="true" onclick="abrirModalNovaDistribuicao()">
-                            <span class="btn-icon">+</span>
-                            Nova Distribuição
-                        </button>
-                        <button class="btn btn-outline btn-sm" onclick="imprimirRelatorioAba('distribuicao')" style="margin-left:8px">
-                            <span class="btn-icon">🖨️</span>
-                            Imprimir
-                        </button>
-                        <button class="btn btn-outline" data-admin="true" onclick="abrirModalDevolucao()" style="margin-left:8px">
-                            <span class="btn-icon">↩</span>
-                            Devolução
+                            <span class="btn-icon">+</span> Nova Distribuição
                         </button>
                     </div>
                 </div>
 
-                <!-- Filtros -->
-                <div class="filtros-container">
-                    <div class="filtro-group">
-                        <label>Representante:</label>
-                        <select id="filtroDistribuicaoRep" onchange="renderizarRegistroDistribuicao()"></select>
-                    </div>
-                    <div class="filtro-group">
-                        <label>Produto:</label>
-                        <select id="filtroDistribuicaoProduto" onchange="renderizarRegistroDistribuicao()">
-                            <option value="">Todos</option>
-                        </select>
-                    </div>
-                    <div class="filtro-group">
-                        <label>De:</label>
-                        <input type="date" id="filtroDistribuicaoDataInicio" onchange="renderizarRegistroDistribuicao()">
-                    </div>
-                    <div class="filtro-group">
-                        <label>Até:</label>
-                        <input type="date" id="filtroDistribuicaoDataFim" onchange="renderizarRegistroDistribuicao()">
-                    </div>
-                    <button class="btn btn-outline btn-sm" onclick="limparFiltrosDistribuicao()">
-                        <span>🔄</span> Limpar Filtros
-                    </button>
+                <!-- KPI row v2 -->
+                <div class="kpi-grid" style="grid-template-columns: repeat(3,1fr); gap:12px; margin-bottom:20px;">
+                    <article class="kpi-card-v2 kpi-info">
+                        <div class="kpi-v2-top">
+                            <div class="kpi-v2-body">
+                                <div class="kpi-v2-label">Total de Registros</div>
+                                <div class="kpi-v2-value" id="kpiDistribTotal">0</div>
+                                <div class="kpi-v2-subtitle">Distribuições + devoluções</div>
+                            </div>
+                            <div class="kpi-v2-icon">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="3" width="15" height="13" rx="1"/><path d="M16 8h4l3 5v3h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+                            </div>
+                        </div>
+                    </article>
+                    <article class="kpi-card-v2 kpi-success">
+                        <div class="kpi-v2-top">
+                            <div class="kpi-v2-body">
+                                <div class="kpi-v2-label">Unidades Distribuídas</div>
+                                <div class="kpi-v2-value" id="kpiDistribUnidades">0</div>
+                                <div class="kpi-v2-subtitle">Saldo líquido (dist − dev)</div>
+                            </div>
+                            <div class="kpi-v2-icon">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+                            </div>
+                        </div>
+                        <div class="kpi-progress-wrap">
+                            <div class="kpi-progress-bar"><div class="kpi-progress-fill" id="kpiDistribProgressBar" style="width:0%"></div></div>
+                            <div class="kpi-progress-label" id="kpiDistribProgressLabel">0 dist / 0 dev</div>
+                        </div>
+                    </article>
+                    <article class="kpi-card-v2 kpi-accent-v2">
+                        <div class="kpi-v2-top">
+                            <div class="kpi-v2-body">
+                                <div class="kpi-v2-label">Produtos Distintos</div>
+                                <div class="kpi-v2-value" id="kpiDistribProdutos">0</div>
+                                <div class="kpi-v2-subtitle">Itens diferentes movimentados</div>
+                            </div>
+                            <div class="kpi-v2-icon">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+                            </div>
+                        </div>
+                    </article>
                 </div>
 
                 <div class="table-container">
@@ -1371,19 +1400,19 @@
                         <table class="dashboard-table" id="tabelaRegistroDistribuicao">
                             <thead>
                                 <tr>
-                                    <th style="width: 80px;">Nº</th>
-                                    <th class="col-loja sortable" data-sort="representante" onclick="ordenarDistribuicao('representante')">Representante <span class="sort-icon">⇅</span></th>
-                                    <th class="col-produto sortable" data-sort="produtoNome" onclick="ordenarDistribuicao('produtoNome')">Produto <span class="sort-icon">⇅</span></th>
-                                    <th style="width: 100px;" class="sortable" data-sort="quantidade" onclick="ordenarDistribuicao('quantidade')">Quantidade <span class="sort-icon">⇅</span></th>
-                                    <th style="width: 150px;" class="sortable" data-sort="data" onclick="ordenarDistribuicao('data')">Data <span class="sort-icon">⇅</span></th>
-                                    <th style="width: 200px;">Observações</th>
-                                    <th style="width: 80px;">Ações</th>
+                                    <th style="width:60px">Nº</th>
+                                    <th class="col-loja sortable" data-sort="representante" onclick="ordenarDistribuicao('representante')" style="min-width:120px">Representante <span class="sort-icon">↕</span></th>
+                                    <th class="col-produto sortable" data-sort="produtoNome" onclick="ordenarDistribuicao('produtoNome')" style="min-width:180px; text-align:left">Produto <span class="sort-icon">↕</span></th>
+                                    <th class="sortable" data-sort="quantidade" onclick="ordenarDistribuicao('quantidade')" style="width:100px">Quantidade <span class="sort-icon">↕</span></th>
+                                    <th class="sortable" data-sort="data" onclick="ordenarDistribuicao('data')" style="width:140px">Data <span class="sort-icon">↓</span></th>
+                                    <th style="min-width:180px; text-align:left">Observações</th>
+                                    <th style="width:70px">Ações</th>
                                 </tr>
                             </thead>
                             <tbody id="tabelaRegistroDistribuicaoBody"></tbody>
                             <tfoot>
                                 <tr class="total-row">
-                                    <td colspan="3"><strong>TOTAL</strong></td>
+                                    <td colspan="3" style="text-align:right"><strong>TOTAL FILTRADO</strong></td>
                                     <td id="totalQtdDistribuicao"><strong>0</strong></td>
                                     <td colspan="3"></td>
                                 </tr>
