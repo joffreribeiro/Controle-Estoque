@@ -2052,100 +2052,110 @@
                 <div class="section-header">
                     <h2 class="section-title">Controle de Envio de Contratos</h2>
                     <div class="header-actions">
-                        <button class="btn btn-outline" onclick="renderizarControleEnvio()">
-                            <span class="btn-icon">🔄</span>
-                            Atualizar
+                        <button class="btn btn-outline btn-sm" onclick="renderizarControleEnvio()">
+                            <span class="btn-icon">🔄</span> Atualizar
                         </button>
-                        <button class="btn btn-outline" onclick="exportarControleEnvio()">
-                            <span class="btn-icon">📤</span>
-                            Exportar Excel
+                        <button class="btn btn-outline btn-sm" onclick="exportarControleEnvio()">
+                            <span class="btn-icon">📤</span> Exportar
                         </button>
-                        <button class="btn btn-outline" onclick="document.getElementById('inputImportarControleEnvio').click()">
-                            <span class="btn-icon">📥</span>
-                            Importar Excel
+                        <button class="btn btn-outline btn-sm" onclick="document.getElementById('inputImportarControleEnvio').click()">
+                            <span class="btn-icon">📥</span> Importar
                         </button>
                         <input type="file" id="inputImportarControleEnvio" accept=".xlsx,.xls,.csv" style="display:none" onchange="importarControleEnvioArquivo(event)">
-                        <button class="btn btn-outline" onclick="imprimirControleEnvio()">
-                            <span class="btn-icon">🖨️</span>
-                            Imprimir
+                        <button class="btn btn-outline btn-sm" onclick="imprimirControleEnvio()">
+                            <span class="btn-icon">🖨️</span> Imprimir
                         </button>
                     </div>
                 </div>
 
-                <!-- KPIs Controle de Envio -->
+                <!-- KPIs v2 -->
                 <div class="kpi-grid" style="grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px">
-                    <article class="kpi-card kpi-info">
-                        <div class="kpi-label">Total de Contratos</div>
-                        <div class="kpi-value" id="kpiEnvioTotal">0</div>
-                        <div class="kpi-subtitle">No filtro atual</div>
+                    <article class="kpi-card-v2 kpi-info">
+                        <div class="kpi-v2-top">
+                            <div class="kpi-v2-body">
+                                <div class="kpi-v2-label">Total de Contratos</div>
+                                <div class="kpi-v2-value" id="kpiEnvioTotal">0</div>
+                                <div class="kpi-v2-subtitle">No filtro atual</div>
+                            </div>
+                            <div class="kpi-v2-icon">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                            </div>
+                        </div>
                     </article>
-                    <article class="kpi-card kpi-success">
-                        <div class="kpi-label">Concluídos</div>
-                        <div class="kpi-value" id="kpiEnvioConcluidos">0</div>
-                        <div class="kpi-subtitle">Sistema + Assinado + Enviado</div>
+                    <article class="kpi-card-v2 kpi-success">
+                        <div class="kpi-v2-top">
+                            <div class="kpi-v2-body">
+                                <div class="kpi-v2-label">Concluídos</div>
+                                <div class="kpi-v2-value" id="kpiEnvioConcluidos">0</div>
+                                <div class="kpi-v2-subtitle">Sis. + Assin. + Enviado</div>
+                            </div>
+                            <div class="kpi-v2-icon">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                            </div>
+                        </div>
+                        <div class="kpi-progress-wrap">
+                            <div class="kpi-progress-bar"><div class="kpi-progress-fill" id="kpiEnvioProgressBar" style="width:0%"></div></div>
+                            <div class="kpi-progress-label" id="kpiEnvioProgressLabel">0% concluídos</div>
+                        </div>
                     </article>
-                    <article class="kpi-card kpi-accent">
-                        <div class="kpi-label">Enviados</div>
-                        <div class="kpi-value" id="kpiEnvioEnviados">0</div>
-                        <div class="kpi-subtitle">Campo Enviado marcado</div>
+                    <article class="kpi-card-v2 kpi-accent-v2">
+                        <div class="kpi-v2-top">
+                            <div class="kpi-v2-body">
+                                <div class="kpi-v2-label">Enviados</div>
+                                <div class="kpi-v2-value" id="kpiEnvioEnviados">0</div>
+                                <div class="kpi-v2-subtitle">Campo Enviado marcado</div>
+                            </div>
+                            <div class="kpi-v2-icon">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                            </div>
+                        </div>
                     </article>
-                    <article class="kpi-card kpi-danger">
-                        <div class="kpi-label">Pendentes</div>
-                        <div class="kpi-value" id="kpiEnvioPendentes">0</div>
-                        <div class="kpi-subtitle">Nenhum campo marcado</div>
+                    <article class="kpi-card-v2 kpi-danger">
+                        <div class="kpi-v2-top">
+                            <div class="kpi-v2-body">
+                                <div class="kpi-v2-label">Pendentes</div>
+                                <div class="kpi-v2-value" id="kpiEnvioPendentes">0</div>
+                                <div class="kpi-v2-subtitle">Nenhum campo marcado</div>
+                            </div>
+                            <div class="kpi-v2-icon">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                            </div>
+                        </div>
                     </article>
                 </div>
 
-                <div class="filtros-container">
-                    <div class="filtro-group">
-                        <label>Representante:</label>
-                        <select id="filtroControleEnvioRep" onchange="renderizarControleEnvio()"></select>
-                    </div>
-                    <div class="filtro-group" style="min-width:200px;">
-                        <label>Buscar:</label>
-                        <input type="text" id="filtroControleEnvioBusca"
+                <!-- Toolbar de filtros v2 -->
+                <div class="produtos-toolbar" style="margin-bottom:12px">
+                    <div class="prod-search-wrap">
+                        <svg class="search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                        <input type="text" id="filtroControleEnvioBusca" class="prod-search-input"
                                placeholder="Contrato ou cliente..."
-                               oninput="renderizarControleEnvio()"
-                               style="padding:7px 10px;border:1px solid #e2e8f0;border-radius:6px;font-size:0.85rem;width:100%">
+                               oninput="renderizarControleEnvio()">
                     </div>
-                    <div class="filtro-group">
-                        <label>Sistema:</label>
-                        <select id="filtroControleEnvioSistema" onchange="renderizarControleEnvio()">
-                            <option value="">Todos</option>
-                            <option value="sim">✅ Marcado</option>
-                            <option value="nao">⬜ Não marcado</option>
-                        </select>
-                    </div>
-                    <div class="filtro-group">
-                        <label>Assinado:</label>
-                        <select id="filtroControleEnvioAssinado" onchange="renderizarControleEnvio()">
-                            <option value="">Todos</option>
-                            <option value="sim">✅ Marcado</option>
-                            <option value="nao">⬜ Não marcado</option>
-                        </select>
-                    </div>
-                    <div class="filtro-group">
-                        <label>Enviado:</label>
-                        <select id="filtroControleEnvioEnviado" onchange="renderizarControleEnvio()">
-                            <option value="">Todos</option>
-                            <option value="sim">✅ Marcado</option>
-                            <option value="nao">⬜ Não marcado</option>
-                        </select>
-                    </div>
-                    <div class="filtro-group">
-                        <label>Progresso:</label>
-                        <select id="filtroControleEnvioProgresso" onchange="renderizarControleEnvio()">
-                            <option value="">Todos</option>
-                            <option value="completo">🟢 Completo (3/3)</option>
-                            <option value="parcial">🟡 Parcial (1-2/3)</option>
-                            <option value="pendente">🔴 Pendente (0/3)</option>
-                        </select>
-                    </div>
-                    <div style="align-self:flex-end">
-                        <button class="btn btn-outline btn-sm" onclick="limparFiltrosControleEnvio()">
-                            <span>🔄</span> Limpar Filtros
-                        </button>
-                    </div>
+                    <select id="filtroControleEnvioRep" class="prod-filter-select" onchange="renderizarControleEnvio()"></select>
+                    <select id="filtroControleEnvioProgresso" class="prod-filter-select" onchange="renderizarControleEnvio()">
+                        <option value="">Todos os status</option>
+                        <option value="completo">✅ Completo (3/3)</option>
+                        <option value="parcial">⏳ Parcial (1-2/3)</option>
+                        <option value="pendente">⬜ Pendente (0/3)</option>
+                    </select>
+                    <select id="filtroControleEnvioSistema" class="prod-filter-select" onchange="renderizarControleEnvio()">
+                        <option value="">Sistema: Todos</option>
+                        <option value="sim">Sistema ✅</option>
+                        <option value="nao">Sistema ⬜</option>
+                    </select>
+                    <select id="filtroControleEnvioAssinado" class="prod-filter-select" onchange="renderizarControleEnvio()">
+                        <option value="">Assinado: Todos</option>
+                        <option value="sim">Assinado ✅</option>
+                        <option value="nao">Assinado ⬜</option>
+                    </select>
+                    <select id="filtroControleEnvioEnviado" class="prod-filter-select" onchange="renderizarControleEnvio()">
+                        <option value="">Enviado: Todos</option>
+                        <option value="sim">Enviado ✅</option>
+                        <option value="nao">Enviado ⬜</option>
+                    </select>
+                    <button class="btn btn-outline btn-sm" onclick="limparFiltrosControleEnvio()">🔄</button>
+                    <span id="envioContador" class="prod-result-count"></span>
                 </div>
 
                 <div class="table-container">
@@ -2153,14 +2163,14 @@
                         <table class="dashboard-table" id="tabelaControleEnvio">
                             <thead>
                                 <tr>
-                                    <th style="width: 110px;">CTR</th>
+                                    <th style="width:110px">CTR</th>
                                     <th class="col-loja">NOME</th>
-                                    <th style="width: 120px;">REPRESENTANTE</th>
-                                    <th style="width: 100px;" title="Lançado no Sistema">SISTEMA</th>
-                                    <th style="width: 100px;" title="Contrato Assinado">ASSINADO</th>
-                                    <th style="width: 100px;" title="Contrato Enviado">ENVIADO</th>
-                                    <th style="width: 150px;">SOLICITAÇÃO</th>
-                                    <th style="width: 80px;">Ações</th>
+                                    <th style="width:120px">REPRESENTANTE</th>
+                                    <th style="width:100px" title="Lançado no Sistema">SISTEMA</th>
+                                    <th style="width:100px" title="Contrato Assinado">ASSINADO</th>
+                                    <th style="width:100px" title="Contrato Enviado">ENVIADO</th>
+                                    <th style="width:150px">SOLICITAÇÃO</th>
+                                    <th style="width:80px">Ações</th>
                                 </tr>
                             </thead>
                             <tbody id="tabelaControleEnvioBody"></tbody>

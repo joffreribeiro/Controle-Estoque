@@ -11913,6 +11913,10 @@ function renderizarControleEnvio() {
     if (el('kpiEnvioConcluidos')) el('kpiEnvioConcluidos').textContent = concluidos;
     if (el('kpiEnvioEnviados')) el('kpiEnvioEnviados').textContent = enviados;
     if (el('kpiEnvioPendentes')) el('kpiEnvioPendentes').textContent = pendentes;
+    const pctConcluidos = totalContratos > 0 ? Math.round((concluidos / totalContratos) * 100) : 0;
+    if (el('kpiEnvioProgressBar')) el('kpiEnvioProgressBar').style.width = pctConcluidos + '%';
+    if (el('kpiEnvioProgressLabel')) el('kpiEnvioProgressLabel').textContent = `${concluidos} de ${totalContratos} concluídos (${pctConcluidos}%)`;
+    if (el('envioContador')) el('envioContador').textContent = `${totalContratos} contrato(s)`;
 
     if (contratos.length === 0) {
         tbody.innerHTML = `
