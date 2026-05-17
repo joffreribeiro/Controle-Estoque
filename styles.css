@@ -5687,3 +5687,114 @@ textarea:focus-visible {
 
 .badge-tipo-cliente.pj { background: #dbeafe; color: #1d4ed8; }
 .badge-tipo-cliente.pf { background: #ede9fe; color: #7c3aed; }
+
+/* ════════════════════════════════════════════
+   ABA PROPOSTAS — melhorias v2
+   ════════════════════════════════════════════ */
+
+/* Badge de status de proposta */
+.badge-status-proposta {
+    display: inline-block;
+    padding: 2px 9px;
+    border-radius: 20px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    white-space: nowrap;
+}
+.badge-status-proposta.rascunho          { background: #f1f5f9; color: #475569; }
+.badge-status-proposta.enviada           { background: #e0f2fe; color: #0369a1; }
+.badge-status-proposta.aguardando        { background: #ede9fe; color: #7c3aed; }
+.badge-status-proposta.aceita            { background: #dcfce7; color: #15803d; }
+.badge-status-proposta.recusada          { background: #fee2e2; color: #b91c1c; }
+.badge-status-proposta.expirada          { background: #fef3c7; color: #92400e; }
+
+/* Sort icons na tabela de propostas */
+#tabelaPropostas th.sortable {
+    cursor: pointer;
+    user-select: none;
+    white-space: nowrap;
+}
+#tabelaPropostas th.sortable:hover { background: var(--primary-light) !important; }
+#tabelaPropostas th.sortable .sort-icon {
+    display: inline-block;
+    margin-left: 4px;
+    font-size: 0.7rem;
+    opacity: 0.45;
+    transition: opacity 0.15s;
+}
+#tabelaPropostas th.sort-asc .sort-icon,
+#tabelaPropostas th.sort-desc .sort-icon { opacity: 1; color: var(--accent-bright); }
+
+/* Barra de progresso da taxa de conversão no KPI */
+#kpiPropostasProgressBar { background: var(--accent-color); }
+
+/* ════════════════════════════════════════════
+   ABA VENDAS — melhorias v2
+   ════════════════════════════════════════════ */
+
+/* Toolbar compacta de filtros de vendas */
+.vendas-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    background: var(--bg-white);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md, 8px);
+    padding: 10px 14px;
+}
+
+/* Pills de período rápido */
+.vendas-periodo-pills {
+    display: flex;
+    gap: 4px;
+    align-items: center;
+}
+.periodo-pill {
+    padding: 5px 10px;
+    border: 1px solid var(--border-color);
+    border-radius: 20px;
+    background: var(--bg-white);
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
+    white-space: nowrap;
+}
+.periodo-pill:hover {
+    background: var(--primary-color);
+    color: #fff;
+    border-color: var(--primary-color);
+}
+.periodo-pill.active {
+    background: var(--primary-color);
+    color: #fff;
+    border-color: var(--primary-color);
+}
+.periodo-pill--clear {
+    color: #94a3b8;
+    border-color: #e2e8f0;
+}
+.periodo-pill--clear:hover {
+    background: #fee2e2;
+    color: #b91c1c;
+    border-color: #fca5a5;
+}
+
+/* Sort icons na tabela de vendas */
+#tabelaRegistroVendas th.sortable {
+    cursor: pointer;
+    user-select: none;
+    white-space: nowrap;
+}
+#tabelaRegistroVendas th.sortable:hover { background: var(--primary-light) !important; }
+#tabelaRegistroVendas th.sortable .sort-icon {
+    display: inline-block;
+    margin-left: 4px;
+    font-size: 0.7rem;
+    opacity: 0.45;
+    transition: opacity 0.15s;
+}
+#tabelaRegistroVendas th.sort-asc .sort-icon,
+#tabelaRegistroVendas th.sort-desc .sort-icon { opacity: 1; color: var(--accent-bright); }

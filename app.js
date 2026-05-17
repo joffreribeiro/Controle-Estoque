@@ -9478,6 +9478,12 @@ function renderizarRegistroVendas() {
     
     try { atualizarKPIsVendas(grupos); } catch(e) {}
     atualizarTotaisVendas(totalQtd, totalValor);
+
+    const vendasContador = document.getElementById('vendasContador');
+    if (vendasContador) {
+        const nContratos = Object.keys(grupos).length;
+        vendasContador.textContent = `${nContratos} contrato(s) · ${linhas.length} linha(s)`;
+    }
     // Rodapé resumido para o período filtrado
     try {
         const totalFiltrado = linhas.reduce((s, l) => s + (Number(l.valorTotal) || 0), 0);
@@ -9610,6 +9616,7 @@ function filtroVendasRapido(periodo) {
     if (periodo === 'limpar') {
         inicio.value = '';
         fim.value = '';
+        document.querySelectorAll('.periodo-pill').forEach(el => el.classList.remove('active'));
         renderizarRegistroVendas();
         return;
     }
@@ -9636,6 +9643,14 @@ function filtroVendasRapido(periodo) {
     if (periodo === 'ano') {
         inicio.value = `${hoje.getFullYear()}-01-01`;
         fim.value = `${hoje.getFullYear()}-12-31`;
+    }
+
+    // Highlight pill ativa
+    document.querySelectorAll('.periodo-pill').forEach(el => el.classList.remove('active'));
+    const mapa = { hoje: 0, semana: 1, mes: 2, ano: 3 };
+    if (mapa[periodo] !== undefined) {
+        const pills = document.querySelectorAll('.periodo-pill:not(.periodo-pill--clear)');
+        if (pills[mapa[periodo]]) pills[mapa[periodo]].classList.add('active');
     }
 
     renderizarRegistroVendas();
@@ -18951,12 +18966,12 @@ function renderizarPropostas(filtro, statusFiltro) {
     }
 
     const statusLabels = {
-        rascunho: { label: 'Rascunho', bg: '#6b7280' },
-        enviada:  { label: 'Enviada',  bg: '#0ea5e9' },
-        aceita:   { label: 'Aceita',   bg: '#22c55e' },
-        recusada: { label: 'Recusada', bg: '#ef4444' },
-        aguardando_aprovacao: { label: '⏳ Aguard. Aprovação', bg: '#7c3aed' },
-        expirada: { label: 'Expirada', bg: '#f59e0b' }
+        rascunho:             { label: 'Rascunho',            cls: 'rascunho'  },
+        enviada:              { label: 'Enviada',              cls: 'enviada'   },
+        aceita:               { label: 'Aceita',               cls: 'aceita'    },
+        recusada:             { label: 'Recusada',             cls: 'recusada'  },
+        aguardando_aprovacao: { label: '⏳ Aguard. Aprovação', cls: 'aguardando' },
+        expirada:             { label: 'Expirada',             cls: 'expirada'  }
     };
 
     // Aplicar ordenação de propostas se houver
@@ -18973,6 +18988,16 @@ function renderizarPropostas(filtro, statusFiltro) {
         return p[col] ?? '';
     };
     const listaOrdenada = getSortedArray(lista, sortP.col, sortP.dir, getValProposta);
+
+    const contador = document.getElementById('propostasContador');
+    if (contador) {
+        const total = propostas.length;
+        if (filtro || statusFiltro) {
+            contador.textContent = `${listaOrdenada.length} de ${total} proposta(s)`;
+        } else {
+            contador.textContent = `${total} proposta(s)`;
+        }
+    }
 
     tbody.innerHTML = listaOrdenada.map(p => {
         const repClass = (p.representante || '').toLowerCase();
@@ -19004,7 +19029,7 @@ function renderizarPropostas(filtro, statusFiltro) {
             <td style="color:#16a34a; font-weight:600">${formatarMoedaValor(p.valorTotal || 0)}</td>
             <td>${dataProposta}</td>
             <td style="${validadeExpirada ? 'color:#ef4444; font-weight:600' : ''}">${dataValidade}</td>
-            <td><span style="background:${statusConf.bg}; color:#fff; padding:2px 10px; border-radius:12px; font-size:0.8rem;">${statusConf.label}</span>${motivoRecusaSmall}</td>
+            <td><span class="badge-status-proposta ${statusConf.cls}">${statusConf.label}</span>${motivoRecusaSmall}</td>
             <td style="font-weight:600">${_escapeHtml(String(contratoDisplay))}</td>
             <td style="font-size:0.78rem;color:#dc2626;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${motivoRecusaEsc}">${p.status === 'recusada' && p.motivoRecusa ? motivoRecusaEsc : '—'}</td>
             <td>
@@ -19057,16 +19082,16 @@ function atualizarKPIsPropostas() {
     const aceitas = propostas.filter(p => p.status === 'aceita').length;
     const recusadas = propostas.filter(p => p.status === 'recusada').length;
     const totalNaoRascunho = propostas.filter(p => p.status !== 'rascunho').length;
-    const taxa = totalNaoRascunho > 0 ? ((aceitas / totalNaoRascunho) * 100).toFixed(1) : '0';
+    const taxaNum = totalNaoRascunho > 0 ? (aceitas / totalNaoRascunho) * 100 : 0;
+    const taxa = taxaNum.toFixed(1);
 
-    const elAbertas = document.getElementById('kpiPropostasAbertas');
-    const elAceitas = document.getElementById('kpiPropostasAceitas');
-    const elRecusadas = document.getElementById('kpiPropostasRecusadas');
-    const elTaxa = document.getElementById('kpiTaxaConversao');
-    if (elAbertas) elAbertas.textContent = abertas;
-    if (elAceitas) elAceitas.textContent = aceitas;
-    if (elRecusadas) elRecusadas.textContent = recusadas;
-    if (elTaxa) elTaxa.textContent = taxa + '%';
+    const g = id => document.getElementById(id);
+    if (g('kpiPropostasAbertas'))  g('kpiPropostasAbertas').textContent  = abertas;
+    if (g('kpiPropostasAceitas'))  g('kpiPropostasAceitas').textContent  = aceitas;
+    if (g('kpiPropostasRecusadas')) g('kpiPropostasRecusadas').textContent = recusadas;
+    if (g('kpiTaxaConversao'))     g('kpiTaxaConversao').textContent     = taxa + '%';
+    if (g('kpiPropostasProgressBar')) g('kpiPropostasProgressBar').style.width = taxaNum.toFixed(0) + '%';
+    if (g('kpiPropostasProgressLabel')) g('kpiPropostasProgressLabel').textContent = `${aceitas} de ${totalNaoRascunho} enviadas convertidas`;
 }
 
 function preencherDadosCliente(nomeCliente) {

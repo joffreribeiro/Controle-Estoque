@@ -516,23 +516,11 @@
                 <div class="section-header">
                     <h2 class="section-title">Propostas Comerciais</h2>
                     <div class="header-actions">
-                        <input type="text" id="filtroProposta" placeholder="🔍 Buscar proposta..."
-                               oninput="filtrarPropostas(this.value)" class="input-busca-tabela">
-                        <select id="filtroStatusProposta" onchange="filtrarPropostas()"
-                                class="input-busca-tabela" style="width:auto">
-                            <option value="">Todos os status</option>
-                            <option value="rascunho">Rascunho</option>
-                            <option value="enviada">Enviada</option>
-                            <option value="aguardando_aprovacao">Aguard. Aprovação</option>
-                            <option value="aceita">Aceita</option>
-                            <option value="recusada">Recusada</option>
-                            <option value="expirada">Expirada</option>
-                        </select>
                         <button class="btn btn-primary" data-admin="true" onclick="abrirModalProposta()">
                             <span class="btn-icon">+</span> Nova Proposta
                         </button>
                         <button class="btn btn-outline btn-sm" onclick="exportarPropostasExcel()">
-                            <span class="btn-icon">📊</span> Exportar Excel
+                            <span class="btn-icon">📊</span> Exportar
                         </button>
                         <button class="btn btn-outline btn-sm" onclick="imprimirRelatorioAba('propostas')">
                             <span class="btn-icon">🖨️</span> Imprimir
@@ -540,28 +528,80 @@
                     </div>
                 </div>
 
-                <!-- KPI row -->
-                <div class="kpi-grid" style="grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:20px;">
-                    <article class="kpi-card kpi-info">
-                        <div class="kpi-label">Em Aberto</div>
-                        <div class="kpi-value" id="kpiPropostasAbertas">0</div>
-                        <div class="kpi-subtitle">Rascunho + Enviadas</div>
+                <!-- KPIs v2 -->
+                <div class="kpi-grid" style="grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px">
+                    <article class="kpi-card-v2 kpi-info">
+                        <div class="kpi-v2-top">
+                            <div class="kpi-v2-body">
+                                <div class="kpi-v2-label">Em Aberto</div>
+                                <div class="kpi-v2-value" id="kpiPropostasAbertas">0</div>
+                                <div class="kpi-v2-subtitle">Rascunho + Enviadas</div>
+                            </div>
+                            <div class="kpi-v2-icon">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+                            </div>
+                        </div>
                     </article>
-                    <article class="kpi-card kpi-success">
-                        <div class="kpi-label">Aceitas</div>
-                        <div class="kpi-value" id="kpiPropostasAceitas">0</div>
-                        <div class="kpi-subtitle">Convertidas em venda</div>
+                    <article class="kpi-card-v2 kpi-success">
+                        <div class="kpi-v2-top">
+                            <div class="kpi-v2-body">
+                                <div class="kpi-v2-label">Aceitas</div>
+                                <div class="kpi-v2-value" id="kpiPropostasAceitas">0</div>
+                                <div class="kpi-v2-subtitle">Convertidas em venda</div>
+                            </div>
+                            <div class="kpi-v2-icon">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+                            </div>
+                        </div>
                     </article>
-                    <article class="kpi-card kpi-danger">
-                        <div class="kpi-label">Recusadas</div>
-                        <div class="kpi-value" id="kpiPropostasRecusadas">0</div>
-                        <div class="kpi-subtitle">Não convertidas</div>
+                    <article class="kpi-card-v2 kpi-danger">
+                        <div class="kpi-v2-top">
+                            <div class="kpi-v2-body">
+                                <div class="kpi-v2-label">Recusadas</div>
+                                <div class="kpi-v2-value" id="kpiPropostasRecusadas">0</div>
+                                <div class="kpi-v2-subtitle">Não convertidas</div>
+                            </div>
+                            <div class="kpi-v2-icon">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                            </div>
+                        </div>
                     </article>
-                    <article class="kpi-card kpi-accent">
-                        <div class="kpi-label">Taxa de Conversão</div>
-                        <div class="kpi-value" id="kpiTaxaConversao">0%</div>
-                        <div class="kpi-subtitle">Aceitas / Total enviadas</div>
+                    <article class="kpi-card-v2 kpi-accent-v2">
+                        <div class="kpi-v2-top">
+                            <div class="kpi-v2-body">
+                                <div class="kpi-v2-label">Taxa de Conversão</div>
+                                <div class="kpi-v2-value kpi-v2-value--sm" id="kpiTaxaConversao">0%</div>
+                                <div class="kpi-v2-subtitle">Aceitas / Total enviadas</div>
+                            </div>
+                            <div class="kpi-v2-icon">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+                            </div>
+                        </div>
+                        <div class="kpi-progress-wrap">
+                            <div class="kpi-progress-bar"><div class="kpi-progress-fill" id="kpiPropostasProgressBar" style="width:0%"></div></div>
+                            <div class="kpi-progress-label" id="kpiPropostasProgressLabel">0% de conversão</div>
+                        </div>
                     </article>
+                </div>
+
+                <!-- Toolbar busca + filtro -->
+                <div class="produtos-toolbar" style="margin-bottom:12px">
+                    <div class="prod-search-wrap">
+                        <svg class="search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                        <input type="text" id="filtroProposta" class="prod-search-input"
+                               placeholder="Buscar por nº, cliente ou representante..."
+                               oninput="filtrarPropostas(this.value)">
+                    </div>
+                    <select id="filtroStatusProposta" class="prod-filter-select" onchange="filtrarPropostas()">
+                        <option value="">Todos os status</option>
+                        <option value="rascunho">Rascunho</option>
+                        <option value="enviada">Enviada</option>
+                        <option value="aguardando_aprovacao">Aguard. Aprovação</option>
+                        <option value="aceita">Aceita</option>
+                        <option value="recusada">Recusada</option>
+                        <option value="expirada">Expirada</option>
+                    </select>
+                    <span id="propostasContador" class="prod-result-count"></span>
                 </div>
 
                 <div class="table-container">
@@ -1407,90 +1447,100 @@
                     <h2 class="section-title">Registro de Vendas</h2>
                     <div class="header-actions">
                         <button class="btn btn-success" data-admin="true" onclick="abrirModalVendaDetalhada()">
-                            <span class="btn-icon">+</span>
-                            Nova Venda
+                            <span class="btn-icon">+</span> Nova Venda
                         </button>
                         <button class="btn btn-outline" onclick="abrirHistoricoContrato()">
-                            <span class="btn-icon">🕘</span>
-                            Histórico do Contrato
+                            <span class="btn-icon">🕘</span> Histórico
                         </button>
-                        <button class="btn btn-outline btn-sm" onclick="imprimirRelatorioAba('vendas')" style="margin-left:8px">
-                            <span class="btn-icon">🖨️</span>
-                            Imprimir
+                        <button class="btn btn-outline btn-sm" onclick="imprimirRelatorioAba('vendas')">
+                            <span class="btn-icon">🖨️</span> Imprimir
                         </button>
-                        <button class="btn btn-outline btn-sm" onclick="exportarVendas()" style="margin-left:4px">
-                            <span class="btn-icon">📊</span>
-                            Exportar Excel
+                        <button class="btn btn-outline btn-sm" onclick="exportarVendas()">
+                            <span class="btn-icon">📊</span> Exportar
                         </button>
                     </div>
                 </div>
 
-                <!-- Filtros -->
-                <div class="filtros-container">
-                    <div class="filtro-group">
-                        <label>Representante:</label>
-                        <select id="filtroRepresentante" onchange="filtrarVendas()"></select>
-                    </div>
-                    <div class="filtro-group">
-                        <label>Produto:</label>
-                        <select id="filtroProduto" onchange="filtrarVendas()">
-                            <option value="">Todos</option>
-                        </select>
-                    </div>
-                    <div class="filtro-group" style="min-width:220px;">
-                        <label>Buscar:</label>
-                        <input type="text" id="filtroVendasBusca"
-                               placeholder="Loja, cliente ou nº contrato..."
-                               oninput="filtrarVendas()"
-                               style="padding:7px 10px;border:1px solid #e2e8f0;border-radius:6px;font-size:0.85rem;width:100%">
-                    </div>
-                    <div class="filtro-group filtro-periodo" style="min-width:260px;">
-                        <label>Período:</label>
-                        <div style="display:flex;flex-direction:column;gap:8px;">
-                            <div style="display:flex;gap:6px;flex-wrap:wrap;">
-                                <button type="button" onclick="filtroVendasRapido('hoje')" class="btn btn-outline btn-sm" style="padding:6px 10px;font-size:0.8rem">Hoje</button>
-                                <button type="button" onclick="filtroVendasRapido('semana')" class="btn btn-outline btn-sm" style="padding:6px 10px;font-size:0.8rem">7 dias</button>
-                                <button type="button" onclick="filtroVendasRapido('mes')" class="btn btn-outline btn-sm" style="padding:6px 10px;font-size:0.8rem">Este mês</button>
-                                <button type="button" onclick="filtroVendasRapido('ano')" class="btn btn-outline btn-sm" style="padding:6px 10px;font-size:0.8rem">Este ano</button>
-                                <button type="button" onclick="filtroVendasRapido('limpar')" class="btn btn-outline btn-sm" style="padding:6px 10px;font-size:0.8rem;color:#94a3b8">✕ Limpar</button>
+                <!-- KPIs v2 -->
+                <div class="kpi-grid" style="grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px">
+                    <article class="kpi-card-v2 kpi-info">
+                        <div class="kpi-v2-top">
+                            <div class="kpi-v2-body">
+                                <div class="kpi-v2-label">Contratos Ativos</div>
+                                <div class="kpi-v2-value" id="kpiVendasContratos">0</div>
+                                <div class="kpi-v2-subtitle">No período filtrado</div>
                             </div>
-                            <div style="display:flex;gap:8px;align-items:center;">
-                                <label style="min-width:36px;margin:0">De:</label>
-                                <input type="date" id="filtroVendasDataInicio" onchange="filtrarVendas()">
-                                <label style="min-width:36px;margin:0 0 0 8px">Até:</label>
-                                <input type="date" id="filtroVendasDataFim" onchange="filtrarVendas()">
+                            <div class="kpi-v2-icon">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
                             </div>
                         </div>
-                    </div>
-                    <div style="align-self:flex-end;display:flex;gap:6px;">
-                        <button class="btn btn-outline btn-sm" onclick="expandirTodosContratos()">▾ Expandir Tudo</button>
-                        <button class="btn btn-outline btn-sm" onclick="colapsarTodosContratos()">▸ Colapsar Tudo</button>
-                        <button class="btn btn-outline btn-sm" onclick="limparFiltrosVendas()"><span>🔄</span> Limpar Filtros</button>
-                    </div>
+                    </article>
+                    <article class="kpi-card-v2 kpi-success">
+                        <div class="kpi-v2-top">
+                            <div class="kpi-v2-body">
+                                <div class="kpi-v2-label">Total Vendido</div>
+                                <div class="kpi-v2-value kpi-v2-value--sm" id="kpiVendasTotal">R$ 0</div>
+                                <div class="kpi-v2-subtitle">Contratos ativos</div>
+                            </div>
+                            <div class="kpi-v2-icon">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                            </div>
+                        </div>
+                    </article>
+                    <article class="kpi-card-v2 kpi-accent-v2">
+                        <div class="kpi-v2-top">
+                            <div class="kpi-v2-body">
+                                <div class="kpi-v2-label">Ticket Médio</div>
+                                <div class="kpi-v2-value kpi-v2-value--sm" id="kpiVendasTicket">R$ 0</div>
+                                <div class="kpi-v2-subtitle">Por contrato ativo</div>
+                            </div>
+                            <div class="kpi-v2-icon">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+                            </div>
+                        </div>
+                    </article>
+                    <article class="kpi-card-v2 kpi-danger">
+                        <div class="kpi-v2-top">
+                            <div class="kpi-v2-body">
+                                <div class="kpi-v2-label">Cancelados</div>
+                                <div class="kpi-v2-value" id="kpiVendasCancelados">0</div>
+                                <div class="kpi-v2-subtitle">No período filtrado</div>
+                            </div>
+                            <div class="kpi-v2-icon">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
+                            </div>
+                        </div>
+                    </article>
                 </div>
 
-                <!-- KPIs Registro de Vendas -->
-                <div class="kpi-grid" style="grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px">
-                    <article class="kpi-card kpi-info">
-                        <div class="kpi-label">Contratos Ativos</div>
-                        <div class="kpi-value" id="kpiVendasContratos">0</div>
-                        <div class="kpi-subtitle">No período filtrado</div>
-                    </article>
-                    <article class="kpi-card kpi-success">
-                        <div class="kpi-label">Total Vendido</div>
-                        <div class="kpi-value" id="kpiVendasTotal">R$ 0,00</div>
-                        <div class="kpi-subtitle">Contratos ativos</div>
-                    </article>
-                    <article class="kpi-card kpi-accent">
-                        <div class="kpi-label">Ticket Médio</div>
-                        <div class="kpi-value" id="kpiVendasTicket">R$ 0,00</div>
-                        <div class="kpi-subtitle">Por contrato ativo</div>
-                    </article>
-                    <article class="kpi-card kpi-danger">
-                        <div class="kpi-label">Cancelados</div>
-                        <div class="kpi-value" id="kpiVendasCancelados">0</div>
-                        <div class="kpi-subtitle">No período filtrado</div>
-                    </article>
+                <!-- Toolbar filtros v2 -->
+                <div class="vendas-toolbar" style="margin-bottom:12px">
+                    <div class="prod-search-wrap">
+                        <svg class="search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                        <input type="text" id="filtroVendasBusca" class="prod-search-input"
+                               placeholder="Loja, cliente ou nº contrato..."
+                               oninput="filtrarVendas()">
+                    </div>
+                    <select id="filtroRepresentante" class="prod-filter-select" onchange="filtrarVendas()"></select>
+                    <select id="filtroProduto" class="prod-filter-select" onchange="filtrarVendas()">
+                        <option value="">Todos os produtos</option>
+                    </select>
+                    <div class="distrib-date-range">
+                        <input type="date" id="filtroVendasDataInicio" class="prod-date-input" onchange="filtrarVendas()">
+                        <span class="date-sep">—</span>
+                        <input type="date" id="filtroVendasDataFim" class="prod-date-input" onchange="filtrarVendas()">
+                    </div>
+                    <div class="vendas-periodo-pills">
+                        <button type="button" class="periodo-pill" onclick="filtroVendasRapido('hoje')">Hoje</button>
+                        <button type="button" class="periodo-pill" onclick="filtroVendasRapido('semana')">7d</button>
+                        <button type="button" class="periodo-pill" onclick="filtroVendasRapido('mes')">Mês</button>
+                        <button type="button" class="periodo-pill" onclick="filtroVendasRapido('ano')">Ano</button>
+                        <button type="button" class="periodo-pill periodo-pill--clear" onclick="filtroVendasRapido('limpar')">✕</button>
+                    </div>
+                    <button class="btn btn-outline btn-sm" onclick="expandirTodosContratos()">▾ Expandir</button>
+                    <button class="btn btn-outline btn-sm" onclick="colapsarTodosContratos()">▸ Colapsar</button>
+                    <button class="btn btn-outline btn-sm" onclick="limparFiltrosVendas()">🔄</button>
+                    <span id="vendasContador" class="prod-result-count"></span>
                 </div>
 
                 <div class="table-container">
