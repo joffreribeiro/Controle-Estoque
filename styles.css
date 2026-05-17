@@ -5151,3 +5151,236 @@ textarea:focus-visible {
         padding: 8px 6px !important;
     }
 }
+
+/* ════════════════════════════════════════════
+   ABA PRODUTOS — MELHORIAS v2
+   ════════════════════════════════════════════ */
+
+/* ── Toolbar: busca + filtro ── */
+.produtos-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.prod-search-wrap {
+    position: relative;
+    flex: 1;
+    min-width: 180px;
+    max-width: 320px;
+}
+
+.prod-search-wrap svg.search-icon {
+    position: absolute;
+    left: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    pointer-events: none;
+    color: var(--text-muted);
+}
+
+.prod-search-input {
+    width: 100%;
+    padding: 7px 10px 7px 34px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm, 6px);
+    font-size: 0.85rem;
+    color: var(--text-primary);
+    background: var(--bg-white);
+    transition: border-color 0.15s, box-shadow 0.15s;
+    font-family: var(--font-primary);
+}
+
+.prod-search-input:focus {
+    outline: none;
+    border-color: var(--primary-light);
+    box-shadow: 0 0 0 3px rgba(40, 77, 122, 0.1);
+}
+
+.prod-search-input::placeholder {
+    color: var(--text-muted);
+}
+
+.prod-filter-select {
+    padding: 7px 28px 7px 10px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm, 6px);
+    font-size: 0.85rem;
+    color: var(--text-primary);
+    background: var(--bg-white);
+    cursor: pointer;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%238fa0b4' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 8px center;
+    transition: border-color 0.15s;
+    font-family: var(--font-primary);
+    min-width: 160px;
+}
+
+.prod-filter-select:focus {
+    outline: none;
+    border-color: var(--primary-light);
+    box-shadow: 0 0 0 3px rgba(40, 77, 122, 0.1);
+}
+
+/* ── KPI card v2: com ícone e barra de progresso ── */
+.kpi-card-v2 {
+    background: var(--bg-white);
+    border: 1px solid var(--border-color);
+    border-left: 4px solid var(--accent-color);
+    border-radius: var(--radius-md, 8px);
+    padding: 16px 18px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    transition: var(--transition);
+    position: relative;
+    overflow: hidden;
+}
+
+.kpi-card-v2:hover {
+    box-shadow: var(--shadow-md);
+    transform: translateY(-2px);
+}
+
+.kpi-card-v2.kpi-info  { border-left-color: var(--info-color); }
+.kpi-card-v2.kpi-success { border-left-color: var(--success-color); }
+.kpi-card-v2.kpi-danger  { border-left-color: var(--danger-color); }
+
+.kpi-v2-top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.kpi-v2-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.kpi-card-v2.kpi-info  .kpi-v2-icon { background: var(--info-bg);    color: var(--info-color); }
+.kpi-card-v2.kpi-success .kpi-v2-icon { background: var(--success-bg); color: var(--success-color); }
+.kpi-card-v2.kpi-danger  .kpi-v2-icon { background: var(--danger-bg);  color: var(--danger-color); }
+
+.kpi-v2-body {
+    flex: 1;
+}
+
+.kpi-v2-label {
+    font-size: 10px;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    letter-spacing: 1px;
+    font-weight: 700;
+}
+
+.kpi-v2-value {
+    font-size: 2rem;
+    font-weight: 800;
+    line-height: 1.1;
+    margin: 3px 0 2px;
+    font-family: var(--font-display);
+    font-variant-numeric: tabular-nums;
+    color: var(--text-primary);
+}
+
+.kpi-v2-subtitle {
+    font-size: 11px;
+    color: var(--text-muted);
+}
+
+.kpi-progress-wrap {
+    margin-top: 10px;
+}
+
+.kpi-progress-bar {
+    height: 4px;
+    border-radius: 2px;
+    background: var(--border-color);
+    overflow: hidden;
+}
+
+.kpi-progress-fill {
+    height: 100%;
+    border-radius: 2px;
+    background: var(--success-color);
+    transition: width 0.5s cubic-bezier(.4,0,.2,1);
+}
+
+.kpi-progress-label {
+    font-size: 10px;
+    color: var(--text-muted);
+    margin-top: 4px;
+    text-align: right;
+}
+
+/* ── Ícones de ordenação nos th ── */
+#tabelaCadastroProdutos th.sortable {
+    cursor: pointer;
+    user-select: none;
+    white-space: nowrap;
+}
+
+#tabelaCadastroProdutos th.sortable:hover {
+    background: var(--primary-light) !important;
+}
+
+#tabelaCadastroProdutos th.sortable .sort-icon {
+    display: inline-block;
+    margin-left: 4px;
+    font-size: 0.7rem;
+    opacity: 0.45;
+    transition: opacity 0.15s;
+    font-style: normal;
+}
+
+#tabelaCadastroProdutos th.sortable:hover .sort-icon {
+    opacity: 0.85;
+}
+
+#tabelaCadastroProdutos th.sort-asc .sort-icon,
+#tabelaCadastroProdutos th.sort-desc .sort-icon {
+    opacity: 1;
+    color: var(--accent-bright);
+}
+
+/* ── Badge de categoria ── */
+.badge-categoria {
+    display: inline-block;
+    padding: 2px 9px;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    white-space: nowrap;
+    letter-spacing: 0.2px;
+}
+
+.badge-categoria[data-cat="Arma Curta"]  { background: #dbeafe; color: #1d4ed8; }
+.badge-categoria[data-cat="Arma Longa"]  { background: #dcfce7; color: #15803d; }
+.badge-categoria[data-cat="Acessório"]   { background: #f1f5f9; color: #475569; }
+.badge-categoria[data-cat="Munição"]     { background: #ffedd5; color: #c2410c; }
+.badge-categoria[data-cat="Peça"]        { background: #ede9fe; color: #7c3aed; }
+.badge-categoria[data-cat="-"],
+.badge-categoria:empty                   { display: none; }
+
+/* ── Linha selecionada ── */
+#tabelaCadastroProdutos tbody tr.row-selected {
+    background: #e8f0fc !important;
+    border-left: 3px solid var(--primary-light) !important;
+}
+
+/* ── Contador de resultados filtrados ── */
+.prod-result-count {
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    padding: 2px 0;
+    white-space: nowrap;
+}

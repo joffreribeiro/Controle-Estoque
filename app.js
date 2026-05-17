@@ -10,6 +10,11 @@ let clientes = [];
 let propostas = [];
 let precificacoesCliente = [];
 
+// ── Estado de ordenação/filtro da aba Cadastro de Produtos ──
+let _cadProdSort = { col: 'nome', dir: 'asc' };
+let _cadProdFiltroCategoria = '';
+let _cadProdFiltroBusca = '';
+
 // ----------------------------------------
 // Utilitários globais (declarados primeiro para uso em todo o arquivo)
 // ----------------------------------------
@@ -3086,15 +3091,106 @@ function renderizarCadastroProdutos() {
     const tabelaWrap = document.getElementById('cadastroProdutosTabelaWrap');
     if (!tbody || !empty || !tabelaWrap) return;
 
-    const produtos = Array.isArray(estoque.produtos) ? [...estoque.produtos] : [];
-    produtos.sort((a, b) => String(a.nome || '').localeCompare(String(b.nome || ''), 'pt-BR'));
+    let lista = Array.isArray(estoque.produtos) ? [...estoque.produtos] : [];
 
-    const total = produtos.length;
+    // ── Filtro por busca de texto ──
+    const termoBusca = _cadProdFiltroBusca.toLowerCase().trim();
+    if (termoBusca) {
+        lista = lista.filter(p => {
+            const nome = (p.nome || '').toLowerCase();
+            const pn = (p.pn || '').toLowerCase();
+            const nf = (p.nomeFabrica || '').toLowerCase();
+            const comp = (p.componente || '').toLowerCase();
+            const ncm = (p.ncm || '').toLowerCase();
+            return nome.includes(termoBusca) || pn.includes(termoBusca) || nf.includes(termoBusca) || comp.includes(termoBusca) || ncm.includes(termoBusca);
+        });
+    }
+
+    // ── Filtro por categoria ──
+    if (_cadProdFiltroCategoria) {
+        lista = lista.filter(p => {
+            const cat = (categoriaPorProduto && categoriaPorProduto[p.nome]) || p.categoria || '';
+            return cat === _cadProdFiltroCategoria;
+        });
+    }
+
+    // ── Ordenação ──
+    lista.sort((a, b) => {
+        const dir = _cadProdSort.dir === 'asc' ? 1 : -1;
+        const nomeA = a.nome || '';
+        const nomeB = b.nome || '';
+        const regraA = (precificacao && precificacao[nomeA]) ? precificacao[nomeA] : {};
+        const regraB = (precificacao && precificacao[nomeB]) ? precificacao[nomeB] : {};
+        switch (_cadProdSort.col) {
+            case 'nome':
+                return dir * nomeA.localeCompare(nomeB, 'pt-BR');
+            case 'categoria': {
+                const cA = (categoriaPorProduto && categoriaPorProduto[nomeA]) || a.categoria || '';
+                const cB = (categoriaPorProduto && categoriaPorProduto[nomeB]) || b.categoria || '';
+                return dir * cA.localeCompare(cB, 'pt-BR');
+            }
+            case 'pn':
+                return dir * (a.pn || '').localeCompare(b.pn || '', 'pt-BR');
+            case 'nomeFabrica':
+                return dir * (a.nomeFabrica || '').localeCompare(b.nomeFabrica || '', 'pt-BR');
+            case 'ci': {
+                const ciA = Number(regraA.ci ?? a.ci ?? 0) || 0;
+                const ciB = Number(regraB.ci ?? b.ci ?? 0) || 0;
+                return dir * (ciA - ciB);
+            }
+            case 'margemMin': {
+                const mA = Number(regraA.margemMinima ?? a.margemMinima ?? 0) || 0;
+                const mB = Number(regraB.margemMinima ?? b.margemMinima ?? 0) || 0;
+                return dir * (mA - mB);
+            }
+            case 'descMax': {
+                const dA = Number(regraA.descontoMaximo ?? a.descontoMaximo ?? 0) || 0;
+                const dB = Number(regraB.descontoMaximo ?? b.descontoMaximo ?? 0) || 0;
+                return dir * (dA - dB);
+            }
+            case 'saldo': {
+                const sA = obterMetricasImbelProduto(a).consolidadoSaldo;
+                const sB = obterMetricasImbelProduto(b).consolidadoSaldo;
+                return dir * (sA - sB);
+            }
+            case 'atualizado': {
+                const dA = new Date(a.atualizadoEm || a.dataAtualizacao || a.criadoEm || 0).getTime();
+                const dB = new Date(b.atualizadoEm || b.dataAtualizacao || b.criadoEm || 0).getTime();
+                return dir * (dA - dB);
+            }
+            default:
+                return dir * nomeA.localeCompare(nomeB, 'pt-BR');
+        }
+    });
+
+    // ── Atualizar ícones de sort no thead ──
+    document.querySelectorAll('#tabelaCadastroProdutos th.sortable').forEach(th => {
+        th.classList.remove('sort-asc', 'sort-desc');
+        const icon = th.querySelector('.sort-icon');
+        if (icon) icon.textContent = '↕';
+    });
+    const colMap = { nome: 4, categoria: 1, pn: 2, nomeFabrica: 3, ci: 6, margemMin: 7, descMax: 8, saldo: 10, atualizado: 11 };
+    const colIdx = colMap[_cadProdSort.col];
+    if (colIdx !== undefined) {
+        const ths = document.querySelectorAll('#tabelaCadastroProdutos thead th');
+        const thAtivo = ths[colIdx];
+        if (thAtivo) {
+            thAtivo.classList.add(_cadProdSort.dir === 'asc' ? 'sort-asc' : 'sort-desc');
+            const icon = thAtivo.querySelector('.sort-icon');
+            if (icon) icon.textContent = _cadProdSort.dir === 'asc' ? '↑' : '↓';
+        }
+    }
+
+    const totalGeral = (Array.isArray(estoque.produtos) ? estoque.produtos : []).length;
     let comCI = 0;
+    (Array.isArray(estoque.produtos) ? estoque.produtos : []).forEach(p => {
+        const r = (precificacao && precificacao[p.nome]) ? precificacao[p.nome] : {};
+        if ((Number(r.ci ?? p.ci ?? 0) || 0) > 0) comCI += 1;
+    });
 
     tbody.innerHTML = '';
 
-    produtos.forEach(produto => {
+    lista.forEach(produto => {
         const nome = produto.nome || '-';
         const regra = (precificacao && precificacao[nome]) ? precificacao[nome] : {};
         const ci = Number(regra.ci ?? produto.ci ?? 0) || 0;
@@ -3106,7 +3202,6 @@ function renderizarCadastroProdutos() {
         const imbelTexto = metricaImbel.estoqueTotal === 0
             ? '-'
             : formatarNumero(metricaImbel.imbelDisp);
-        // Mesmo valor do bloco CONSOLIDADO > SALDO da aba Estoque
         const saldoConsolidado = metricaImbel.consolidadoSaldo;
         const saldoConsolidadoTexto = formatarNumero(saldoConsolidado);
         const saldoConsolidadoCor = saldoConsolidado > 0 ? '#2da44e' : '#cf222e';
@@ -3118,8 +3213,6 @@ function renderizarCadastroProdutos() {
                 : new Date(atualizadoEm).toLocaleDateString('pt-BR'))
             : '-';
 
-        if (ci > 0) comCI += 1;
-
         const noEstoque = produto.exibirNoEstoque === true;
         const noEstoqueBadge = noEstoque
             ? `<span style="display:inline-block;background:#dcfce7;color:#166534;border-radius:10px;padding:2px 10px;font-size:0.78rem;font-weight:700">Sim</span>`
@@ -3127,6 +3220,9 @@ function renderizarCadastroProdutos() {
         const pn = produto.pn || '-';
         const nomeFabrica = produto.nomeFabrica || '-';
         const componente = produto.componente || '-';
+        const categoriaBadge = categoria !== '-'
+            ? `<span class="badge-categoria" data-cat="${_escapeHtml(categoria)}">${_escapeHtml(categoria)}</span>`
+            : '-';
 
         const tr = document.createElement('tr');
         tr.innerHTML = `
@@ -3138,11 +3234,11 @@ function renderizarCadastroProdutos() {
                     <button class="btn btn-outline btn-sm" title="Detectar NCM" onclick="detectarNCMVincular(${Number(produto.id)})">🔍</button>
                 </div>
             </td>
-            <td>${categoria}</td>
-            <td style="font-family:monospace">${pn}</td>
-            <td>${nomeFabrica}</td>
-            <td>${componente}</td>
-            <td style="text-align:left; font-weight:600">${nome}</td>
+            <td>${categoriaBadge}</td>
+            <td style="font-family:monospace">${_escapeHtml(pn)}</td>
+            <td>${_escapeHtml(nomeFabrica)}</td>
+            <td>${_escapeHtml(componente)}</td>
+            <td style="text-align:left; font-weight:600">${_escapeHtml(nome)}</td>
             <td>${ci > 0 ? formatarMoedaValor(ci) : '-'}</td>
             <td>${margemMin > 0 ? margemMin.toFixed(1).replace('.', ',') : '-'}</td>
             <td>${descontoMax > 0 ? descontoMax.toFixed(1).replace('.', ',') : '-'}</td>
@@ -3155,34 +3251,56 @@ function renderizarCadastroProdutos() {
             </td>
         `;
 
-        // Garantia defensiva: tbody deve ter o mesmo número de colunas do thead
-        const expectedCols = document.querySelectorAll('#tabelaCadastroProdutos thead th').length;
-        let actualCols = tr.querySelectorAll('td').length;
-        if (actualCols !== expectedCols) {
-            while (actualCols < expectedCols) {
-                tr.appendChild(document.createElement('td'));
-                actualCols += 1;
-            }
-            while (actualCols > expectedCols) {
-                tr.removeChild(tr.lastElementChild);
-                actualCols -= 1;
-            }
-        }
+        tr.addEventListener('click', e => {
+            if (e.target.tagName === 'BUTTON' || e.target.tagName === 'SELECT' || e.target.closest('button') || e.target.closest('select')) return;
+            document.querySelectorAll('#corpoCadastroProdutos tr.row-selected').forEach(r => r.classList.remove('row-selected'));
+            tr.classList.add('row-selected');
+        });
 
         tbody.appendChild(tr);
     });
 
-    const semCI = Math.max(0, total - comCI);
+    // ── Atualizar KPIs com contagem global (não filtrada) ──
+    const semCI = Math.max(0, totalGeral - comCI);
     const totalEl = document.getElementById('cadProdTotal');
     const comCIEl = document.getElementById('cadProdComCI');
     const semCIEl = document.getElementById('cadProdSemCI');
-    if (totalEl) totalEl.textContent = String(total);
+    if (totalEl) totalEl.textContent = String(totalGeral);
     if (comCIEl) comCIEl.textContent = String(comCI);
     if (semCIEl) semCIEl.textContent = String(semCI);
 
-    const vazio = total === 0;
+    // ── Barra de progresso CI ──
+    const pct = totalGeral > 0 ? Math.round((comCI / totalGeral) * 100) : 0;
+    const bar = document.getElementById('cadProdCIProgressBar');
+    const barLabel = document.getElementById('cadProdCIProgressLabel');
+    if (bar) bar.style.width = pct + '%';
+    if (barLabel) barLabel.textContent = `${comCI} de ${totalGeral} (${pct}%)`;
+
+    // ── Contador de resultados ──
+    const countEl = document.getElementById('prodResultCount');
+    if (countEl) {
+        const filtrado = termoBusca || _cadProdFiltroCategoria;
+        countEl.textContent = filtrado ? `${lista.length} de ${totalGeral} produto${totalGeral !== 1 ? 's' : ''}` : '';
+    }
+
+    const vazio = lista.length === 0;
     empty.style.display = vazio ? 'block' : 'none';
     tabelaWrap.style.display = vazio ? 'none' : 'block';
+}
+
+function ordenarCadastroPor(col) {
+    if (_cadProdSort.col === col) {
+        _cadProdSort.dir = _cadProdSort.dir === 'asc' ? 'desc' : 'asc';
+    } else {
+        _cadProdSort = { col, dir: 'asc' };
+    }
+    renderizarCadastroProdutos();
+}
+
+function filtrarCadastroProdutos() {
+    _cadProdFiltroBusca = (document.getElementById('produtoBusca')?.value || '').trim().toLowerCase();
+    _cadProdFiltroCategoria = document.getElementById('produtoFiltroCategoria')?.value || '';
+    renderizarCadastroProdutos();
 }
 
 // Calcula e aplica o top correto para a segunda linha do thead (sub-headers)
