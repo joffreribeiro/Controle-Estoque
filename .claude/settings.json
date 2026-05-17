@@ -6,7 +6,8 @@
       "Bash(node -e ' *)",
       "Bash(npx claude-code-templates@latest --help)",
       "Bash(npx claude-code-templates@latest --skill creative-design/theme-factory,creative-design/frontend-design,creative-design/canvas-design,development/senior-backend,development/code-reviewer,creative-design/ui-design-system)",
-      "Bash(node --check \"e:/MEUS DOCUMENTOS/OneDrive/Documentos/Sistemas/Estoque/Controle-Estoque/app.js\")"
+      "Bash(node --check \"e:/MEUS DOCUMENTOS/OneDrive/Documentos/Sistemas/Estoque/Controle-Estoque/app.js\")",
+      "Bash(grep -E \"\\\\.\\(html|js|css\\)$\")"
     ],
     "additionalDirectories": [
       "\\tmp"

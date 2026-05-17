@@ -5384,3 +5384,71 @@ textarea:focus-visible {
     padding: 2px 0;
     white-space: nowrap;
 }
+
+/* ════════════════════════════════════════════
+   ABA CLIENTES — MELHORIAS v2
+   ════════════════════════════════════════════ */
+
+/* KPI accent (ticket médio) — tom bronze/dourado do sistema */
+.kpi-card-v2.kpi-accent-v2 {
+    border-left-color: var(--accent-color);
+}
+
+.kpi-card-v2.kpi-accent-v2 .kpi-v2-icon {
+    background: rgba(184, 146, 42, 0.10);
+    color: var(--accent-color);
+}
+
+/* Valor menor para ticket médio (texto monetário é mais longo) */
+.kpi-v2-value--sm {
+    font-size: 1.4rem !important;
+}
+
+/* Sort icons na tabela de clientes — consistente com produtos */
+#tabelaClientes th.sortable {
+    cursor: pointer;
+    user-select: none;
+    white-space: nowrap;
+}
+
+#tabelaClientes th.sortable:hover {
+    background: var(--primary-light) !important;
+}
+
+#tabelaClientes th.sortable .sort-icon {
+    display: inline-block;
+    margin-left: 4px;
+    font-size: 0.7rem;
+    opacity: 0.45;
+    transition: opacity 0.15s;
+    font-style: normal;
+}
+
+#tabelaClientes th.sortable:hover .sort-icon {
+    opacity: 0.85;
+}
+
+#tabelaClientes th.sort-asc .sort-icon,
+#tabelaClientes th.sort-desc .sort-icon {
+    opacity: 1;
+    color: var(--accent-bright);
+}
+
+/* Highlight de linha selecionada */
+#tabelaClientesBody tr.row-selected {
+    background: #e8f0fc !important;
+    border-left: 3px solid var(--primary-light) !important;
+}
+
+/* Badge de tipo PF/PJ — upgrade visual */
+.badge-tipo-cliente {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 20px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.badge-tipo-cliente.pj { background: #dbeafe; color: #1d4ed8; }
+.badge-tipo-cliente.pf { background: #ede9fe; color: #7c3aed; }

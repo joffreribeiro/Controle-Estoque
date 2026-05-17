@@ -405,18 +405,33 @@
             <div class="content-area">
                 <div class="section-header">
                     <h2 class="section-title">Cadastro de Clientes</h2>
-                    <div class="header-actions">
-                        <input type="text" id="filtroClientesBusca"
-                               placeholder="🔍 Buscar por nome, CNPJ ou UF..."
-                               oninput="renderizarClientes(this.value)"
-                               style="width:100%;max-width:340px;padding:8px 12px;
-                                      border:1px solid #e2e8f0;border-radius:8px;
-                                      font-size:0.9rem">
+                    <div class="header-actions produtos-toolbar">
+                        <div class="prod-search-wrap">
+                            <svg class="search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                            <input type="text" id="filtroClientesBusca" class="prod-search-input"
+                                   placeholder="Buscar por nome, CNPJ, UF ou contato…"
+                                   oninput="filtrarClientes()" autocomplete="off">
+                        </div>
+                        <select id="clienteFiltroRep" class="prod-filter-select" onchange="filtrarClientes()">
+                            <option value="">Todos os representantes</option>
+                            <option value="KOLTE">KOLTE</option>
+                            <option value="ISA">ISA</option>
+                            <option value="LC">LC</option>
+                            <option value="ADES">ADES</option>
+                            <option value="FL">FL</option>
+                            <option value="IMBEL">IMBEL</option>
+                        </select>
+                        <select id="clienteFiltroTipo" class="prod-filter-select" onchange="filtrarClientes()" style="min-width:120px">
+                            <option value="">PF e PJ</option>
+                            <option value="PJ">Somente PJ</option>
+                            <option value="PF">Somente PF</option>
+                        </select>
+                        <span class="prod-result-count" id="clienteResultCount"></span>
                         <button class="btn btn-primary" data-admin="true" onclick="abrirModalCliente()">
                             <span class="btn-icon">+</span> Novo Cliente
                         </button>
                         <button class="btn btn-outline btn-sm" onclick="exportarClientesExcel()">
-                            <span class="btn-icon">📊</span> Exportar Excel
+                            <span class="btn-icon">📊</span> Excel
                         </button>
                         <button class="btn btn-outline btn-sm" onclick="imprimirRelatorioAba('clientes')">
                             <span class="btn-icon">🖨️</span> Imprimir
@@ -424,22 +439,47 @@
                     </div>
                 </div>
 
-                <!-- KPI row -->
+                <!-- KPI row v2 -->
                 <div class="kpi-grid" style="grid-template-columns: repeat(3,1fr); gap:12px; margin-bottom:20px;">
-                    <article class="kpi-card kpi-info">
-                        <div class="kpi-label">Total de Clientes</div>
-                        <div class="kpi-value" id="kpiTotalClientes">0</div>
-                        <div class="kpi-subtitle">Cadastrados</div>
+                    <article class="kpi-card-v2 kpi-info">
+                        <div class="kpi-v2-top">
+                            <div class="kpi-v2-body">
+                                <div class="kpi-v2-label">Total de Clientes</div>
+                                <div class="kpi-v2-value" id="kpiTotalClientes">0</div>
+                                <div class="kpi-v2-subtitle">Cadastrados</div>
+                            </div>
+                            <div class="kpi-v2-icon">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                            </div>
+                        </div>
                     </article>
-                    <article class="kpi-card kpi-success">
-                        <div class="kpi-label">Com Compras</div>
-                        <div class="kpi-value" id="kpiClientesAtivos">0</div>
-                        <div class="kpi-subtitle">Compraram ao menos 1x</div>
+                    <article class="kpi-card-v2 kpi-success">
+                        <div class="kpi-v2-top">
+                            <div class="kpi-v2-body">
+                                <div class="kpi-v2-label">Com Compras</div>
+                                <div class="kpi-v2-value" id="kpiClientesAtivos">0</div>
+                                <div class="kpi-v2-subtitle">Compraram ao menos 1×</div>
+                            </div>
+                            <div class="kpi-v2-icon">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+                            </div>
+                        </div>
+                        <div class="kpi-progress-wrap">
+                            <div class="kpi-progress-bar"><div class="kpi-progress-fill" id="kpiClientesAtivosBar" style="width:0%"></div></div>
+                            <div class="kpi-progress-label" id="kpiClientesAtivosLabel">0%</div>
+                        </div>
                     </article>
-                    <article class="kpi-card kpi-accent">
-                        <div class="kpi-label">Ticket Médio</div>
-                        <div class="kpi-value" id="kpiTicketMedio">R$ 0,00</div>
-                        <div class="kpi-subtitle">Por cliente com compras</div>
+                    <article class="kpi-card-v2 kpi-accent-v2">
+                        <div class="kpi-v2-top">
+                            <div class="kpi-v2-body">
+                                <div class="kpi-v2-label">Ticket Médio</div>
+                                <div class="kpi-v2-value kpi-v2-value--sm" id="kpiTicketMedio">R$ 0,00</div>
+                                <div class="kpi-v2-subtitle">Por cliente com compras</div>
+                            </div>
+                            <div class="kpi-v2-icon">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                            </div>
+                        </div>
                     </article>
                 </div>
 
@@ -448,16 +488,16 @@
                         <table class="dashboard-table" id="tabelaClientes" data-table="clientes">
                             <thead>
                                 <tr>
-                                    <th class="sortable" data-sort="nome" onclick="sortClientes('nome')">Nome / Razão Social <span class="sort-icon">⇅</span></th>
-                                    <th>Tipo</th>
-                                    <th>CNPJ / CPF</th>
-                                    <th>Cidade / UF</th>
-                                    <th>Telefone</th>
-                                    <th>E-mail</th>
-                                    <th>Contato</th>
-                                    <th>Representante</th>
-                                    <th class="sortable" data-sort="compras" onclick="sortClientes('compras')">Compras <span class="sort-icon">⇅</span></th>
-                                    <th>Ações</th>
+                                    <th class="sortable" data-sort="nome" onclick="sortClientes('nome')" style="text-align:left; min-width:200px">Nome / Razão Social <span class="sort-icon">↕</span></th>
+                                    <th style="min-width:60px">Tipo</th>
+                                    <th class="sortable" data-sort="cnpj" onclick="sortClientes('cnpj')" style="min-width:140px">CNPJ / CPF <span class="sort-icon">↕</span></th>
+                                    <th class="sortable" data-sort="cidade" onclick="sortClientes('cidade')" style="min-width:130px">Cidade / UF <span class="sort-icon">↕</span></th>
+                                    <th style="min-width:120px">Telefone</th>
+                                    <th style="min-width:160px">E-mail</th>
+                                    <th style="min-width:120px">Contato</th>
+                                    <th class="sortable" data-sort="representante" onclick="sortClientes('representante')" style="min-width:120px">Representante <span class="sort-icon">↕</span></th>
+                                    <th class="sortable" data-sort="compras" onclick="sortClientes('compras')" style="min-width:90px">Compras <span class="sort-icon">↕</span></th>
+                                    <th style="min-width:140px">Ações</th>
                                 </tr>
                             </thead>
                             <tbody id="tabelaClientesBody"></tbody>

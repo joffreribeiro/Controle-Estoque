@@ -15,6 +15,11 @@ let _cadProdSort = { col: 'nome', dir: 'asc' };
 let _cadProdFiltroCategoria = '';
 let _cadProdFiltroBusca = '';
 
+// ── Estado de filtro da aba Clientes ──
+let _cliFiltroBusca = '';
+let _cliRepresentante = '';
+let _cliTipo = '';
+
 // ----------------------------------------
 // Utilitários globais (declarados primeiro para uso em todo o arquivo)
 // ----------------------------------------
@@ -13134,77 +13139,108 @@ function excluirCliente(id) {
     salvarNoCloud().catch(e => console.error('Auto-save clientes falhou:', e));
 }
 
-function renderizarClientes(filtro = '') {
+function renderizarClientes(filtro) {
     const tbody = document.getElementById('tabelaClientesBody');
     if (!tbody) return;
 
-    const termo = (filtro || '').toLowerCase();
-    const clientesFiltrados = (clientes || []).filter(c =>
-        !termo ||
-        (c.nome || '').toLowerCase().includes(termo) ||
-        (c.cnpj || '').includes(termo) ||
-        (c.uf || '').toLowerCase().includes(termo) ||
-        (c.contato || '').toLowerCase().includes(termo)
-    );
+    // Suporte ao padrão antigo (argumento direto) e ao novo (via estado global)
+    if (filtro !== undefined) {
+        _cliFiltroBusca = String(filtro || '').toLowerCase().trim();
+    }
 
-    // Aplicar ordenação de clientes se houver
+    let lista = Array.isArray(clientes) ? [...clientes] : [];
+
+    // ── Filtro por texto ──
+    if (_cliFiltroBusca) {
+        const t = _cliFiltroBusca;
+        lista = lista.filter(c =>
+            (c.nome || '').toLowerCase().includes(t) ||
+            (c.cnpj || '').includes(t) ||
+            (c.uf || '').toLowerCase().includes(t) ||
+            (c.cidade || '').toLowerCase().includes(t) ||
+            (c.contato || '').toLowerCase().includes(t) ||
+            (c.email || '').toLowerCase().includes(t)
+        );
+    }
+
+    // ── Filtro por representante ──
+    if (_cliRepresentante) {
+        lista = lista.filter(c => (c.representante || '') === _cliRepresentante);
+    }
+
+    // ── Filtro por tipo PF/PJ ──
+    if (_cliTipo) {
+        lista = lista.filter(c => {
+            const tipo = c.tipoPessoa || (((c.cnpj||'').replace(/\D/g,'').length <= 11) ? 'PF' : 'PJ');
+            return tipo === _cliTipo;
+        });
+    }
+
+    // ── Ordenação ──
     const sortC = _sortState['clientes'] || { col: 'nome', dir: 'asc' };
+    const vendas = estoque.registroVendas || [];
     const getValCliente = (c, col) => {
         if (!c) return '';
         if (col === 'nome') return c.nome || '';
         if (col === 'cnpj') return c.cnpj || '';
-        if (col === 'cidade') return ((c.cidade||'') + '/' + (c.uf||'')) || '';
+        if (col === 'cidade') return ((c.cidade||'') + '/' + (c.uf||''));
         if (col === 'telefone') return c.telefone || '';
         if (col === 'email') return c.email || '';
         if (col === 'representante') return c.representante || '';
-        if (col === 'compras') {
-            const vendas = estoque.registroVendas || [];
-            return vendas.filter(v => (v.loja || '').toLowerCase() === (c.nome || '').toLowerCase()).length;
-        }
+        if (col === 'compras') return vendas.filter(v => (v.loja||'').toLowerCase() === (c.nome||'').toLowerCase()).length;
         return c[col] ?? '';
     };
 
-    const clientesOrdenados = getSortedArray(clientesFiltrados, sortC.col, sortC.dir, getValCliente);
+    const listaOrdenada = getSortedArray(lista, sortC.col, sortC.dir, getValCliente);
 
-    if (clientesOrdenados.length === 0) {
+    // ── Atualizar ícones de sort ──
+    document.querySelectorAll('#tabelaClientes th.sortable').forEach(th => {
+        th.classList.remove('sort-asc', 'sort-desc');
+        const icon = th.querySelector('.sort-icon');
+        if (icon) icon.textContent = '↕';
+    });
+    const thAtivo = document.querySelector(`#tabelaClientes th[data-sort="${sortC.col}"]`);
+    if (thAtivo) {
+        thAtivo.classList.add(sortC.dir === 'asc' ? 'sort-asc' : 'sort-desc');
+        const icon = thAtivo.querySelector('.sort-icon');
+        if (icon) icon.textContent = sortC.dir === 'asc' ? '↑' : '↓';
+    }
+
+    if (listaOrdenada.length === 0) {
         tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;padding:24px;color:var(--text-secondary)">Nenhum cliente encontrado.</td></tr>';
+        _atualizarContadorClientes(0);
         return;
     }
 
-    const vendas = estoque.registroVendas || [];
-
-    tbody.innerHTML = clientesOrdenados.map(c => {
+    tbody.innerHTML = listaOrdenada.map(c => {
         const repClass = (c.representante || '').toLowerCase();
         const repBadge = c.representante
-            ? `<span class="badge-rep ${repClass}">${c.representante}</span>`
+            ? `<span class="badge-rep ${repClass}">${_escapeHtml(c.representante)}</span>`
             : '-';
 
         const tipo = c.tipoPessoa || (((c.cnpj||'').replace(/\D/g,'').length <= 11) ? 'PF' : 'PJ');
-        const tipoBadge = `
-            <span style="font-size:0.72rem;font-weight:700;padding:2px 7px;
-                         border-radius:20px;
-                         background:${tipo==='PJ'?"#eff6ff":"#faf5ff"};
-                         color:${tipo==='PJ'?"#1d4ed8":"#7c3aed"}">
-              ${tipo}
-            </span>`;
+        const tipoBadge = `<span class="badge-tipo-cliente ${tipo.toLowerCase()}">${tipo}</span>`;
 
-        // Contar vendas que referenciam este cliente pelo nome
         const totalCompras = vendas.filter(v =>
             (v.loja || '').toLowerCase() === (c.nome || '').toLowerCase()
         ).length;
 
+        const comprasBadge = totalCompras > 0
+            ? `<span style="font-weight:700;color:var(--primary-color)">${totalCompras}</span>`
+            : `<span style="color:var(--text-muted)">0</span>`;
+
         const cidadeUf = [c.cidade, c.uf].filter(Boolean).join(' / ');
 
         return `<tr>
-            <td>${c.nome || '-'}</td>
+            <td style="text-align:left;font-weight:600">${_escapeHtml(c.nome || '-')}</td>
             <td style="text-align:center">${tipoBadge}</td>
-            <td>${c.cnpj || '-'}</td>
-            <td>${cidadeUf || '-'}</td>
-            <td>${c.telefone || '-'}</td>
-            <td>${c.email || '-'}</td>
-            <td>${c.contato || '-'}</td>
+            <td style="font-family:monospace;font-size:0.82rem">${_escapeHtml(c.cnpj || '-')}</td>
+            <td>${_escapeHtml(cidadeUf || '-')}</td>
+            <td>${_escapeHtml(c.telefone || '-')}</td>
+            <td style="font-size:0.82rem">${_escapeHtml(c.email || '-')}</td>
+            <td>${_escapeHtml(c.contato || '-')}</td>
             <td>${repBadge}</td>
-            <td style="text-align:center">${totalCompras}</td>
+            <td style="text-align:center">${comprasBadge}</td>
             <td class="col-acoes">
                 <button class="btn-action" onclick="abrirHistoricoCliente('${c.id}')" title="Ver histórico de compras"
                     style="background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;border-radius:6px;padding:3px 8px;cursor:pointer;font-size:0.8rem">
@@ -13216,11 +13252,23 @@ function renderizarClientes(filtro = '') {
         </tr>`;
     }).join('');
 
+    _atualizarContadorClientes(listaOrdenada.length);
     atualizarDatalistClientes();
 }
 
-function filtrarClientes(valor) {
-    renderizarClientes(valor);
+function _atualizarContadorClientes(visivel) {
+    const countEl = document.getElementById('clienteResultCount');
+    if (!countEl) return;
+    const total = Array.isArray(clientes) ? clientes.length : 0;
+    const filtrado = _cliFiltroBusca || _cliRepresentante || _cliTipo;
+    countEl.textContent = filtrado ? `${visivel} de ${total} cliente${total !== 1 ? 's' : ''}` : '';
+}
+
+function filtrarClientes() {
+    _cliFiltroBusca = (document.getElementById('filtroClientesBusca')?.value || '').trim().toLowerCase();
+    _cliRepresentante = document.getElementById('clienteFiltroRep')?.value || '';
+    _cliTipo = document.getElementById('clienteFiltroTipo')?.value || '';
+    renderizarClientes();
 }
 
 function atualizarKPIsClientes() {
@@ -13228,15 +13276,14 @@ function atualizarKPIsClientes() {
     const ativosEl = document.getElementById('kpiClientesAtivos');
     const ticketEl = document.getElementById('kpiTicketMedio');
 
-    if (totalEl) totalEl.textContent = clientes.length;
+    const total = Array.isArray(clientes) ? clientes.length : 0;
+    if (totalEl) totalEl.textContent = total;
 
     const vendas = estoque.registroVendas || [];
-
-    // Clientes com compras e totais por cliente
     let clientesComCompras = 0;
     let somaTotal = 0;
 
-    clientes.forEach(c => {
+    (clientes || []).forEach(c => {
         const vendasCliente = vendas.filter(v =>
             (v.loja || '').toLowerCase() === (c.nome || '').toLowerCase()
         );
@@ -13257,6 +13304,13 @@ function atualizarKPIsClientes() {
         const ticketMedio = clientesComCompras > 0 ? somaTotal / clientesComCompras : 0;
         ticketEl.textContent = formatarMoedaValor(ticketMedio);
     }
+
+    // ── Barra de progresso "Com Compras" ──
+    const pct = total > 0 ? Math.round((clientesComCompras / total) * 100) : 0;
+    const bar = document.getElementById('kpiClientesAtivosBar');
+    const barLabel = document.getElementById('kpiClientesAtivosLabel');
+    if (bar) bar.style.width = pct + '%';
+    if (barLabel) barLabel.textContent = `${clientesComCompras} de ${total} (${pct}%)`;
 }
 
 function getClienteNomes() {
