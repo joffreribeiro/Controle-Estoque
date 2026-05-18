@@ -1245,8 +1245,7 @@ function renderConsultaPrecificacoes(dados) {
                 html += comissaoCell;
                 const freteVal = Number(prod.frete || prod.freteR || prec.frete || 0) || 0;
                 html += `<td style="min-width:100px;text-align:right">${_cpFmt(freteVal)}</td>`;
-                const comissaoR = Number(prod.comissaoR || 0);
-                const valorFinalCalc = valorComIPI + comissaoR;
+                const valorFinalCalc = valorComIPI;
                 html += `<td style="min-width:120px;text-align:right">${_cpFmt(valorFinalCalc)}</td>`;
                 const quantidade = Number(prod.quantidade || prod.qtd || 1) || 1;
                 const valorTotalCalc = (valorFinalCalc * quantidade) + freteVal;
@@ -14146,11 +14145,11 @@ function calcularPreco(nomeProduto, estado = null, tipoPessoa = null, taxaOverri
     const ipiR = valorImpostos * ipi / 100;
     const valorTotal = valorImpostos + ipiR;
 
-    // Step 4: comissão sobre valorImpostos (sem IPI)
+    // Step 4: comissão sobre valorImpostos (sem IPI) — calculada mas não incluída no preço
     const comissaoR = valorImpostos * comissao / 100;
     const precoFinal = (prec.precoFinalManual !== null && prec.precoFinalManual !== undefined && prec.precoFinalManual !== '')
         ? parseFloat(prec.precoFinalManual)
-        : valorImpostos + ipiR + comissaoR;
+        : valorImpostos + ipiR;
 
     return {
         ci, taxa: taxaPct, roi: roiPct,
@@ -16834,9 +16833,9 @@ function calcularPrecificacaoPorCliente(opcoes = {}) {
         const cofinsR = valorBase * cofinsEfetivo / 100;
         const valorImpostos = valorBase + icmsR + pisR + cofinsR;
         const ipiR = valorImpostos * ipiEfetivo / 100;
-        // comissão sobre valorImpostos (sem IPI)
+        // comissão sobre valorImpostos (sem IPI) — calculada mas não incluída no preço
         const comissaoR = valorImpostos * comissaoProd / 100;
-        const precoFinal = valorImpostos + ipiR + comissaoR;
+        const precoFinal = valorImpostos + ipiR;
 
         // Frete e Quantidade (pode vir da linha individual, do item salvo ou default)
         let freteVal = 0;
@@ -16867,7 +16866,7 @@ function calcularPrecificacaoPorCliente(opcoes = {}) {
         // valores adicionais: valorSemIPI (valorImpostos), valorComIPI, valorFinal, valorTotal
         const valorSemIPI = valorImpostos;
         const valorComIPI = valorSemIPI + ipiR;
-        const valorFinalCalc = valorComIPI + comissaoR;
+        const valorFinalCalc = valorComIPI;
         const valorTotalCalc = (valorFinalCalc * quantidade) + freteVal;
 
         itensCalculados.push({
