@@ -3221,13 +3221,6 @@ function renderizarCadastroProdutos() {
         if (!pecasPorPai[pai]) pecasPorPai[pai] = [];
         pecasPorPai[pai].push(p);
     });
-    console.log('[DEBUG] pecasPorPai keys:', Object.keys(pecasPorPai));
-    console.log('[DEBUG] principais nomes (upper):', principais.map(p => (p.nome||'').toUpperCase()));
-    principais.forEach(p => {
-        const chave = (p.nome||'').toUpperCase();
-        const filhas = pecasPorPai[chave] || [];
-        console.log(`[DEBUG] produto="${p.nome}" → filhas=${filhas.length}`);
-    });
 
     // Peças que apareceram no filtro mas cujo pai não está na lista filtrada — mostrar como linha normal
     const paisNaLista = new Set(principais.map(p => p.nome.toUpperCase()));
@@ -3262,6 +3255,7 @@ function renderizarCadastroProdutos() {
             ? `<span class="badge-categoria" data-cat="${_escapeHtml(categoria)}">${_escapeHtml(categoria)}</span>`
             : '-';
 
+        const expandSlotId = 'expand-slot-' + Number(produto.id);
         const tr = document.createElement('tr');
         if (isPeca) {
             tr.style.cssText = 'background:#f8fafc;display:none';
@@ -3277,7 +3271,7 @@ function renderizarCadastroProdutos() {
                 </div>
             </td>
             <td>${categoriaBadge}</td>
-            <td data-col="pn" style="font-family:monospace;${isPeca ? 'color:#64748b;font-size:0.85rem' : ''}">${_escapeHtml(pn)}</td>
+            <td style="font-family:monospace;${isPeca ? 'color:#64748b;font-size:0.85rem' : ''}">${_escapeHtml(pn)}<span id="${expandSlotId}"></span></td>
             <td>${_escapeHtml(nomeFabrica)}</td>
             <td>${_escapeHtml(componente)}</td>
             <td style="text-align:left;font-weight:600;${isPeca ? 'padding-left:12px;color:#475569' : ''}">${isPeca ? '↳ ' : ''}${_escapeHtml(nome)}</td>
@@ -3306,30 +3300,33 @@ function renderizarCadastroProdutos() {
         const temPecas = filhas.length > 0;
         const tr = _renderLinhaProduto(produto, false);
 
-        if (temPecas) {
-            const tdPN = tr.querySelector('td[data-col="pn"]');
-            const btnExpand = document.createElement('span');
-            btnExpand.style.cssText = 'cursor:pointer;user-select:none;display:inline-flex;align-items:center;gap:4px';
-            btnExpand.title = `Clique para ver as ${filhas.length} peça(s)`;
-            btnExpand.dataset.nomePai = produto.nome;
-            const iconSpan = document.createElement('span');
-            iconSpan.className = 'pn-expand-icon';
-            iconSpan.style.cssText = 'font-size:0.75rem;color:#1e3a5f;font-weight:700';
-            iconSpan.textContent = '▶';
-            const badge = document.createElement('span');
-            badge.style.cssText = 'background:#e0f2fe;color:#0369a1;border-radius:10px;padding:1px 7px;font-size:0.72rem;font-weight:700';
-            badge.textContent = `${filhas.length} peça${filhas.length > 1 ? 's' : ''}`;
-            btnExpand.appendChild(iconSpan);
-            btnExpand.appendChild(badge);
-            btnExpand.addEventListener('click', e => {
-                e.stopPropagation();
-                _togglePecas(btnExpand, produto.nome);
-            });
-            tdPN.appendChild(document.createElement('br'));
-            tdPN.appendChild(btnExpand);
-        }
-
         tbody.appendChild(tr);
+
+        if (temPecas) {
+            // Busca o slot APÓS o tr estar no DOM
+            const slot = document.getElementById('expand-slot-' + Number(produto.id));
+            if (slot) {
+                const btnExpand = document.createElement('span');
+                btnExpand.style.cssText = 'cursor:pointer;user-select:none;display:inline-flex;align-items:center;gap:4px;margin-top:4px';
+                btnExpand.title = `Clique para ver as ${filhas.length} peça(s)`;
+                btnExpand.dataset.nomePai = produto.nome;
+                const iconSpan = document.createElement('span');
+                iconSpan.className = 'pn-expand-icon';
+                iconSpan.style.cssText = 'font-size:0.75rem;color:#1e3a5f;font-weight:700';
+                iconSpan.textContent = '▶';
+                const badge = document.createElement('span');
+                badge.style.cssText = 'background:#e0f2fe;color:#0369a1;border-radius:10px;padding:1px 7px;font-size:0.72rem;font-weight:700';
+                badge.textContent = `${filhas.length} peça${filhas.length > 1 ? 's' : ''}`;
+                btnExpand.appendChild(iconSpan);
+                btnExpand.appendChild(badge);
+                btnExpand.addEventListener('click', e => {
+                    e.stopPropagation();
+                    _togglePecas(btnExpand, produto.nome);
+                });
+                slot.appendChild(document.createElement('br'));
+                slot.appendChild(btnExpand);
+            }
+        }
 
         // Renderizar linhas das peças (ocultas por padrão)
         filhas.forEach(peca => {
@@ -15210,7 +15207,9 @@ function importarTabelaPrecoVendaExcel(event) {
                 const nome    = String(row[colNome]    || '').trim();
                 // Componente = nome da pistola/arma pai à qual esta peça pertence.
                 // Se vazio, o item é o produto principal (a arma em si).
-                const comp    = colComp ? String(row[colComp] || '').trim() : '';
+                const compRaw = colComp ? String(row[colComp] || '').trim() : '';
+                // Ignora se o valor é literalmente o nome do cabeçalho (linha duplicada de header)
+                const comp = compRaw.toUpperCase() === 'COMPONENTE' || compRaw.toUpperCase() === 'COMPONENT' ? '' : compRaw;
                 const nomeFab = colNomeFab ? String(row[colNomeFab] || '').trim() : '';
 
                 if (!pn && !nome) { ignorados++; return; }
@@ -15252,6 +15251,10 @@ function importarTabelaPrecoVendaExcel(event) {
                 }
 
                 if (existente) {
+                    // Limpa componente inválido (cabeçalho gravado como dado em importação anterior)
+                    if (existente.componente && ['COMPONENTE','COMPONENT'].includes((existente.componente||'').trim().toUpperCase())) {
+                        existente.componente = '';
+                    }
                     if (ci !== null && !isNaN(ci) && ci > 0) {
                         // Grava CI sempre pelo nome do produto existente (chave única no precificacao)
                         const nomeChave = existente.nome;
@@ -15262,7 +15265,7 @@ function importarTabelaPrecoVendaExcel(event) {
                     if (pn && !existente.pn) existente.pn = pn;
                     if (nomeFab) existente.nomeFabrica = nomeFab;
                     if (ncm) existente.ncm = ncm;
-                    if (comp !== undefined) existente.componente = comp;
+                    if (comp) existente.componente = comp;
                     atualizados++;
                 } else {
                     if (!nome) { ignorados++; return; }
