@@ -1655,6 +1655,15 @@ function carregarDados() {
                 });
             }
         } catch (e) { console.warn('Migração estoqueConsolidado falhou:', e); }
+        // Limpar campo componente que tenha sido gravado com o texto do cabeçalho por importação defeituosa
+        try {
+            if (Array.isArray(estoque.produtos)) {
+                estoque.produtos.forEach(p => {
+                    const c = (p.componente || '').trim().toUpperCase();
+                    if (c === 'COMPONENTE' || c === 'COMPONENT') p.componente = '';
+                });
+            }
+        } catch (e) { console.warn('Limpeza componente falhou:', e); }
         if (estoque.precificacao && typeof estoque.precificacao === 'object') {
             precificacao = estoque.precificacao;
         } else {
@@ -3282,8 +3291,9 @@ function renderizarCadastroProdutos() {
             <td class="${saldoConsolidadoClasse}" style="color:${saldoConsolidadoCor};font-weight:700;font-family:monospace">${saldoConsolidadoTexto}</td>
             <td>${atualizadoTxt}</td>
             <td style="text-align:center">${noEstoqueBadge}</td>
-            <td>
+            <td style="white-space:nowrap">
                 <button class="btn btn-outline btn-sm" data-admin="true" onclick="abrirModalEditarProduto(${Number(produto.id)})">Editar</button>
+                <button class="btn btn-outline btn-sm" style="color:#dc2626;border-color:#fca5a5;margin-left:4px" data-admin="true" onclick="excluirProduto(${Number(produto.id)})">Excluir</button>
             </td>
         `;
         tr.addEventListener('click', e => {
@@ -3365,6 +3375,18 @@ function renderizarCadastroProdutos() {
     const vazio = lista.length === 0;
     empty.style.display = vazio ? 'block' : 'none';
     tabelaWrap.style.display = vazio ? 'none' : 'block';
+}
+
+function excluirProduto(id) {
+    const idx = (estoque.produtos || []).findIndex(p => Number(p.id) === Number(id));
+    if (idx === -1) return;
+    const prod = estoque.produtos[idx];
+    if (!confirm(`Excluir "${prod.nome}"?\nEsta ação não pode ser desfeita.`)) return;
+    estoque.produtos.splice(idx, 1);
+    if (precificacao && precificacao[prod.nome]) delete precificacao[prod.nome];
+    salvarDados();
+    renderizarCadastroProdutos();
+    mostrarNotificacao(`Produto "${prod.nome}" excluído.`, 'success');
 }
 
 function ordenarCadastroPor(col) {
@@ -15205,11 +15227,9 @@ function importarTabelaPrecoVendaExcel(event) {
             dados.forEach((row, idx) => {
                 const pn      = String(row[colPN]      || '').trim();
                 const nome    = String(row[colNome]    || '').trim();
-                // Componente = nome da pistola/arma pai à qual esta peça pertence.
-                // Se vazio, o item é o produto principal (a arma em si).
                 const compRaw = colComp ? String(row[colComp] || '').trim() : '';
-                // Ignora se o valor é literalmente o nome do cabeçalho (linha duplicada de header)
-                const comp = compRaw.toUpperCase() === 'COMPONENTE' || compRaw.toUpperCase() === 'COMPONENT' ? '' : compRaw;
+                // Ignora valor inválido: cabeçalho gravado como dado em importação anterior
+                const comp    = (compRaw.toUpperCase() === 'COMPONENTE' || compRaw.toUpperCase() === 'COMPONENT') ? '' : compRaw;
                 const nomeFab = colNomeFab ? String(row[colNomeFab] || '').trim() : '';
 
                 if (!pn && !nome) { ignorados++; return; }
