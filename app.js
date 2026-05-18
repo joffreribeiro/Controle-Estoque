@@ -15710,10 +15710,12 @@ function abrirDetalhePrecoVenda(nomeProduto, uf, tipoPessoa) {
         return `<span style="font-size:0.68rem;background:${cor}20;color:${cor};border:1px solid ${cor}40;border-radius:8px;padding:1px 6px;margin-left:6px;vertical-align:middle">${_escapeHtml(fonte)}</span>`;
     }
 
-    function linha(label, valor, destaque) {
-        const style = destaque
-            ? 'font-weight:700;color:#1e3a5f;background:#dbeafe'
-            : 'color:#374151';
+    function linha(label, valor, destaque, verde) {
+        const style = verde
+            ? 'font-weight:700;color:#065f46;background:#d1fae5'
+            : destaque
+                ? 'font-weight:700;color:#1e3a5f;background:#dbeafe'
+                : 'color:#374151';
         return `<tr style="${style}">
             <td style="padding:7px 14px;border-bottom:1px solid #e2e8f0">${label}</td>
             <td style="padding:7px 14px;border-bottom:1px solid #e2e8f0;text-align:right;font-family:monospace">${valor}</td>
@@ -15732,6 +15734,7 @@ function abrirDetalhePrecoVenda(nomeProduto, uf, tipoPessoa) {
         linha(`IPI (${r.ipi}%)`, fmt(r.ipiR)),
         linha(`Comissão (${r.comissao}%)`, fmt(r.comissaoR)),
         linha('PREÇO FINAL DE VENDA', fmt(r.precoFinal), true),
+        linha(`Preço Final com Comissão (${r.comissao}%)`, fmt(r.precoFinal + r.comissaoR), false, true),
     ];
 
     const html = `
