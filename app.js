@@ -3221,6 +3221,8 @@ function renderizarCadastroProdutos() {
         if (!pecasPorPai[pai]) pecasPorPai[pai] = [];
         pecasPorPai[pai].push(p);
     });
+    console.log('[DEBUG] pecasPorPai keys:', Object.keys(pecasPorPai));
+    console.log('[DEBUG] principais nomes:', principais.map(p => p.nome));
 
     // Peças que apareceram no filtro mas cujo pai não está na lista filtrada — mostrar como linha normal
     const paisNaLista = new Set(principais.map(p => p.nome.toUpperCase()));
@@ -3270,7 +3272,7 @@ function renderizarCadastroProdutos() {
                 </div>
             </td>
             <td>${categoriaBadge}</td>
-            <td style="font-family:monospace;${isPeca ? 'color:#64748b;font-size:0.85rem' : ''}">${_escapeHtml(pn)}</td>
+            <td data-col="pn" style="font-family:monospace;${isPeca ? 'color:#64748b;font-size:0.85rem' : ''}">${_escapeHtml(pn)}</td>
             <td>${_escapeHtml(nomeFabrica)}</td>
             <td>${_escapeHtml(componente)}</td>
             <td style="text-align:left;font-weight:600;${isPeca ? 'padding-left:12px;color:#475569' : ''}">${isPeca ? '↳ ' : ''}${_escapeHtml(nome)}</td>
@@ -3300,7 +3302,7 @@ function renderizarCadastroProdutos() {
         const tr = _renderLinhaProduto(produto, false);
 
         if (temPecas) {
-            const tdPN = tr.querySelectorAll('td')[2];
+            const tdPN = tr.querySelector('td[data-col="pn"]');
             const btnExpand = document.createElement('span');
             btnExpand.style.cssText = 'cursor:pointer;user-select:none;display:inline-flex;align-items:center;gap:4px';
             btnExpand.title = `Clique para ver as ${filhas.length} peça(s)`;
