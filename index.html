@@ -238,6 +238,9 @@
                             <option value="Peça">Peça</option>
                         </select>
                         <span class="prod-result-count" id="prodResultCount"></span>
+                        <button class="btn btn-outline btn-sm" onclick="exportarProdutosCI()">📤 Exportar Excel</button>
+                        <button class="btn btn-outline btn-sm" onclick="document.getElementById('inputImportarProdutosCI').click()">📥 Importar Excel</button>
+                        <input type="file" id="inputImportarProdutosCI" accept=".xlsx,.xls,.csv" style="display:none" onchange="importarTabelaPrecoVendaExcel(event)">
                         <button class="btn btn-primary" data-admin="true" onclick="abrirModalProduto()">
                             <span class="btn-icon">+</span> Novo Produto
                         </button>
@@ -1291,9 +1294,6 @@
                                                 <input type="text" id="ciFiltroProduto" class="prod-search-input" oninput="renderizarTabelaCI()" placeholder="Buscar produto…" autocomplete="off">
                                             </div>
                                             <span id="ciContador" class="prod-result-count"></span>
-                                            <button class="btn btn-outline btn-sm" onclick="exportarTabelaPrecoVenda()">📤 Exportar Excel</button>
-                                            <button class="btn btn-outline btn-sm" onclick="document.getElementById('inputImportarCIExcel').click()">📥 Importar Excel</button>
-                                            <input type="file" id="inputImportarCIExcel" accept=".xlsx,.xls,.csv" style="display:none" onchange="importarTabelaPrecoVendaExcel(event)">
                                         </div>
 
                                         <!-- Tabela -->

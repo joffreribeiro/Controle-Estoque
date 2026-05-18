@@ -15220,6 +15220,32 @@ function importarTabelaPrecoVendaExcel(event) {
     reader.readAsArrayBuffer(file);
 }
 
+function exportarProdutosCI() {
+    const produtos = (estoque.produtos || []).filter(p => p.nome);
+    const linhas = [['NCM','Grupo','PN','Nome Fábrica','Componente','Nome','CI (R$)']];
+    produtos.forEach(prod => {
+        const ci = Number(precificacao[prod.nome]?.ci ?? prod.ci ?? 0);
+        linhas.push([
+            prod.ncm || '',
+            prod.categoria || '',
+            prod.pn || '',
+            prod.nomeFabrica || '',
+            prod.componente || '',
+            prod.nome,
+            ci > 0 ? ci.toFixed(2).replace('.',',') : ''
+        ]);
+    });
+    const csv = linhas.map(r => r.map(c => '"' + String(c).replace(/"/g,'""') + '"').join(';')).join('\r\n');
+    const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `produtos_ci_${new Date().toLocaleDateString('pt-BR').replace(/\//g,'-')}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    mostrarNotificacao(`${produtos.length} produtos exportados!`, 'success');
+}
+
 function exportarTabelaPrecoVenda() {
     const container = document.getElementById('subaba-precif-tabelavenda');
     const tipo = (container && container._tipoPessoa) || 'PJ';
