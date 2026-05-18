@@ -14933,8 +14933,16 @@ function renderizarTabelaPrecoVenda() {
     const container = document.getElementById('subaba-precif-tabelavenda');
     if (!container) return;
 
-    // Exibir apenas produtos principais (sem componente) na tabela de preço
-    const produtos = (estoque.produtos || []).filter(p => p.nome && (!p.componente || p.componente.trim() === '' || p.componente.trim() === '-'));
+    const todosProds = (estoque.produtos || []).filter(p => p.nome);
+    // Produtos principais (sem componente)
+    const produtos = todosProds.filter(p => !p.componente || p.componente.trim() === '' || p.componente.trim() === '-');
+    // Indexar peças por nome do pai (uppercase)
+    const pecasPorPaiTV = {};
+    todosProds.filter(p => p.componente && p.componente.trim() !== '' && p.componente.trim() !== '-').forEach(p => {
+        const pai = p.componente.trim().toUpperCase();
+        if (!pecasPorPaiTV[pai]) pecasPorPaiTV[pai] = [];
+        pecasPorPaiTV[pai].push(p);
+    });
     const tipoPessoaAtual = container._tipoPessoa || 'PJ';
 
     if (!produtos.length) {
@@ -15013,57 +15021,97 @@ function renderizarTabelaPrecoVenda() {
     window._tabelaPrecoGrupos = grupos;
     window._tabelaPrecoTipoPessoa = tipoPessoaAtual;
 
-    let rowIdx = 0;
-    ordemGrupos.forEach(chave => {
-        const grupo = grupos[chave];
-        const principal = grupo[0];
-        const temPecas = grupo.slice(1).length > 0;
-
-        const ci = Number(precificacao[principal.nome]?.ci ?? principal.ci ?? 0);
-        const grupoCat = principal.categoria || '—';
-        const pn = principal.pn || '—';
-        const nomeFab = principal.nomeFabrica || '—';
-        const comp = principal.componente || '—';
-        const ncm = principal.ncm || '—';
+    function _renderLinhaTV(prod, isPeca, bg) {
+        const ci = Number(precificacao[prod.nome]?.ci ?? prod.ci ?? 0);
         const ciStr = ci > 0 ? _fmtMoeda(ci) : '—';
-        const chaveEsc = _escapeJsString(chave);
+        const pn = prod.pn || '—';
+        const nomeFab = prod.nomeFabrica || '—';
+        const comp = prod.componente || '—';
+        const ncm = prod.ncm || '—';
+        const grupoCat = prod.categoria || '—';
+        const pecasFilhas = pecasPorPaiTV[(prod.nome || '').toUpperCase()] || [];
+        const temPecas = !isPeca && pecasFilhas.length > 0;
+        const idExpandTV = 'tv-expand-' + Number(prod.id);
 
-        const pnCell = temPecas
-            ? `<span class="pn-expandir" data-grupo="${_escapeHtml(chave)}" onclick="abrirGavetaComponentes('${chaveEsc}')" title="Clique para ver os componentes" style="cursor:pointer;color:#1e3a5f;text-decoration:underline;text-underline-offset:3px">${_escapeHtml(pn)} ▸</span>`
-            : `<span style="font-family:monospace">${_escapeHtml(pn)}</span>`;
+        const pnCell = `<span style="font-family:monospace">${_escapeHtml(pn)}</span>${temPecas ? `<span id="${idExpandTV}"></span>` : ''}`;
 
-        const bg = rowIdx % 2 === 0 ? '#fff' : '#f8fafc';
-        let row = `<tr style="background:${bg}">
-            <td style="padding:6px 10px;position:sticky;left:0;background:${bg};z-index:1;border-right:1px solid #e2e8f0;font-family:monospace;font-size:0.77rem">${_escapeHtml(ncm)}</td>
+        let row = `<tr${isPeca ? ` data-tv-peca-filha="${_escapeHtml((prod.componente||'').trim())}" style="display:none;background:#f8fafc"` : ` style="background:${bg}"`}>
+            <td style="padding:6px 10px;position:sticky;left:0;background:${isPeca?'#f8fafc':bg};z-index:1;border-right:1px solid #e2e8f0;font-family:monospace;font-size:0.77rem">${_escapeHtml(ncm)}</td>
             <td style="padding:6px 10px;border-right:1px solid #e2e8f0;color:#64748b">${_escapeHtml(grupoCat)}</td>
             <td style="padding:6px 10px;border-right:1px solid #e2e8f0">${pnCell}</td>
-            <td style="padding:6px 10px;border-right:1px solid #e2e8f0;color:#374151">${_escapeHtml(nomeFab)}</td>
+            <td style="padding:6px 10px;border-right:1px solid #e2e8f0;color:#374151${isPeca?';padding-left:24px':''}">${_escapeHtml(nomeFab)}</td>
             <td style="padding:6px 10px;border-right:1px solid #e2e8f0;color:#374151">${_escapeHtml(comp)}</td>
-            <td style="padding:6px 10px;border-right:1px solid #e2e8f0"><span style="font-weight:600;color:#1e3a5f">${_escapeHtml(principal.nome)}</span></td>
+            <td style="padding:6px 10px;border-right:1px solid #e2e8f0"><span style="font-weight:600;color:${isPeca?'#475569':'#1e3a5f'}">${isPeca?'↳ ':''}${_escapeHtml(prod.nome)}</span></td>
             <td style="padding:6px 10px;text-align:right;border-right:2px solid #e2e8f0;font-weight:600;color:#0f766e">${ciStr}</td>`;
 
         ESTADOS_BR.forEach(uf => {
             let preco = null;
-            try {
-                const r = calcularPreco(principal.nome, uf, tipoPessoaAtual);
-                preco = r ? r.precoFinal : null;
-            } catch (e) {}
+            try { const r = calcularPreco(prod.nome, uf, tipoPessoaAtual); preco = r ? r.precoFinal : null; } catch (e) {}
             if (preco !== null && preco > 0) {
-                const nomeEsc = _escapeJsString(principal.nome);
+                const nomeEsc = _escapeJsString(prod.nome);
                 const tipoEsc = _escapeJsString(tipoPessoaAtual);
-                row += `<td style="padding:6px 8px;text-align:right;border-left:1px solid #f1f5f9;cursor:pointer;transition:background 0.15s" onmouseenter="this.style.background='#dbeafe'" onmouseleave="this.style.background=''" onclick="abrirDetalhePrecoVenda('${nomeEsc}','${uf}','${tipoEsc}')">${_fmtMoeda(preco)}</td>`;
+                row += `<td style="padding:6px 8px;text-align:right;border-left:1px solid #f1f5f9;cursor:pointer" onmouseenter="this.style.background='#dbeafe'" onmouseleave="this.style.background=''" onclick="abrirDetalhePrecoVenda('${nomeEsc}','${uf}','${tipoEsc}')">${_fmtMoeda(preco)}</td>`;
             } else {
                 row += `<td style="padding:6px 8px;text-align:right;border-left:1px solid #f1f5f9"><span style="color:#cbd5e1">—</span></td>`;
             }
         });
         row += `</tr>`;
+        return { row, temPecas, pecasFilhas, idExpandTV, prod };
+    }
+
+    let rowIdx = 0;
+    ordemGrupos.forEach(chave => {
+        const grupo = grupos[chave];
+        const principal = grupo[0];
+        const bg = rowIdx % 2 === 0 ? '#fff' : '#f8fafc';
+        const { row, temPecas, pecasFilhas, idExpandTV } = _renderLinhaTV(principal, false, bg);
         html += row;
+
+        if (temPecas) {
+            pecasFilhas.forEach(peca => {
+                html += _renderLinhaTV(peca, true, '#f8fafc').row;
+            });
+        }
         rowIdx++;
     });
 
     html += `</tbody></table></div>`;
     container.innerHTML = html;
     container._tipoPessoa = tipoPessoaAtual;
+
+    // Injetar botões expand nos slots (após HTML estar no DOM)
+    ordemGrupos.forEach(chave => {
+        const principal = grupos[chave][0];
+        const filhas = pecasPorPaiTV[(principal.nome || '').toUpperCase()] || [];
+        if (!filhas.length) return;
+        const slot = document.getElementById('tv-expand-' + Number(principal.id));
+        if (!slot) return;
+        const btnExpand = document.createElement('span');
+        btnExpand.style.cssText = 'cursor:pointer;user-select:none;display:inline-flex;align-items:center;gap:4px;margin-left:6px;vertical-align:middle';
+        btnExpand.title = `Ver ${filhas.length} peça(s)`;
+        const iconSpan = document.createElement('span');
+        iconSpan.className = 'tv-expand-icon';
+        iconSpan.style.cssText = 'font-size:0.75rem;color:#1e3a5f;font-weight:700';
+        iconSpan.textContent = '▶';
+        const badge = document.createElement('span');
+        badge.style.cssText = 'background:#e0f2fe;color:#0369a1;border-radius:10px;padding:1px 7px;font-size:0.72rem;font-weight:700';
+        badge.textContent = `${filhas.length} peça${filhas.length > 1 ? 's' : ''}`;
+        btnExpand.appendChild(iconSpan);
+        btnExpand.appendChild(badge);
+        btnExpand.addEventListener('click', e => {
+            e.stopPropagation();
+            const icon = btnExpand.querySelector('.tv-expand-icon');
+            const expandido = icon && icon.textContent.trim() === '▼';
+            const nomePaiUpper = (principal.nome || '').toUpperCase();
+            container.querySelectorAll('tr[data-tv-peca-filha]').forEach(tr => {
+                if ((tr.dataset.tvPecaFilha || '').toUpperCase() === nomePaiUpper) {
+                    tr.style.display = expandido ? 'none' : 'table-row';
+                }
+            });
+            if (icon) icon.textContent = expandido ? '▶' : '▼';
+        });
+        slot.appendChild(btnExpand);
+    });
 }
 
 function renderizarTabelaPrecoVendaTipo(tipo) {
