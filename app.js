@@ -9398,6 +9398,10 @@ function renderizarRegistroVendas() {
     const filtroRep = document.getElementById('filtroRepresentante')?.value || '';
     const filtroProduto = document.getElementById('filtroProduto')?.value || '';
     const filtroProdutoId = filtroProduto ? String(filtroProduto) : null;
+    // Resolver o nome do produto pelo ID atual (para fallback por nome)
+    const filtroProdutoNome = filtroProdutoId
+        ? ((estoque.produtos || []).find(p => String(p.id) === filtroProdutoId) || {}).nome || null
+        : null;
     const filtroDataInicio = document.getElementById('filtroVendasDataInicio')?.value || '';
     const filtroDataFim = document.getElementById('filtroVendasDataFim')?.value || '';
     const filtroBusca = (document.getElementById('filtroVendasBusca')?.value || '').trim().toLowerCase();
@@ -9429,7 +9433,11 @@ function renderizarRegistroVendas() {
 
         if (Array.isArray(venda.items) && venda.items.length > 0) {
             venda.items.forEach(it => {
-                if (filtroProdutoId && String(it.produtoId) !== filtroProdutoId) return;
+                if (filtroProdutoId) {
+                    const idOk = String(it.produtoId) === filtroProdutoId;
+                    const nomeOk = filtroProdutoNome && (it.produtoNome || '').trim().toUpperCase() === filtroProdutoNome.trim().toUpperCase();
+                    if (!idOk && !nomeOk) return;
+                }
                 const qtd = Number(it.quantidade || 0);
                 const valorUnNum = Number(it.valorUnitario || 0);
                 const valorTotNum = Number(it.valorTotal || (valorUnNum * qtd) || 0);
@@ -9448,7 +9456,11 @@ function renderizarRegistroVendas() {
                 });
             });
         } else {
-            if (filtroProdutoId && String(venda.produtoId) !== filtroProdutoId) return;
+            if (filtroProdutoId) {
+                const idOk = String(venda.produtoId) === filtroProdutoId;
+                const nomeOk = filtroProdutoNome && (venda.produtoNome || '').trim().toUpperCase() === filtroProdutoNome.trim().toUpperCase();
+                if (!idOk && !nomeOk) return;
+            }
             const qtd = Number(venda.quantidade || 0);
             const valorUnNum = Number(venda.valorUnitario || 0);
             const valorTotNum = Number(venda.valorTotal || (valorUnNum * qtd) || 0);
