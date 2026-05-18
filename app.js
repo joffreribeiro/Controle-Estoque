@@ -3090,6 +3090,19 @@ function renderizarTabela() {
     try { renderizarCadastroProdutos(); } catch (e) {}
 }
 
+function _togglePecas(el, nomePai) {
+    const tbody = document.getElementById('corpoCadastroProdutos');
+    if (!tbody) return;
+    const icon = el.querySelector('.pn-expand-icon');
+    const expandido = icon && icon.textContent.trim() === '▼';
+    tbody.querySelectorAll('tr[data-peca-filha]').forEach(tr => {
+        if (tr.dataset.pecaFilha === nomePai) {
+            tr.style.display = expandido ? 'none' : '';
+        }
+    });
+    if (icon) icon.textContent = expandido ? '▶' : '▼';
+}
+
 function renderizarCadastroProdutos() {
     const tbody = document.getElementById('corpoCadastroProdutos');
     const empty = document.getElementById('cadastroProdutosEmpty');
@@ -3195,7 +3208,25 @@ function renderizarCadastroProdutos() {
 
     tbody.innerHTML = '';
 
-    lista.forEach(produto => {
+    // Separar produtos principais (sem componente) de peças (com componente)
+    const todosOsProdutos = Array.isArray(estoque.produtos) ? estoque.produtos : [];
+    const principais = lista.filter(p => !p.componente || p.componente.trim() === '' || p.componente.trim() === '-');
+    const pecas = lista.filter(p => p.componente && p.componente.trim() !== '' && p.componente.trim() !== '-');
+
+    // Indexar peças pelo nome do armamento pai (campo componente)
+    const pecasPorPai = {};
+    // Incluir TODAS as peças (não apenas as filtradas) para o expand funcionar sempre
+    todosOsProdutos.filter(p => p.componente && p.componente.trim() !== '' && p.componente.trim() !== '-').forEach(p => {
+        const pai = p.componente.trim();
+        if (!pecasPorPai[pai]) pecasPorPai[pai] = [];
+        pecasPorPai[pai].push(p);
+    });
+
+    // Peças que apareceram no filtro mas cujo pai não está na lista filtrada — mostrar como linha normal
+    const paisNaLista = new Set(principais.map(p => p.nome));
+    const pecasOrfas = pecas.filter(p => !paisNaLista.has(p.componente.trim()));
+
+    function _renderLinhaProduto(produto, isPeca = false) {
         const nome = produto.nome || '-';
         const regra = (precificacao && precificacao[nome]) ? precificacao[nome] : {};
         const ci = Number(regra.ci ?? produto.ci ?? 0) || 0;
@@ -3204,20 +3235,15 @@ function renderizarCadastroProdutos() {
         const categoria = (categoriaPorProduto && categoriaPorProduto[nome]) || produto.categoria || '-';
         const ncm = produto.ncm || '-';
         const metricaImbel = obterMetricasImbelProduto(produto);
-        const imbelTexto = metricaImbel.estoqueTotal === 0
-            ? '-'
-            : formatarNumero(metricaImbel.imbelDisp);
+        const imbelTexto = metricaImbel.estoqueTotal === 0 ? '-' : formatarNumero(metricaImbel.imbelDisp);
         const saldoConsolidado = metricaImbel.consolidadoSaldo;
         const saldoConsolidadoTexto = formatarNumero(saldoConsolidado);
         const saldoConsolidadoCor = saldoConsolidado > 0 ? '#2da44e' : '#cf222e';
         const saldoConsolidadoClasse = saldoConsolidado < 0 ? 'negativo' : '';
         const atualizadoEm = produto.atualizadoEm || produto.dataAtualizacao || produto.criadoEm || '';
         const atualizadoTxt = atualizadoEm
-            ? (typeof formatDateToDDMMYYYY === 'function'
-                ? formatDateToDDMMYYYY(atualizadoEm)
-                : new Date(atualizadoEm).toLocaleDateString('pt-BR'))
+            ? (typeof formatDateToDDMMYYYY === 'function' ? formatDateToDDMMYYYY(atualizadoEm) : new Date(atualizadoEm).toLocaleDateString('pt-BR'))
             : '-';
-
         const noEstoque = produto.exibirNoEstoque === true;
         const noEstoqueBadge = noEstoque
             ? `<span style="display:inline-block;background:#dcfce7;color:#166534;border-radius:10px;padding:2px 10px;font-size:0.78rem;font-weight:700">Sim</span>`
@@ -3230,9 +3256,13 @@ function renderizarCadastroProdutos() {
             : '-';
 
         const tr = document.createElement('tr');
+        if (isPeca) {
+            tr.style.cssText = 'background:#f8fafc;display:none';
+            tr.dataset.pecaFilha = produto.componente.trim();
+        }
         tr.innerHTML = `
             <td>
-                <div style="display:flex;gap:6px;align-items:center">
+                <div style="display:flex;gap:6px;align-items:center${isPeca ? ';padding-left:24px' : ''}">
                     <select onchange="salvarNCMProduto(${Number(produto.id)}, this.value)" style="width:240px;padding:6px;border:1px solid #e2e8f0;border-radius:6px;font-family:monospace">
                         ${gerarOptionsNCM(ncm)}
                     </select>
@@ -3240,29 +3270,56 @@ function renderizarCadastroProdutos() {
                 </div>
             </td>
             <td>${categoriaBadge}</td>
-            <td style="font-family:monospace">${_escapeHtml(pn)}</td>
+            <td style="font-family:monospace;${isPeca ? 'color:#64748b;font-size:0.85rem' : ''}">${_escapeHtml(pn)}</td>
             <td>${_escapeHtml(nomeFabrica)}</td>
             <td>${_escapeHtml(componente)}</td>
-            <td style="text-align:left; font-weight:600">${_escapeHtml(nome)}</td>
+            <td style="text-align:left;font-weight:600;${isPeca ? 'padding-left:12px;color:#475569' : ''}">${isPeca ? '↳ ' : ''}${_escapeHtml(nome)}</td>
             <td>${ci > 0 ? formatarMoedaValor(ci) : '-'}</td>
             <td>${margemMin > 0 ? margemMin.toFixed(1).replace('.', ',') : '-'}</td>
             <td>${descontoMax > 0 ? descontoMax.toFixed(1).replace('.', ',') : '-'}</td>
             <td>${imbelTexto}</td>
-            <td class="${saldoConsolidadoClasse}" style="color:${saldoConsolidadoCor}; font-weight:700; font-family:monospace;">${saldoConsolidadoTexto}</td>
+            <td class="${saldoConsolidadoClasse}" style="color:${saldoConsolidadoCor};font-weight:700;font-family:monospace">${saldoConsolidadoTexto}</td>
             <td>${atualizadoTxt}</td>
             <td style="text-align:center">${noEstoqueBadge}</td>
             <td>
                 <button class="btn btn-outline btn-sm" data-admin="true" onclick="abrirModalEditarProduto(${Number(produto.id)})">Editar</button>
             </td>
         `;
-
         tr.addEventListener('click', e => {
             if (e.target.tagName === 'BUTTON' || e.target.tagName === 'SELECT' || e.target.closest('button') || e.target.closest('select')) return;
             document.querySelectorAll('#corpoCadastroProdutos tr.row-selected').forEach(r => r.classList.remove('row-selected'));
             tr.classList.add('row-selected');
         });
+        return tr;
+    }
+
+    // Renderizar produtos principais com botão expand se tiver peças
+    principais.forEach(produto => {
+        const filhas = pecasPorPai[produto.nome] || [];
+        const temPecas = filhas.length > 0;
+        const tr = _renderLinhaProduto(produto, false);
+
+        if (temPecas) {
+            // Adicionar indicador clicável na coluna PN
+            const tdPN = tr.querySelectorAll('td')[2];
+            const pnAtual = tdPN.innerHTML;
+            tdPN.innerHTML = `<span style="cursor:pointer;user-select:none" title="Clique para ver as ${filhas.length} peça(s)" onclick="_togglePecas(this, '${_escapeHtml(produto.nome)}')">
+                <span class="pn-expand-icon" style="display:inline-block;margin-right:4px;font-size:0.75rem;color:#1e3a5f">▶</span>${pnAtual}
+                <span style="margin-left:6px;background:#e0f2fe;color:#0369a1;border-radius:10px;padding:1px 7px;font-size:0.72rem;font-weight:700">${filhas.length} peça${filhas.length > 1 ? 's' : ''}</span>
+            </span>`;
+        }
 
         tbody.appendChild(tr);
+
+        // Renderizar linhas das peças (ocultas por padrão)
+        filhas.forEach(peca => {
+            tbody.appendChild(_renderLinhaProduto(peca, true));
+        });
+    });
+
+    // Peças cujo pai não aparece na lista filtrada — mostrar normalmente
+    pecasOrfas.forEach(produto => {
+        tbody.appendChild(_renderLinhaProduto(produto, false));
     });
 
     // ── Atualizar KPIs com contagem global (não filtrada) ──
