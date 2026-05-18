@@ -15097,16 +15097,20 @@ function importarTabelaPrecoVendaExcel(event) {
             const colPN       = _detectarColuna(headers, ['PN','PART NUMBER','CODIGO','CODE']);
             // Nome Fábrica deve ser detectado antes de Nome para não colidir
             const colNomeFab  = _detectarColuna(headers, ['NOME FÁBRICA','NOME FABRICA','NOME FAB']);
-            // Nome/grupo: coluna que NÃO é Nome Fábrica
+            // Grupo: coluna que identifica o produto pai (ex: pistola)
+            const colGrupo    = headers.find(h => h.trim().toUpperCase() === 'GRUPO') || null;
+            // Nome/grupo: coluna exatamente 'Nome' que NÃO é Nome Fábrica
             const colNome     = headers.find(h => {
                 const u = h.trim().toUpperCase();
                 return (u === 'NOME' || u === 'DESCRICAO' || u === 'DESCRIÇÃO' || u === 'DESCRIPTION')
                     && h !== colNomeFab;
             }) || _detectarColuna(headers, ['NOME','DESCRICAO','DESCRIÇÃO','DESCRIPTION']);
-            const colCI    = _detectarColuna(headers, ['CI','CUSTO','VALOR','COST','VALOR CI']);
+            // CI: busca exata primeiro (ex: 'CI (R$)'), depois inclui
+            const colCI    = headers.find(h => /^CI(\s*\(.*\))?$/i.test(h.trim()))
+                          || _detectarColuna(headers, ['CUSTO','COST','VALOR CI']);
             const colNCM   = _detectarColuna(headers, ['NCM']);
             const colComp  = _detectarColuna(headers, ['COMPONENTE','COMPONENT']);
-            console.log('colPN:', colPN, '| colNomeFab:', colNomeFab, '| colNome:', colNome, '| colCI:', colCI, '| colComp:', colComp);
+            console.log('colPN:', colPN, '| colNomeFab:', colNomeFab, '| colGrupo:', colGrupo, '| colNome:', colNome, '| colCI:', colCI, '| colComp:', colComp);
 
             if (!colPN) {
                 mostrarNotificacao('Coluna de PN não encontrada. Use cabeçalho PN, Part Number ou Codigo.', 'erro');
@@ -15122,7 +15126,11 @@ function importarTabelaPrecoVendaExcel(event) {
             dados.forEach((row, idx) => {
                 const pn      = String(row[colPN]      || '').trim();
                 const nome    = String(row[colNome]    || '').trim();
-                const nomeFab = colNomeFab ? String(row[colNomeFab] || '').trim() : nome;
+                // Componente = nome da pistola/arma pai à qual esta peça pertence.
+                // Se vazio, o item é o produto principal (a arma em si).
+                const comp    = colComp ? String(row[colComp] || '').trim() : '';
+                const nomeFab = colNomeFab ? String(row[colNomeFab] || '').trim() : '';
+
                 if (!pn && !nome) { ignorados++; return; }
 
                 const ciValBruto = colCI ? row[colCI] : '';
@@ -15146,27 +15154,33 @@ function importarTabelaPrecoVendaExcel(event) {
                         if (!isNaN(n)) ci = n;
                     }
                 }
-                const ncm   = colNCM  ? String(row[colNCM]  || '').trim() : '';
-                const comp  = colComp ? String(row[colComp] || '').trim() : '';
+                const ncm = colNCM ? String(row[colNCM] || '').trim() : '';
 
-                const existente = (estoque.produtos || []).find(p => p.pn && p.pn.trim().toUpperCase() === pn.toUpperCase());
+                // Busca produto existente: primeiro por PN (quando preenchido),
+                // depois por nome + componente para distinguir peças de pistolas diferentes com mesmo nome
+                let existente = null;
+                if (pn) {
+                    existente = (estoque.produtos || []).find(p => p.pn && p.pn.trim().toUpperCase() === pn.toUpperCase());
+                }
+                if (!existente && nome) {
+                    existente = (estoque.produtos || []).find(p =>
+                        (p.nome || '').trim().toUpperCase() === nome.toUpperCase() &&
+                        (p.componente || '').trim().toUpperCase() === comp.toUpperCase()
+                    );
+                }
 
                 if (existente) {
                     if (ci !== null && !isNaN(ci) && ci > 0) {
-                        // Atualiza CI no precificacao usando o nome novo (da planilha)
-                        const nomeChave = nome || existente.nome;
+                        // Grava CI sempre pelo nome do produto existente (chave única no precificacao)
+                        const nomeChave = existente.nome;
                         if (!precificacao[nomeChave]) precificacao[nomeChave] = {};
                         precificacao[nomeChave].ci = ci;
-                        // Se o nome mudou, migra o precificacao do nome antigo
-                        if (nome && nome !== existente.nome && precificacao[existente.nome]) {
-                            precificacao[nome] = Object.assign({}, precificacao[existente.nome], { ci });
-                        }
                         existente.ci = ci;
                     }
-                    if (nome) existente.nome = nome;
+                    if (pn && !existente.pn) existente.pn = pn;
                     if (nomeFab) existente.nomeFabrica = nomeFab;
                     if (ncm) existente.ncm = ncm;
-                    if (comp) existente.componente = comp;
+                    if (comp !== undefined) existente.componente = comp;
                     atualizados++;
                 } else {
                     if (!nome) { ignorados++; return; }
