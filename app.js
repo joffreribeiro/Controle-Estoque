@@ -3222,7 +3222,12 @@ function renderizarCadastroProdutos() {
         pecasPorPai[pai].push(p);
     });
     console.log('[DEBUG] pecasPorPai keys:', Object.keys(pecasPorPai));
-    console.log('[DEBUG] principais nomes:', principais.map(p => p.nome));
+    console.log('[DEBUG] principais nomes (upper):', principais.map(p => (p.nome||'').toUpperCase()));
+    principais.forEach(p => {
+        const chave = (p.nome||'').toUpperCase();
+        const filhas = pecasPorPai[chave] || [];
+        console.log(`[DEBUG] produto="${p.nome}" → filhas=${filhas.length}`);
+    });
 
     // Peças que apareceram no filtro mas cujo pai não está na lista filtrada — mostrar como linha normal
     const paisNaLista = new Set(principais.map(p => p.nome.toUpperCase()));
