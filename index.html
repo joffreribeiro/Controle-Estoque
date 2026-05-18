@@ -1291,6 +1291,9 @@
                                                 <input type="text" id="ciFiltroProduto" class="prod-search-input" oninput="renderizarTabelaCI()" placeholder="Buscar produto…" autocomplete="off">
                                             </div>
                                             <span id="ciContador" class="prod-result-count"></span>
+                                            <button class="btn btn-outline btn-sm" onclick="exportarTabelaPrecoVenda()">📤 Exportar Excel</button>
+                                            <button class="btn btn-outline btn-sm" onclick="document.getElementById('inputImportarCIExcel').click()">📥 Importar Excel</button>
+                                            <input type="file" id="inputImportarCIExcel" accept=".xlsx,.xls,.csv" style="display:none" onchange="importarTabelaPrecoVendaExcel(event)">
                                         </div>
 
                                         <!-- Tabela -->
