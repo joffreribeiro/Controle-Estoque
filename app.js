@@ -3095,9 +3095,10 @@ function _togglePecas(el, nomePai) {
     if (!tbody) return;
     const icon = el.querySelector('.pn-expand-icon');
     const expandido = icon && icon.textContent.trim() === '▼';
+    const nomePaiUpper = (nomePai || '').toUpperCase();
     tbody.querySelectorAll('tr[data-peca-filha]').forEach(tr => {
-        if (tr.dataset.pecaFilha === nomePai) {
-            tr.style.display = expandido ? 'none' : '';
+        if ((tr.dataset.pecaFilha || '').toUpperCase() === nomePaiUpper) {
+            tr.style.display = expandido ? 'none' : 'table-row';
         }
     });
     if (icon) icon.textContent = expandido ? '▶' : '▼';
@@ -3213,18 +3214,17 @@ function renderizarCadastroProdutos() {
     const principais = lista.filter(p => !p.componente || p.componente.trim() === '' || p.componente.trim() === '-');
     const pecas = lista.filter(p => p.componente && p.componente.trim() !== '' && p.componente.trim() !== '-');
 
-    // Indexar peças pelo nome do armamento pai (campo componente)
+    // Indexar peças pelo nome do armamento pai (campo componente) — chave em uppercase para match case-insensitive
     const pecasPorPai = {};
-    // Incluir TODAS as peças (não apenas as filtradas) para o expand funcionar sempre
     todosOsProdutos.filter(p => p.componente && p.componente.trim() !== '' && p.componente.trim() !== '-').forEach(p => {
-        const pai = p.componente.trim();
+        const pai = p.componente.trim().toUpperCase();
         if (!pecasPorPai[pai]) pecasPorPai[pai] = [];
         pecasPorPai[pai].push(p);
     });
 
     // Peças que apareceram no filtro mas cujo pai não está na lista filtrada — mostrar como linha normal
-    const paisNaLista = new Set(principais.map(p => p.nome));
-    const pecasOrfas = pecas.filter(p => !paisNaLista.has(p.componente.trim()));
+    const paisNaLista = new Set(principais.map(p => p.nome.toUpperCase()));
+    const pecasOrfas = pecas.filter(p => !paisNaLista.has(p.componente.trim().toUpperCase()));
 
     function _renderLinhaProduto(produto, isPeca = false) {
         const nome = produto.nome || '-';
@@ -3295,18 +3295,31 @@ function renderizarCadastroProdutos() {
 
     // Renderizar produtos principais com botão expand se tiver peças
     principais.forEach(produto => {
-        const filhas = pecasPorPai[produto.nome] || [];
+        const filhas = pecasPorPai[produto.nome.toUpperCase()] || [];
         const temPecas = filhas.length > 0;
         const tr = _renderLinhaProduto(produto, false);
 
         if (temPecas) {
-            // Adicionar indicador clicável na coluna PN
             const tdPN = tr.querySelectorAll('td')[2];
-            const pnAtual = tdPN.innerHTML;
-            tdPN.innerHTML = `<span style="cursor:pointer;user-select:none" title="Clique para ver as ${filhas.length} peça(s)" onclick="_togglePecas(this, '${_escapeHtml(produto.nome)}')">
-                <span class="pn-expand-icon" style="display:inline-block;margin-right:4px;font-size:0.75rem;color:#1e3a5f">▶</span>${pnAtual}
-                <span style="margin-left:6px;background:#e0f2fe;color:#0369a1;border-radius:10px;padding:1px 7px;font-size:0.72rem;font-weight:700">${filhas.length} peça${filhas.length > 1 ? 's' : ''}</span>
-            </span>`;
+            const btnExpand = document.createElement('span');
+            btnExpand.style.cssText = 'cursor:pointer;user-select:none;display:inline-flex;align-items:center;gap:4px';
+            btnExpand.title = `Clique para ver as ${filhas.length} peça(s)`;
+            btnExpand.dataset.nomePai = produto.nome;
+            const iconSpan = document.createElement('span');
+            iconSpan.className = 'pn-expand-icon';
+            iconSpan.style.cssText = 'font-size:0.75rem;color:#1e3a5f;font-weight:700';
+            iconSpan.textContent = '▶';
+            const badge = document.createElement('span');
+            badge.style.cssText = 'background:#e0f2fe;color:#0369a1;border-radius:10px;padding:1px 7px;font-size:0.72rem;font-weight:700';
+            badge.textContent = `${filhas.length} peça${filhas.length > 1 ? 's' : ''}`;
+            btnExpand.appendChild(iconSpan);
+            btnExpand.appendChild(badge);
+            btnExpand.addEventListener('click', e => {
+                e.stopPropagation();
+                _togglePecas(btnExpand, produto.nome);
+            });
+            tdPN.appendChild(document.createElement('br'));
+            tdPN.appendChild(btnExpand);
         }
 
         tbody.appendChild(tr);
