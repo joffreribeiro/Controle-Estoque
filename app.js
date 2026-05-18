@@ -14460,8 +14460,13 @@ function detectarNCMVincular(produtoId) {
 
 function gerarOptionsNCM(selectedNcm) {
     try {
-        const entries = Object.entries(NCM_PRODUTOS || {});
-        if (!entries || entries.length === 0) return '<option value="">—</option>';
+        // Mesclar NCMs fixos com os cadastrados dinamicamente em impostosEditaveis
+        const merged = Object.assign({}, NCM_PRODUTOS);
+        Object.entries(impostosEditaveis || {}).forEach(([code, imp]) => {
+            if (!merged[code]) merged[code] = imp.descricao || code;
+        });
+        const entries = Object.entries(merged);
+        if (!entries.length) return '<option value="">—</option>';
         entries.sort((a, b) => a[0].localeCompare(b[0]));
         let html = '<option value="">— Selecionar —</option>';
         entries.forEach(([code, desc]) => {
@@ -17941,13 +17946,69 @@ function editarImpostoFederal(ncm, campo, valor) {
 }
 
 function adicionarNCM() {
-    const ncm = prompt('Digite o código NCM (ex: 9302.00.00):');
-    if (!ncm || ncm.trim() === '') return;
-    const ncmLimpo = ncm.trim();
-    if (impostosEditaveis[ncmLimpo]) { alert('NCM já existe.'); return; }
-    impostosEditaveis[ncmLimpo] = { descricao: 'Novo NCM', pis:1.65, cofins:7.60, ipi:0 };
-    renderizarImpostosFederais();
-    salvarDados();
+    // Criar modal inline
+    const overlay = document.createElement('div');
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:9999;display:flex;align-items:center;justify-content:center';
+    overlay.innerHTML = `
+        <div style="background:#fff;border-radius:12px;padding:28px 32px;min-width:380px;box-shadow:0 8px 40px rgba(0,0,0,0.18)">
+            <h3 style="margin:0 0 20px;color:#1e3a5f;font-size:1.05rem">Cadastrar Novo NCM</h3>
+            <div style="display:flex;flex-direction:column;gap:12px">
+                <div>
+                    <label style="font-size:0.82rem;font-weight:600;color:#374151;display:block;margin-bottom:4px">Código NCM <span style="color:#dc2626">*</span></label>
+                    <input id="_ncmNovoCode" type="text" placeholder="Ex: 9302.00.00" maxlength="20"
+                        style="width:100%;padding:8px 10px;border:1px solid #d1d5db;border-radius:6px;font-family:monospace;font-size:0.95rem;box-sizing:border-box">
+                </div>
+                <div>
+                    <label style="font-size:0.82rem;font-weight:600;color:#374151;display:block;margin-bottom:4px">Descrição <span style="color:#dc2626">*</span></label>
+                    <input id="_ncmNovoDesc" type="text" placeholder="Ex: Revólveres e pistolas"
+                        style="width:100%;padding:8px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:0.92rem;box-sizing:border-box">
+                </div>
+                <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">
+                    <div>
+                        <label style="font-size:0.78rem;font-weight:600;color:#374151;display:block;margin-bottom:4px">PIS (%)</label>
+                        <input id="_ncmNovoPis" type="number" step="0.01" min="0" value="1.65"
+                            style="width:100%;padding:7px 8px;border:1px solid #d1d5db;border-radius:6px;font-size:0.88rem;box-sizing:border-box">
+                    </div>
+                    <div>
+                        <label style="font-size:0.78rem;font-weight:600;color:#374151;display:block;margin-bottom:4px">COFINS (%)</label>
+                        <input id="_ncmNovoCofins" type="number" step="0.01" min="0" value="7.60"
+                            style="width:100%;padding:7px 8px;border:1px solid #d1d5db;border-radius:6px;font-size:0.88rem;box-sizing:border-box">
+                    </div>
+                    <div>
+                        <label style="font-size:0.78rem;font-weight:600;color:#374151;display:block;margin-bottom:4px">IPI (%)</label>
+                        <input id="_ncmNovoIpi" type="number" step="0.01" min="0" value="0"
+                            style="width:100%;padding:7px 8px;border:1px solid #d1d5db;border-radius:6px;font-size:0.88rem;box-sizing:border-box">
+                    </div>
+                </div>
+            </div>
+            <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:22px">
+                <button id="_ncmNovoCancelar" class="btn btn-outline">Cancelar</button>
+                <button id="_ncmNovoSalvar" class="btn btn-primary">Salvar NCM</button>
+            </div>
+        </div>`;
+    document.body.appendChild(overlay);
+    const inp = overlay.querySelector('#_ncmNovoCode');
+    inp.focus();
+    overlay.querySelector('#_ncmNovoCancelar').onclick = () => overlay.remove();
+    overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+    overlay.querySelector('#_ncmNovoSalvar').onclick = () => {
+        const code = (overlay.querySelector('#_ncmNovoCode').value || '').trim();
+        const desc = (overlay.querySelector('#_ncmNovoDesc').value || '').trim();
+        if (!code) { mostrarNotificacao('Informe o código NCM.', 'warning'); return; }
+        if (!desc) { mostrarNotificacao('Informe a descrição.', 'warning'); return; }
+        if (impostosEditaveis[code] || NCM_PRODUTOS[code]) {
+            mostrarNotificacao('Este NCM já está cadastrado.', 'warning'); return;
+        }
+        const pis    = parseFloat(overlay.querySelector('#_ncmNovoPis').value)    || 1.65;
+        const cofins = parseFloat(overlay.querySelector('#_ncmNovoCofins').value) || 7.60;
+        const ipi    = parseFloat(overlay.querySelector('#_ncmNovoIpi').value)    || 0;
+        impostosEditaveis[code] = { descricao: desc, pis, cofins, ipi };
+        renderizarImpostosFederais();
+        salvarDados();
+        overlay.remove();
+        mostrarNotificacao(`NCM ${code} cadastrado com sucesso!`, 'success');
+    };
+    inp.addEventListener('keydown', e => { if (e.key === 'Enter') overlay.querySelector('#_ncmNovoDesc').focus(); });
 }
 
 function excluirNCM(ncm) {
