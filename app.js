@@ -9397,7 +9397,7 @@ function renderizarRegistroVendas() {
     
     const filtroRep = document.getElementById('filtroRepresentante')?.value || '';
     const filtroProduto = document.getElementById('filtroProduto')?.value || '';
-    const filtroProdutoId = filtroProduto ? parseInt(filtroProduto) : null;
+    const filtroProdutoId = filtroProduto ? String(filtroProduto) : null;
     const filtroDataInicio = document.getElementById('filtroVendasDataInicio')?.value || '';
     const filtroDataFim = document.getElementById('filtroVendasDataFim')?.value || '';
     const filtroBusca = (document.getElementById('filtroVendasBusca')?.value || '').trim().toLowerCase();
@@ -9429,7 +9429,7 @@ function renderizarRegistroVendas() {
 
         if (Array.isArray(venda.items) && venda.items.length > 0) {
             venda.items.forEach(it => {
-                if (filtroProdutoId && it.produtoId !== filtroProdutoId) return;
+                if (filtroProdutoId && String(it.produtoId) !== filtroProdutoId) return;
                 const qtd = Number(it.quantidade || 0);
                 const valorUnNum = Number(it.valorUnitario || 0);
                 const valorTotNum = Number(it.valorTotal || (valorUnNum * qtd) || 0);
@@ -9448,7 +9448,7 @@ function renderizarRegistroVendas() {
                 });
             });
         } else {
-            if (filtroProdutoId && venda.produtoId !== filtroProdutoId) return;
+            if (filtroProdutoId && String(venda.produtoId) !== filtroProdutoId) return;
             const qtd = Number(venda.quantidade || 0);
             const valorUnNum = Number(venda.valorUnitario || 0);
             const valorTotNum = Number(venda.valorTotal || (valorUnNum * qtd) || 0);
@@ -9552,7 +9552,8 @@ function renderizarRegistroVendas() {
         const isRecente = maxData && maxData >= seteDiasAtras;
         const badgeNova = isRecente ? ' <span class="badge-nova-venda">Nova</span>' : '';
 
-        const expandido = !!_contratosExpandidos[contratoKey];
+        // Quando há filtro por produto ativo, expande automaticamente para mostrar os itens
+        const expandido = filtroProdutoId ? true : !!_contratosExpandidos[contratoKey];
 
         // verificar se todas as vendas deste contrato estão canceladas
         const vendasDoContrato = (estoque.registroVendas || []).filter(v => normalizarContratoKey(v.contrato) === contratoKey);

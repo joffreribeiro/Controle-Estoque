@@ -2166,433 +2166,655 @@
              ABA: CONFIGURAÇÕES
              ======================================== -->
         <div class="tab-content" id="tab-configuracoes">
-            <div class="content-area">
-                <div class="section-header">
-                    <h2 class="section-title">⚙️ Configurações</h2>
-                    <div class="header-actions">
-                        <button class="btn btn-outline btn-sm" onclick="imprimirRelatorioAba('configuracoes')">
-                            <span class="btn-icon">🖨️</span>
+            <div class="content-area" style="background:#f0f2f5;min-height:100%">
+
+                <style>
+                    /* ── Configurações: Design System ── */
+                    .cfg-page { padding: 28px 32px; max-width: 1100px; }
+
+                    .cfg-page-header {
+                        display: flex; align-items: center; justify-content: space-between;
+                        margin-bottom: 28px; padding-bottom: 20px;
+                        border-bottom: 2px solid #1e3a5f;
+                    }
+                    .cfg-page-title {
+                        display: flex; align-items: center; gap: 14px;
+                    }
+                    .cfg-page-title-icon {
+                        width: 44px; height: 44px; background: #1e3a5f; border-radius: 10px;
+                        display: flex; align-items: center; justify-content: center;
+                        color: #c9a227; font-size: 1.3rem; flex-shrink: 0;
+                        box-shadow: 0 2px 8px rgba(30,58,95,0.25);
+                    }
+                    .cfg-page-title h2 {
+                        font-size: 1.35rem; font-weight: 800; color: #0f1e31;
+                        margin: 0; letter-spacing: -0.3px;
+                    }
+                    .cfg-page-title p {
+                        font-size: 0.78rem; color: #64748b; margin: 2px 0 0;
+                        letter-spacing: 0.3px; text-transform: uppercase;
+                    }
+
+                    .cfg-section-label {
+                        font-size: 0.67rem; font-weight: 800; letter-spacing: 1.4px;
+                        text-transform: uppercase; color: #94a3b8;
+                        margin: 28px 0 12px; padding-left: 4px;
+                        display: flex; align-items: center; gap: 8px;
+                    }
+                    .cfg-section-label::after {
+                        content: ''; flex: 1; height: 1px; background: #e2e8f0;
+                    }
+
+                    .cfg-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+                    .cfg-grid-full { grid-column: 1 / -1; }
+
+                    .cfg-panel {
+                        background: #fff; border-radius: 12px;
+                        border: 1px solid #e8edf3;
+                        box-shadow: 0 1px 4px rgba(15,30,49,0.06);
+                        overflow: hidden;
+                        transition: box-shadow 0.18s ease;
+                    }
+                    .cfg-panel:hover { box-shadow: 0 4px 16px rgba(15,30,49,0.10); }
+
+                    .cfg-panel-head {
+                        display: flex; align-items: center; gap: 12px;
+                        padding: 16px 20px 14px;
+                        border-bottom: 1px solid #f1f5f9;
+                    }
+                    .cfg-panel-head-icon {
+                        width: 34px; height: 34px; border-radius: 8px;
+                        display: flex; align-items: center; justify-content: center;
+                        font-size: 1rem; flex-shrink: 0;
+                    }
+                    .cfg-panel-head-icon.blue  { background: #dbeafe; }
+                    .cfg-panel-head-icon.green { background: #dcfce7; }
+                    .cfg-panel-head-icon.amber { background: #fef3c7; }
+                    .cfg-panel-head-icon.red   { background: #fee2e2; }
+                    .cfg-panel-head-icon.sky   { background: #e0f2fe; }
+                    .cfg-panel-head-icon.violet{ background: #ede9fe; }
+
+                    .cfg-panel-head-title {
+                        font-size: 0.88rem; font-weight: 700; color: #1e293b; margin: 0;
+                    }
+                    .cfg-panel-head-sub {
+                        font-size: 0.72rem; color: #94a3b8; margin: 1px 0 0;
+                    }
+
+                    .cfg-panel-body { padding: 18px 20px; }
+
+                    .cfg-btn-row { display: flex; gap: 10px; flex-wrap: wrap; }
+
+                    .cfg-btn {
+                        display: inline-flex; align-items: center; gap: 7px;
+                        padding: 8px 16px; border-radius: 8px; font-size: 0.82rem;
+                        font-weight: 600; cursor: pointer; border: none;
+                        transition: all 0.15s ease; white-space: nowrap;
+                        text-decoration: none;
+                    }
+                    .cfg-btn svg { width: 15px; height: 15px; flex-shrink: 0; }
+
+                    .cfg-btn-primary {
+                        background: #1e3a5f; color: #fff;
+                    }
+                    .cfg-btn-primary:hover { background: #162d4a; transform: translateY(-1px); box-shadow: 0 3px 10px rgba(30,58,95,0.3); }
+
+                    .cfg-btn-outline {
+                        background: #f8fafc; color: #374151;
+                        border: 1px solid #e2e8f0;
+                    }
+                    .cfg-btn-outline:hover { background: #f1f5f9; border-color: #cbd5e1; transform: translateY(-1px); }
+
+                    .cfg-btn-green {
+                        background: #16a34a; color: #fff;
+                    }
+                    .cfg-btn-green:hover { background: #15803d; transform: translateY(-1px); box-shadow: 0 3px 10px rgba(22,163,74,0.3); }
+
+                    .cfg-btn-sky {
+                        background: #0284c7; color: #fff;
+                    }
+                    .cfg-btn-sky:hover { background: #0369a1; transform: translateY(-1px); }
+
+                    .cfg-btn-danger {
+                        background: #dc2626; color: #fff;
+                    }
+                    .cfg-btn-danger:hover { background: #b91c1c; transform: translateY(-1px); box-shadow: 0 3px 10px rgba(220,38,38,0.3); }
+
+                    .cfg-btn-amber {
+                        background: #d97706; color: #fff;
+                    }
+                    .cfg-btn-amber:hover { background: #b45309; transform: translateY(-1px); }
+
+                    .cfg-field { margin-bottom: 14px; }
+                    .cfg-field:last-child { margin-bottom: 0; }
+                    .cfg-field label {
+                        display: block; font-size: 0.75rem; font-weight: 600;
+                        color: #64748b; margin-bottom: 5px; text-transform: uppercase; letter-spacing: 0.4px;
+                    }
+                    .cfg-field input, .cfg-field select {
+                        width: 100%; padding: 9px 12px;
+                        border: 1px solid #e2e8f0; border-radius: 8px;
+                        font-size: 0.88rem; color: #1e293b;
+                        background: #f8fafc;
+                        transition: border-color 0.15s, box-shadow 0.15s;
+                        box-sizing: border-box;
+                    }
+                    .cfg-field input:focus, .cfg-field select:focus {
+                        outline: none; border-color: #1e3a5f;
+                        box-shadow: 0 0 0 3px rgba(30,58,95,0.10);
+                        background: #fff;
+                    }
+
+                    .cfg-field-grid { display: grid; gap: 12px; }
+                    .cfg-field-grid.cols2 { grid-template-columns: 1fr 1fr; }
+                    .cfg-field-grid.cols3 { grid-template-columns: 1fr 1fr 1fr; }
+                    .cfg-field.span2 { grid-column: 1 / -1; }
+
+                    .cfg-contrato-preview {
+                        display: inline-flex; align-items: center; gap: 8px;
+                        background: #0f1e31; color: #c9a227;
+                        padding: 10px 18px; border-radius: 8px;
+                        font-weight: 800; font-size: 1.1rem; font-family: monospace;
+                        letter-spacing: 1px; box-shadow: 0 2px 8px rgba(15,30,49,0.2);
+                    }
+
+                    .cfg-alert-row {
+                        display: flex; align-items: center; gap: 20px; flex-wrap: wrap;
+                    }
+                    .cfg-toggle {
+                        display: flex; align-items: center; gap: 10px;
+                        font-size: 0.85rem; color: #374151; font-weight: 500; cursor: pointer;
+                    }
+                    .cfg-toggle input[type=checkbox] {
+                        width: 16px; height: 16px; cursor: pointer;
+                        accent-color: #1e3a5f;
+                    }
+
+                    .cfg-danger-panel {
+                        background: #fff5f5; border: 1px solid #fecaca;
+                        border-radius: 12px; overflow: hidden;
+                    }
+                    .cfg-danger-panel .cfg-panel-head { border-bottom-color: #fecaca; background: #fff5f5; }
+
+                    .cfg-rep-tag {
+                        display: inline-flex; align-items: center; gap: 6px;
+                        background: #f1f5f9; border: 1px solid #e2e8f0;
+                        border-radius: 20px; padding: 5px 12px 5px 10px;
+                        font-size: 0.8rem; font-weight: 600; color: #374151;
+                    }
+                    .cfg-rep-tag button {
+                        background: none; border: none; cursor: pointer;
+                        color: #94a3b8; font-size: 1rem; line-height: 1;
+                        padding: 0; transition: color 0.15s;
+                    }
+                    .cfg-rep-tag button:hover { color: #dc2626; }
+
+                    .cfg-hint {
+                        font-size: 0.75rem; color: #94a3b8; margin-top: 10px;
+                        display: flex; align-items: flex-start; gap: 5px;
+                    }
+                </style>
+
+                <div class="cfg-page">
+                    <!-- Cabeçalho -->
+                    <div class="cfg-page-header">
+                        <div class="cfg-page-title">
+                            <div class="cfg-page-title-icon">⚙️</div>
+                            <div>
+                                <h2>Configurações</h2>
+                                <p>Parâmetros do sistema · Dados cadastrais · Importação &amp; Exportação</p>
+                            </div>
+                        </div>
+                        <button class="cfg-btn cfg-btn-outline" onclick="imprimirRelatorioAba('configuracoes')">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9V2h12v7M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2M6 14h12v8H6z"/></svg>
                             Imprimir
                         </button>
                     </div>
-                </div>
 
-                <div class="config-sections">
-                    <!-- Numeração de Contratos -->
-                    <div class="config-card">
-                        <h3>📄 Numeração de Contratos</h3>
-                        <div class="form-row" style="margin-top:12px; align-items:end; gap:12px; flex-wrap:wrap;">
-                            <div class="form-group" style="margin:0; min-width:140px;">
-                                <label>Ano do contrato</label>
-                                <input type="number" id="configContratoAno" oninput="atualizarPreviaContrato()"
-                                       min="2020" max="2099" step="1" placeholder="2026"
-                                       style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;border-radius:6px;font-size:0.95rem;text-align:center;">
-                            </div>
-                            <div class="form-group" style="margin:0; min-width:170px;">
-                                <label>Próximo número sequencial</label>
-                                <input type="number" id="configContratoProximo" oninput="atualizarPreviaContrato()"
-                                       min="1" step="1" placeholder="1"
-                                       style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;border-radius:6px;font-size:0.95rem;text-align:center;">
-                            </div>
-                            <div class="form-group" style="margin:0; min-width:130px;">
-                                <label>Prévia</label>
-                                <div id="configContratoPreviaPrev"
-                                     style="padding:8px 14px;background:#1e3a5f;color:#c9a227;border-radius:6px;font-weight:700;font-size:1rem;min-width:100px;text-align:center;">
-                                    001/2026
+                    <!-- SEÇÃO: DADOS E CONTRATOS -->
+                    <div class="cfg-section-label">Dados &amp; Contratos</div>
+                    <div class="cfg-grid">
+
+                        <!-- Numeração de Contratos -->
+                        <div class="cfg-panel">
+                            <div class="cfg-panel-head">
+                                <div class="cfg-panel-head-icon amber">📄</div>
+                                <div>
+                                    <div class="cfg-panel-head-title">Numeração de Contratos</div>
+                                    <div class="cfg-panel-head-sub">Sequencial automático por ano</div>
                                 </div>
                             </div>
-                            <div class="form-group" style="margin:0;">
-                                <button class="btn btn-primary btn-sm" onclick="salvarConfigContrato()">Salvar Configuração</button>
+                            <div class="cfg-panel-body">
+                                <div class="cfg-field-grid cols2" style="margin-bottom:14px">
+                                    <div class="cfg-field">
+                                        <label>Ano do Contrato</label>
+                                        <input type="number" id="configContratoAno" oninput="atualizarPreviaContrato()"
+                                               min="2020" max="2099" step="1" placeholder="2026" style="text-align:center">
+                                    </div>
+                                    <div class="cfg-field">
+                                        <label>Próximo Nº Sequencial</label>
+                                        <input type="number" id="configContratoProximo" oninput="atualizarPreviaContrato()"
+                                               min="1" step="1" placeholder="1" style="text-align:center">
+                                    </div>
+                                </div>
+                                <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+                                    <div>
+                                        <div style="font-size:0.7rem;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:5px">Prévia</div>
+                                        <div class="cfg-contrato-preview" id="configContratoPreviaPrev">001/2026</div>
+                                    </div>
+                                    <button class="cfg-btn cfg-btn-primary" onclick="salvarConfigContrato()" style="margin-top:18px">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+                                        Salvar
+                                    </button>
+                                </div>
+                                <div class="cfg-hint">ℹ️ O ano reinicia em 1º de janeiro; a sequência avança a cada contrato gerado.</div>
                             </div>
                         </div>
-                        <p style="font-size:0.82rem;color:#64748b;margin-top:10px;">
-                            O ano reinicia automaticamente em 1º de janeiro e a sequência avança a cada contrato gerado.
-                        </p>
-                    </div>
 
-                    <!-- Estoque -->
-                    <div class="config-card">
-                        <h3>📦 Estoque</h3>
-                        <div class="config-actions">
-                            <button class="btn btn-info" onclick="document.getElementById('inputImportarEstoque').click()">
-                                <span class="btn-icon">📥</span> Importar Excel
-                            </button>
-                            <input type="file" id="inputImportarEstoque" accept=".csv,.xlsx,.xls" style="display:none" onchange="importarEstoque(event)">
-                            <button class="btn btn-outline" onclick="exportarEstoqueCompleto()">
-                                <span class="btn-icon">📤</span> Exportar Excel
-                            </button>
-                        </div>
-                    </div>
-
-                    <!-- Distribuição -->
-                    <div class="config-card">
-                        <h3>🚚 Distribuição</h3>
-                        <div class="config-actions">
-                            <button class="btn btn-info" onclick="document.getElementById('inputImportarDistribuicao').click()">
-                                <span class="btn-icon">📥</span> Importar Excel
-                            </button>
-                            <input type="file" id="inputImportarDistribuicao" accept=".csv,.xlsx,.xls" style="display:none" onchange="importarDistribuicao(event)">
-                            <button class="btn btn-outline" onclick="exportarDistribuicao()">
-                                <span class="btn-icon">📤</span> Exportar Excel
-                            </button>
-                        </div>
-                    </div>
-
-                    <!-- Vendas -->
-                    <div class="config-card">
-                        <h3>📝 Vendas</h3>
-                        <div class="config-actions">
-                            <button class="btn btn-info" onclick="document.getElementById('inputImportarVendas').click()">
-                                <span class="btn-icon">📥</span> Importar Excel
-                            </button>
-                            <input type="file" id="inputImportarVendas" accept=".csv,.xlsx,.xls" style="display:none" onchange="importarVendas(event)">
-                            <button class="btn btn-outline" onclick="exportarVendas()">
-                                <span class="btn-icon">📤</span> Exportar Excel
-                            </button>
-                        </div>
-                    </div>
-
-                    <!-- Sistema (JSON) -->
-                    <div class="config-card">
-                        <h3>💾 Backup do Sistema</h3>
-                        <div class="config-actions">
-                            <button class="btn btn-info" onclick="document.getElementById('inputImportarSistema').click()">
-                                <span class="btn-icon">🔁</span> Importar Sistema
-                            </button>
-                            <input type="file" id="inputImportarSistema" accept=".json,application/json" style="display:none" onchange="importarSistema(event)">
-                            <button class="btn btn-outline" onclick="exportarSistema()">
-                                <span class="btn-icon">💾</span> Exportar Sistema
-                            </button>
-                            <button class="btn btn-outline" onclick="exportarBackupCompleto()">
-                                <span class="btn-icon">📥</span> Exportar Backup JSON
-                            </button>
-                            <button class="btn btn-info" onclick="document.getElementById('inputImportarBackup').click()">
-                                <span class="btn-icon">📤</span> Importar Backup
-                            </button>
-                            <input type="file" id="inputImportarBackup" accept=".json,application/json" style="display:none" onchange="importarBackup(event)">
-                        </div>
-                    </div>
-
-                    <!-- Cloud -->
-                    <div class="config-card">
-                        <h3>☁️ Cloud (Firestore)</h3>
-                        <div class="config-actions">
-                            <button class="btn btn-outline" data-admin="true" onclick="salvarNoCloudUI()" title="Salvar dados no Firestore">
-                                <span class="btn-icon">☁️</span> Salvar no Cloud
-                            </button>
-                            <button class="btn btn-outline" data-admin="true" onclick="carregarDoCloudUI()" title="Carregar dados do Firestore">
-                                <span class="btn-icon">📥</span> Carregar do Cloud
-                            </button>
-                        </div>
-                    </div>
-                                        <!-- Dados do Vendedor (IMBEL / FI) -->
-                                        <div class="config-card" style="margin-bottom:20px">
-                                            <div style="font-size:0.85rem;font-weight:700;color:#1e3a5f;
-                                                                    text-transform:uppercase;letter-spacing:0.5px;
-                                                                    margin-bottom:14px">
-                                                🏭 Dados do Vendedor (IMBEL / Fábrica de Itajubá)
-                                            </div>
-
-                                            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-
-                                                <div class="form-group" style="margin:0;grid-column:1/-1">
-                                                    <label style="font-size:0.82rem;color:#64748b">
-                                                        Nome / Razão Social
-                                                    </label>
-                                                    <input type="text" id="cfgVend_nomeEmpresa"
-                                                                 placeholder="Indústria de Material Bélico do Brasil – IMBEL..."
-                                                                 style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;
-                                                                                border-radius:6px;font-size:0.9rem">
-                                                </div>
-
-                                                <div class="form-group" style="margin:0">
-                                                    <label style="font-size:0.82rem;color:#64748b">CNPJ</label>
-                                                    <input type="text" id="cfgVend_cnpj" maxlength="18"
-                                                                 oninput="this.value=formatCpfCnpjMask(this.value)"
-                                                                 style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;
-                                                                                border-radius:6px;font-size:0.9rem">
-                                                </div>
-
-                                                <div class="form-group" style="margin:0">
-                                                    <label style="font-size:0.82rem;color:#64748b">
-                                                        Inscrição Estadual
-                                                    </label>
-                                                    <input type="text" id="cfgVend_inscricaoEstadual"
-                                                                 style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;
-                                                                                border-radius:6px;font-size:0.9rem">
-                                                </div>
-
-                                                <div class="form-group" style="margin:0;grid-column:1/-1">
-                                                    <label style="font-size:0.82rem;color:#64748b">Endereço</label>
-                                                    <input type="text" id="cfgVend_endereco"
-                                                                 placeholder="Av. Cel. Aventino Ribeiro, 1099"
-                                                                 style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;
-                                                                                border-radius:6px;font-size:0.9rem">
-                                                </div>
-
-                                                <div class="form-group" style="margin:0">
-                                                    <label style="font-size:0.82rem;color:#64748b">Bairro</label>
-                                                    <input type="text" id="cfgVend_bairro"
-                                                                 placeholder="IMBEL"
-                                                                 style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;
-                                                                                border-radius:6px;font-size:0.9rem">
-                                                </div>
-
-                                                <div class="form-group" style="margin:0">
-                                                    <label style="font-size:0.82rem;color:#64748b">Cidade</label>
-                                                    <input type="text" id="cfgVend_cidade"
-                                                                 placeholder="Itajubá"
-                                                                 style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;
-                                                                                border-radius:6px;font-size:0.9rem">
-                                                </div>
-
-                                                <div class="form-group" style="margin:0">
-                                                    <label style="font-size:0.82rem;color:#64748b">UF</label>
-                                                    <input type="text" id="cfgVend_uf" maxlength="2"
-                                                                 placeholder="MG"
-                                                                 oninput="this.value=this.value.toUpperCase()"
-                                                                 style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;
-                                                                                border-radius:6px;font-size:0.9rem;text-transform:uppercase">
-                                                </div>
-
-                                                <div class="form-group" style="margin:0">
-                                                    <label style="font-size:0.82rem;color:#64748b">CEP</label>
-                                                    <input type="text" id="cfgVend_cep" maxlength="9"
-                                                                 placeholder="00000-000"
-                                                                 style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;
-                                                                                border-radius:6px;font-size:0.9rem">
-                                                </div>
-
-                                                <div class="form-group" style="margin:0">
-                                                    <label style="font-size:0.82rem;color:#64748b">Registro no EB</label>
-                                                    <input type="text" id="cfgVend_registroEB"
-                                                                 style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;
-                                                                                border-radius:6px;font-size:0.9rem">
-                                                </div>
-
-                                                <div class="form-group" style="margin:0">
-                                                    <label style="font-size:0.82rem;color:#64748b">
-                                                        Nome do Responsável Legal
-                                                    </label>
-                                                    <input type="text" id="cfgVend_nomeResponsavel"
-                                                                 style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;
-                                                                                border-radius:6px;font-size:0.9rem">
-                                                </div>
-
-                                                <div class="form-group" style="margin:0">
-                                                    <label style="font-size:0.82rem;color:#64748b">
-                                                        CPF do Responsável Legal
-                                                    </label>
-                                                    <input type="text" id="cfgVend_cpfResponsavel"
-                                                                 maxlength="14"
-                                                                 oninput="this.value=formatCpfCnpjMask(this.value)"
-                                                                 style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;
-                                                                                border-radius:6px;font-size:0.9rem">
-                                                </div>
-
-                                            </div>
-
-                                            <div style="margin-top:14px">
-                                                <button class="btn btn-primary" onclick="salvarConfigVendedorForm()">
-                                                    💾 Salvar dados do vendedor
-                                                </button>
-                                            </div>
-
-                                        </div>
-
-                                                                                <!-- Representantes Comerciais -->
-                                                                                <div class="config-card" style="margin-bottom:20px">
-                                                                                        <div style="font-size:0.85rem;font-weight:700;color:#1e3a5f;
-                                                                                                                                        text-transform:uppercase;letter-spacing:0.5px;
-                                                                                                                                        margin-bottom:14px">
-                                                                                                🤝 Dados dos Representantes Comerciais
-                                                                                        </div>
-
-                                                                                        <div style="margin-bottom:12px">
-                                                                                                <select id="configRepSelect"
-                                                                                                                                onchange="carregarFormRep(this.value)"
-                                                                                                                                style="padding:8px 12px;border:1px solid #e2e8f0;
-                                                                                                                                                         border-radius:6px;font-size:0.9rem;min-width:200px">
-                                                                                                        <option value="">Selecione o representante</option>
-                                                                                                </select>
-                                                                                        </div>
-
-                                                                                        <div id="configRepForm" style="display:none">
-                                                                                                <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-
-                                                                                                        <div class="form-group" style="margin:0;grid-column:1/-1">
-                                                                                                                <label style="font-size:0.82rem;color:#64748b">Razão Social</label>
-                                                                                                                <input type="text" id="cfgRep_razaoSocial"
-                                                                                                                                         style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;
-                                                                                                                                                                        border-radius:6px;font-size:0.9rem">
-                                                                                                        </div>
-
-                                                    <div class="form-group" style="margin:0">
-                                                        <label style="font-size:0.82rem;color:#64748b">Nome Fantasia</label>
-                                                        <input type="text" id="cfgRep_nomeFantasia"
-                                                                     style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;
-                                                                                    border-radius:6px;font-size:0.9rem">
-                                                    </div>
-
-                                                    <div class="form-group" style="margin:0">
-                                                        <label style="font-size:0.82rem;color:#64748b">CNPJ</label>
-                                                        <input type="text" id="cfgRep_cnpj"
-                                                                     maxlength="18"
-                                                                     oninput="this.value=formatCpfCnpjMask(this.value)"
-                                                                     style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;
-                                                                                    border-radius:6px;font-size:0.9rem">
-                                                    </div>
-
-                                                    <div class="form-group" style="margin:0">
-                                                        <label style="font-size:0.82rem;color:#64748b">Nº CORE</label>
-                                                        <input type="text" id="cfgRep_nrCore"
-                                                                     style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;
-                                                                                    border-radius:6px;font-size:0.9rem">
-                                                    </div>
-
-                                                    <div class="form-group" style="margin:0">
-                                                        <label style="font-size:0.82rem;color:#64748b">UF CORE</label>
-                                                        <input type="text" id="cfgRep_ufCore" maxlength="2"
-                                                                     style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;
-                                                                                    border-radius:6px;font-size:0.9rem;
-                                                                                    text-transform:uppercase"
-                                                                     oninput="this.value=this.value.toUpperCase()">
-                                                    </div>
-
-                                                    <div class="form-group" style="margin:0">
-                                                        <label style="font-size:0.82rem;color:#64748b">
-                                                            Nome do Responsável
-                                                        </label>
-                                                        <input type="text" id="cfgRep_nomeResponsavel"
-                                                                     style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;
-                                                                                    border-radius:6px;font-size:0.9rem">
-                                                    </div>
-
-                                                    <div class="form-group" style="margin:0">
-                                                        <label style="font-size:0.82rem;color:#64748b">Telefone</label>
-                                                        <input type="text" id="cfgRep_telefone"
-                                                                     maxlength="15"
-                                                                     oninput="this.value=formatPhoneMask(this.value)"
-                                                                     style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;
-                                                                                    border-radius:6px;font-size:0.9rem">
-                                                    </div>
-
-                                                    <div class="form-group" style="margin:0">
-                                                        <label style="font-size:0.82rem;color:#64748b">E-mail</label>
-                                                        <input type="email" id="cfgRep_email"
-                                                                     style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;
-                                                                                    border-radius:6px;font-size:0.9rem">
-                                                    </div>
-
-                                                </div>
-
-                                                <div style="margin-top:14px;display:flex;gap:8px">
-                                                    <button class="btn btn-primary" onclick="salvarFormRep()">
-                                                        💾 Salvar dados do representante
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        
-                                        <!-- Representantes (gerenciamento rápido) -->
-                                        <div class="config-card">
-                                            <h3>👥 Representantes</h3>
-                                            <div style="display:flex;gap:8px;align-items:center;margin-top:8px;flex-wrap:wrap">
-                                                <input type="text" id="novoRepresentante" placeholder="Nome do representante (ex: KOLTE)"
-                                                       style="padding:8px 10px;border:1px solid #e2e8f0;border-radius:6px;font-size:0.95rem;min-width:200px">
-                                                <button class="btn btn-primary" onclick="adicionarRepresentante()">Adicionar</button>
-                                            </div>
-                                            <div id="listaRepresentantesConfig" style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap"></div>
-                                            <p style="font-size:0.82rem;color:#64748b;margin-top:10px">Remover não apaga histórico de vendas</p>
-                                        </div>
-
-                                        <!-- Log de Auditoria -->
-                                        <div class="config-card">
-                                                <h3>🔍 Log de Auditoria</h3>
-                                                <div style="background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:20px;margin-top:8px">
-                                                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
-                                                        <div style="font-size:0.85rem;font-weight:700;color:#1e3a5f;text-transform:uppercase;letter-spacing:0.5px">🔍 Log de Auditoria</div>
-                                                        <div style="display:flex;gap:8px">
-                                                            <input type="text" id="auditoriaBusca" placeholder="🔍 Buscar contrato ou usuário..." oninput="renderizarAuditoria()" style="padding:6px 10px;border:1px solid #e2e8f0;border-radius:6px;font-size:0.82rem;width:220px">
-                                                            <select id="auditoriaFiltroAcao" onchange="renderizarAuditoria()" style="padding:6px 10px;border:1px solid #e2e8f0;border-radius:6px;font-size:0.82rem">
-                                                                <option value="">Todas as ações</option>
-                                                                <option value="CRIAÇÃO">Criação</option>
-                                                                <option value="EDIÇÃO">Edição</option>
-                                                                <option value="EXCLUSÃO">Exclusão</option>
-                                                                <option value="CANCELAMENTO">Cancelamento</option>
-                                                            </select>
-                                                            <button class="btn btn-outline btn-sm" onclick="exportarAuditoria()">📤 Exportar</button>
-                                                        </div>
-                                                    </div>
-
-                                                    <div id="auditoriaContainer" style="max-height:420px;overflow-y:auto;border:1px solid #f1f5f9;border-radius:8px">
-                                                        <table class="dashboard-table" style="font-size:0.82rem">
-                                                            <thead style="position:sticky;top:0;z-index:1">
-                                                                <tr>
-                                                                    <th style="min-width:160px">Data / Hora</th>
-                                                                    <th style="min-width:120px">Usuário</th>
-                                                                    <th style="min-width:130px">Ação</th>
-                                                                    <th style="min-width:100px">Contrato</th>
-                                                                    <th>Detalhes</th>
-                                                                </tr>
-                                                            </thead>
-                                                            <tbody id="auditoriaTbody">
-                                                                <tr>
-                                                                    <td colspan="5" style="text-align:center;color:#94a3b8;padding:30px">Carregando log de auditoria...</td>
-                                                                </tr>
-                                                            </tbody>
-                                                        </table>
-                                                    </div>
-
-                                                    <div id="auditoriaCount" style="font-size:0.78rem;color:#94a3b8;margin-top:8px;text-align:right"></div>
-                                                </div>
-                                        </div>
-
-                    <!-- Histórico de Alterações -->
-                    <div class="config-card">
-                        <h3>📋 Histórico de Alterações</h3>
-                        <div class="config-actions">
-                            <button class="btn btn-outline" onclick="abrirHistorico()">
-                                <span class="btn-icon">📋</span> Ver Histórico
-                            </button>
-                            <button class="btn btn-outline" onclick="limparHistorico()">
-                                <span class="btn-icon">🗑</span> Limpar Histórico
-                            </button>
-                        </div>
-                    </div>
-
-                    <!-- Alertas de Estoque (configuração do usuário) -->
-                    <div class="config-card">
-                        <h3>🔔 Alertas de Estoque</h3>
-                        <div class="form-row" style="margin-top:12px">
-                            <div class="form-group">
-                                <label>Limite de alerta (unidades consolidadas)</label>
-                                <input type="number" id="limiteAlertaEstoque" value="5" min="0"
-                                       style="width:120px; padding:8px; border:1px solid var(--border-color); 
-                                              border-radius:6px;"
-                                       onchange="salvarConfigAlertas()">
+                        <!-- Alertas de Estoque -->
+                        <div class="cfg-panel">
+                            <div class="cfg-panel-head">
+                                <div class="cfg-panel-head-icon amber">🔔</div>
+                                <div>
+                                    <div class="cfg-panel-head-title">Alertas de Estoque</div>
+                                    <div class="cfg-panel-head-sub">Notificações ao abrir o sistema</div>
+                                </div>
                             </div>
-                            <div class="form-group">
-                                <label>Alertas ao abrir o sistema</label>
-                                <label style="display:flex; align-items:center; gap:8px; margin-top:8px">
-                                    <input type="checkbox" id="alertasAtivos" checked 
-                                           onchange="salvarConfigAlertas()">
-                                    Ativado
+                            <div class="cfg-panel-body">
+                                <div class="cfg-field" style="max-width:180px">
+                                    <label>Limite de Alerta (unidades)</label>
+                                    <input type="number" id="limiteAlertaEstoque" value="5" min="0" onchange="salvarConfigAlertas()">
+                                </div>
+                                <label class="cfg-toggle" style="margin-top:6px">
+                                    <input type="checkbox" id="alertasAtivos" checked onchange="salvarConfigAlertas()">
+                                    Alertas ativos ao iniciar o sistema
                                 </label>
+                                <div class="cfg-hint">ℹ️ Produtos com estoque consolidado abaixo do limite disparam alertas.</div>
                             </div>
+                        </div>
+
+                    </div>
+
+                    <!-- SEÇÃO: IMPORTAÇÃO & EXPORTAÇÃO -->
+                    <div class="cfg-section-label">Importação &amp; Exportação</div>
+                    <div class="cfg-grid">
+
+                        <!-- Estoque -->
+                        <div class="cfg-panel">
+                            <div class="cfg-panel-head">
+                                <div class="cfg-panel-head-icon blue">📦</div>
+                                <div>
+                                    <div class="cfg-panel-head-title">Estoque</div>
+                                    <div class="cfg-panel-head-sub">Importar ou exportar dados de estoque</div>
+                                </div>
+                            </div>
+                            <div class="cfg-panel-body">
+                                <div class="cfg-btn-row">
+                                    <button class="cfg-btn cfg-btn-sky" onclick="document.getElementById('inputImportarEstoque').click()">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                                        Importar Excel
+                                    </button>
+                                    <input type="file" id="inputImportarEstoque" accept=".csv,.xlsx,.xls" style="display:none" onchange="importarEstoque(event)">
+                                    <button class="cfg-btn cfg-btn-outline" onclick="exportarEstoqueCompleto()">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                                        Exportar Excel
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Distribuição -->
+                        <div class="cfg-panel">
+                            <div class="cfg-panel-head">
+                                <div class="cfg-panel-head-icon blue">🚚</div>
+                                <div>
+                                    <div class="cfg-panel-head-title">Distribuição</div>
+                                    <div class="cfg-panel-head-sub">Importar ou exportar distribuição</div>
+                                </div>
+                            </div>
+                            <div class="cfg-panel-body">
+                                <div class="cfg-btn-row">
+                                    <button class="cfg-btn cfg-btn-sky" onclick="document.getElementById('inputImportarDistribuicao').click()">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                                        Importar Excel
+                                    </button>
+                                    <input type="file" id="inputImportarDistribuicao" accept=".csv,.xlsx,.xls" style="display:none" onchange="importarDistribuicao(event)">
+                                    <button class="cfg-btn cfg-btn-outline" onclick="exportarDistribuicao()">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                                        Exportar Excel
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Vendas -->
+                        <div class="cfg-panel">
+                            <div class="cfg-panel-head">
+                                <div class="cfg-panel-head-icon green">📝</div>
+                                <div>
+                                    <div class="cfg-panel-head-title">Vendas</div>
+                                    <div class="cfg-panel-head-sub">Importar ou exportar registro de vendas</div>
+                                </div>
+                            </div>
+                            <div class="cfg-panel-body">
+                                <div class="cfg-btn-row">
+                                    <button class="cfg-btn cfg-btn-sky" onclick="document.getElementById('inputImportarVendas').click()">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                                        Importar Excel
+                                    </button>
+                                    <input type="file" id="inputImportarVendas" accept=".csv,.xlsx,.xls" style="display:none" onchange="importarVendas(event)">
+                                    <button class="cfg-btn cfg-btn-outline" onclick="exportarVendas()">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                                        Exportar Excel
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Backup & Sistema -->
+                        <div class="cfg-panel">
+                            <div class="cfg-panel-head">
+                                <div class="cfg-panel-head-icon violet">💾</div>
+                                <div>
+                                    <div class="cfg-panel-head-title">Backup do Sistema</div>
+                                    <div class="cfg-panel-head-sub">Exportar ou restaurar dados JSON</div>
+                                </div>
+                            </div>
+                            <div class="cfg-panel-body">
+                                <div class="cfg-btn-row">
+                                    <button class="cfg-btn cfg-btn-sky" onclick="document.getElementById('inputImportarSistema').click()">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                                        Importar Sistema
+                                    </button>
+                                    <input type="file" id="inputImportarSistema" accept=".json,application/json" style="display:none" onchange="importarSistema(event)">
+                                    <button class="cfg-btn cfg-btn-outline" onclick="exportarSistema()">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                                        Exportar Sistema
+                                    </button>
+                                    <button class="cfg-btn cfg-btn-outline" onclick="exportarBackupCompleto()">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                                        Exportar Backup JSON
+                                    </button>
+                                    <button class="cfg-btn cfg-btn-sky" onclick="document.getElementById('inputImportarBackup').click()">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                                        Importar Backup
+                                    </button>
+                                    <input type="file" id="inputImportarBackup" accept=".json,application/json" style="display:none" onchange="importarBackup(event)">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Cloud -->
+                        <div class="cfg-panel cfg-grid-full">
+                            <div class="cfg-panel-head">
+                                <div class="cfg-panel-head-icon sky">☁️</div>
+                                <div>
+                                    <div class="cfg-panel-head-title">Cloud — Firestore</div>
+                                    <div class="cfg-panel-head-sub">Sincronização remota de dados</div>
+                                </div>
+                            </div>
+                            <div class="cfg-panel-body">
+                                <div class="cfg-btn-row">
+                                    <button class="cfg-btn cfg-btn-primary" data-admin="true" onclick="salvarNoCloudUI()">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 10h-1.26A8 8 0 109 20h9a5 5 0 000-10z"/></svg>
+                                        Salvar no Cloud
+                                    </button>
+                                    <button class="cfg-btn cfg-btn-outline" data-admin="true" onclick="carregarDoCloudUI()">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                                        Carregar do Cloud
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+
+                    <!-- SEÇÃO: CADASTROS -->
+                    <div class="cfg-section-label">Cadastros</div>
+                    <div class="cfg-grid">
+
+                        <!-- Dados do Vendedor -->
+                        <div class="cfg-panel cfg-grid-full">
+                            <div class="cfg-panel-head">
+                                <div class="cfg-panel-head-icon blue">🏭</div>
+                                <div>
+                                    <div class="cfg-panel-head-title">Dados do Vendedor — IMBEL / Fábrica de Itajubá</div>
+                                    <div class="cfg-panel-head-sub">Informações utilizadas na emissão de contratos</div>
+                                </div>
+                            </div>
+                            <div class="cfg-panel-body">
+                                <div class="cfg-field-grid cols2">
+                                    <div class="cfg-field span2">
+                                        <label>Nome / Razão Social</label>
+                                        <input type="text" id="cfgVend_nomeEmpresa" placeholder="Indústria de Material Bélico do Brasil – IMBEL">
+                                    </div>
+                                    <div class="cfg-field">
+                                        <label>CNPJ</label>
+                                        <input type="text" id="cfgVend_cnpj" maxlength="18" oninput="this.value=formatCpfCnpjMask(this.value)">
+                                    </div>
+                                    <div class="cfg-field">
+                                        <label>Inscrição Estadual</label>
+                                        <input type="text" id="cfgVend_inscricaoEstadual">
+                                    </div>
+                                    <div class="cfg-field span2">
+                                        <label>Endereço</label>
+                                        <input type="text" id="cfgVend_endereco" placeholder="Av. Cel. Aventino Ribeiro, 1099">
+                                    </div>
+                                    <div class="cfg-field">
+                                        <label>Bairro</label>
+                                        <input type="text" id="cfgVend_bairro" placeholder="IMBEL">
+                                    </div>
+                                    <div class="cfg-field">
+                                        <label>Cidade</label>
+                                        <input type="text" id="cfgVend_cidade" placeholder="Itajubá">
+                                    </div>
+                                    <div class="cfg-field">
+                                        <label>UF</label>
+                                        <input type="text" id="cfgVend_uf" maxlength="2" placeholder="MG" oninput="this.value=this.value.toUpperCase()" style="text-transform:uppercase">
+                                    </div>
+                                    <div class="cfg-field">
+                                        <label>CEP</label>
+                                        <input type="text" id="cfgVend_cep" maxlength="9" placeholder="00000-000">
+                                    </div>
+                                    <div class="cfg-field">
+                                        <label>Registro no EB</label>
+                                        <input type="text" id="cfgVend_registroEB">
+                                    </div>
+                                    <div class="cfg-field">
+                                        <label>Nome do Responsável Legal</label>
+                                        <input type="text" id="cfgVend_nomeResponsavel">
+                                    </div>
+                                    <div class="cfg-field span2">
+                                        <label>CPF do Responsável Legal</label>
+                                        <input type="text" id="cfgVend_cpfResponsavel" maxlength="14" oninput="this.value=formatCpfCnpjMask(this.value)" style="max-width:220px">
+                                    </div>
+                                </div>
+                                <div style="margin-top:6px">
+                                    <button class="cfg-btn cfg-btn-primary" onclick="salvarConfigVendedorForm()">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+                                        Salvar dados do vendedor
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Representantes Comerciais (form detalhado) -->
+                        <div class="cfg-panel cfg-grid-full">
+                            <div class="cfg-panel-head">
+                                <div class="cfg-panel-head-icon green">🤝</div>
+                                <div>
+                                    <div class="cfg-panel-head-title">Dados dos Representantes Comerciais</div>
+                                    <div class="cfg-panel-head-sub">Cadastro completo por representante</div>
+                                </div>
+                            </div>
+                            <div class="cfg-panel-body">
+                                <div style="margin-bottom:16px">
+                                    <div class="cfg-field" style="max-width:300px">
+                                        <label>Selecionar Representante</label>
+                                        <select id="configRepSelect" onchange="carregarFormRep(this.value)">
+                                            <option value="">Selecione o representante</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div id="configRepForm" style="display:none">
+                                    <div class="cfg-field-grid cols2">
+                                        <div class="cfg-field span2">
+                                            <label>Razão Social</label>
+                                            <input type="text" id="cfgRep_razaoSocial">
+                                        </div>
+                                        <div class="cfg-field">
+                                            <label>Nome Fantasia</label>
+                                            <input type="text" id="cfgRep_nomeFantasia">
+                                        </div>
+                                        <div class="cfg-field">
+                                            <label>CNPJ</label>
+                                            <input type="text" id="cfgRep_cnpj" maxlength="18" oninput="this.value=formatCpfCnpjMask(this.value)">
+                                        </div>
+                                        <div class="cfg-field">
+                                            <label>Nº CORE</label>
+                                            <input type="text" id="cfgRep_nrCore">
+                                        </div>
+                                        <div class="cfg-field">
+                                            <label>UF CORE</label>
+                                            <input type="text" id="cfgRep_ufCore" maxlength="2" oninput="this.value=this.value.toUpperCase()" style="text-transform:uppercase">
+                                        </div>
+                                        <div class="cfg-field">
+                                            <label>Nome do Responsável</label>
+                                            <input type="text" id="cfgRep_nomeResponsavel">
+                                        </div>
+                                        <div class="cfg-field">
+                                            <label>Telefone</label>
+                                            <input type="text" id="cfgRep_telefone" maxlength="15" oninput="this.value=formatPhoneMask(this.value)">
+                                        </div>
+                                        <div class="cfg-field span2">
+                                            <label>E-mail</label>
+                                            <input type="email" id="cfgRep_email" style="max-width:320px">
+                                        </div>
+                                    </div>
+                                    <button class="cfg-btn cfg-btn-primary" onclick="salvarFormRep()">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+                                        Salvar dados do representante
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Representantes (gerenciamento rápido) -->
+                        <div class="cfg-panel">
+                            <div class="cfg-panel-head">
+                                <div class="cfg-panel-head-icon green">👥</div>
+                                <div>
+                                    <div class="cfg-panel-head-title">Representantes</div>
+                                    <div class="cfg-panel-head-sub">Adicionar ou remover representantes</div>
+                                </div>
+                            </div>
+                            <div class="cfg-panel-body">
+                                <div style="display:flex;gap:8px;align-items:flex-end;margin-bottom:14px">
+                                    <div class="cfg-field" style="margin:0;flex:1">
+                                        <label>Nome do Representante</label>
+                                        <input type="text" id="novoRepresentante" placeholder="Ex: KOLTE">
+                                    </div>
+                                    <button class="cfg-btn cfg-btn-green" onclick="adicionarRepresentante()" style="flex-shrink:0;margin-bottom:1px">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                                        Adicionar
+                                    </button>
+                                </div>
+                                <div id="listaRepresentantesConfig" style="display:flex;gap:8px;flex-wrap:wrap;min-height:32px"></div>
+                                <div class="cfg-hint">ℹ️ Remover um representante não apaga seu histórico de vendas.</div>
+                            </div>
+                        </div>
+
+                        <!-- Histórico de Alterações -->
+                        <div class="cfg-panel">
+                            <div class="cfg-panel-head">
+                                <div class="cfg-panel-head-icon violet">📋</div>
+                                <div>
+                                    <div class="cfg-panel-head-title">Histórico de Alterações</div>
+                                    <div class="cfg-panel-head-sub">Registro de modificações no sistema</div>
+                                </div>
+                            </div>
+                            <div class="cfg-panel-body">
+                                <div class="cfg-btn-row">
+                                    <button class="cfg-btn cfg-btn-outline" onclick="abrirHistorico()">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+                                        Ver Histórico
+                                    </button>
+                                    <button class="cfg-btn cfg-btn-outline" onclick="limparHistorico()" style="color:#dc2626;border-color:#fca5a5">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg>
+                                        Limpar Histórico
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+
+                    <!-- SEÇÃO: LOG DE AUDITORIA -->
+                    <div class="cfg-section-label">Log de Auditoria</div>
+                    <div class="cfg-panel" style="margin-bottom:0">
+                        <div class="cfg-panel-head">
+                            <div class="cfg-panel-head-icon sky">🔍</div>
+                            <div style="flex:1">
+                                <div class="cfg-panel-head-title">Auditoria de Contratos</div>
+                                <div class="cfg-panel-head-sub">Registro de todas as ações sobre contratos</div>
+                            </div>
+                            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+                                <input type="text" id="auditoriaBusca" placeholder="Buscar contrato ou usuário..." oninput="renderizarAuditoria()"
+                                       style="padding:7px 12px;border:1px solid #e2e8f0;border-radius:8px;font-size:0.8rem;width:220px;background:#f8fafc">
+                                <select id="auditoriaFiltroAcao" onchange="renderizarAuditoria()"
+                                        style="padding:7px 12px;border:1px solid #e2e8f0;border-radius:8px;font-size:0.8rem;background:#f8fafc">
+                                    <option value="">Todas as ações</option>
+                                    <option value="CRIAÇÃO">Criação</option>
+                                    <option value="EDIÇÃO">Edição</option>
+                                    <option value="EXCLUSÃO">Exclusão</option>
+                                    <option value="CANCELAMENTO">Cancelamento</option>
+                                </select>
+                                <button class="cfg-btn cfg-btn-outline" onclick="exportarAuditoria()" style="padding:7px 14px">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                                    Exportar
+                                </button>
+                            </div>
+                        </div>
+                        <div style="padding:0">
+                            <div id="auditoriaContainer" style="max-height:400px;overflow-y:auto">
+                                <table class="dashboard-table" style="font-size:0.82rem">
+                                    <thead style="position:sticky;top:0;z-index:1">
+                                        <tr>
+                                            <th style="min-width:160px">Data / Hora</th>
+                                            <th style="min-width:120px">Usuário</th>
+                                            <th style="min-width:130px">Ação</th>
+                                            <th style="min-width:100px">Contrato</th>
+                                            <th>Detalhes</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="auditoriaTbody">
+                                        <tr><td colspan="5" style="text-align:center;color:#94a3b8;padding:30px">Carregando log de auditoria...</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                            <div id="auditoriaCount" style="font-size:0.75rem;color:#94a3b8;padding:8px 20px;text-align:right;border-top:1px solid #f1f5f9"></div>
                         </div>
                     </div>
 
-                    <!-- Limpar Dados -->
-                    <div class="config-card config-card-danger">
-                        <h3>🗑 Zona de Perigo</h3>
-                        <p style="color:#666; margin-bottom:12px;">Esta ação irá apagar todos os dados do sistema permanentemente.</p>
-                        <div class="config-actions">
-                            <button class="btn btn-danger" onclick="limparTodosDados()">
-                                <span class="btn-icon">🗑</span> Limpar Todos os Dados
+                    <!-- SEÇÃO: ZONA DE PERIGO -->
+                    <div class="cfg-section-label" style="margin-top:32px">Zona de Perigo</div>
+                    <div class="cfg-panel cfg-danger-panel">
+                        <div class="cfg-panel-head">
+                            <div class="cfg-panel-head-icon red">⚠️</div>
+                            <div>
+                                <div class="cfg-panel-head-title" style="color:#dc2626">Limpar Todos os Dados</div>
+                                <div class="cfg-panel-head-sub">Esta ação apaga permanentemente todos os dados do sistema.</div>
+                            </div>
+                        </div>
+                        <div class="cfg-panel-body">
+                            <button class="cfg-btn cfg-btn-danger" onclick="limparTodosDados()">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg>
+                                Limpar Todos os Dados
                             </button>
+                            <div class="cfg-hint" style="color:#dc2626;margin-top:10px">⚠️ Ação irreversível. Faça um backup antes de prosseguir.</div>
                         </div>
                     </div>
+
                 </div>
             </div>
         </div>
@@ -3763,7 +3985,7 @@
             </div>
         </div>
 
-    <script src="app.js?v=20260518-8"></script>
+    <script src="app.js?v=20260518-10"></script>
 
     <script>
     (function matchSubtitleWidth(){
