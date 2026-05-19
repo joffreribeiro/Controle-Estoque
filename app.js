@@ -11725,6 +11725,13 @@ function importarEstoque(event) {
             }
             
             if (produtosAtualizados > 0) {
+                // Recalcula produto.vendas a partir do registroVendas para garantir consistência
+                estoque.produtos.forEach(p => { p.vendas = {}; });
+                (estoque.registroVendas || []).forEach(v => {
+                    const prod = estoque.produtos.find(p => p.id === v.produtoId);
+                    if (prod) prod.vendas[v.representante] = (prod.vendas[v.representante] || 0) + v.quantidade;
+                });
+
                 salvarDados();
                 renderizarTabela();
                 renderizarDashboard();
@@ -11732,7 +11739,7 @@ function importarEstoque(event) {
                 renderizarRegistroDistribuicao();
                 atualizarEstatisticas();
             }
-            
+
             // Limpar input
             event.target.value = '';
             
