@@ -543,33 +543,23 @@ function obterMetricasImbelProduto(produto) {
     });
 
     const vendasPorRep = {};
-    let agregadoTemValores = false;
-    if (produto.vendas && typeof produto.vendas === 'object') {
-        Object.keys(produto.vendas).forEach(k => {
-            const val = Number(produto.vendas[k]) || 0;
-            if (val !== 0) agregadoTemValores = true;
-            vendasPorRep[(k || '').toString().toUpperCase()] = val;
-        });
-    }
-    
-    if (!agregadoTemValores) {
-        (estoque.registroVendas || []).forEach(v => {
-            try {
-                const rep = (v.representante || '').toString().toUpperCase();
-                if (Array.isArray(v.items) && v.items.length) {
-                    v.items.forEach(it => {
-                        if (Number(it.produtoId) === Number(produtoId) || (it.produto === produto.nome) || (it.produtoNome === produto.nome)) {
-                            vendasPorRep[rep] = (vendasPorRep[rep] || 0) + (Number(it.quantidade) || 0);
-                        }
-                    });
-                } else if (Number(v.produtoId) === Number(produtoId) || (v.produtoNome === produto.nome)) {
-                    vendasPorRep[rep] = (vendasPorRep[rep] || 0) + (Number(v.quantidade) || 0);
-                }
-            } catch (e) {
-                console.warn('obterMetricasImbelProduto: erro ao processar venda', e);
+    (estoque.registroVendas || []).forEach(v => {
+        if (v.cancelado) return;
+        try {
+            const rep = (v.representante || '').toString().toUpperCase();
+            if (Array.isArray(v.items) && v.items.length) {
+                v.items.forEach(it => {
+                    if (Number(it.produtoId) === Number(produtoId) || (it.produto === produto.nome) || (it.produtoNome === produto.nome)) {
+                        vendasPorRep[rep] = (vendasPorRep[rep] || 0) + (Number(it.quantidade) || 0);
+                    }
+                });
+            } else if (Number(v.produtoId) === Number(produtoId) || (v.produtoNome === produto.nome)) {
+                vendasPorRep[rep] = (vendasPorRep[rep] || 0) + (Number(v.quantidade) || 0);
             }
-        });
-    }
+        } catch (e) {
+            console.warn('obterMetricasImbelProduto: erro ao processar venda', e);
+        }
+    });
 
     const totalVendasProduto = Object.values(vendasPorRep).reduce((s, v) => s + v, 0);
     const consolidadoDisp = estoqueTotal;
@@ -11728,8 +11718,17 @@ function importarEstoque(event) {
                 // Recalcula produto.vendas a partir do registroVendas para garantir consistência
                 estoque.produtos.forEach(p => { p.vendas = {}; });
                 (estoque.registroVendas || []).forEach(v => {
-                    const prod = estoque.produtos.find(p => p.id === v.produtoId);
-                    if (prod) prod.vendas[v.representante] = (prod.vendas[v.representante] || 0) + v.quantidade;
+                    if (v.cancelado) return;
+                    const rep = v.representante;
+                    if (Array.isArray(v.items) && v.items.length) {
+                        v.items.forEach(it => {
+                            const prod = estoque.produtos.find(p => p.id === it.produtoId);
+                            if (prod) prod.vendas[rep] = (prod.vendas[rep] || 0) + (Number(it.quantidade) || 0);
+                        });
+                    } else {
+                        const prod = estoque.produtos.find(p => p.id === v.produtoId);
+                        if (prod) prod.vendas[rep] = (prod.vendas[rep] || 0) + (Number(v.quantidade) || 0);
+                    }
                 });
 
                 salvarDados();
