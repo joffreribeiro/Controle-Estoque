@@ -9616,17 +9616,17 @@ function renderizarRegistroVendas() {
                 ? `${formatDateToDDMMYYYY(minData)} até ${formatDateToDDMMYYYY(maxData)}`
                 : formatDateToDDMMYYYY(minData))
             : '-';
+        // verificar se todas as vendas deste contrato estão canceladas
+        const vendasDoContrato = (estoque.registroVendas || []).filter(v => normalizarContratoKey(v.contrato) === contratoKey);
+        const contratoCancelado = vendasDoContrato.length > 0 && vendasDoContrato.every(v => !!v.cancelado);
+        const cancelBadgeHtml = contratoCancelado ? '<span class="badge-cancelado">CANCELADO</span>' : '';
+
         const seteDiasAtras = new Date(Date.now() - 7*24*60*60*1000).toISOString().slice(0,10);
         const isRecente = maxData && maxData >= seteDiasAtras;
         const badgeNova = isRecente && !contratoCancelado ? ' <span class="badge-nova-venda">Nova</span>' : '';
 
         // Quando há filtro por produto ativo, expande automaticamente para mostrar os itens
         const expandido = filtroProdutoId ? true : !!_contratosExpandidos[contratoKey];
-
-        // verificar se todas as vendas deste contrato estão canceladas
-        const vendasDoContrato = (estoque.registroVendas || []).filter(v => normalizarContratoKey(v.contrato) === contratoKey);
-        const contratoCancelado = vendasDoContrato.length > 0 && vendasDoContrato.every(v => !!v.cancelado);
-        const cancelBadgeHtml = contratoCancelado ? '<span class="badge-cancelado">CANCELADO</span>' : '';
 
         // badge de envio: verificar controleEnvio pelo contrato bruto ou pela chave normalizada
         const envioData = (estoque.controleEnvio || {})[primeira.contratoRaw]
