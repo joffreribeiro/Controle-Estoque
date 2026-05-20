@@ -9585,7 +9585,7 @@ function renderizarRegistroVendas() {
         }
 
         resumo.innerHTML = `
-            <td class="col-contrato"><span class="link-contrato" onclick="irParaControleEnvio('${contratoKey}')" title="Ver no Controle de Envio">${contratoDisplay || '-'}</span> ${cancelBadgeHtml}${enviadoBadgeHtml}</td>
+            <td class="col-contrato"><span class="link-contrato" onclick="irParaControleEnvio('${primeira.contratoRaw || primeira.contratoKey}')" title="Ver no Controle de Envio">${contratoDisplay || '-'}</span> ${cancelBadgeHtml}${enviadoBadgeHtml}</td>
             <td class="col-loja" title="${primeira.loja}">${primeira.loja}</td>
             <td class="col-representante"><span class="badge-rep ${repClass}">${primeira.representante}</span></td>
             <td class="col-produto-venda"><button class="btn-expand-contrato" onclick="toggleContratoExpandido('${contratoKey}')">${expandido ? '▾' : '▸'} ${linhasDoContrato} item(ns)</button></td>
