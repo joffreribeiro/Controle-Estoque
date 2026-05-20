@@ -12487,7 +12487,7 @@ function toggleMenuMobile() {
 // ORDENAÇÃO CLICÁVEL NAS COLUNAS
 // ========================================
 
-let _ordenVendas = { campo: 'contrato', direcao: 'asc' };
+let _ordenVendas = { campo: 'contrato', direcao: 'desc' };
 let _ordenDistribuicao = { campo: 'data', direcao: 'desc' };
 let _contratosExpandidos = {};
 let _pecasExpandidas = {}; // mantido para compatibilidade, não usado
