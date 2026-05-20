@@ -1543,6 +1543,7 @@
                     <button class="btn btn-outline btn-sm" onclick="expandirTodosContratos()">▾ Expandir</button>
                     <button class="btn btn-outline btn-sm" onclick="colapsarTodosContratos()">▸ Colapsar</button>
                     <button class="btn btn-outline btn-sm" onclick="limparFiltrosVendas()">🔄</button>
+                    <button class="btn btn-outline btn-sm" onclick="abrirModalCancelamentos()" title="Ver contratos cancelados">⛔ Cancelamentos</button>
                     <span id="vendasContador" class="prod-result-count"></span>
                 </div>
 
@@ -3962,6 +3963,21 @@
     </div>
 
         <!-- Modal confirmação de estoque (exibe quando falta estoque antes de registrar venda) -->
+        <div id="modalCancelamentos" class="modal" style="display:none" onclick="if(event.target===this)this.style.display='none'">
+            <div class="modal-content" style="max-width:720px;max-height:80vh;display:flex;flex-direction:column">
+                <div class="modal-header">
+                    <h2><span>⛔</span> Cancelamentos Históricos</h2>
+                    <span class="close" onclick="document.getElementById('modalCancelamentos').style.display='none'">&times;</span>
+                </div>
+                <div class="modal-body" style="overflow-y:auto">
+                    <p style="color:var(--text-secondary);font-size:0.85rem;margin-bottom:12px">
+                        Contratos cancelados registrados na auditoria — incluindo os removidos em reimportações.
+                    </p>
+                    <div id="cancelamentosLista"></div>
+                </div>
+            </div>
+        </div>
+
         <div id="modalConfirmacaoEstoque" class="modal">
             <div class="modal-content" style="max-width:500px">
                 <div class="modal-header" style="background: linear-gradient(135deg,#b45309,#d97706)">

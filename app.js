@@ -2620,6 +2620,72 @@ function obterAuditoriaPorContrato(contrato) {
         .sort((a, b) => new Date(b.quando).getTime() - new Date(a.quando).getTime());
 }
 
+function abrirModalCancelamentos() {
+    const eventos = (estoque.auditoriaVendas || [])
+        .filter(a => a.acao === 'cancelamento')
+        .sort((a, b) => new Date(b.quando) - new Date(a.quando));
+
+    const container = document.getElementById('cancelamentosLista');
+    if (!container) return;
+
+    if (eventos.length === 0) {
+        container.innerHTML = '<p style="text-align:center;color:var(--text-secondary);padding:20px">Nenhum cancelamento registrado na auditoria.</p>';
+    } else {
+        // Deduplica por contrato (mantém o evento mais recente de cada)
+        const vistos = new Set();
+        const unicos = eventos.filter(e => {
+            if (vistos.has(e.contrato)) return false;
+            vistos.add(e.contrato);
+            return true;
+        });
+
+        const linhas = unicos.map(e => {
+            const dep = e.depois || {};
+            const contratoNum = dep.contrato || e.contrato || '-';
+            const loja = dep.loja || '-';
+            const rep = dep.representante || '-';
+            const canceladoEm = dep.canceladoEm
+                ? new Date(dep.canceladoEm).toLocaleString('pt-BR')
+                : (e.quando ? new Date(e.quando).toLocaleString('pt-BR') : '-');
+            const por = dep.canceladoPor || e.quem || '-';
+            const aindaExiste = (estoque.registroVendas || []).some(v =>
+                normalizarContratoKey(v.contrato) === e.contrato && v.cancelado
+            );
+            const situacao = aindaExiste
+                ? '<span style="color:#d97706;font-weight:600">⛔ No registro</span>'
+                : '<span style="color:#6b7280">Removido (reimport.)</span>';
+            return `<tr style="border-bottom:1px solid var(--border-color)">
+                <td style="padding:6px 10px;font-weight:600">${contratoNum}</td>
+                <td style="padding:6px 10px">${loja}</td>
+                <td style="padding:6px 10px">${rep}</td>
+                <td style="padding:6px 10px;white-space:nowrap">${canceladoEm}</td>
+                <td style="padding:6px 10px">${por}</td>
+                <td style="padding:6px 10px">${situacao}</td>
+            </tr>`;
+        }).join('');
+
+        container.innerHTML = `
+            <table style="width:100%;border-collapse:collapse;font-size:0.88rem">
+                <thead>
+                    <tr style="border-bottom:2px solid var(--border-color);background:var(--bg-secondary)">
+                        <th style="text-align:left;padding:6px 10px">Contrato</th>
+                        <th style="text-align:left;padding:6px 10px">Loja</th>
+                        <th style="text-align:left;padding:6px 10px">Rep.</th>
+                        <th style="text-align:left;padding:6px 10px">Cancelado em</th>
+                        <th style="text-align:left;padding:6px 10px">Por</th>
+                        <th style="text-align:left;padding:6px 10px">Situação</th>
+                    </tr>
+                </thead>
+                <tbody>${linhas}</tbody>
+            </table>
+            <p style="margin-top:10px;font-size:0.8rem;color:var(--text-secondary)">
+                ${unicos.length} contrato(s) cancelado(s) encontrado(s) na auditoria.
+            </p>`;
+    }
+
+    document.getElementById('modalCancelamentos').style.display = 'flex';
+}
+
 // ========================================
 // RENDER: AUDITORIA DE VENDAS
 // ========================================
