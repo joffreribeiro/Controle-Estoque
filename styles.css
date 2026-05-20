@@ -299,7 +299,18 @@ header .header-content { padding: 10px 20px; }
     font-weight: 600;
     display: inline-block;
 }
-.row-contrato-resumo.contrato-cancelado { opacity: 0.8; background: rgba(183,28,28,0.03); }
+.row-contrato-resumo.contrato-cancelado {
+    opacity: 0.75;
+    background: linear-gradient(90deg, rgba(183,28,28,0.06) 0%, transparent 80%);
+}
+.row-contrato-resumo.contrato-cancelado:hover {
+    opacity: 1;
+    background: linear-gradient(90deg, rgba(183,28,28,0.10) 0%, #f8fafc 80%) !important;
+}
+.row-contrato-resumo.contrato-cancelado .link-contrato {
+    text-decoration: line-through;
+    color: #b71c1c;
+}
 .row-contrato-detalhe .badge-cancelado { font-size: 12px; padding: 2px 6px; border-radius: 4px; }
 
 /* ========================================
@@ -4046,6 +4057,18 @@ th.sortable.sort-desc .sort-icon::after { content: ' ▼'; opacity: 1; }
     opacity: 1;
 }
 
+#tabelaControleEnvio tr.contrato-cancelado {
+    background: linear-gradient(90deg, rgba(183,28,28,0.06) 0%, transparent 80%);
+    opacity: 0.75;
+}
+#tabelaControleEnvio tr.contrato-cancelado:hover {
+    background: linear-gradient(90deg, rgba(183,28,28,0.10) 0%, #f8fafc 80%) !important;
+    opacity: 1;
+}
+#tabelaControleEnvio tr.contrato-cancelado .link-contrato {
+    text-decoration: line-through;
+    color: #b71c1c;
+}
 #tabelaControleEnvio tr.row-envio-completo {
     background: linear-gradient(90deg, #f0fff4 0%, transparent 80%);
 }

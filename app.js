@@ -9618,7 +9618,7 @@ function renderizarRegistroVendas() {
             : '-';
         const seteDiasAtras = new Date(Date.now() - 7*24*60*60*1000).toISOString().slice(0,10);
         const isRecente = maxData && maxData >= seteDiasAtras;
-        const badgeNova = isRecente ? ' <span class="badge-nova-venda">Nova</span>' : '';
+        const badgeNova = isRecente && !contratoCancelado ? ' <span class="badge-nova-venda">Nova</span>' : '';
 
         // Quando há filtro por produto ativo, expande automaticamente para mostrar os itens
         const expandido = filtroProdutoId ? true : !!_contratosExpandidos[contratoKey];
@@ -12092,9 +12092,17 @@ function renderizarControleEnvio() {
                 contrato: venda.contrato,
                 loja: venda.loja,
                 representante: venda.representante,
-                id: venda.id
+                id: venda.id,
+                cancelado: false
             };
         }
+        // marca cancelado se TODAS as vendas do contrato estiverem canceladas
+        if (!venda.cancelado) contratoMap[venda.contrato].cancelado = false;
+    });
+    // segunda passagem: confirma cancelado só se todas as vendas estiverem canceladas
+    Object.keys(contratoMap).forEach(k => {
+        const vendasDoContrato = estoque.registroVendas.filter(v => v.contrato === k);
+        contratoMap[k].cancelado = vendasDoContrato.length > 0 && vendasDoContrato.every(v => !!v.cancelado);
     });
 
     let contratos = Object.values(contratoMap);
@@ -12173,30 +12181,45 @@ function renderizarControleEnvio() {
         return;
     }
 
+    let houveLimpeza = false;
     contratos.forEach(contrato => {
+        const contratoCancelado = !!contrato.cancelado;
         const envio = estoque.controleEnvio[contrato.contrato] || {};
-        const sistemaMarcado = campoMarcado(envio.sistema);
-        const assinadoMarcado = campoMarcado(envio.assinado);
-        const enviadoMarcado = campoMarcado(envio.enviado);
+
+        // Se cancelado e tiver marcações, limpa silenciosamente
+        if (contratoCancelado && estoque.controleEnvio[contrato.contrato] &&
+            (envio.sistema || envio.assinado || envio.enviado)) {
+            estoque.controleEnvio[contrato.contrato].sistema = false;
+            estoque.controleEnvio[contrato.contrato].assinado = false;
+            estoque.controleEnvio[contrato.contrato].enviado = false;
+            houveLimpeza = true;
+        }
+
+        const sistemaMarcado = contratoCancelado ? false : campoMarcado(envio.sistema);
+        const assinadoMarcado = contratoCancelado ? false : campoMarcado(envio.assinado);
+        const enviadoMarcado = contratoCancelado ? false : campoMarcado(envio.enviado);
         const repClass = (contrato.representante || '').toLowerCase();
         const qtdConcluidos = Number(sistemaMarcado) + Number(assinadoMarcado) + Number(enviadoMarcado);
 
         const progressCor = qtdConcluidos === 3 ? '#2da44e' : qtdConcluidos > 0 ? '#d97706' : '#94a3b8';
 
-        const statusBtn = (checked, campo) => `
-            <button type="button" class="status-indicator ${checked ? 'checked' : ''}" onclick="salvarControleEnvio('${contrato.contrato}', '${campo}', ${!checked})" title="${campo}">
+        const statusBtn = (checked, campo) => contratoCancelado
+            ? `<button type="button" class="status-indicator" disabled title="Contrato cancelado" style="opacity:0.3;cursor:not-allowed">
                 <svg viewBox="0 0 12 12" aria-hidden="true"><path fill="white" d="M4.7 9.2 1.9 6.4l1.1-1.1 1.7 1.7 4.2-4.2L10 4z"/></svg>
-            </button>
-        `;
-
+               </button>`
+            : `<button type="button" class="status-indicator ${checked ? 'checked' : ''}" onclick="salvarControleEnvio('${contrato.contrato}', '${campo}', ${!checked})" title="${campo}">
+                <svg viewBox="0 0 12 12" aria-hidden="true"><path fill="white" d="M4.7 9.2 1.9 6.4l1.1-1.1 1.7 1.7 4.2-4.2L10 4z"/></svg>
+               </button>`;
         const tr = document.createElement('tr');
-        if (qtdConcluidos === 3) tr.classList.add('row-envio-completo');
-        if (qtdConcluidos === 0) tr.classList.add('row-envio-pendente');
+        if (contratoCancelado) tr.classList.add('contrato-cancelado');
+        else if (qtdConcluidos === 3) tr.classList.add('row-envio-completo');
+        else if (qtdConcluidos === 0) tr.classList.add('row-envio-pendente');
+        const canceladoBadge = contratoCancelado ? ' <span class="badge-cancelado">CANCELADO</span>' : '';
         tr.innerHTML = `
             <td class="col-contrato">
                 <div class="ctr-cell">
-                    <span class="link-contrato" onclick="irParaRegistroVendas('${contrato.contrato}')" title="Ver no Registro de Vendas" style="font-weight:700">${contrato.contrato}</span>
-                    <span class="ctr-progress" style="background:${progressCor}22;border-color:${progressCor};color:${progressCor}">${qtdConcluidos}/3</span>
+                    <span class="link-contrato" onclick="irParaRegistroVendas('${contrato.contrato}')" title="Ver no Registro de Vendas" style="font-weight:700">${contrato.contrato}</span>${canceladoBadge}
+                    ${contratoCancelado ? '' : `<span class="ctr-progress" style="background:${progressCor}22;border-color:${progressCor};color:${progressCor}">${qtdConcluidos}/3</span>`}
                 </div>
             </td>
             <td class="col-loja" title="${contrato.loja}">${contrato.loja}</td>
@@ -12205,14 +12228,16 @@ function renderizarControleEnvio() {
             <td class="col-assinado">${statusBtn(assinadoMarcado, 'assinado')}</td>
             <td class="col-enviado">${statusBtn(enviadoMarcado, 'enviado')}</td>
             <td class="col-solicitacao">
-                <input type="text" class="campo-editavel" value="${envio.solicitacao || ''}" placeholder="Data ou observação" onchange="salvarControleEnvio('${contrato.contrato}', 'solicitacao', this.value)">
+                <input type="text" class="campo-editavel" value="${envio.solicitacao || ''}" placeholder="Data ou observação" onchange="salvarControleEnvio('${contrato.contrato}', 'solicitacao', this.value)" ${contratoCancelado ? 'disabled style="opacity:0.4;cursor:not-allowed"' : ''}>
             </td>
             <td class="col-acoes">
-                <button class="btn-action btn-delete" onclick="limparControleEnvio('${contrato.contrato}')" title="Limpar dados">🗑</button>
+                <button class="btn-action btn-delete" onclick="limparControleEnvio('${contrato.contrato}')" title="Limpar dados" ${contratoCancelado ? 'disabled style="opacity:0.3;cursor:not-allowed"' : ''}>🗑</button>
             </td>
         `;
         tbody.appendChild(tr);
     });
+
+    if (houveLimpeza) salvarDados();
 }
 
 function irParaControleEnvio(contrato) {
