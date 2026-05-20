@@ -10408,11 +10408,12 @@ function exportarVendas() {
         // Percorrer vendas; suportar vendas com múltiplos itens
         vendasOrdenadas.forEach(venda => {
             const data = venda.data ? new Date(venda.data).toLocaleDateString('pt-BR') : '';
+            const contratoExport = venda.cancelado ? `${venda.contrato} [CANCELADO]` : venda.contrato;
             if (Array.isArray(venda.items) && venda.items.length > 0) {
                 venda.items.forEach(it => {
                     const valorUnit = typeof it.valorUnitario === 'number' ? it.valorUnitario : 0;
                     const valorTot = typeof it.valorTotal === 'number' ? it.valorTotal : (valorUnit * (it.quantidade || 0));
-                    csv += `${venda.contrato}${sep}${venda.loja}${sep}${venda.representante}${sep}${it.produtoNome}${sep}${it.quantidade}${sep}${valorUnit.toFixed(2).replace('.', ',')}${sep}${valorTot.toFixed(2).replace('.', ',')}${sep}${venda.observacoes || ''}${sep}${data}\n`;
+                    csv += `${contratoExport}${sep}${venda.loja}${sep}${venda.representante}${sep}${it.produtoNome}${sep}${it.quantidade}${sep}${valorUnit.toFixed(2).replace('.', ',')}${sep}${valorTot.toFixed(2).replace('.', ',')}${sep}${venda.observacoes || ''}${sep}${data}\n`;
                 });
             } else {
                 // venda no formato antigo
@@ -10420,7 +10421,7 @@ function exportarVendas() {
                 const quantidade = venda.quantidade || 0;
                 const valorUnit = (typeof venda.valorUnitario === 'number') ? venda.valorUnitario : 0;
                 const valorTot = (typeof venda.valorTotal === 'number') ? venda.valorTotal : 0;
-                csv += `${venda.contrato}${sep}${venda.loja}${sep}${venda.representante}${sep}${produtoNome}${sep}${quantidade}${sep}${valorUnit.toFixed(2).replace('.', ',')}${sep}${valorTot.toFixed(2).replace('.', ',')}${sep}${venda.observacoes || ''}${sep}${data}\n`;
+                csv += `${contratoExport}${sep}${venda.loja}${sep}${venda.representante}${sep}${produtoNome}${sep}${quantidade}${sep}${valorUnit.toFixed(2).replace('.', ',')}${sep}${valorTot.toFixed(2).replace('.', ',')}${sep}${venda.observacoes || ''}${sep}${data}\n`;
             }
         });
 
@@ -11794,7 +11795,9 @@ function importarVendas(event) {
                     continue;
                 }
 
-                const contrato    = colunas[0]?.trim();
+                const contratoRaw = colunas[0]?.trim();
+                const cancelado   = /\[CANCELADO\]/i.test(contratoRaw);
+                const contrato    = contratoRaw.replace(/\s*\[CANCELADO\]/i, '').trim();
                 const loja        = colunas[1]?.trim().replace(/"/g, '').toUpperCase();
                 const representante = colunas[2]?.trim().toUpperCase();
                 const produtoNome = colunas[3]?.trim().replace(/"/g, '').toUpperCase();
@@ -11837,6 +11840,7 @@ function importarVendas(event) {
                     valorUnitario,
                     valorTotal,
                     observacoes,
+                    cancelado: cancelado || undefined,
                     data: new Date().toISOString()
                 });
             }
