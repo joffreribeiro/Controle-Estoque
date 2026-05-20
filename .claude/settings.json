@@ -11,7 +11,8 @@
       "Bash(node --check \"e:\\\\MEUS DOCUMENTOS\\\\OneDrive\\\\Documentos\\\\Sistemas\\\\Estoque\\\\Controle-Estoque\\\\app.js\")",
       "Bash(git push *)",
       "Bash(dir /s /b *.py *.js *.ts)",
-      "Bash(findstr /v node_modules)"
+      "Bash(findstr /v node_modules)",
+      "Bash(findstr /c:\".table-container\" *.html)"
     ],
     "additionalDirectories": [
       "\\tmp"

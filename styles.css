@@ -2194,6 +2194,14 @@ tr.total-row:hover {
     opacity: 0.8;
 }
 
+@keyframes highlight-flash {
+    0%   { background-color: rgba(26, 48, 80, 0.18); }
+    100% { background-color: transparent; }
+}
+.highlight-row {
+    animation: highlight-flash 1.2s ease-out forwards;
+}
+
 .tabela-vendas td.col-valor-un,
 .tabela-vendas td.col-valor-total {
     text-align: right;

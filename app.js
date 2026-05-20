@@ -12145,20 +12145,36 @@ function renderizarControleEnvio() {
     });
 }
 
-function irParaControleEnvio(contratoKey) {
+function irParaControleEnvio(contrato) {
     trocarAba('controleenvio');
     setTimeout(() => {
-        const filtro = document.getElementById('filtroControleEnvioBusca');
-        if (filtro) { filtro.value = contratoKey; filtro.dispatchEvent(new Event('input')); }
-    }, 100);
+        const rows = document.querySelectorAll('#tabelaControleEnvioBody tr');
+        for (const row of rows) {
+            const cell = row.querySelector('.col-contrato');
+            if (cell && cell.textContent.includes(contrato)) {
+                row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                row.classList.add('highlight-row');
+                setTimeout(() => row.classList.remove('highlight-row'), 1200);
+                break;
+            }
+        }
+    }, 150);
 }
 
 function irParaRegistroVendas(contrato) {
     trocarAba('vendas');
     setTimeout(() => {
-        const filtro = document.getElementById('filtroVendasBusca');
-        if (filtro) { filtro.value = contrato; filtro.dispatchEvent(new Event('input')); }
-    }, 100);
+        const rows = document.querySelectorAll('#tabelaRegistroVendasBody tr.row-contrato-resumo');
+        for (const row of rows) {
+            const cell = row.querySelector('.col-contrato');
+            if (cell && cell.textContent.includes(contrato)) {
+                row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                row.classList.add('highlight-row');
+                setTimeout(() => row.classList.remove('highlight-row'), 1200);
+                break;
+            }
+        }
+    }, 150);
 }
 
 function salvarControleEnvio(contrato, campo, valor) {
