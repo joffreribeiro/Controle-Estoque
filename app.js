@@ -9471,7 +9471,7 @@ function renderizarRegistroVendas() {
     });
 
     // Ordenar conforme seleção do usuário (estado genérico _sortState, fallback para _ordenVendas)
-    const sortV = _sortState['vendas'] || { col: _ordenVendas.campo || 'contrato', dir: _ordenVendas.direcao || 'asc' };
+    const sortV = _sortState['vendas'] || { col: _ordenVendas.campo || 'contrato', dir: _ordenVendas.direcao || 'desc' };
     const getValVenda = (l, col) => {
         if (!l) return '';
         if (col === 'contrato') {
@@ -9585,7 +9585,7 @@ function renderizarRegistroVendas() {
         }
 
         resumo.innerHTML = `
-            <td class="col-contrato">${contratoDisplay || '-'} ${cancelBadgeHtml}${enviadoBadgeHtml}</td>
+            <td class="col-contrato"><span class="link-contrato" onclick="irParaControleEnvio('${contratoKey}')" title="Ver no Controle de Envio">${contratoDisplay || '-'}</span> ${cancelBadgeHtml}${enviadoBadgeHtml}</td>
             <td class="col-loja" title="${primeira.loja}">${primeira.loja}</td>
             <td class="col-representante"><span class="badge-rep ${repClass}">${primeira.representante}</span></td>
             <td class="col-produto-venda"><button class="btn-expand-contrato" onclick="toggleContratoExpandido('${contratoKey}')">${expandido ? '▾' : '▸'} ${linhasDoContrato} item(ns)</button></td>
@@ -12062,7 +12062,7 @@ function renderizarControleEnvio() {
     contratos = contratos.sort((a, b) => {
         const contratoA = parseInt(a.contrato) || 0;
         const contratoB = parseInt(b.contrato) || 0;
-        return contratoA - contratoB;
+        return contratoB - contratoA;
     });
 
     tbody.innerHTML = '';
@@ -12125,7 +12125,7 @@ function renderizarControleEnvio() {
         tr.innerHTML = `
             <td class="col-contrato">
                 <div class="ctr-cell">
-                    <span style="font-weight:700">${contrato.contrato}</span>
+                    <span class="link-contrato" onclick="irParaRegistroVendas('${contrato.contrato}')" title="Ver no Registro de Vendas" style="font-weight:700">${contrato.contrato}</span>
                     <span class="ctr-progress" style="background:${progressCor}22;border-color:${progressCor};color:${progressCor}">${qtdConcluidos}/3</span>
                 </div>
             </td>
@@ -12143,6 +12143,22 @@ function renderizarControleEnvio() {
         `;
         tbody.appendChild(tr);
     });
+}
+
+function irParaControleEnvio(contratoKey) {
+    trocarAba('controleenvio');
+    setTimeout(() => {
+        const filtro = document.getElementById('filtroControleEnvioBusca');
+        if (filtro) { filtro.value = contratoKey; filtro.dispatchEvent(new Event('input')); }
+    }, 100);
+}
+
+function irParaRegistroVendas(contrato) {
+    trocarAba('vendas');
+    setTimeout(() => {
+        const filtro = document.getElementById('filtroVendasBusca');
+        if (filtro) { filtro.value = contrato; filtro.dispatchEvent(new Event('input')); }
+    }, 100);
 }
 
 function salvarControleEnvio(contrato, campo, valor) {

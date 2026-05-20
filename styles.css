@@ -2184,6 +2184,16 @@ tr.total-row:hover {
     color: var(--primary-color);
 }
 
+.link-contrato {
+    cursor: pointer;
+    text-decoration: underline dotted;
+    text-underline-offset: 3px;
+}
+.link-contrato:hover {
+    text-decoration: underline;
+    opacity: 0.8;
+}
+
 .tabela-vendas td.col-valor-un,
 .tabela-vendas td.col-valor-total {
     text-align: right;
