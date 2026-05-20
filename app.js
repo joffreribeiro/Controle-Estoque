@@ -5381,6 +5381,114 @@ function imprimirConfiguracoes() {
 // CONTROLE IMBEL (separado) - storage chave: 'estoqueImbelV1'
 // ================================
 const IMBEL_KEY = 'estoqueImbelV1';
+const IMBEL_AUDITORIA_KEY = 'estoqueImbelAuditoriaV1';
+
+function registrarAuditoriaImbel(acao, entidade, objAntes, objDepois, detalhes = '') {
+    let lista = [];
+    try { lista = JSON.parse(localStorage.getItem(IMBEL_AUDITORIA_KEY) || '[]'); } catch(e) {}
+    lista.push({
+        id: Date.now() + Math.floor(Math.random() * 1000),
+        quando: new Date().toISOString(),
+        quem: getUsuarioAtual(),
+        acao,        // 'criacao' | 'edicao' | 'exclusao'
+        entidade,    // 'produto' | 'movimentacao'
+        entityId: (objDepois || objAntes || {}).id || null,
+        antes: objAntes || null,
+        depois: objDepois || null,
+        detalhes
+    });
+    if (lista.length > 1000) lista = lista.slice(-1000);
+    try { localStorage.setItem(IMBEL_AUDITORIA_KEY, JSON.stringify(lista)); } catch(e) {}
+}
+
+function renderControleImbelAuditoria() {
+    const tbody = document.getElementById('imbelAuditoriaTbody');
+    const countEl = document.getElementById('imbelAuditoriaCount');
+    if (!tbody) return;
+
+    let lista = [];
+    try { lista = JSON.parse(localStorage.getItem(IMBEL_AUDITORIA_KEY) || '[]'); } catch(e) {}
+
+    const busca = (document.getElementById('imbelAuditoriaBusca')?.value || '').toLowerCase();
+    const filtroAcao = document.getElementById('imbelAuditoriaFiltroAcao')?.value || '';
+    const filtroEntidade = document.getElementById('imbelAuditoriaFiltroEntidade')?.value || '';
+
+    const filtrada = lista.slice().reverse().filter(a => {
+        if (filtroAcao && a.acao !== filtroAcao) return false;
+        if (filtroEntidade && a.entidade !== filtroEntidade) return false;
+        if (busca) {
+            const dep = a.depois || a.antes || {};
+            return (a.quem || '').toLowerCase().includes(busca) ||
+                   (a.acao || '').toLowerCase().includes(busca) ||
+                   (a.detalhes || '').toLowerCase().includes(busca) ||
+                   (dep.nome || '').toLowerCase().includes(busca) ||
+                   (dep.destinatario || '').toLowerCase().includes(busca) ||
+                   String(a.entityId || '').toLowerCase().includes(busca);
+        }
+        return true;
+    });
+
+    const acaoCfg = {
+        criacao:  { bg: '#f0fdf4', text: '#16a34a', icon: '➕', label: 'CRIAÇÃO' },
+        edicao:   { bg: '#eff6ff', text: '#1d4ed8', icon: '✏️', label: 'EDIÇÃO' },
+        exclusao: { bg: '#fef2f2', text: '#dc2626', icon: '🗑️', label: 'EXCLUSÃO' }
+    };
+
+    if (!filtrada.length) {
+        tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;color:#94a3b8;padding:40px">Nenhum registro encontrado</td></tr>`;
+        if (countEl) countEl.textContent = '0 registros';
+        return;
+    }
+
+    tbody.innerHTML = filtrada.map((a, i) => {
+        const dt = a.quando ? new Date(a.quando).toLocaleString('pt-BR') : '—';
+        const ac = acaoCfg[a.acao] || { bg: '#f8fafc', text: '#475569', icon: '📝', label: (a.acao || '').toUpperCase() };
+        const entidadeLabel = a.entidade === 'produto' ? '📦 Produto' : a.entidade === 'movimentacao' ? '🔄 Movimentação' : a.entidade || '—';
+
+        // Montar resumo de detalhes comparando antes x depois
+        let delta = a.detalhes || '';
+        if (a.antes && a.depois) {
+            const campos = a.entidade === 'produto'
+                ? ['nome', 'codigo', 'quantidadeInicial', 'valorUnitario']
+                : ['tipo', 'data', 'destinatario', 'quantidade', 'valor'];
+            const diffs = campos.filter(c => JSON.stringify(a.antes[c]) !== JSON.stringify(a.depois[c]))
+                                .map(c => `${c}: ${a.antes[c]} → ${a.depois[c]}`);
+            if (diffs.length) delta = diffs.join(' | ');
+        }
+
+        return `<tr style="background:${i % 2 === 0 ? '#fff' : '#f8fafc'};border-bottom:1px solid #f1f5f9">
+            <td style="font-size:0.78rem;color:#475569;white-space:nowrap">${dt}</td>
+            <td style="font-size:0.8rem;font-weight:500;color:#1e293b">${a.quem || 'Sistema'}</td>
+            <td><span style="background:${ac.bg};color:${ac.text};font-size:0.72rem;font-weight:600;padding:2px 8px;border-radius:20px;white-space:nowrap">${ac.icon} ${ac.label}</span></td>
+            <td style="font-size:0.8rem;color:#475569">${entidadeLabel}</td>
+            <td style="font-size:0.78rem;color:#64748b;max-width:320px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${delta}">${delta || '—'}</td>
+        </tr>`;
+    }).join('');
+
+    if (countEl) countEl.textContent = `${filtrada.length} de ${lista.length} registros`;
+}
+
+function exportarAuditoriaImbel() {
+    let lista = [];
+    try { lista = JSON.parse(localStorage.getItem(IMBEL_AUDITORIA_KEY) || '[]'); } catch(e) {}
+    if (!lista.length) { mostrarNotificacao('Nenhum registro para exportar.', 'warning'); return; }
+
+    const sep = ';';
+    let csv = `Data/Hora${sep}Usuário${sep}Ação${sep}Entidade${sep}ID${sep}Detalhes\n`;
+    lista.slice().reverse().forEach(a => {
+        const dt = a.quando ? new Date(a.quando).toLocaleString('pt-BR') : '';
+        csv += `${dt}${sep}${a.quem || ''}${sep}${a.acao || ''}${sep}${a.entidade || ''}${sep}${a.entityId || ''}${sep}${(a.detalhes || '').replace(/;/g, ',')}\n`;
+    });
+    const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `auditoria_imbel_${new Date().toISOString().slice(0,10)}.csv`;
+    link.style.display = 'none';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    mostrarNotificacao('Auditoria IMBEL exportada!', 'success');
+}
 
 // Tenta migrar dados IMBEL caso exista alguma chave antiga no localStorage
 function migrateImbelStorage() {
@@ -5721,6 +5829,7 @@ function trocarSubAbaControleImbel(sub) {
     else if (sub === 'movimentacao') renderControleImbelMovimentacao();
     else if (sub === 'dashboard') renderControleImbelDashboard();
     else if (sub === 'precos') renderControleImbelPrecos();
+    else if (sub === 'auditoria') renderControleImbelAuditoria();
 }
 
 // ========== MODAL FUNCTIONS ==========
@@ -6687,12 +6796,14 @@ function renderControleImbelCadastro() {
         if (editId) {
             const prod = data.produtos.find(p => p.id === editId);
             if (prod) {
+                const prodAntes = JSON.parse(JSON.stringify(prod));
                 prod.nome = nome;
                 prod.codigo = codigo;
                 prod.observacao = observacao;
                 prod.quantidadeInicial = quantidadeInicial;
                 prod.valorUnitario = valorUnitario;
                 prod.pontoReposicao = pontoReposicao;
+                registrarAuditoriaImbel('edicao', 'produto', prodAntes, JSON.parse(JSON.stringify(prod)), `Produto ${nome} editado`);
                 saveImbel(data);
                 // reset edit state
                 editIdField.value = '';
@@ -6705,6 +6816,7 @@ function renderControleImbelCadastro() {
         }
         const novo = { id: 'p' + Date.now(), nome, codigo, observacao, quantidadeInicial, valorUnitario, pontoReposicao };
         data.produtos.push(novo);
+        registrarAuditoriaImbel('criacao', 'produto', null, JSON.parse(JSON.stringify(novo)), `Produto ${nome} criado`);
         saveImbel(data);
         closeImbelProdModal();
         renderControleImbelCadastro();
@@ -6713,9 +6825,11 @@ function renderControleImbelCadastro() {
     tbody.querySelectorAll('button[data-id]').forEach(b => b.onclick = function(){
         const id = this.getAttribute('data-id');
         if (!confirm('Remover produto?')) return;
+        const prodRemovido = (data.produtos||[]).find(p => p.id === id);
         data.produtos = (data.produtos||[]).filter(p => p.id !== id);
         // também remover movimentações relacionadas
         data.movimentacoes = (data.movimentacoes||[]).filter(m => m.produtoId !== id);
+        if (prodRemovido) registrarAuditoriaImbel('exclusao', 'produto', JSON.parse(JSON.stringify(prodRemovido)), null, `Produto ${prodRemovido.nome} excluído`);
         saveImbel(data);
         renderControleImbelCadastro();
     });
@@ -7195,7 +7309,9 @@ function renderControleImbelMovimentacao() {
                     btn.onclick = function(){
                         const id = this.getAttribute('data-delid');
                         if (!confirm('Excluir esta movimentação?')) return;
+                        const movRemovida = (data.movimentacoes||[]).find(m => m.id === id);
                         data.movimentacoes = (data.movimentacoes||[]).filter(m => m.id !== id);
+                        if (movRemovida) registrarAuditoriaImbel('exclusao', 'movimentacao', JSON.parse(JSON.stringify(movRemovida)), null, `Movimentação ${movRemovida.tipoLabel || movRemovida.tipo} de ${movRemovida.destinatario || ''} excluída`);
                         saveImbel(data);
                         mostrarNotificacao('Movimentação excluída.', 'success');
                         populateTbody();
@@ -7451,6 +7567,7 @@ function renderControleImbelMovimentacao() {
         if (editId) {
             const mov = data.movimentacoes.find(m => m.id === editId);
             if (mov) {
+                const movAntes = JSON.parse(JSON.stringify(mov));
                 // sempre gravar itens (novo formato). Para compatibilidade, manter produtoId/quantidade/valor agregados
                 mov.items = items;
                 mov.produtoId = (items && items.length) ? items[0].produtoId : (mov.produtoId||'');
@@ -7473,6 +7590,7 @@ function renderControleImbelMovimentacao() {
                 mov.email = (email||'').toUpperCase();
                 // preserve existing pagamento/entregue/fi values (these are edited via table checkboxes)
                 mov.observacoes = (obs||'').toUpperCase();
+                registrarAuditoriaImbel('edicao', 'movimentacao', movAntes, JSON.parse(JSON.stringify(mov)), `Movimentação ${mov.tipoLabel || mov.tipo} de ${mov.destinatario || ''} editada`);
                 saveImbel(data);
                 mostrarNotificacao('Movimentação atualizada!', 'success');
                 // reset edit state
@@ -7502,6 +7620,7 @@ function renderControleImbelMovimentacao() {
         novo.quantidade = totalQuantidade;
         novo.valor = totalValor;
         data.movimentacoes.push(novo);
+        registrarAuditoriaImbel('criacao', 'movimentacao', null, JSON.parse(JSON.stringify(novo)), `Movimentação ${novo.tipoLabel || novo.tipo} de ${novo.destinatario || ''} criada`);
         saveImbel(data);
         mostrarNotificacao('Movimentação registrada!', 'success');
         closeImbelMovModal();

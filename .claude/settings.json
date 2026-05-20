@@ -12,7 +12,8 @@
       "Bash(git push *)",
       "Bash(dir /s /b *.py *.js *.ts)",
       "Bash(findstr /v node_modules)",
-      "Bash(findstr /c:\".table-container\" *.html)"
+      "Bash(findstr /c:\".table-container\" *.html)",
+      "Bash(findstr /n \"imbel_prod_salvar\" app.js)"
     ],
     "additionalDirectories": [
       "\\tmp"

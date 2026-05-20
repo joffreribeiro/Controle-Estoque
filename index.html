@@ -1961,6 +1961,7 @@
                 <button class="precif-subtab-btn" data-imbeltab="movimentacao" onclick="trocarSubAbaControleImbel('movimentacao')">🔄 Movimentação</button>
                 <button class="precif-subtab-btn" data-imbeltab="precos" onclick="trocarSubAbaControleImbel('precos')">💰 Tabela de Preços</button>
                 <button class="precif-subtab-btn" data-imbeltab="cadastro" onclick="trocarSubAbaControleImbel('cadastro')">📋 Cadastro</button>
+                <button class="precif-subtab-btn" data-imbeltab="auditoria" onclick="trocarSubAbaControleImbel('auditoria')">🔍 Auditoria</button>
             </div>
 
             <div class="content-area">
@@ -2023,6 +2024,50 @@
                         </div>
                     </div>
                     <div id="controleImbelCadastroContainer"></div>
+                </div>
+
+                <!-- Sub-aba: Auditoria IMBEL -->
+                <div id="controleImbel-auditoria" class="controleimbel-subtab" style="display:none">
+                    <div class="section-header">
+                        <h2 class="section-title">Auditoria IMBEL</h2>
+                        <div class="header-actions">
+                            <input type="text" id="imbelAuditoriaBusca" placeholder="Buscar por ID, usuário, produto..." oninput="renderControleImbelAuditoria()"
+                                   style="padding:7px 12px;border:1px solid #e2e8f0;border-radius:8px;font-size:0.8rem;width:220px;background:#f8fafc">
+                            <select id="imbelAuditoriaFiltroAcao" onchange="renderControleImbelAuditoria()"
+                                    style="padding:7px 12px;border:1px solid #e2e8f0;border-radius:8px;font-size:0.8rem;background:#f8fafc">
+                                <option value="">Todas as ações</option>
+                                <option value="criacao">Criação</option>
+                                <option value="edicao">Edição</option>
+                                <option value="exclusao">Exclusão</option>
+                            </select>
+                            <select id="imbelAuditoriaFiltroEntidade" onchange="renderControleImbelAuditoria()"
+                                    style="padding:7px 12px;border:1px solid #e2e8f0;border-radius:8px;font-size:0.8rem;background:#f8fafc">
+                                <option value="">Produtos e Movimentações</option>
+                                <option value="produto">Somente Produtos</option>
+                                <option value="movimentacao">Somente Movimentações</option>
+                            </select>
+                            <button class="btn btn-outline btn-sm" onclick="exportarAuditoriaImbel()">
+                                <span class="btn-icon">📤</span> Exportar
+                            </button>
+                        </div>
+                    </div>
+                    <div style="max-height:520px;overflow-y:auto">
+                        <table class="dashboard-table" style="font-size:0.82rem">
+                            <thead style="position:sticky;top:0;z-index:1">
+                                <tr>
+                                    <th style="min-width:150px">Data / Hora</th>
+                                    <th style="min-width:110px">Usuário</th>
+                                    <th style="min-width:120px">Ação</th>
+                                    <th style="min-width:100px">Entidade</th>
+                                    <th>Detalhes</th>
+                                </tr>
+                            </thead>
+                            <tbody id="imbelAuditoriaTbody">
+                                <tr><td colspan="5" style="text-align:center;color:#94a3b8;padding:30px">Carregando auditoria...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div id="imbelAuditoriaCount" style="font-size:0.75rem;color:#94a3b8;padding:8px 20px;text-align:right;border-top:1px solid #f1f5f9"></div>
                 </div>
             </div>
         </div>
