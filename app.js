@@ -9902,24 +9902,101 @@ function abrirHistoricoContrato(contratoInformado = '') {
     const contrato = (contratoInformado || prompt('Informe o contrato para visualizar o histórico:') || '').trim();
     if (!contrato) return;
 
-    const lista = obterAuditoriaPorContrato(contrato);
-    const container = document.getElementById('historicoConteudo');
-    if (!container) return;
+    const contratoKey = normalizarContratoKey(contrato);
 
-    if (lista.length === 0) {
-        container.innerHTML = `<p style="text-align:center;color:var(--text-secondary);padding:20px">Nenhum histórico encontrado para o contrato ${contrato}.</p>`;
-    } else {
-        container.innerHTML = lista.map(h => {
-            const dt = h.quando ? new Date(h.quando).toLocaleString('pt-BR') : '-';
-            const quem = h.quem || 'Usuário';
-            const acao = (h.acao || '-').toUpperCase();
-            const desc = h.detalhes || '-';
-            return `<div class="historico-item">
-                <span class="hist-data">${dt}<br><small>${quem}</small></span>
-                <span class="hist-tipo venda">${acao}</span>
-                <span class="hist-descricao">${desc}</span>
-            </div>`;
+    // --- Dados da venda ---
+    const vendasContrato = (estoque.registroVendas || []).filter(v => normalizarContratoKey(v.contrato) === contratoKey);
+    const primeira = vendasContrato[0] || {};
+    const contratoCancelado = vendasContrato.length > 0 && vendasContrato.every(v => !!v.cancelado);
+
+    // --- Título ---
+    const tituloEl = document.getElementById('modalHistoricoTitulo');
+    if (tituloEl) {
+        const contratoDisplay = primeira.contrato || contrato;
+        tituloEl.innerHTML = `Contrato ${contratoDisplay}${contratoCancelado ? ' <span class="badge-cancelado">CANCELADO</span>' : ''}`;
+    }
+
+    // --- Resumo ---
+    const resumoEl = document.getElementById('historicoResumo');
+    if (resumoEl) {
+        if (primeira.contrato) {
+            const totalQtd = vendasContrato.reduce((s, v) => s + (Array.isArray(v.items) ? v.items.reduce((si, it) => si + (it.quantidade || 0), 0) : (v.quantidade || 0)), 0);
+            const totalVal = vendasContrato.reduce((s, v) => s + (v.valorTotal || (Array.isArray(v.items) ? v.items.reduce((si, it) => si + (it.valorTotal || 0), 0) : 0)), 0);
+            const dataStr = primeira.data ? new Date(primeira.data).toLocaleDateString('pt-BR') : '-';
+            const repClass = (primeira.representante || '').toLowerCase();
+            resumoEl.innerHTML = `
+                <div><span style="color:var(--text-secondary);font-size:0.78rem">LOJA</span><br><strong>${primeira.loja || '-'}</strong></div>
+                <div><span style="color:var(--text-secondary);font-size:0.78rem">REPRESENTANTE</span><br><span class="badge-rep ${repClass}">${primeira.representante || '-'}</span></div>
+                <div><span style="color:var(--text-secondary);font-size:0.78rem">DATA</span><br><strong>${dataStr}</strong></div>
+                <div><span style="color:var(--text-secondary);font-size:0.78rem">QTD TOTAL</span><br><strong>${totalQtd}</strong></div>
+                <div><span style="color:var(--text-secondary);font-size:0.78rem">VALOR TOTAL</span><br><strong>${formatarMoedaValor(totalVal)}</strong></div>
+                ${primeira.observacoes ? `<div><span style="color:var(--text-secondary);font-size:0.78rem">OBS</span><br>${primeira.observacoes}</div>` : ''}
+            `;
+        } else {
+            resumoEl.innerHTML = `<span style="color:var(--text-secondary)">Nenhuma venda ativa encontrada para este contrato.</span>`;
+        }
+    }
+
+    // --- Status de envio ---
+    const envioEl = document.getElementById('historicoEnvio');
+    if (envioEl) {
+        const envioData = (estoque.controleEnvio || {})[primeira.contrato] || (estoque.controleEnvio || {})[contratoKey] || {};
+        const checks = [
+            { label: 'Sistema', campo: 'sistema' },
+            { label: 'Assinado', campo: 'assinado' },
+            { label: 'Enviado', campo: 'enviado' }
+        ];
+        const statusHtml = checks.map(c => {
+            const ok = campoMarcado(envioData[c.campo]);
+            return `<span style="display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;font-size:0.8rem;font-weight:600;background:${ok ? '#f0fdf4' : '#f8fafc'};border:1px solid ${ok ? '#86efac' : '#e2e8f0'};color:${ok ? '#16a34a' : '#94a3b8'}">
+                ${ok ? '✓' : '○'} ${c.label}
+            </span>`;
         }).join('');
+        const solicitacao = envioData.solicitacao ? `<span style="font-size:0.8rem;color:var(--text-secondary);margin-left:8px">📅 ${envioData.solicitacao}</span>` : '';
+        envioEl.innerHTML = `<span style="font-size:0.78rem;color:var(--text-secondary);margin-right:4px">ENVIO:</span>${statusHtml}${solicitacao}`;
+    }
+
+    // --- Itens da venda ---
+    const itensEl = document.getElementById('historicoItens');
+    if (itensEl) {
+        const todosItens = [];
+        vendasContrato.forEach(v => {
+            if (Array.isArray(v.items) && v.items.length) {
+                v.items.forEach(it => todosItens.push({ nome: it.produtoNome || it.produto || '-', qtd: it.quantidade || 0, valor: it.valorTotal || ((it.valorUnitario || 0) * (it.quantidade || 0)) }));
+            } else if (v.produtoNome) {
+                todosItens.push({ nome: v.produtoNome, qtd: v.quantidade || 0, valor: v.valorTotal || 0 });
+            }
+        });
+        if (todosItens.length) {
+            itensEl.innerHTML = `<p style="font-size:0.78rem;color:var(--text-secondary);margin:0 0 6px">ITENS</p>` +
+                todosItens.map(it => `<div style="display:flex;justify-content:space-between;font-size:0.83rem;padding:3px 0;border-bottom:1px solid var(--border-color)">
+                    <span>${it.nome}</span>
+                    <span style="color:var(--text-secondary)">${it.qtd} × ${formatarMoedaValor(it.valor / (it.qtd || 1))} = <strong>${formatarMoedaValor(it.valor)}</strong></span>
+                </div>`).join('');
+        } else {
+            itensEl.innerHTML = '';
+        }
+    }
+
+    // --- Auditoria ---
+    const auditoriaEl = document.getElementById('historicoConteudo');
+    if (auditoriaEl) {
+        const lista = obterAuditoriaPorContrato(contratoKey);
+        if (lista.length === 0) {
+            auditoriaEl.innerHTML = `<p style="text-align:center;color:var(--text-secondary);padding:12px;font-size:0.82rem">Nenhum histórico de auditoria para este contrato.</p>`;
+        } else {
+            auditoriaEl.innerHTML = `<p style="font-size:0.78rem;color:var(--text-secondary);margin:0 0 6px">HISTÓRICO DE ALTERAÇÕES</p>` +
+                lista.map(h => {
+                    const dt = h.quando ? new Date(h.quando).toLocaleString('pt-BR') : '-';
+                    const acao = (h.acao || '-').toUpperCase();
+                    const desc = h.detalhes || '-';
+                    return `<div class="historico-item">
+                        <span class="hist-data">${dt}<br><small>${h.quem || 'Usuário'}</small></span>
+                        <span class="hist-tipo venda">${acao}</span>
+                        <span class="hist-descricao">${desc}</span>
+                    </div>`;
+                }).join('');
+        }
     }
 
     document.getElementById('modalHistorico').style.display = 'flex';
@@ -11166,6 +11243,14 @@ function salvarProduto(event) {
             return;
         }
 
+        // Alerta de PN duplicado (não bloqueia, apenas avisa)
+        if (pn) {
+            const pnExistente = estoque.produtos.find(p => p.pn && p.pn.trim().toUpperCase() === pn.toUpperCase() && p.id !== produtoEditandoId);
+            if (pnExistente) {
+                mostrarNotificacao(`Atenção: PN "${pn}" já está cadastrado no produto "${pnExistente.nome}". Verifique se não é duplicata.`, 'warning');
+            }
+        }
+
         const produto = estoque.produtos[idx];
         const nomeAnterior = produto.nome;
         produto.nome = nome;
@@ -11240,6 +11325,14 @@ function salvarProduto(event) {
     })) {
         mostrarNotificacao('Este produto já existe no sistema!', 'error');
         return;
+    }
+
+    // Alerta de PN duplicado (não bloqueia, apenas avisa)
+    if (pn) {
+        const pnExistente = estoque.produtos.find(p => p.pn && p.pn.trim().toUpperCase() === pn.toUpperCase());
+        if (pnExistente) {
+            mostrarNotificacao(`Atenção: PN "${pn}" já está cadastrado no produto "${pnExistente.nome}". Verifique se não é duplicata.`, 'warning');
+        }
     }
 
     const novoProduto = {

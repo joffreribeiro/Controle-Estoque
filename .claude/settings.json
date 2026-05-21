@@ -13,7 +13,9 @@
       "Bash(dir /s /b *.py *.js *.ts)",
       "Bash(findstr /v node_modules)",
       "Bash(findstr /c:\".table-container\" *.html)",
-      "Bash(findstr /n \"imbel_prod_salvar\" app.js)"
+      "Bash(findstr /n \"imbel_prod_salvar\" app.js)",
+      "Bash(Get-ChildItem -Path \"e:\\\\MEUS DOCUMENTOS\\\\OneDrive\\\\Documentos\\\\Sistemas\\\\Estoque\\\\Controle-Estoque\" -Recurse -File)",
+      "Bash(Select-Object -ExpandProperty FullName)"
     ],
     "additionalDirectories": [
       "\\tmp"
