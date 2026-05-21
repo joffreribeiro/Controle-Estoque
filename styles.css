@@ -289,18 +289,6 @@ header .header-content { padding: 10px 20px; }
 #loggedAccountBadge { background: var(--accent-color); color: #fff; box-shadow: var(--shadow-xs); }
 .badge-rep.imbel { background: rgba(30,58,95,0.12); color: var(--primary-color); }
 
-/* Badge de alerta no menu lateral (ex: precificações expirando) */
-.nav-badge-alert {
-    background: #dc2626;
-    color: #fff;
-    border-radius: 10px;
-    padding: 1px 6px;
-    font-size: 0.68rem;
-    font-weight: 700;
-    margin-left: 6px;
-    vertical-align: middle;
-    display: inline-block;
-}
 
 /* Badge para vendas/contratos cancelados */
 .badge-cancelado {

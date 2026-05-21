@@ -1796,7 +1796,6 @@ function carregarDados() {
         }
         estoque.precificacoesCliente = precificacoesCliente;
         try { atualizarIndicadoresPrecificacao(); } catch (e) {}
-        try { atualizarBadgePrecificacao(); } catch (e) {}
         tabelaAliquotas = (estoque.tabelaAliquotas && typeof estoque.tabelaAliquotas === 'object')
             ? estoque.tabelaAliquotas
             : {};
@@ -2100,7 +2099,6 @@ async function carregarDoCloud({confirmOverwrite=true} = {}) {
         estoque.precificacoesCliente = normalizarPrecificacoesCliente(precifsCloudFinal);
         precificacoesCliente = estoque.precificacoesCliente;
         try { atualizarIndicadoresPrecificacao(); } catch (e) {}
-        try { atualizarBadgePrecificacao(); } catch (e) {}
         try { localStorage.setItem('precificacoesClienteBackupV1', JSON.stringify(precificacoesCliente || [])); } catch (e) {}
         if (!Array.isArray(estoque.auditoriaVendas)) estoque.auditoriaVendas = [];
         if (!Array.isArray(estoque.fechamentosComissoes)) estoque.fechamentosComissoes = [];
@@ -2225,7 +2223,6 @@ async function carregarDoCloudAuto() {
             );
             precificacoesCliente = estoque.precificacoesCliente; // sincroniza variável global
             try { atualizarIndicadoresPrecificacao(); } catch (e) {}
-        try { atualizarBadgePrecificacao(); } catch (e) {}
             try { localStorage.setItem('precificacoesClienteBackupV1', JSON.stringify(precificacoesCliente || [])); } catch (e) {}
             if (!Array.isArray(estoque.auditoriaVendas)) estoque.auditoriaVendas = [];
             if (!Array.isArray(estoque.fechamentosComissoes)) estoque.fechamentosComissoes = [];
@@ -8427,7 +8424,6 @@ function renderizarAlertasDashboard() {
         if (!completo) enviosPendentes++;
     });
 
-    atualizarBadgePrecificacao(expiradas + expirando);
 
     const totalProblemas = expiradas + expirando + enviosPendentes;
 
@@ -8475,35 +8471,6 @@ function renderizarAlertasDashboard() {
     el.innerHTML = `<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:4px">${cards.join('')}</div>`;
 }
 
-function atualizarBadgePrecificacao(count) {
-    try {
-        if (count === undefined) {
-            const hoje = new Date(); hoje.setHours(0,0,0,0);
-            const em7Dias = new Date(hoje.getTime() + 7 * 86400000);
-            const precifs = Array.isArray(precificacoesCliente) ? precificacoesCliente : [];
-            count = precifs.filter(p => {
-                if (!p.dataExpiracao) return false;
-                const exp = new Date(p.dataExpiracao);
-                return exp < em7Dias;
-            }).length;
-        }
-        const navBtn = document.querySelector('.nav-item[data-tab="precificacao"]');
-        if (!navBtn) return;
-        let badge = document.getElementById('badgePrecifExpirando');
-        if (!badge) {
-            badge = document.createElement('span');
-            badge.id = 'badgePrecifExpirando';
-            badge.className = 'nav-badge nav-badge-alert';
-            navBtn.appendChild(badge);
-        }
-        if (count > 0) {
-            badge.textContent = String(count);
-            badge.style.display = 'inline-block';
-        } else {
-            badge.style.display = 'none';
-        }
-    } catch (e) {}
-}
 
 // ========================================
 // FORMATAÇÃO
@@ -18245,8 +18212,6 @@ function salvarPrecificacaoCliente() {
         estoque.precificacoesCliente = precificacoesCliente;
         salvarDados();
         try { atualizarIndicadoresPrecificacao(); } catch (e) {}
-        try { atualizarBadgePrecificacao(); } catch (e) {}
-        try { atualizarBadgePrecificacao(); } catch (e) {}
         const infoEl = document.getElementById('precifSalvoInfo');
         if (infoEl) infoEl.innerHTML = `<span style="color:#16a34a; font-size:0.82rem">✅ Precificação salva v${registro.versao} em ${new Date(registro.dataCriacao).toLocaleString('pt-BR')}</span> <button onclick="carregarVersaoPrecif('${registro.id}')" class="btn btn-outline btn-sm" style="margin-left:8px">↩ Carregar versão</button> <button onclick="renderizarHistoricoPrecif('${cId}')" class="btn btn-outline btn-sm" style="margin-left:8px">🕘 Histórico</button>`;
         mostrarNotificacao('Precificação salva para o cliente.', 'success');
