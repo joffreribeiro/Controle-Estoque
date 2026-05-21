@@ -17970,7 +17970,14 @@ function calcularPrecificacaoPorCliente(opcoes = {}) {
     const cnpjLimpo = (cliente.cnpj || '').replace(/\D/g,'');
     const tipoPessoa = cliente.tipoPessoa || (cnpjLimpo.length === 14 ? 'PJ' : 'PF');
 
-    try { document.getElementById('precifClienteUF').value = uf || '—'; } catch (e) {}
+    try {
+        const ufEl = document.getElementById('precifClienteUF');
+        if (ufEl) {
+            ufEl.value = uf || '—';
+            ufEl.style.color = uf ? '' : '#dc2626';
+            ufEl.title = uf ? '' : 'UF não cadastrada — ICMS será 0%. Edite o cliente e preencha o estado.';
+        }
+    } catch (e) {}
     try { document.getElementById('precifClienteTipo').value = tipoPessoa; } catch (e) {}
     // pré-selecionar representante se cadastro do cliente tiver
     try { const repSel = document.getElementById('precifRepresentanteSelect'); if (repSel) repSel.value = cliente.representante || ''; } catch (e) {}
