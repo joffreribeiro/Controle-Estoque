@@ -16548,7 +16548,7 @@ function renderizarTabelaCI() {
     if (contador) contador.textContent = `${produtosFiltrados.length} produto(s)`;
 
     if (!produtosFiltrados.length) {
-        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#94a3b8;padding:20px">Nenhum produto encontrado</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:#94a3b8;padding:20px">Nenhum produto encontrado</td></tr>';
         return;
     }
 
@@ -16572,14 +16572,6 @@ function renderizarTabelaCI() {
         return `<tr>
             <td style="text-align:left;font-weight:600;padding-left:15px">${_escapeHtml(produto.nome)}</td>
             <td style="text-align:center">${ciText}</td>
-            <td style="text-align:center">
-                <input type="number" step="0.1" min="0" max="100"
-                       value="${precificacao[produto.nome]?.descontoMaximo ?? ''}"
-                       placeholder="—"
-                       onchange="salvarDescontoMaximo('${_escapeJsString(produto.nome)}', this.value)"
-                       style="width:80px; border:1px solid #e2e8f0; border-radius:6px; padding:5px 8px; text-align:center; font-size:0.85rem">
-                <span style="font-size:0.75rem; color:#94a3b8">%</span>
-            </td>
             <td style="text-align:center;color:#64748b;font-size:0.88rem">${ultimaData}</td>
             <td style="text-align:center;color:#64748b">${qtdRegistros}</td>
             <td style="text-align:center">${histBtn}</td>
