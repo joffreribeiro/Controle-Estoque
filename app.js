@@ -3328,15 +3328,10 @@ function renderizarCadastroProdutos() {
             tr.style.cssText = 'background:#f8fafc;display:none';
             tr.dataset.pecaFilha = produto.componente.trim();
         }
+        const ncmCodigo = ncm && ncm !== '-' ? ncm.split(/\s*[–\-]\s*/)[0].trim() : '-';
+        const ncmDescricao = ncm && ncm !== '-' ? ncm : '';
         tr.innerHTML = `
-            <td>
-                <div style="display:flex;gap:6px;align-items:center${isPeca ? ';padding-left:24px' : ''}">
-                    <select onchange="salvarNCMProduto(${Number(produto.id)}, this.value)" style="width:240px;padding:6px;border:1px solid #e2e8f0;border-radius:6px;font-family:monospace">
-                        ${gerarOptionsNCM(ncm)}
-                    </select>
-                    <button class="btn btn-outline btn-sm" title="Detectar NCM" onclick="detectarNCMVincular(${Number(produto.id)})">🔍</button>
-                </div>
-            </td>
+            <td style="font-family:monospace;font-size:0.85rem;white-space:nowrap" title="${_escapeHtml(ncmDescricao)}">${_escapeHtml(ncmCodigo)}</td>
             <td>${categoriaBadge}</td>
             <td style="font-family:monospace;${isPeca ? 'color:#64748b;font-size:0.85rem' : ''}">${_escapeHtml(pn)}<span id="${expandSlotId}"></span></td>
             <td>${_escapeHtml(nomeFabrica)}</td>
@@ -3348,8 +3343,8 @@ function renderizarCadastroProdutos() {
             <td>${atualizadoTxt}</td>
             <td style="text-align:center">${noEstoqueBadge}</td>
             <td style="white-space:nowrap">
-                <button class="btn btn-outline btn-sm" data-admin="true" onclick="abrirModalEditarProduto(${Number(produto.id)})">Editar</button>
-                <button class="btn btn-outline btn-sm" style="color:#dc2626;border-color:#fca5a5;margin-left:4px" data-admin="true" onclick="excluirProduto(${Number(produto.id)})">Excluir</button>
+                <button class="btn-action btn-edit" data-admin="true" onclick="abrirModalEditarProduto(${Number(produto.id)})" title="Editar">✎</button>
+                <button class="btn-action btn-delete" data-admin="true" onclick="excluirProduto(${Number(produto.id)})" title="Excluir">🗑</button>
             </td>
         `;
         tr.addEventListener('click', e => {
@@ -9745,9 +9740,7 @@ function renderizarRegistroVendas() {
         const contratoCancelado = vendasDoContrato.length > 0 && vendasDoContrato.every(v => !!v.cancelado);
         const cancelBadgeHtml = contratoCancelado ? '<span class="badge-cancelado">CANCELADO</span>' : '';
 
-        const seteDiasAtras = new Date(Date.now() - 7*24*60*60*1000).toISOString().slice(0,10);
-        const isRecente = maxData && maxData >= seteDiasAtras;
-        const badgeNova = isRecente && !contratoCancelado ? ' <span class="badge-nova-venda">Nova</span>' : '';
+        const badgeNova = '';
 
         // Quando há filtro por produto ativo, expande automaticamente para mostrar os itens
         const expandido = filtroProdutoId ? true : !!_contratosExpandidos[contratoKey];
