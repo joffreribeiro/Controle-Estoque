@@ -15352,10 +15352,19 @@ function renderizarTabelaPrecoEstado() {
     if (!container) return;
 
     const tabela = getTabelaPrecoEstado();
-    const produtos = estoque.produtos || [];
+    const todosProds = (estoque.produtos || []).filter(p => p.nome);
     const historico = getHistoricoTabelasLojistas();
 
-    if (!produtos.length) {
+    // Separar principais e peças (mesmo critério da T.Venda)
+    const produtosPrincipais = todosProds.filter(p => !p.componente || p.componente.trim() === '' || p.componente.trim() === '-');
+    const pecasPorPaiLE = {};
+    todosProds.filter(p => p.componente && p.componente.trim() !== '' && p.componente.trim() !== '-').forEach(p => {
+        const pai = p.componente.trim().toUpperCase();
+        if (!pecasPorPaiLE[pai]) pecasPorPaiLE[pai] = [];
+        pecasPorPaiLE[pai].push(p);
+    });
+
+    if (!produtosPrincipais.length && !todosProds.length) {
         container.innerHTML = '<p style="color:#64748b;padding:20px">Nenhum produto cadastrado.</p>';
         return;
     }
@@ -15405,16 +15414,24 @@ function renderizarTabelaPrecoEstado() {
     });
     html += `</tr></thead><tbody>`;
 
-    produtos.forEach((prod, i) => {
-        const bg = i % 2 === 0 ? '#fff' : '#f8fafc';
-        html += `<tr style="background:${bg}">
-            <td style="padding:8px 14px;font-weight:600;color:#1e3a5f;border-bottom:1px solid #f1f5f9">${_escapeHtml(prod.nome)}</td>`;
+    function _renderLinhaLE(prod, isPeca, rowIdx) {
+        const bg = isPeca ? '#f8fafc' : (rowIdx % 2 === 0 ? '#fff' : '#f8fafc');
+        const pecasFilhas = !isPeca ? (pecasPorPaiLE[(prod.nome || '').toUpperCase()] || []) : [];
+        const temPecas = pecasFilhas.length > 0;
+        const idSlot = 'le-expand-' + Number(prod.id);
+
+        const nomeCell = isPeca
+            ? `<span style="padding-left:18px;color:#475569">↳ ${_escapeHtml(prod.nome)}</span>`
+            : `<span style="font-weight:600;color:#1e3a5f">${_escapeHtml(prod.nome)}</span>${temPecas ? `<span id="${idSlot}"></span>` : ''}`;
+
+        let row = `<tr${isPeca ? ` data-le-peca-filha="${_escapeHtml((prod.componente||'').trim())}" style="display:none;background:#f8fafc"` : ` style="background:${bg}"`}>
+            <td style="padding:8px 14px;border-bottom:1px solid #f1f5f9">${nomeCell}</td>`;
 
         GRUPOS_PRECO_ESTADO.forEach(g => {
             const chave = g.id;
             const val = (tabela[prod.id] && tabela[prod.id][chave] !== undefined) ? tabela[prod.id][chave] : '';
             const displayVal = val !== '' ? Number(val).toLocaleString('pt-BR', {minimumFractionDigits:2,maximumFractionDigits:2}) : '';
-            html += `<td style="padding:6px 10px;text-align:center;border-bottom:1px solid #f1f5f9">
+            row += `<td style="padding:6px 10px;text-align:center;border-bottom:1px solid #f1f5f9">
                 <div style="display:flex;align-items:center;justify-content:center;gap:4px">
                     <span style="font-size:0.75rem;color:#94a3b8">R$</span>
                     <input type="text" inputmode="decimal"
@@ -15428,11 +15445,53 @@ function renderizarTabelaPrecoEstado() {
                 </div>
             </td>`;
         });
-        html += `</tr>`;
+        row += `</tr>`;
+        return { row, temPecas, pecasFilhas, idSlot };
+    }
+
+    produtosPrincipais.forEach((prod, i) => {
+        const { row, temPecas, pecasFilhas } = _renderLinhaLE(prod, false, i);
+        html += row;
+        if (temPecas) {
+            pecasFilhas.forEach(peca => { html += _renderLinhaLE(peca, true, i).row; });
+        }
     });
 
     html += `</tbody></table></div>`;
     container.innerHTML = html;
+
+    // Injetar botões expand após HTML estar no DOM
+    produtosPrincipais.forEach((prod, i) => {
+        const filhas = pecasPorPaiLE[(prod.nome || '').toUpperCase()] || [];
+        if (!filhas.length) return;
+        const slot = document.getElementById('le-expand-' + Number(prod.id));
+        if (!slot) return;
+        const btnExpand = document.createElement('span');
+        btnExpand.style.cssText = 'cursor:pointer;user-select:none;display:inline-flex;align-items:center;gap:4px;margin-left:8px;vertical-align:middle';
+        btnExpand.title = `Ver ${filhas.length} peça(s)`;
+        const iconSpan = document.createElement('span');
+        iconSpan.className = 'le-expand-icon';
+        iconSpan.style.cssText = 'font-size:0.75rem;color:#1e3a5f;font-weight:700';
+        iconSpan.textContent = '▶';
+        const badge = document.createElement('span');
+        badge.style.cssText = 'background:#e0f2fe;color:#0369a1;border-radius:10px;padding:1px 7px;font-size:0.72rem;font-weight:700';
+        badge.textContent = `${filhas.length} peça${filhas.length > 1 ? 's' : ''}`;
+        btnExpand.appendChild(iconSpan);
+        btnExpand.appendChild(badge);
+        btnExpand.addEventListener('click', e => {
+            e.stopPropagation();
+            const icon = btnExpand.querySelector('.le-expand-icon');
+            const expandido = icon && icon.textContent.trim() === '▼';
+            const nomePaiUpper = (prod.nome || '').toUpperCase();
+            container.querySelectorAll('tr[data-le-peca-filha]').forEach(tr => {
+                if ((tr.dataset.lePecaFilha || '').toUpperCase() === nomePaiUpper) {
+                    tr.style.display = expandido ? 'none' : 'table-row';
+                }
+            });
+            if (icon) icon.textContent = expandido ? '▶' : '▼';
+        });
+        slot.appendChild(btnExpand);
+    });
 }
 
 function formatarMoedaPrecoEstado(input) {
@@ -15493,7 +15552,8 @@ function visualizarTabelaLojistasHistorico(idx) {
     const historico = getHistoricoTabelasLojistas();
     const h = historico[idx];
     if (!h) return;
-    const produtos = estoque.produtos || [];
+    // Mostrar apenas produtos principais (sem componente), igual à tabela principal
+    const produtos = (estoque.produtos || []).filter(p => p.nome && (!p.componente || p.componente.trim() === '' || p.componente.trim() === '-'));
 
     let html = `<div style="font-size:0.9rem;font-weight:700;color:#1e3a5f;margin-bottom:12px">📋 ${_escapeHtml(h.nome)} <span style="font-size:0.78rem;color:#94a3b8;font-weight:400">${h.data}</span></div>`;
     html += `<table style="border-collapse:collapse;width:100%;font-size:0.85rem"><thead><tr>
