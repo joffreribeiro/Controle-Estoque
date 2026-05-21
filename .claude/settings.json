@@ -16,7 +16,12 @@
       "Bash(findstr /n \"imbel_prod_salvar\" app.js)",
       "Bash(Get-ChildItem -Path \"e:\\\\MEUS DOCUMENTOS\\\\OneDrive\\\\Documentos\\\\Sistemas\\\\Estoque\\\\Controle-Estoque\" -Recurse -File)",
       "Bash(Select-Object -ExpandProperty FullName)",
-      "PowerShell($appFile = \"e:\\\\MEUS DOCUMENTOS\\\\OneDrive\\\\Documentos\\\\Sistemas\\\\Estoque\\\\Controle-Estoque\\\\app.js\"; $content = Get-Content $appFile; $lines = $content | Measure-Object -Line; Write-Output \"Total de linhas: $\\($lines.Lines\\)\")"
+      "PowerShell($appFile = \"e:\\\\MEUS DOCUMENTOS\\\\OneDrive\\\\Documentos\\\\Sistemas\\\\Estoque\\\\Controle-Estoque\\\\app.js\"; $content = Get-Content $appFile; $lines = $content | Measure-Object -Line; Write-Output \"Total de linhas: $\\($lines.Lines\\)\")",
+      "Bash(Get-ChildItem -Path \"e:\\\\MEUS DOCUMENTOS\\\\OneDrive\\\\Documentos\\\\Sistemas\\\\Estoque\\\\Controle-Estoque\\\\\" -File)",
+      "Bash(Get-ChildItem -Path \"e:\\\\MEUS DOCUMENTOS\\\\OneDrive\\\\Documentos\\\\Sistemas\\\\Estoque\\\\Controle-Estoque\")",
+      "Bash(Select-Object Name, Length)",
+      "Bash(ls -lh \"/mnt/e/MEUS DOCUMENTOS/OneDrive/Documentos/Sistemas/Estoque/Controle-Estoque/\" 2>/dev/null || ls -lh \"e:/MEUS DOCUMENTOS/OneDrive/Documentos/Sistemas/Estoque/Controle-Estoque/\")",
+      "Read(//mnt/e/MEUS DOCUMENTOS/OneDrive/Documentos/Sistemas/Estoque/**)"
     ],
     "additionalDirectories": [
       "\\tmp"

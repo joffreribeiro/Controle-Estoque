@@ -14,6 +14,7 @@ let precificacoesCliente = [];
 let _cadProdSort = { col: 'nome', dir: 'asc' };
 let _cadProdFiltroCategoria = '';
 let _cadProdFiltroBusca = '';
+let _cadProdFiltroSemCI = false;
 
 // ── Estado de filtro da aba Clientes ──
 let _cliFiltroBusca = '';
@@ -1795,6 +1796,7 @@ function carregarDados() {
         }
         estoque.precificacoesCliente = precificacoesCliente;
         try { atualizarIndicadoresPrecificacao(); } catch (e) {}
+        try { atualizarBadgePrecificacao(); } catch (e) {}
         tabelaAliquotas = (estoque.tabelaAliquotas && typeof estoque.tabelaAliquotas === 'object')
             ? estoque.tabelaAliquotas
             : {};
@@ -2098,6 +2100,7 @@ async function carregarDoCloud({confirmOverwrite=true} = {}) {
         estoque.precificacoesCliente = normalizarPrecificacoesCliente(precifsCloudFinal);
         precificacoesCliente = estoque.precificacoesCliente;
         try { atualizarIndicadoresPrecificacao(); } catch (e) {}
+        try { atualizarBadgePrecificacao(); } catch (e) {}
         try { localStorage.setItem('precificacoesClienteBackupV1', JSON.stringify(precificacoesCliente || [])); } catch (e) {}
         if (!Array.isArray(estoque.auditoriaVendas)) estoque.auditoriaVendas = [];
         if (!Array.isArray(estoque.fechamentosComissoes)) estoque.fechamentosComissoes = [];
@@ -2222,6 +2225,7 @@ async function carregarDoCloudAuto() {
             );
             precificacoesCliente = estoque.precificacoesCliente; // sincroniza variável global
             try { atualizarIndicadoresPrecificacao(); } catch (e) {}
+        try { atualizarBadgePrecificacao(); } catch (e) {}
             try { localStorage.setItem('precificacoesClienteBackupV1', JSON.stringify(precificacoesCliente || [])); } catch (e) {}
             if (!Array.isArray(estoque.auditoriaVendas)) estoque.auditoriaVendas = [];
             if (!Array.isArray(estoque.fechamentosComissoes)) estoque.fechamentosComissoes = [];
@@ -3324,6 +3328,14 @@ function renderizarCadastroProdutos() {
         });
     }
 
+    // ── Filtro "Sem CI" ──
+    if (_cadProdFiltroSemCI) {
+        lista = lista.filter(p => {
+            const ci = parseFloat(precificacao[p.nome]?.ci ?? p.ci ?? 0);
+            return !ci || ci <= 0;
+        });
+    }
+
     // ── Ordenação ──
     lista.sort((a, b) => {
         const dir = _cadProdSort.dir === 'asc' ? 1 : -1;
@@ -3576,6 +3588,17 @@ function ordenarCadastroPor(col) {
 function filtrarCadastroProdutos() {
     _cadProdFiltroBusca = (document.getElementById('produtoBusca')?.value || '').trim().toLowerCase();
     _cadProdFiltroCategoria = document.getElementById('produtoFiltroCategoria')?.value || '';
+    renderizarCadastroProdutos();
+}
+
+function toggleFiltroSemCI() {
+    _cadProdFiltroSemCI = !_cadProdFiltroSemCI;
+    const btn = document.getElementById('btnFiltroSemCI');
+    if (btn) {
+        btn.style.background = _cadProdFiltroSemCI ? '#1e3a5f' : '';
+        btn.style.color = _cadProdFiltroSemCI ? '#fff' : '';
+        btn.style.borderColor = _cadProdFiltroSemCI ? '#1e3a5f' : '';
+    }
     renderizarCadastroProdutos();
 }
 
@@ -8369,6 +8392,117 @@ function renderizarDashboard() {
     try {
         if (typeof renderizarGraficoComissoes === 'function') renderizarGraficoComissoes();
     } catch (e) { console.warn('Erro ao renderizar gráfico de comissões', e); }
+
+    try { renderizarAlertasDashboard(); } catch (e) {}
+}
+
+function renderizarAlertasDashboard() {
+    const el = document.getElementById('dashboardAlertas');
+    if (!el) return;
+
+    const hoje = new Date();
+    hoje.setHours(0, 0, 0, 0);
+    const em7Dias = new Date(hoje.getTime() + 7 * 86400000);
+
+    const precifs = Array.isArray(precificacoesCliente) ? precificacoesCliente : [];
+    let expiradas = 0, expirando = 0;
+    precifs.forEach(p => {
+        if (!p.dataExpiracao) return;
+        const exp = new Date(p.dataExpiracao);
+        if (exp < hoje) expiradas++;
+        else if (exp <= em7Dias) expirando++;
+    });
+
+    // Contratos com envio incompleto
+    const vendas = Array.isArray(estoque.registroVendas) ? estoque.registroVendas : [];
+    const envioDict = estoque.controleEnvio || {};
+    let enviosPendentes = 0;
+    vendas.forEach(v => {
+        const contrato = v.contrato || v.numeroContrato || '';
+        if (!contrato) return;
+        const key = contrato;
+        const keyNum = contrato.replace(/\D/g, '');
+        const envio = envioDict[key] || envioDict[keyNum] || {};
+        const completo = campoMarcado(envio.sistema) && campoMarcado(envio.assinado) && campoMarcado(envio.enviado);
+        if (!completo) enviosPendentes++;
+    });
+
+    atualizarBadgePrecificacao(expiradas + expirando);
+
+    const totalProblemas = expiradas + expirando + enviosPendentes;
+
+    if (totalProblemas === 0) {
+        el.innerHTML = `
+            <div style="display:flex;align-items:center;gap:8px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:10px 16px;font-size:0.85rem;color:#166534">
+                <span style="font-size:1.1rem">✅</span>
+                <span>Nenhuma pendência operacional encontrada.</span>
+            </div>`;
+        return;
+    }
+
+    const cards = [];
+
+    if (expiradas > 0) cards.push(`
+        <div style="display:flex;align-items:center;gap:10px;background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:10px 14px;flex:1;min-width:180px;cursor:pointer" onclick="trocarAba('precificacao')">
+            <span style="font-size:1.4rem">🔴</span>
+            <div>
+                <div style="font-size:1.1rem;font-weight:800;color:#dc2626">${expiradas}</div>
+                <div style="font-size:0.78rem;color:#991b1b;font-weight:600">Precificação(ões) expirada(s)</div>
+                <div style="font-size:0.72rem;color:#b91c1c">Clique para ver → Consulta</div>
+            </div>
+        </div>`);
+
+    if (expirando > 0) cards.push(`
+        <div style="display:flex;align-items:center;gap:10px;background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:10px 14px;flex:1;min-width:180px;cursor:pointer" onclick="trocarAba('precificacao')">
+            <span style="font-size:1.4rem">🟡</span>
+            <div>
+                <div style="font-size:1.1rem;font-weight:800;color:#d97706">${expirando}</div>
+                <div style="font-size:0.78rem;color:#92400e;font-weight:600">Expira(m) nos próximos 7 dias</div>
+                <div style="font-size:0.72rem;color:#b45309">Clique para ver → Consulta</div>
+            </div>
+        </div>`);
+
+    if (enviosPendentes > 0) cards.push(`
+        <div style="display:flex;align-items:center;gap:10px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:10px 14px;flex:1;min-width:180px;cursor:pointer" onclick="trocarAba('vendas')">
+            <span style="font-size:1.4rem">📦</span>
+            <div>
+                <div style="font-size:1.1rem;font-weight:800;color:#1d4ed8">${enviosPendentes}</div>
+                <div style="font-size:0.78rem;color:#1e40af;font-weight:600">Contrato(s) com envio pendente</div>
+                <div style="font-size:0.72rem;color:#1d4ed8">Clique para ver → Vendas/Envio</div>
+            </div>
+        </div>`);
+
+    el.innerHTML = `<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:4px">${cards.join('')}</div>`;
+}
+
+function atualizarBadgePrecificacao(count) {
+    try {
+        if (count === undefined) {
+            const hoje = new Date(); hoje.setHours(0,0,0,0);
+            const em7Dias = new Date(hoje.getTime() + 7 * 86400000);
+            const precifs = Array.isArray(precificacoesCliente) ? precificacoesCliente : [];
+            count = precifs.filter(p => {
+                if (!p.dataExpiracao) return false;
+                const exp = new Date(p.dataExpiracao);
+                return exp < em7Dias;
+            }).length;
+        }
+        const navBtn = document.querySelector('.nav-item[data-tab="precificacao"]');
+        if (!navBtn) return;
+        let badge = document.getElementById('badgePrecifExpirando');
+        if (!badge) {
+            badge = document.createElement('span');
+            badge.id = 'badgePrecifExpirando';
+            badge.className = 'nav-badge nav-badge-alert';
+            navBtn.appendChild(badge);
+        }
+        if (count > 0) {
+            badge.textContent = String(count);
+            badge.style.display = 'inline-block';
+        } else {
+            badge.style.display = 'none';
+        }
+    } catch (e) {}
 }
 
 // ========================================
@@ -15397,6 +15531,11 @@ function renderizarTabelaPrecoEstado() {
             <h3 style="margin:0;font-size:1rem;color:#1e3a5f;font-weight:700">Tabela de Preços para Lojistas</h3>
             <button class="btn btn-primary btn-sm" onclick="salvarTabelaPrecoEstado()">💾 Salvar</button>
             <button class="btn btn-outline btn-sm" onclick="salvarNovaVersaoTabelaLojistas()">📋 Salvar como nova versão</button>
+            <button class="btn btn-outline btn-sm" onclick="exportarTabelaLojistas(null)">📤 Exportar Todos</button>
+            <select class="prod-filter-select" style="font-size:0.82rem" onchange="if(this.value){exportarTabelaLojistas(this.value);this.value=''}">
+                <option value="">Exportar por grupo…</option>
+                ${GRUPOS_PRECO_ESTADO.map(g => `<option value="${g.id}">${g.label} (${g.ufs.slice(0,3).join(', ')}${g.ufs.length > 3 ? '…' : ''})</option>`).join('')}
+            </select>
             <span style="font-size:0.77rem;color:#64748b">O preço é preenchido automaticamente na venda conforme a UF do cliente.</span>
         </div>
         ${historicoHtml}
@@ -15520,6 +15659,34 @@ function _lerTabelaDoFormulario() {
         }
     });
     return tabela;
+}
+
+function exportarTabelaLojistas(grupoId) {
+    const tabela = _lerTabelaDoFormulario() || getTabelaPrecoEstado();
+    const produtos = (estoque.produtos || []).filter(p => p.nome && (!p.componente || p.componente.trim() === '' || p.componente.trim() === '-'));
+    const grupos = grupoId ? GRUPOS_PRECO_ESTADO.filter(g => g.id === grupoId) : GRUPOS_PRECO_ESTADO;
+
+    const cabecalho = ['Produto', ...grupos.map(g => g.label + ' (' + g.ufs.join('/') + ')')];
+    const linhas = [cabecalho];
+
+    produtos.forEach(prod => {
+        const linha = [prod.nome];
+        grupos.forEach(g => {
+            const val = tabela[prod.id] && tabela[prod.id][g.id] !== undefined ? tabela[prod.id][g.id] : '';
+            linha.push(val !== '' ? Number(val).toFixed(2).replace('.', ',') : '');
+        });
+        linhas.push(linha);
+    });
+
+    const csv = linhas.map(r => r.map(c => '"' + String(c).replace(/"/g, '""') + '"').join(';')).join('\r\n');
+    const nomeGrupo = grupoId ? (GRUPOS_PRECO_ESTADO.find(g => g.id === grupoId)?.label || grupoId) : 'Todos';
+    const nomeArq = `tabela_lojistas_${nomeGrupo.replace(/\s+/g, '_')}_${new Date().toLocaleDateString('pt-BR').replace(/\//g, '-')}.csv`;
+    const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = nomeArq; a.click();
+    URL.revokeObjectURL(url);
+    mostrarNotificacao(`Tabela exportada: ${nomeGrupo}`, 'success');
 }
 
 function salvarTabelaPrecoEstado() {
@@ -18071,24 +18238,108 @@ function salvarPrecificacaoCliente() {
     try { registro.clienteUF = registro.clienteUF || registro.uf || (document.getElementById('precifClienteUF')?.value || ''); } catch (e) {}
     try { registro.uf = registro.uf || registro.clienteUF || (document.getElementById('precifClienteUF')?.value || ''); } catch (e) {}
     try { registro.representante = registro.representante || (document.getElementById('precifRepresentanteSelect')?.value || ''); } catch (e) {}
-    precificacoesCliente.push(registro);
-    ultimaVersaoSalva = proximaVersao;
-    estoque.precificacoesCliente = precificacoesCliente;
-    salvarDados();
-    try { atualizarIndicadoresPrecificacao(); } catch (e) {}
-    const infoEl = document.getElementById('precifSalvoInfo');
-    if (infoEl) infoEl.innerHTML = `<span style="color:#16a34a; font-size:0.82rem">✅ Precificação salva v${registro.versao} em ${new Date(registro.dataCriacao).toLocaleString('pt-BR')}</span> <button onclick="carregarVersaoPrecif('${registro.id}')" class="btn btn-outline btn-sm" style="margin-left:8px">↩ Carregar versão</button> <button onclick="renderizarHistoricoPrecif('${cId}')" class="btn btn-outline btn-sm" style="margin-left:8px">🕘 Histórico</button>`;
-    mostrarNotificacao('Precificação salva para o cliente.', 'success');
-    try { renderizarHistoricoPrecif(cId); } catch (e) {}
-    try {
-        const consultaEl = document.getElementById('subaba-precif-consulta');
-        const rastreaEl = document.getElementById('subaba-precif-rastreabilidade');
-        const isConsultaVis = consultaEl ? consultaEl.style.display !== 'none' : false;
-        const isRastreaVis  = rastreaEl ? rastreaEl.style.display !== 'none' : false;
-        if (isConsultaVis && typeof renderizarConsultaPrecificacao === 'function') renderizarConsultaPrecificacao();
-        if (isRastreaVis && typeof renderizarRastreabilidade === 'function') renderizarRastreabilidade();
-    } catch (e) {}
-    try { if (typeof _cpPopularFiltroCliente === 'function') _cpPopularFiltroCliente(); filtrarConsultaPrecificacoes(); } catch (e) {}
+    // Mostrar modal de confirmação com resumo antes de salvar
+    confirmarSalvarPrecificacao(registro, cId, () => {
+        precificacoesCliente.push(registro);
+        ultimaVersaoSalva = proximaVersao;
+        estoque.precificacoesCliente = precificacoesCliente;
+        salvarDados();
+        try { atualizarIndicadoresPrecificacao(); } catch (e) {}
+        try { atualizarBadgePrecificacao(); } catch (e) {}
+        try { atualizarBadgePrecificacao(); } catch (e) {}
+        const infoEl = document.getElementById('precifSalvoInfo');
+        if (infoEl) infoEl.innerHTML = `<span style="color:#16a34a; font-size:0.82rem">✅ Precificação salva v${registro.versao} em ${new Date(registro.dataCriacao).toLocaleString('pt-BR')}</span> <button onclick="carregarVersaoPrecif('${registro.id}')" class="btn btn-outline btn-sm" style="margin-left:8px">↩ Carregar versão</button> <button onclick="renderizarHistoricoPrecif('${cId}')" class="btn btn-outline btn-sm" style="margin-left:8px">🕘 Histórico</button>`;
+        mostrarNotificacao('Precificação salva para o cliente.', 'success');
+        try { renderizarHistoricoPrecif(cId); } catch (e) {}
+        try {
+            const consultaEl = document.getElementById('subaba-precif-consulta');
+            const rastreaEl = document.getElementById('subaba-precif-rastreabilidade');
+            const isConsultaVis = consultaEl ? consultaEl.style.display !== 'none' : false;
+            const isRastreaVis  = rastreaEl ? rastreaEl.style.display !== 'none' : false;
+            if (isConsultaVis && typeof renderizarConsultaPrecificacao === 'function') renderizarConsultaPrecificacao();
+            if (isRastreaVis && typeof renderizarRastreabilidade === 'function') renderizarRastreabilidade();
+        } catch (e) {}
+        try { if (typeof _cpPopularFiltroCliente === 'function') _cpPopularFiltroCliente(); filtrarConsultaPrecificacoes(); } catch (e) {}
+    });
+}
+
+function confirmarSalvarPrecificacao(registro, cId, onConfirmar) {
+    const fmt = v => 'R$ ' + _fmtMoeda(v);
+    const itens = registro.itens || [];
+    const totalProposta = itens.reduce((s, i) => s + (Number(i.valorTotal) || 0), 0);
+    const margens = itens.map(i => Number(i.margem) || 0).filter(m => m > 0);
+    const margemMedia = margens.length > 0 ? (margens.reduce((s, m) => s + m, 0) / margens.length) : 0;
+    const dataExp = new Date(registro.dataExpiracao).toLocaleDateString('pt-BR');
+    const rep = registro.representante || '—';
+    const uf = registro.clienteUF || registro.uf || '—';
+
+    const margemCor = margemMedia >= 30 ? '#16a34a' : margemMedia >= 15 ? '#d97706' : '#dc2626';
+
+    let overlay = document.getElementById('_modalGenericoOverlay');
+    if (!overlay) {
+        overlay = document.createElement('div');
+        overlay.id = '_modalGenericoOverlay';
+        overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
+        document.body.appendChild(overlay);
+    }
+
+    const linhasItens = itens.map(i => `
+        <tr>
+            <td style="padding:5px 10px;text-align:left;color:#1e3a5f;font-weight:500">${_escapeHtml(i.produto || '')}</td>
+            <td style="padding:5px 10px;text-align:center;color:#475569">${i.quantidade || 1}</td>
+            <td style="padding:5px 10px;text-align:right;font-weight:700;color:#c9a227">${fmt(i.valorFinal || i.precoFinal || 0)}</td>
+            <td style="padding:5px 10px;text-align:right;font-weight:600;color:#1e3a5f">${fmt(i.valorTotal || 0)}</td>
+        </tr>`).join('');
+
+    overlay.innerHTML = `
+        <div style="background:#fff;border-radius:10px;box-shadow:0 8px 40px rgba(0,0,0,0.18);max-width:600px;width:100%;max-height:85vh;display:flex;flex-direction:column;overflow:hidden">
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid #e2e8f0;background:#1e3a5f;border-radius:10px 10px 0 0">
+                <span style="font-size:1rem;font-weight:700;color:#fff">Confirmar Precificação v${registro.versao}</span>
+                <button onclick="document.getElementById('_modalGenericoOverlay').remove()" style="background:transparent;border:none;color:#fff;font-size:1.3rem;cursor:pointer;line-height:1">×</button>
+            </div>
+            <div style="overflow:auto;padding:20px">
+                <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:16px">
+                    <div style="background:#f8fafc;border-radius:8px;padding:10px 14px">
+                        <div style="font-size:0.7rem;text-transform:uppercase;color:#94a3b8;font-weight:700">Cliente / UF</div>
+                        <div style="font-size:0.9rem;font-weight:700;color:#1e3a5f;margin-top:2px">${_escapeHtml(registro.clienteNome || '—')}</div>
+                        <div style="font-size:0.8rem;color:#64748b">${_escapeHtml(uf)}</div>
+                    </div>
+                    <div style="background:#f8fafc;border-radius:8px;padding:10px 14px">
+                        <div style="font-size:0.7rem;text-transform:uppercase;color:#94a3b8;font-weight:700">Representante</div>
+                        <div style="font-size:0.9rem;font-weight:700;color:#1e3a5f;margin-top:2px">${_escapeHtml(rep)}</div>
+                        <div style="font-size:0.8rem;color:#64748b">Validade até ${dataExp}</div>
+                    </div>
+                    <div style="background:#f8fafc;border-radius:8px;padding:10px 14px">
+                        <div style="font-size:0.7rem;text-transform:uppercase;color:#94a3b8;font-weight:700">Margem Média</div>
+                        <div style="font-size:1rem;font-weight:800;color:${margemCor};margin-top:2px">${margemMedia.toFixed(1)}%</div>
+                        <div style="font-size:0.8rem;color:#64748b">${itens.length} produto(s)</div>
+                    </div>
+                </div>
+                <table style="width:100%;border-collapse:collapse;font-size:0.83rem;margin-bottom:16px">
+                    <thead><tr style="background:#f1f5f9">
+                        <th style="padding:6px 10px;text-align:left;font-weight:700;color:#1e3a5f">Produto</th>
+                        <th style="padding:6px 10px;text-align:center;font-weight:700;color:#1e3a5f">Qtd</th>
+                        <th style="padding:6px 10px;text-align:right;font-weight:700;color:#1e3a5f">Valor Unit.</th>
+                        <th style="padding:6px 10px;text-align:right;font-weight:700;color:#1e3a5f">Total</th>
+                    </tr></thead>
+                    <tbody>${linhasItens}</tbody>
+                    <tfoot><tr style="background:#1e3a5f;color:#fff">
+                        <td colspan="3" style="padding:8px 10px;font-weight:700">Total da Proposta</td>
+                        <td style="padding:8px 10px;text-align:right;font-weight:800;font-size:1rem">${fmt(totalProposta)}</td>
+                    </tr></tfoot>
+                </table>
+                ${registro.descricao ? `<div style="font-size:0.82rem;color:#64748b;margin-bottom:14px">📝 <em>${_escapeHtml(registro.descricao)}</em></div>` : ''}
+                <div style="display:flex;gap:10px;justify-content:flex-end">
+                    <button class="btn btn-outline btn-sm" onclick="document.getElementById('_modalGenericoOverlay').remove()">Cancelar</button>
+                    <button class="btn btn-primary btn-sm" id="_btnConfirmarSalvarPrecif">✅ Confirmar e Salvar</button>
+                </div>
+            </div>
+        </div>`;
+
+    document.getElementById('_btnConfirmarSalvarPrecif').addEventListener('click', () => {
+        overlay.remove();
+        onConfirmar();
+    });
 }
 
 function carregarPrecificacaoSalva(clienteId) {

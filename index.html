@@ -236,6 +236,7 @@
                             <option value="Munição">Munição</option>
                             <option value="Peça">Peça</option>
                         </select>
+                        <button id="btnFiltroSemCI" class="btn btn-outline btn-sm" onclick="toggleFiltroSemCI()" title="Mostrar apenas produtos sem CI definido">💲 Sem CI</button>
                         <span class="prod-result-count" id="prodResultCount"></span>
                         <button class="btn btn-outline btn-sm" onclick="exportarProdutosCI()">📤 Exportar Excel</button>
                         <button class="btn btn-outline btn-sm" onclick="document.getElementById('inputImportarProdutosCI').click()">📥 Importar Excel</button>
@@ -1679,6 +1680,7 @@
                         <div class="kpi-subtitle">Produtos a repor</div>
                     </article>
                 </div>
+                <div id="dashboardAlertas" style="margin-bottom:16px"></div>
                 <div class="kpi-grid dashboard-kpis">
                     <article class="kpi-card kpi-accent" data-icon="📦">
                         <div class="kpi-label">Total de Unidades Vendidas</div>
