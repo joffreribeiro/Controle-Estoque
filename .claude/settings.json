@@ -15,7 +15,8 @@
       "Bash(findstr /c:\".table-container\" *.html)",
       "Bash(findstr /n \"imbel_prod_salvar\" app.js)",
       "Bash(Get-ChildItem -Path \"e:\\\\MEUS DOCUMENTOS\\\\OneDrive\\\\Documentos\\\\Sistemas\\\\Estoque\\\\Controle-Estoque\" -Recurse -File)",
-      "Bash(Select-Object -ExpandProperty FullName)"
+      "Bash(Select-Object -ExpandProperty FullName)",
+      "PowerShell($appFile = \"e:\\\\MEUS DOCUMENTOS\\\\OneDrive\\\\Documentos\\\\Sistemas\\\\Estoque\\\\Controle-Estoque\\\\app.js\"; $content = Get-Content $appFile; $lines = $content | Measure-Object -Line; Write-Output \"Total de linhas: $\\($lines.Lines\\)\")"
     ],
     "additionalDirectories": [
       "\\tmp"

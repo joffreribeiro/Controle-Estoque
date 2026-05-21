@@ -4069,16 +4069,20 @@ th.sortable.sort-desc .sort-icon::after { content: ' ▼'; opacity: 1; }
     text-decoration: line-through;
     color: #b71c1c;
 }
-#tabelaControleEnvio tr.row-envio-completo {
+#tabelaControleEnvio tr.row-envio-completo,
+#tabelaRegistroVendas tr.row-envio-completo {
     background: linear-gradient(90deg, #f0fff4 0%, transparent 80%);
 }
-#tabelaControleEnvio tr.row-envio-completo:hover {
+#tabelaControleEnvio tr.row-envio-completo:hover,
+#tabelaRegistroVendas tr.row-envio-completo:hover {
     background: linear-gradient(90deg, #dcfce7 0%, #f8fafc 80%) !important;
 }
-#tabelaControleEnvio tr.row-envio-pendente {
+#tabelaControleEnvio tr.row-envio-pendente,
+#tabelaRegistroVendas tr.row-envio-pendente {
     background: linear-gradient(90deg, #fff7ed 0%, transparent 80%);
 }
-#tabelaControleEnvio tr.row-envio-pendente:hover {
+#tabelaControleEnvio tr.row-envio-pendente:hover,
+#tabelaRegistroVendas tr.row-envio-pendente:hover {
     background: linear-gradient(90deg, #ffedd5 0%, #f8fafc 80%) !important;
 }
 #tabelaControleEnvio tbody tr:hover {

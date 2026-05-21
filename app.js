@@ -2782,6 +2782,8 @@ function exportarAuditoria() {
 // ========================================
 
 function trocarAba(aba) {
+    // Controle de Envio foi unificado com Vendas
+    if (aba === 'controleenvio') aba = 'vendas';
     try {
         const targetId = `tab-${aba}`;
         const target = document.getElementById(targetId);
@@ -3253,7 +3255,7 @@ function renderizarCadastroProdutos() {
         const icon = th.querySelector('.sort-icon');
         if (icon) icon.textContent = '↕';
     });
-    const colMap = { nome: 4, categoria: 1, pn: 2, nomeFabrica: 3, ci: 6, margemMin: 7, descMax: 8, saldo: 10, atualizado: 11 };
+    const colMap = { nome: 4, categoria: 1, pn: 2, nomeFabrica: 3, ci: 6, saldo: 8, atualizado: 9 };
     const colIdx = colMap[_cadProdSort.col];
     if (colIdx !== undefined) {
         const ths = document.querySelectorAll('#tabelaCadastroProdutos thead th');
@@ -3341,8 +3343,6 @@ function renderizarCadastroProdutos() {
             <td>${_escapeHtml(componente)}</td>
             <td style="text-align:left;font-weight:600;${isPeca ? 'padding-left:12px;color:#475569' : ''}">${isPeca ? '↳ ' : ''}${_escapeHtml(nome)}</td>
             <td>${ci > 0 ? formatarMoedaValor(ci) : '-'}</td>
-            <td>${margemMin > 0 ? margemMin.toFixed(1).replace('.', ',') : '-'}</td>
-            <td>${descontoMax > 0 ? descontoMax.toFixed(1).replace('.', ',') : '-'}</td>
             <td>${imbelTexto}</td>
             <td class="${saldoConsolidadoClasse}" style="color:${saldoConsolidadoCor};font-weight:700;font-family:monospace">${saldoConsolidadoTexto}</td>
             <td>${atualizadoTxt}</td>
@@ -9569,7 +9569,7 @@ function salvarVendaDetalhada(event) {
 function renderizarRegistroVendas() {
     const tbody = document.getElementById('tabelaRegistroVendasBody');
     if (!tbody) return;
-    
+
     const filtroRep = document.getElementById('filtroRepresentante')?.value || '';
     const filtroProduto = document.getElementById('filtroProduto')?.value || '';
     const filtroProdutoId = filtroProduto ? String(filtroProduto) : null;
@@ -9580,6 +9580,11 @@ function renderizarRegistroVendas() {
     const filtroDataInicio = document.getElementById('filtroVendasDataInicio')?.value || '';
     const filtroDataFim = document.getElementById('filtroVendasDataFim')?.value || '';
     const filtroBusca = (document.getElementById('filtroVendasBusca')?.value || '').trim().toLowerCase();
+    // Filtros de envio (agora unificados nesta tabela)
+    const filtroSistema   = document.getElementById('filtroVendasSistema')?.value   || '';
+    const filtroAssinado  = document.getElementById('filtroVendasAssinado')?.value  || '';
+    const filtroEnviado   = document.getElementById('filtroVendasEnviado')?.value   || '';
+    const filtroProgresso = document.getElementById('filtroVendasProgresso')?.value || '';
 
     let vendasFiltradas = estoque.registroVendas || [];
 
@@ -9679,7 +9684,7 @@ function renderizarRegistroVendas() {
     if (linhasOrdenadas.length === 0) {
         tbody.innerHTML = `
             <tr>
-                <td colspan="10" class="empty-state">
+                <td colspan="12" class="empty-state">
                     <div class="empty-icon">📋</div>
                     <div class="empty-text">Nenhuma venda registrada</div>
                     <div class="empty-hint">Clique em "Nova Venda" para adicionar o primeiro registro</div>
@@ -9747,15 +9752,52 @@ function renderizarRegistroVendas() {
         // Quando há filtro por produto ativo, expande automaticamente para mostrar os itens
         const expandido = filtroProdutoId ? true : !!_contratosExpandidos[contratoKey];
 
-        // badge de envio: verificar controleEnvio pelo contrato bruto ou pela chave normalizada
+        // Dados de envio (chave bruta ou normalizada)
         const envioData = (estoque.controleEnvio || {})[primeira.contratoRaw]
                        || (estoque.controleEnvio || {})[contratoKey]
                        || {};
-        const enviadoBadgeHtml = campoMarcado(envioData.enviado)
-            ? '<span class="badge-enviado">✓ Enviado</span>' : '';
+
+        // Limpar marcações se cancelado
+        if (contratoCancelado && (envioData.sistema || envioData.assinado || envioData.enviado)) {
+            envioData.sistema = false;
+            envioData.assinado = false;
+            envioData.enviado = false;
+        }
+
+        const sistemaMarcado  = contratoCancelado ? false : campoMarcado(envioData.sistema);
+        const assinadoMarcado = contratoCancelado ? false : campoMarcado(envioData.assinado);
+        const enviadoMarcado  = contratoCancelado ? false : campoMarcado(envioData.enviado);
+        const qtdConcluidos   = Number(sistemaMarcado) + Number(assinadoMarcado) + Number(enviadoMarcado);
+
+        // Aplicar filtros de envio
+        if (filtroSistema   === 'sim' && !sistemaMarcado)  return;
+        if (filtroSistema   === 'nao' && sistemaMarcado)   return;
+        if (filtroAssinado  === 'sim' && !assinadoMarcado) return;
+        if (filtroAssinado  === 'nao' && assinadoMarcado)  return;
+        if (filtroEnviado   === 'sim' && !enviadoMarcado)  return;
+        if (filtroEnviado   === 'nao' && enviadoMarcado)   return;
+        if (filtroProgresso === 'completo' && qtdConcluidos !== 3) return;
+        if (filtroProgresso === 'parcial'  && (qtdConcluidos === 0 || qtdConcluidos === 3)) return;
+        if (filtroProgresso === 'pendente' && qtdConcluidos !== 0) return;
+
+        const progressCor = qtdConcluidos === 3 ? '#2da44e' : qtdConcluidos > 0 ? '#d97706' : '#94a3b8';
+        const progressBadge = contratoCancelado ? '' :
+            `<span class="ctr-progress" style="background:${progressCor}22;border-color:${progressCor};color:${progressCor}">${qtdConcluidos}/3</span>`;
+
+        const statusBtn = (checked, campo) => contratoCancelado
+            ? `<button type="button" class="status-indicator" disabled title="Contrato cancelado" style="opacity:0.3;cursor:not-allowed">
+                <svg viewBox="0 0 12 12" aria-hidden="true"><path fill="white" d="M4.7 9.2 1.9 6.4l1.1-1.1 1.7 1.7 4.2-4.2L10 4z"/></svg>
+               </button>`
+            : `<button type="button" class="status-indicator ${checked ? 'checked' : ''}" onclick="salvarControleEnvio('${primeira.contratoRaw || contratoKey}', '${campo}', ${!checked})" title="${campo}">
+                <svg viewBox="0 0 12 12" aria-hidden="true"><path fill="white" d="M4.7 9.2 1.9 6.4l1.1-1.1 1.7 1.7 4.2-4.2L10 4z"/></svg>
+               </button>`;
 
         const resumo = document.createElement('tr');
         resumo.className = 'row-contrato-resumo' + (contratoCancelado ? ' contrato-cancelado' : '');
+        if (!contratoCancelado) {
+            if (qtdConcluidos === 3) resumo.classList.add('row-envio-completo');
+            else if (qtdConcluidos === 0) resumo.classList.add('row-envio-pendente');
+        }
         const fallbackYear = primeira.dataNorm ? (primeira.dataNorm.slice(0,4)) : new Date().getFullYear();
         const contratoDisplay = formatarContratoDisplay(primeira.contratoRaw || primeira.contratoKey, fallbackYear);
         let actionsHtml = '';
@@ -9766,19 +9808,30 @@ function renderizarRegistroVendas() {
                           `<button class="btn-action btn-delete" onclick="excluirVenda(${primeira.vendaId})" title="Excluir venda">🗑</button>` +
                           `<button class="btn-action" onclick="abrirHistoricoContrato('${contratoKey}')" title="Histórico do Contrato">🕘</button>` +
                           `<button class="btn-action btn-cancel" onclick="cancelarContrato('${contratoKey}')" title="Cancelar contrato">✖</button>` +
-                          `<button class="btn-contrato-docx" onclick="gerarContratoVenda('${primeira.vendaId || primeira.contratoRaw}')" title="Gerar contrato .docx">📄 Contrato</button>`;
+                          `<button class="btn-action btn-delete" onclick="limparControleEnvio('${primeira.contratoRaw || contratoKey}')" title="Limpar dados de envio">📭</button>` +
+                          `<button class="btn-contrato-docx" onclick="gerarContratoVenda('${primeira.vendaId || primeira.contratoRaw}')" title="Gerar contrato .docx">📄</button>`;
         }
 
         resumo.innerHTML = `
-            <td class="col-contrato"><span class="link-contrato" onclick="irParaControleEnvio('${primeira.contratoRaw || primeira.contratoKey}')" title="Ver no Controle de Envio">${contratoDisplay || '-'}</span> ${cancelBadgeHtml}${enviadoBadgeHtml}</td>
+            <td class="col-contrato">
+                <div class="ctr-cell">
+                    <span class="link-contrato" title="${contratoDisplay}">${contratoDisplay || '-'}</span>
+                    ${progressBadge}
+                </div>
+                ${cancelBadgeHtml}${badgeNova}
+            </td>
             <td class="col-loja" title="${primeira.loja}">${primeira.loja}</td>
             <td class="col-representante"><span class="badge-rep ${repClass}">${primeira.representante}</span></td>
             <td class="col-produto-venda"><button class="btn-expand-contrato" onclick="toggleContratoExpandido('${contratoKey}')">${expandido ? '▾' : '▸'} ${linhasDoContrato} item(ns)</button></td>
             <td class="col-qtd">${totalQtdContrato}</td>
-            <td class="col-valor-un">-</td>
             <td class="col-valor-total">${formatarMoedaValor(totalContrato)}</td>
-            <td class="col-data">${dataDisplay}${badgeNova}</td>
-            <td class="col-obs" title="${obsGrupo}">${obsGrupo}</td>
+            <td class="col-data">${dataDisplay}</td>
+            <td class="col-sistema">${statusBtn(sistemaMarcado, 'sistema')}</td>
+            <td class="col-assinado">${statusBtn(assinadoMarcado, 'assinado')}</td>
+            <td class="col-enviado">${statusBtn(enviadoMarcado, 'enviado')}</td>
+            <td class="col-solicitacao">
+                <input type="text" class="campo-editavel" value="${envioData.solicitacao || ''}" placeholder="Data ou obs." onchange="salvarControleEnvio('${primeira.contratoRaw || contratoKey}', 'solicitacao', this.value)" ${contratoCancelado ? 'disabled style="opacity:0.4;cursor:not-allowed"' : ''}>
+            </td>
             <td class="col-acoes">${actionsHtml}</td>
         `;
         tbody.appendChild(resumo);
@@ -9802,14 +9855,16 @@ function renderizarRegistroVendas() {
 
             tr.innerHTML = `
                 <td class="col-contrato detalhe-vazio"></td>
-                <td class="col-loja detalhe-vazio"></td>
+                <td class="col-loja detalhe-vazio" title="${linha.observacoes || ''}"><span style="color:#64748b;font-size:0.8rem">${linha.observacoes && linha.observacoes !== '-' ? linha.observacoes : ''}</span></td>
                 <td class="col-representante detalhe-vazio"></td>
                 <td class="col-produto-venda" title="${linha.produtoNome}">↳ ${linha.produtoNome}</td>
                 <td class="col-qtd">${linha.quantidade}</td>
-                <td class="col-valor-un">${valorUn}</td>
-                <td class="col-valor-total">${valorTot > 0 ? formatarMoedaValor(valorTot) : '-'}</td>
-                <td class="col-data">${linha.dataNorm ? formatDateToDDMMYYYY(linha.dataNorm) : '-'}</td>
-                <td class="col-obs" title="${linha.observacoes || '-'}">${linha.observacoes || '-'}</td>
+                <td class="col-valor-total" style="font-size:0.85rem;color:#64748b">${valorUn} × ${linha.quantidade} = ${valorTot > 0 ? formatarMoedaValor(valorTot) : '-'}</td>
+                <td class="col-data" style="font-size:0.8rem">${linha.dataNorm ? formatDateToDDMMYYYY(linha.dataNorm) : '-'}</td>
+                <td class="col-sistema detalhe-vazio"></td>
+                <td class="col-assinado detalhe-vazio"></td>
+                <td class="col-enviado detalhe-vazio"></td>
+                <td class="col-solicitacao detalhe-vazio"></td>
                 <td class="col-acoes">${detalheAcoesHtml}</td>
             `;
 
@@ -9839,7 +9894,7 @@ function renderizarRegistroVendas() {
               <td style="padding:10px;text-align:center">${totalUnidades}</td>
               <td colspan="2"></td>
               <td style="padding:10px;text-align:right;color:#7ee787;font-size:1rem">${fmtVal(totalFiltrado)}</td>
-              <td></td>
+              <td colspan="5"></td>
             </tr>`;
 
         const table = document.getElementById('tabelaRegistroVendas') || (tbody && tbody.closest && tbody.closest('table'));
@@ -10012,7 +10067,11 @@ function limparFiltrosVendas() {
         'filtroProduto',
         'filtroVendasDataInicio',
         'filtroVendasDataFim',
-        'filtroVendasBusca'
+        'filtroVendasBusca',
+        'filtroVendasSistema',
+        'filtroVendasAssinado',
+        'filtroVendasEnviado',
+        'filtroVendasProgresso'
     ];
     fields.forEach(id => {
         const el = document.getElementById(id);
@@ -11720,16 +11779,17 @@ function exportarDados() {
 
 function exportarEstoqueCompleto() {
     const sep = ';';
-    
-    // Cabeçalho simples: Produto, Quantidade Total
-    let csv = `PRODUTO${sep}QUANTIDADE_TOTAL\n`;
-    
-    // Dados
+
+    let csv = `PRODUTO${sep}PN${sep}QUANTIDADE_TOTAL${sep}CI\n`;
+
     estoque.produtos.forEach(produto => {
-        // Quantidade total em estoque baseada no saldo consolidado cadastrado
         const totalEstoque = Number(produto.estoqueConsolidado) || 0;
-        
-        csv += `${produto.nome}${sep}${totalEstoque}\n`;
+        const pn = produto.pn || '';
+        const regra = (precificacao && precificacao[produto.nome]) ? precificacao[produto.nome] : {};
+        const ci = Number(regra.ci ?? produto.ci ?? 0) || 0;
+        const ciStr = ci > 0 ? ci.toFixed(2).replace('.', ',') : '';
+
+        csv += `${produto.nome}${sep}${pn}${sep}${totalEstoque}${sep}${ciStr}\n`;
     });
     
     const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
@@ -11932,69 +11992,136 @@ function importarBackup(event) {
 function importarEstoque(event) {
     const file = event.target.files[0];
     if (!file) return;
-    
+
     const reader = new FileReader();
-    
+
     reader.onload = function(e) {
         try {
             const conteudo = e.target.result;
             const linhas = conteudo.split(/\r?\n/).filter(l => l.trim());
-            
+
             if (linhas.length < 2) {
                 mostrarNotificacao('Arquivo vazio ou sem dados!', 'error');
                 return;
             }
-            
-            // Ler cabeçalho para identificar colunas
-            const cabecalho = parseCsvLinha(linhas[0]);
-            console.debug('Cabeçalho:', cabecalho);
-            
-            let produtosAtualizados = 0;
-            let erros = [];
-            
-            // Processar cada linha
+
+            // Detectar colunas pelo cabeçalho
+            const cabecalho = parseCsvLinha(linhas[0]).map(c => c.trim().toUpperCase());
+            // Formato novo: PRODUTO;PN;QUANTIDADE_TOTAL;CI
+            // Formato antigo: PRODUTO;QUANTIDADE_TOTAL  (2 colunas)
+            const temPN = cabecalho.includes('PN');
+            const temCI = cabecalho.includes('CI');
+            // Índices flexíveis
+            const iNome = 0;
+            const iPN   = temPN ? cabecalho.indexOf('PN') : -1;
+            const iQtd  = temPN ? (cabecalho.indexOf('QUANTIDADE_TOTAL') !== -1 ? cabecalho.indexOf('QUANTIDADE_TOTAL') : 2) : 1;
+            const iCI   = temCI ? cabecalho.indexOf('CI') : -1;
+
+            const atualizados  = [];   // { nome, campo, matchTipo }
+            const substrMatch  = [];   // produtos resolvidos por substring — pedir revisão
+            const pendentes    = [];   // { nome, pn, quantidade, ci } — não encontrados
+            const erros        = [];
+
             for (let i = 1; i < linhas.length; i++) {
                 const linha = linhas[i].trim();
                 if (!linha) continue;
-                
+
                 const colunas = parseCsvLinha(linha);
-                
-                if (colunas.length < 2) {
-                    erros.push(`Linha ${i + 1}: formato inválido`);
-                    continue;
-                }
-                
-                const produtoNome = colunas[0]?.trim().toUpperCase();
-                
+                if (colunas.length < 2) { erros.push(`Linha ${i + 1}: formato inválido`); continue; }
+
+                const produtoNome = (colunas[iNome] || '').trim().toUpperCase();
                 if (!produtoNome) continue;
-                
-                // Buscar produto
-                let produto = estoque.produtos.find(p => 
-                    p.nome.toUpperCase() === produtoNome ||
-                    p.nome.toUpperCase().includes(produtoNome) ||
-                    produtoNome.includes(p.nome.toUpperCase())
-                );
-                
+
+                const pnCsv    = iPN >= 0 ? (colunas[iPN] || '').trim().toUpperCase() : '';
+                const qtdCsv   = parseInt((colunas[iQtd] || '').trim()) || 0;
+                const ciCsvRaw = iCI >= 0 ? (colunas[iCI] || '').trim().replace(/\./g, '').replace(',', '.') : '';
+                const ciCsv    = ciCsvRaw ? (parseFloat(ciCsvRaw) || 0) : null;
+
+                // Resolução 1: match por PN (mais confiável)
+                let produto = null;
+                let matchTipo = '';
+                if (pnCsv) {
+                    produto = estoque.produtos.find(p => p.pn && p.pn.trim().toUpperCase() === pnCsv);
+                    if (produto) matchTipo = 'pn';
+                }
+
+                // Resolução 2: nome exato
                 if (!produto) {
-                    erros.push(`Linha ${i + 1}: produto não encontrado (${produtoNome})`);
+                    produto = estoque.produtos.find(p => p.nome.toUpperCase() === produtoNome);
+                    if (produto) matchTipo = 'exato';
+                }
+
+                // Resolução 3: substring bidirecional (último recurso, gera aviso)
+                if (!produto) {
+                    produto = estoque.produtos.find(p =>
+                        p.nome.toUpperCase().includes(produtoNome) ||
+                        produtoNome.includes(p.nome.toUpperCase())
+                    );
+                    if (produto) matchTipo = 'substring';
+                }
+
+                if (!produto) {
+                    pendentes.push({ nome: produtoNome, pn: pnCsv, quantidade: qtdCsv, ci: ciCsv });
                     continue;
                 }
-                
-                // Atualizar quantidade total no estoque IMBEL
-                // Formato novo: PRODUTO;QUANTIDADE_TOTAL
-                // Compatibilidade: se vier formato antigo (PRODUTO;PRECO;QUANTIDADE_TOTAL), usa a 3a coluna
-                const qtdCol = (colunas.length >= 3) ? colunas[2] : colunas[1];
-                if (qtdCol !== undefined) {
-                    const quantidade = parseInt(qtdCol) || 0;
-                    // Atualizar o saldo consolidado (campo de cadastro)
-                    produto.estoqueConsolidado = quantidade;
+
+                // Atualizar campos
+                produto.estoqueConsolidado = qtdCsv;
+                if (ciCsv !== null && ciCsv > 0) {
+                    produto.ci = ciCsv;
+                    if (!precificacao[produto.nome]) precificacao[produto.nome] = {};
+                    precificacao[produto.nome].ci = ciCsv;
+                    precificacao[produto.nome].ciAtualizadoEm = new Date().toISOString();
                 }
-                
-                produtosAtualizados++;
+                // Atualizar PN se veio no CSV e produto não tinha
+                if (pnCsv && !produto.pn) {
+                    produto.pn = pnCsv;
+                }
+
+                atualizados.push({ nome: produto.nome, matchTipo });
+                if (matchTipo === 'substring') substrMatch.push({ nomeCsv: produtoNome, nomeSistema: produto.nome });
             }
-            
-            if (produtosAtualizados > 0) {
-                // Recalcula produto.vendas a partir do registroVendas para garantir consistência
+
+            // Criação de novos produtos (pendentes)
+            let criados = [];
+            if (pendentes.length > 0) {
+                const nomes = pendentes.map(p => p.nome).join('\n• ');
+                const criar = confirm(
+                    `${pendentes.length} produto(s) do arquivo não foram encontrados no sistema:\n\n• ${nomes}\n\nDeseja criá-los automaticamente?`
+                );
+                if (criar) {
+                    const repsAtivos = estoque.representantes || ['KOLTE','ISA','LC','ADES','FL','IMBEL'];
+                    pendentes.forEach(p => {
+                        const novoProduto = {
+                            id: Date.now() + Math.floor(Math.random() * 10000),
+                            nome: p.nome,
+                            pn: p.pn || '',
+                            estoqueConsolidado: p.quantidade,
+                            quantidadeInicial: p.quantidade,
+                            ci: p.ci || 0,
+                            margemMinima: 0, margemMin: 0,
+                            descontoMaximo: 0, descMax: 0,
+                            exibirNoEstoque: true,
+                            criadoEm: new Date().toISOString(),
+                            atualizadoEm: new Date().toISOString(),
+                            dataAtualizacao: Date.now(),
+                            distribuicao: Object.fromEntries(repsAtivos.map(r => [r, 0])),
+                            vendas: Object.fromEntries(repsAtivos.map(r => [r, 0]))
+                        };
+                        if (p.ci > 0) {
+                            if (!precificacao[p.nome]) precificacao[p.nome] = {};
+                            precificacao[p.nome].ci = p.ci;
+                        }
+                        estoque.produtos.push(novoProduto);
+                        criados.push(p.nome);
+                    });
+                }
+            }
+
+            const totalModificados = atualizados.length + criados.length;
+
+            if (totalModificados > 0) {
+                // Recalcula produto.vendas a partir do registroVendas
                 estoque.produtos.forEach(p => { p.vendas = {}; });
                 (estoque.registroVendas || []).forEach(v => {
                     if (v.cancelado) return;
@@ -12015,29 +12142,77 @@ function importarEstoque(event) {
                 renderizarDashboard();
                 renderizarRegistroVendas();
                 renderizarRegistroDistribuicao();
+                try { renderizarCadastroProdutos(); } catch(ex) {}
                 atualizarEstatisticas();
             }
 
-            // Limpar input
             event.target.value = '';
-            
-            // Mostrar resultado
-            if (erros.length > 0 && produtosAtualizados === 0) {
-                mostrarNotificacao(`Nenhum produto atualizado. Verifique o formato.`, 'error');
-                console.debug('Erros de importação:', erros);
-            } else if (erros.length > 0) {
-                mostrarNotificacao(`${produtosAtualizados} produtos atualizados. ${erros.length} erros.`, 'warning');
-                console.debug('Erros de importação:', erros);
-            } else {
-                mostrarNotificacao(`${produtosAtualizados} produtos atualizados com sucesso!`, 'success');
+
+            // Montar relatório
+            let html = '';
+
+            if (atualizados.length > 0) {
+                html += `<div style="margin-bottom:14px">
+                    <div style="font-weight:700;color:#166534;margin-bottom:6px">✅ ${atualizados.length} produto(s) atualizado(s)</div>
+                    <ul style="margin:0;padding-left:18px;font-size:0.85rem;color:var(--text-secondary)">
+                        ${atualizados.map(a => `<li>${_escapeHtml(a.nome)} <span style="color:#64748b;font-size:0.78rem">(${a.matchTipo === 'pn' ? 'PN' : a.matchTipo === 'exato' ? 'nome exato' : 'substring'})</span></li>`).join('')}
+                    </ul>
+                </div>`;
             }
-            
+
+            if (substrMatch.length > 0) {
+                html += `<div style="margin-bottom:14px;background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:10px 14px">
+                    <div style="font-weight:700;color:#92400e;margin-bottom:6px">⚠️ ${substrMatch.length} produto(s) resolvido(s) por nome parcial — verifique</div>
+                    <ul style="margin:0;padding-left:18px;font-size:0.85rem;color:#78350f">
+                        ${substrMatch.map(s => `<li>CSV: <b>${_escapeHtml(s.nomeCsv)}</b> → Sistema: <b>${_escapeHtml(s.nomeSistema)}</b></li>`).join('')}
+                    </ul>
+                    <div style="font-size:0.78rem;color:#92400e;margin-top:6px">Dica: cadastre o PN nos produtos para evitar match parcial.</div>
+                </div>`;
+            }
+
+            if (criados.length > 0) {
+                html += `<div style="margin-bottom:14px">
+                    <div style="font-weight:700;color:#1d4ed8;margin-bottom:6px">➕ ${criados.length} produto(s) criado(s) automaticamente</div>
+                    <ul style="margin:0;padding-left:18px;font-size:0.85rem;color:var(--text-secondary)">
+                        ${criados.map(n => `<li>${_escapeHtml(n)}</li>`).join('')}
+                    </ul>
+                </div>`;
+            }
+
+            const naoCriados = pendentes.filter(p => !criados.includes(p.nome));
+            if (naoCriados.length > 0) {
+                html += `<div style="margin-bottom:14px">
+                    <div style="font-weight:700;color:#991b1b;margin-bottom:6px">❌ ${naoCriados.length} produto(s) não encontrado(s) e não criado(s)</div>
+                    <ul style="margin:0;padding-left:18px;font-size:0.85rem;color:var(--text-secondary)">
+                        ${naoCriados.map(p => `<li>${_escapeHtml(p.nome)}</li>`).join('')}
+                    </ul>
+                </div>`;
+            }
+
+            if (erros.length > 0) {
+                html += `<div style="margin-bottom:14px">
+                    <div style="font-weight:700;color:#991b1b;margin-bottom:6px">❌ ${erros.length} linha(s) com erro de formato</div>
+                    <ul style="margin:0;padding-left:18px;font-size:0.85rem;color:var(--text-secondary)">
+                        ${erros.map(e => `<li>${_escapeHtml(e)}</li>`).join('')}
+                    </ul>
+                </div>`;
+            }
+
+            if (!html) {
+                html = `<p style="color:var(--text-secondary)">Nenhuma alteração realizada. Verifique o formato do arquivo.</p>`;
+            }
+
+            const relEl = document.getElementById('importacaoRelatorioConteudo');
+            if (relEl) relEl.innerHTML = html;
+            const modalRel = document.getElementById('modalImportacaoRelatorio');
+            if (modalRel) modalRel.style.display = 'flex';
+
         } catch (error) {
             console.error('Erro ao importar:', error);
             mostrarNotificacao('Erro ao processar o arquivo. Verifique o formato.', 'error');
         }
     };
-    
+
     reader.readAsText(file, 'UTF-8');
 }
 
@@ -12453,9 +12628,10 @@ function renderizarControleEnvio() {
 }
 
 function irParaControleEnvio(contrato) {
-    trocarAba('controleenvio');
+    // Controle de Envio unificado — navegar para a linha na tabela de Vendas/Envio
+    trocarAba('vendas');
     setTimeout(() => {
-        const rows = document.querySelectorAll('#tabelaControleEnvioBody tr');
+        const rows = document.querySelectorAll('#tabelaRegistroVendasBody tr.row-contrato-resumo');
         for (const row of rows) {
             const cell = row.querySelector('.col-contrato');
             if (cell && cell.textContent.includes(contrato)) {
@@ -12495,8 +12671,8 @@ function salvarControleEnvio(contrato, campo, valor) {
     
     estoque.controleEnvio[contrato][campo] = valor;
     salvarDados();
-    // Re-renderizar a tabela para refletir imediatamente a alteração visual
-    try { renderizarControleEnvio(); } catch (e) {}
+    // Re-renderizar a tabela unificada
+    try { renderizarRegistroVendas(); } catch (e) {}
 }
 
 function limparFiltrosControleEnvio() {
@@ -12510,7 +12686,7 @@ function limparControleEnvio(contrato) {
     if (confirm(`Deseja limpar os dados de envio do contrato ${contrato}?`)) {
         delete estoque.controleEnvio[contrato];
         salvarDados();
-        renderizarControleEnvio();
+        try { renderizarRegistroVendas(); } catch (e) {}
         mostrarNotificacao(`Dados de envio do contrato ${contrato} removidos`, 'success');
     }
 }

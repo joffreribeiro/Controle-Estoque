@@ -77,12 +77,11 @@
                     <div class="nav-group-label">Comercial</div>
                     <button class="nav-item" data-tab="precificacao" onclick="trocarAba('precificacao')"><span>💰</span><span class="nav-text">Precificação</span></button>
                     <button class="nav-item" data-tab="propostas" onclick="trocarAba('propostas')"><span>📋</span><span class="nav-text">Propostas</span></button>
-                    <button class="nav-item" data-tab="vendas" onclick="trocarAba('vendas')"><span>📝</span><span class="nav-text">Registro de Vendas</span></button>
+                    <button class="nav-item" data-tab="vendas" onclick="trocarAba('vendas')"><span>📝</span><span class="nav-text">Vendas / Envio</span></button>
                 </div>
 
                 <div class="nav-group">
                     <div class="nav-group-label">Controle</div>
-                    <button class="nav-item" data-tab="controleenvio" onclick="trocarAba('controleenvio')"><span>📮</span><span class="nav-text">Controle de Envio</span></button>
                     <button class="nav-item" data-tab="controleimbel" onclick="trocarAba('controleimbel')"><span>🔪</span><span class="nav-text">IMBEL</span></button>
                 </div>
 
@@ -302,8 +301,6 @@
                                     <th style="min-width:140px">Componente</th>
                                     <th class="sortable sort-asc" style="text-align:left; min-width:220px" onclick="ordenarCadastroPor('nome')">Nome <span class="sort-icon">↑</span></th>
                                     <th class="sortable" style="min-width:100px" title="Custo Interno" onclick="ordenarCadastroPor('ci')">CI <span class="sort-icon">↕</span></th>
-                                    <th class="sortable" style="min-width:100px" title="Margem mínima de lucro" onclick="ordenarCadastroPor('margemMin')">Margem Mín. (%) <span class="sort-icon">↕</span></th>
-                                    <th class="sortable" style="min-width:100px" title="Desconto máximo permitido" onclick="ordenarCadastroPor('descMax')">Desc. Máx. (%) <span class="sort-icon">↕</span></th>
                                     <th style="min-width:110px">Estoque IMBEL</th>
                                     <th class="sortable" style="min-width:130px" onclick="ordenarCadastroPor('saldo')">SALDO CONSOLIDADO <span class="sort-icon">↕</span></th>
                                     <th class="sortable" style="min-width:110px" onclick="ordenarCadastroPor('atualizado')">Última Atualização <span class="sort-icon">↕</span></th>
@@ -1447,7 +1444,7 @@
         <div class="tab-content" id="tab-vendas">
             <div class="content-area">
                 <div class="section-header">
-                    <h2 class="section-title">Registro de Vendas</h2>
+                    <h2 class="section-title">Vendas / Envio</h2>
                     <div class="header-actions">
                         <button class="btn btn-success" data-admin="true" onclick="abrirModalVendaDetalhada()">
                             <span class="btn-icon">+</span> Nova Venda
@@ -1516,7 +1513,7 @@
                     </article>
                 </div>
 
-                <!-- Toolbar filtros v2 -->
+                <!-- Toolbar filtros unificada (Vendas + Envio) -->
                 <div class="vendas-toolbar" style="margin-bottom:12px">
                     <div class="prod-search-wrap">
                         <svg class="search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
@@ -1540,6 +1537,28 @@
                         <button type="button" class="periodo-pill" onclick="filtroVendasRapido('ano')">Ano</button>
                         <button type="button" class="periodo-pill periodo-pill--clear" onclick="filtroVendasRapido('limpar')">✕</button>
                     </div>
+                    <!-- Filtros de envio -->
+                    <select id="filtroVendasSistema" class="prod-filter-select" onchange="filtrarVendas()" title="Filtrar por status Sistema">
+                        <option value="">Sistema: Todos</option>
+                        <option value="sim">Sistema: Sim</option>
+                        <option value="nao">Sistema: Não</option>
+                    </select>
+                    <select id="filtroVendasAssinado" class="prod-filter-select" onchange="filtrarVendas()" title="Filtrar por status Assinado">
+                        <option value="">Assinado: Todos</option>
+                        <option value="sim">Assinado: Sim</option>
+                        <option value="nao">Assinado: Não</option>
+                    </select>
+                    <select id="filtroVendasEnviado" class="prod-filter-select" onchange="filtrarVendas()" title="Filtrar por status Enviado">
+                        <option value="">Enviado: Todos</option>
+                        <option value="sim">Enviado: Sim</option>
+                        <option value="nao">Enviado: Não</option>
+                    </select>
+                    <select id="filtroVendasProgresso" class="prod-filter-select" onchange="filtrarVendas()" title="Filtrar por progresso de envio">
+                        <option value="">Progresso: Todos</option>
+                        <option value="completo">✅ Completo (3/3)</option>
+                        <option value="parcial">⏳ Parcial (1-2/3)</option>
+                        <option value="pendente">⬜ Pendente (0/3)</option>
+                    </select>
                     <button class="btn btn-outline btn-sm" onclick="expandirTodosContratos()">▾ Expandir</button>
                     <button class="btn btn-outline btn-sm" onclick="colapsarTodosContratos()">▸ Colapsar</button>
                     <button class="btn btn-outline btn-sm" onclick="limparFiltrosVendas()">🔄</button>
@@ -1552,17 +1571,18 @@
                         <table class="dashboard-table" id="tabelaRegistroVendas" data-table="vendas">
                             <thead>
                                 <tr>
-                                    <th style="width: 80px;" class="col-contrato sortable" data-sort="contrato" onclick="sortVendas('contrato')">Contrato <span class="sort-icon">⇅</span></th>
+                                    <th style="width:130px" class="col-contrato sortable" data-sort="contrato" onclick="sortVendas('contrato')">Contrato <span class="sort-icon">⇅</span></th>
                                     <th class="col-loja sortable" data-sort="loja" onclick="sortVendas('loja')">Loja / Cliente <span class="sort-icon">⇅</span></th>
-                                    <th style="width: 120px;" class="col-representante sortable" data-sort="representante" onclick="sortVendas('representante')">Representante <span class="sort-icon">⇅</span></th>
+                                    <th style="width:120px" class="col-representante sortable" data-sort="representante" onclick="sortVendas('representante')">Representante <span class="sort-icon">⇅</span></th>
                                     <th class="col-produto-venda">Produto</th>
-                                    <th style="width: 90px;" class="col-qtd">Qtd</th>
-                                    <th style="width: 120px;" class="col-valor-un">Valor Un.</th>
-                                    <th style="width: 130px;" class="col-valor-total sortable" data-sort="valorTotal" onclick="sortVendas('valorTotal')">Valor Total <span class="sort-icon">⇅</span></th>
-                                    <th style="width: 120px;" class="col-data sortable" data-sort="data" onclick="sortVendas('data')">Data <span class="sort-icon">⇅</span></th>
-                                    <!-- Coluna 'Total Contrato (R$)' removida -->
-                                    <th style="width: 150px;" class="col-obs">Obs</th>
-                                    <th style="width: 80px;" class="col-acoes">Ações</th>
+                                    <th style="width:60px" class="col-qtd">Qtd</th>
+                                    <th style="width:130px" class="col-valor-total sortable" data-sort="valorTotal" onclick="sortVendas('valorTotal')">Valor Total <span class="sort-icon">⇅</span></th>
+                                    <th style="width:110px" class="col-data sortable" data-sort="data" onclick="sortVendas('data')">Data <span class="sort-icon">⇅</span></th>
+                                    <th style="width:90px" class="col-sistema" title="Lançado no Sistema">Sistema</th>
+                                    <th style="width:90px" class="col-assinado" title="Contrato Assinado">Assinado</th>
+                                    <th style="width:90px" class="col-enviado" title="Contrato Enviado">Enviado</th>
+                                    <th style="width:140px" class="col-solicitacao">Solicitação</th>
+                                    <th style="width:100px" class="col-acoes">Ações</th>
                                 </tr>
                             </thead>
                             <tbody id="tabelaRegistroVendasBody"></tbody>
@@ -1570,9 +1590,8 @@
                                 <tr class="total-row">
                                     <td colspan="4"><strong>TOTAL</strong></td>
                                     <td id="totalQtdVendas"><strong>0</strong></td>
-                                    <td></td>
                                     <td id="totalValorVendas"><strong>R$ 0,00</strong></td>
-                                    <td colspan="3"></td>
+                                    <td colspan="6"></td>
                                 </tr>
                             </tfoot>
                         </table>
@@ -2075,7 +2094,7 @@
         <!-- ========================================
              ABA: CONTROLE DE ENVIO DE CONTRATOS
              ======================================== -->
-        <div class="tab-content" id="tab-controleenvio">
+        <div class="tab-content" id="tab-controleenvio" style="display:none!important">
             <div class="content-area">
                 <div class="section-header">
                     <h2 class="section-title">Controle de Envio de Contratos</h2>
@@ -4015,6 +4034,22 @@
     </div>
 
         <!-- Modal confirmação de estoque (exibe quando falta estoque antes de registrar venda) -->
+        <!-- Modal relatório de importação de estoque -->
+        <div id="modalImportacaoRelatorio" class="modal" style="display:none" onclick="if(event.target===this)this.style.display='none'">
+            <div class="modal-content" style="max-width:680px;max-height:82vh;display:flex;flex-direction:column">
+                <div class="modal-header">
+                    <h2><span>📋</span> Relatório de Importação</h2>
+                    <span class="close" onclick="document.getElementById('modalImportacaoRelatorio').style.display='none'">&times;</span>
+                </div>
+                <div class="modal-body" style="overflow-y:auto;padding:16px 20px">
+                    <div id="importacaoRelatorioConteudo"></div>
+                </div>
+                <div class="modal-footer" style="padding:12px 20px;border-top:1px solid var(--border)">
+                    <button class="btn btn-primary" onclick="document.getElementById('modalImportacaoRelatorio').style.display='none'">Fechar</button>
+                </div>
+            </div>
+        </div>
+
         <div id="modalCancelamentos" class="modal" style="display:none" onclick="if(event.target===this)this.style.display='none'">
             <div class="modal-content" style="max-width:720px;max-height:80vh;display:flex;flex-direction:column">
                 <div class="modal-header">
