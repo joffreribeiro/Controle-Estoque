@@ -1536,6 +1536,130 @@ function limparFiltrosConsultaPrec() {
     } catch (e) { console.error('limparFiltrosConsultaPrec erro:', e); }
 }
 
+// ── TOGGLE MODO CONSULTA (Por Precificação / Por Produto) ─────────────────────
+let _consultaPrecModo = 'precificacao';
+
+function alternarModoConsultaPrec(modo) {
+    _consultaPrecModo = modo;
+    const btnPrecif = document.getElementById('btnConsultaModoPrecif');
+    const btnProduto = document.getElementById('btnConsultaModoProduto');
+    const tabelaNormal = document.querySelector('#painel-consultaPrec .table-container');
+    const paginacao = document.getElementById('paginacaoConsultaPrec');
+    const porProduto = document.getElementById('bodyConsultaPrecPorProduto');
+    const filtros = document.querySelector('#painel-consultaPrec .section-header');
+
+    if (modo === 'produto') {
+        if (btnPrecif) { btnPrecif.className = 'btn btn-outline btn-sm'; }
+        if (btnProduto) { btnProduto.className = 'btn btn-primary btn-sm'; }
+        if (tabelaNormal) tabelaNormal.style.display = 'none';
+        if (paginacao) paginacao.style.display = 'none';
+        if (filtros) filtros.style.display = 'none';
+        if (porProduto) porProduto.style.display = 'block';
+        renderizarConsultaPorProduto();
+    } else {
+        if (btnPrecif) { btnPrecif.className = 'btn btn-primary btn-sm'; }
+        if (btnProduto) { btnProduto.className = 'btn btn-outline btn-sm'; }
+        if (tabelaNormal) tabelaNormal.style.display = '';
+        if (paginacao) paginacao.style.display = '';
+        if (filtros) filtros.style.display = '';
+        if (porProduto) porProduto.style.display = 'none';
+    }
+}
+
+function renderizarConsultaPorProduto() {
+    const tbody = document.getElementById('bodyConsultaPrecPorProdutoTabela');
+    if (!tbody) return;
+
+    const precificacoesCliente = estoque.precificacoesCliente || [];
+    if (precificacoesCliente.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;color:#94a3b8;padding:30px">Nenhuma precificação salva</td></tr>`;
+        return;
+    }
+
+    // Agrupa por produto
+    const porProduto = {};
+    precificacoesCliente.forEach(precif => {
+        const itens = precif.itens || [];
+        itens.forEach(item => {
+            const nome = item.produto || item.nome || '—';
+            if (!porProduto[nome]) porProduto[nome] = [];
+            porProduto[nome].push({
+                valorFinal: parseFloat(item.valorFinal || item.precoFinal || 0),
+                data: precif.dataCriacao || precif.data || null,
+                cliente: precif.nomeCliente || precif.cliente || '—',
+                id: precif.id || null,
+                quantidade: item.quantidade || item.qtd || 1,
+            });
+        });
+    });
+
+    const fmt = v => 'R$ ' + _fmtMoeda(v);
+
+    const linhas = Object.keys(porProduto).sort().map(nome => {
+        const registros = porProduto[nome].filter(r => r.valorFinal > 0);
+        if (registros.length === 0) return '';
+        const valores = registros.map(r => r.valorFinal);
+        const menor = Math.min(...valores);
+        const maior = Math.max(...valores);
+        // Último = mais recente por data
+        const ordenados = [...registros].sort((a, b) => {
+            const da = a.data ? new Date(a.data) : new Date(0);
+            const db = b.data ? new Date(b.data) : new Date(0);
+            return db - da;
+        });
+        const ultimo = ordenados[0];
+        const ultimaData = ultimo.data ? formatDateToDDMMYYYY(new Date(ultimo.data)) : '—';
+        const nomeId = nome.replace(/[^a-z0-9]/gi, '_');
+
+        const detalheRows = ordenados.map(r => {
+            const dataFmt = r.data ? formatDateToDDMMYYYY(new Date(r.data)) : '—';
+            return `<tr style="background:#f8fafc">
+                <td colspan="2" style="padding:6px 16px 6px 32px;color:#475569">${_escapeHtml(r.cliente)}</td>
+                <td style="text-align:center;padding:6px 8px;color:#64748b">${dataFmt}</td>
+                <td style="text-align:center;padding:6px 8px;color:#64748b">${r.quantidade}</td>
+                <td style="text-align:right;padding:6px 8px;font-weight:600;color:#1e3a5f">${fmt(r.valorFinal)}</td>
+                <td colspan="2"></td>
+            </tr>`;
+        }).join('');
+
+        return `
+            <tr id="prod-hist-row-${nomeId}">
+                <td style="text-align:left;padding-left:12px;font-weight:600">${_escapeHtml(nome)}</td>
+                <td style="text-align:center">${registros.length}</td>
+                <td style="text-align:right;color:#16a34a;font-weight:600">${fmt(menor)}</td>
+                <td style="text-align:right;color:#dc2626;font-weight:600">${fmt(maior)}</td>
+                <td style="text-align:right;font-weight:700;color:#c9a227">${fmt(ultimo.valorFinal)}</td>
+                <td style="text-align:center;color:#64748b">${ultimaData}</td>
+                <td style="text-align:center">
+                    <button class="btn btn-outline btn-sm" onclick="toggleDetalheProdutoConsulta('${nomeId}')">Ver detalhes</button>
+                </td>
+            </tr>
+            <tr id="prod-hist-detalhe-${nomeId}" style="display:none">
+                <td colspan="7" style="padding:0">
+                    <table style="width:100%;border-top:1px solid #e2e8f0">
+                        <thead><tr style="background:#f1f5f9">
+                            <th colspan="2" style="text-align:left;padding:6px 16px 6px 32px;font-size:0.78rem">Cliente</th>
+                            <th style="text-align:center;padding:6px 8px;font-size:0.78rem">Data</th>
+                            <th style="text-align:center;padding:6px 8px;font-size:0.78rem">Qtd</th>
+                            <th style="text-align:right;padding:6px 8px;font-size:0.78rem">Valor Final</th>
+                            <th colspan="2"></th>
+                        </tr></thead>
+                        <tbody>${detalheRows}</tbody>
+                    </table>
+                </td>
+            </tr>
+        `;
+    }).join('');
+
+    tbody.innerHTML = linhas || `<tr><td colspan="7" style="text-align:center;color:#94a3b8;padding:30px">Nenhum produto encontrado</td></tr>`;
+}
+
+function toggleDetalheProdutoConsulta(nomeId) {
+    const row = document.getElementById('prod-hist-detalhe-' + nomeId);
+    if (!row) return;
+    row.style.display = row.style.display === 'none' ? 'table-row' : 'none';
+}
+
 function carregarDados() {
     const dadosSalvos = localStorage.getItem('estoqueArmasV2');
     if (dadosSalvos) {
@@ -17516,7 +17640,7 @@ function calcularPrecificacaoPorCliente(opcoes = {}) {
             return `
                 <tr id="precif_row_${nomeId}" style="opacity:0.45">
                     <td style="text-align:left; padding-left:15px; font-weight:500; position:sticky; left:0; background:#fff; z-index:1">${_escapeHtml(produto.nome)}<span style="font-size:0.7rem; color:#94a3b8; margin-left:6px">sem CI</span></td>
-                    <td colspan="10" style="text-align:center; color:#94a3b8; font-size:0.85rem">CI não configurado — informe o CI na linha ou acesse a Tabela de CI</td>
+                    <td colspan="6" style="text-align:center; color:#94a3b8; font-size:0.85rem">CI não configurado — informe o CI na linha ou acesse a Tabela de CI</td>
                 </tr>
             `;
         }
@@ -17621,7 +17745,6 @@ function calcularPrecificacaoPorCliente(opcoes = {}) {
             margem
         });
 
-        const icmsBg = tipoPessoa === 'PF' ? '#fef2f2' : '#f0fdf4';
         const icmsColor = tipoPessoa === 'PF' ? '#dc2626' : '#16a34a';
 
         const nomeId = (produto.nome || '').replace(/[^a-z0-9]/gi, '_');
@@ -17635,40 +17758,10 @@ function calcularPrecificacaoPorCliente(opcoes = {}) {
         if (retidAtivo) prodBadge = '<span style="font-size:0.68rem; background:#dbeafe; color:#1d4ed8; padding:1px 6px; border-radius:10px; margin-left:6px; font-weight:700">RETID</span>';
         else if ((beneficiosPorProduto[produto.nome] && beneficiosPorProduto[produto.nome].isentoTotal)) prodBadge = '<span style="font-size:0.68rem; background:#dcfce7; color:#166534; padding:1px 6px; border-radius:10px; margin-left:6px; font-weight:700">ISENTO</span>';
 
-        const impostoPctStyle = 'font-size:0.75rem;color:#64748b';
-        const impostoValStyle = 'font-weight:600';
-        const taxaRoiCell = `<td style="text-align:center;color:#475569">
-            <div style="font-size:0.75rem;color:#64748b">Taxa: ${(Number(taxaProd)).toFixed(2)}%</div>
-            <div style="font-size:0.75rem;color:#64748b">ROI: ${(Number(roiProd)).toFixed(2)}%</div>
-        </td>`;
-        const pisCofinsCell = `<td style="text-align:center">
-            <div style="${impostoPctStyle}">PIS: ${Number(pisEfetivo).toFixed(2)}%</div>
-            <div style="${impostoValStyle}">${fmt(pisR)}</div>
-            <div style="${impostoPctStyle};margin-top:4px">COFINS: ${Number(cofinsEfetivo).toFixed(2)}%</div>
-            <div style="${impostoValStyle}">${fmt(cofinsR)}</div>
-        </td>`;
-        const icmsCell = `<td style="text-align:center;background:${icmsBg}">
-            <div style="${impostoPctStyle};color:${icmsColor}">${Number(icmsEfetivo).toFixed(2)}%</div>
-            <div style="${impostoValStyle}">${fmt(icmsR)}</div>
-        </td>`;
-        const ipiCell = `<td style="text-align:center">
-            <div style="${impostoPctStyle}">${Number(ipiEfetivo).toFixed(2)}%</div>
-            <div style="${impostoValStyle}">${fmt(ipiR)}</div>
-        </td>`;
-        const comissaoCell = `<td style="text-align:center;color:#d97706">
-            <div style="${impostoPctStyle}">${(Number(comissaoProd)).toFixed(2)}%</div>
-            <div style="${impostoValStyle}">${fmt(comissaoR)}</div>
-        </td>`;
-
         // row left border if margin below minimum (priority) or RETID active
         const rowStyle = abaixo ? 'border-left:3px solid #dc2626' : (retidAtivo ? 'border-left:3px solid #1e3a5f' : '');
         const delta = abaixo ? ((margemMinima - margem) / 100 * precoFinal) : 0;
-        const precoFinalCell = `
-            <td style="font-weight:800; color:#c9a227; background:#fffbf0; font-size:1rem">
-                ${fmt(precoFinal)}
-                ${abaixo ? `<div style="font-size:0.68rem;color:#dc2626;margin-top:2px">↑ R$ ${Math.abs(delta).toFixed(2)} abaixo do mín.</div>` : ''}
-            </td>
-        `;
+
         const margemCor = margem >= 30 ? '#16a34a' : (margem >= 15 ? '#d97706' : '#dc2626');
         const margemCell = abaixo
             ? `<td style="font-weight:700;color:#dc2626;background:#fef2f2;text-align:center">
@@ -17680,21 +17773,33 @@ function calcularPrecificacaoPorCliente(opcoes = {}) {
                </td>`
             : `<td style="font-weight:700; color:${margemCor};text-align:center">${margem.toFixed(1)}%</td>`;
 
+        // Célula compacta de impostos com tooltip detalhado
+        const tooltipImpostos = [
+            `Taxa: ${Number(taxaProd).toFixed(2)}% | ROI: ${Number(roiProd).toFixed(2)}%`,
+            `Base: ${fmt(valorBase)}`,
+            `PIS: ${Number(pisEfetivo).toFixed(2)}% = ${fmt(pisR)}`,
+            `COFINS: ${Number(cofinsEfetivo).toFixed(2)}% = ${fmt(cofinsR)}`,
+            `ICMS: ${Number(icmsEfetivo).toFixed(2)}% = ${fmt(icmsR)}`,
+            `IPI: ${Number(ipiEfetivo).toFixed(2)}% = ${fmt(ipiR)}`,
+            `Comissão: ${Number(comissaoProd).toFixed(2)}% = ${fmt(comissaoR)}`,
+        ].join(' &#10;');
+        const impostosSummary = [
+            ipiEfetivo > 0 ? `IPI ${Number(ipiEfetivo).toFixed(0)}%` : null,
+            `ICMS <span style="color:${icmsColor}">${Number(icmsEfetivo).toFixed(0)}%</span>`,
+        ].filter(Boolean).join(' · ');
+        const impostosCell = `<td class="precif-imposto-cell" title="${tooltipImpostos}" style="text-align:center;cursor:help">
+            <div style="font-size:0.75rem;color:#475569">${impostosSummary}</div>
+            <div style="font-size:0.7rem;color:#94a3b8;margin-top:2px">PIS+COFINS ${(Number(pisEfetivo)+Number(cofinsEfetivo)).toFixed(2)}%</div>
+        </td>`;
+
         return `
             <tr id="precif_row_${nomeId}" style="${rowStyle}">
                 <td style="text-align:left; padding-left:15px; font-weight:500; position:sticky; left:0; background:#fff; z-index:1; border-right:1px solid #e2e8f0">${_escapeHtml(produto.nome)} ${prodBadge}${ciBadge}</td>
-                <td style="text-align:center; min-width:80px; font-weight:600">${quantidade}</td>
-                <td style="font-weight:600; color:#1e3a5f">${fmt(ci)}</td>
-                ${taxaRoiCell}
-                <td style="font-weight:600; color:#1e3a5f">${fmt(valorBase)}</td>
-                ${pisCofinsCell}
-                ${icmsCell}
-                <td style="font-weight:600; color:#475569">${fmt(valorImpostos)}</td>
-                ${ipiCell}
-                <td style="font-weight:600; color:#475569">${fmt(valorComIPI)}</td>
-                ${comissaoCell}
+                <td style="text-align:center; min-width:70px; font-weight:600">${quantidade}</td>
+                <td style="font-weight:600; color:#1e3a5f; text-align:right">${fmt(ci)}</td>
+                ${impostosCell}
+                <td style="font-weight:800; color:#c9a227; background:#fffbf0; font-size:1rem; text-align:right">${fmt(valorFinalCalc)}${abaixo ? `<div style="font-size:0.68rem;color:#dc2626;margin-top:2px">↑ R$ ${Math.abs(delta).toFixed(2)} abaixo do mín.</div>` : ''}</td>
                 <td style="text-align:right; font-weight:600;">${fmt(freteVal)}</td>
-                <td style="font-weight:800; color:#c9a227; background:#fffbf0; font-size:1rem">${fmt(valorFinalCalc)}</td>
                 <td style="text-align:right; font-weight:700; color:#1e3a5f">${fmt(valorTotalCalc)}</td>
                 ${margemCell}
             </tr>

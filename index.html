@@ -647,14 +647,21 @@
                                 </div>
 
                                 <div class="precif-subnav">
-                                    <button class="precif-subtab-btn active" onclick="trocarSubabaPrecif('porcliente')" id="sbtn-porcliente">👤 Por Cliente</button>
-                                    <button class="precif-subtab-btn" id="btnConsultaPrecificacao" onclick="trocarSubabaPrecif('consultaPrec')">🔍 Consulta</button>
-                                    <button class="precif-subtab-btn" onclick="trocarSubabaPrecif('comparativo')" id="sbtn-comparativo">⚖️ Comparativo</button>
-                                    <button class="precif-subtab-btn" onclick="trocarSubabaPrecif('rastreabilidade')" id="sbtn-rastreabilidade">🔗 Rastreabilidade</button>
-                                    <button class="precif-subtab-btn" onclick="trocarSubabaPrecif('impostos')" id="sbtn-impostos">🧾 Impostos</button>
-                                    <button class="precif-subtab-btn" onclick="trocarSubabaPrecif('precoestado')" id="sbtn-precoestado">🗂️ Preço p/ Lojistas</button>
-                                    <button class="precif-subtab-btn" onclick="trocarSubabaPrecif('tabelavenda')" id="sbtn-tabelavenda">📋 Tabela de Venda</button>
-                                    <button class="precif-subtab-btn" onclick="trocarSubabaPrecif('tabelaci')" id="sbtn-tabelaci">💲 Tabela CI</button>
+                                    <div class="precif-subtab-group">
+                                        <div class="precif-subtab-group-label">Cálculo e Análise</div>
+                                        <button class="precif-subtab-btn active" onclick="trocarSubabaPrecif('porcliente')" id="sbtn-porcliente">👤 Por Cliente</button>
+                                        <button class="precif-subtab-btn" id="btnConsultaPrecificacao" onclick="trocarSubabaPrecif('consultaPrec')">🔍 Consulta</button>
+                                        <button class="precif-subtab-btn" onclick="trocarSubabaPrecif('comparativo')" id="sbtn-comparativo">⚖️ Comparativo</button>
+                                        <button class="precif-subtab-btn" onclick="trocarSubabaPrecif('rastreabilidade')" id="sbtn-rastreabilidade">🔗 Rastreabilidade</button>
+                                    </div>
+                                    <div class="precif-subtab-sep"></div>
+                                    <div class="precif-subtab-group">
+                                        <div class="precif-subtab-group-label">Tabelas e Config</div>
+                                        <button class="precif-subtab-btn" onclick="trocarSubabaPrecif('impostos')" id="sbtn-impostos">🧾 Impostos</button>
+                                        <button class="precif-subtab-btn" onclick="trocarSubabaPrecif('precoestado')" id="sbtn-precoestado">🗂️ Lojistas</button>
+                                        <button class="precif-subtab-btn" onclick="trocarSubabaPrecif('tabelavenda')" id="sbtn-tabelavenda">📋 T.Venda</button>
+                                        <button class="precif-subtab-btn" onclick="trocarSubabaPrecif('tabelaci')" id="sbtn-tabelaci">💲 CI</button>
+                                    </div>
                                 </div>
 
                                 <!-- Sub-aba Preço por Estado -->
@@ -762,6 +769,13 @@
                                 <div id="painel-consultaPrec" style="display:none">
     <div class="content-area">
 
+        <!-- TOGGLE DE MODO -->
+        <div id="consultaPrecModo" style="display:flex;gap:6px;margin-bottom:14px;align-items:center">
+            <span style="font-size:0.78rem;color:#94a3b8;margin-right:4px">Visualizar por:</span>
+            <button id="btnConsultaModoPrecif" class="btn btn-primary btn-sm" onclick="alternarModoConsultaPrec('precificacao')">📋 Por Precificação</button>
+            <button id="btnConsultaModoProduto" class="btn btn-outline btn-sm" onclick="alternarModoConsultaPrec('produto')">📦 Por Produto</button>
+        </div>
+
         <!-- BARRA DE FILTROS + AÇÕES -->
         <div class="section-header" style="margin-bottom:16px">
             <span class="section-title">Precificações Salvas</span>
@@ -849,6 +863,28 @@
             <div class="pagination-container" id="paginacaoConsultaPrec"></div>
 
         </div><!-- /table-container -->
+
+        <!-- VISÃO POR PRODUTO -->
+        <div id="bodyConsultaPrecPorProduto" style="display:none">
+            <div class="table-container">
+                <div class="table-wrapper">
+                    <table class="dashboard-table" id="tabelaConsultaPrecPorProduto">
+                        <thead>
+                            <tr>
+                                <th style="text-align:left;min-width:200px">Produto</th>
+                                <th style="text-align:center;min-width:80px">Precificações</th>
+                                <th style="text-align:right;min-width:120px">Menor Preço</th>
+                                <th style="text-align:right;min-width:120px">Maior Preço</th>
+                                <th style="text-align:right;min-width:120px">Último Preço</th>
+                                <th style="text-align:center;min-width:110px">Última Data</th>
+                                <th style="text-align:center;min-width:80px">Detalhes</th>
+                            </tr>
+                        </thead>
+                        <tbody id="bodyConsultaPrecPorProdutoTabela"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
 
     </div><!-- /content-area -->
 </div><!-- /painel-consultaPrec -->
@@ -1103,25 +1139,18 @@
                                                              min-width:200px">
                                             Produto
                                         </th>
-                                        <th style="text-align:center;min-width:80px">Quantidade</th>
+                                        <th style="text-align:center;min-width:70px">Qtd</th>
                                         <th style="text-align:right;min-width:110px">CI</th>
-                                        <th style="text-align:center;min-width:120px">Taxa % / ROI %</th>
-                                        <th style="text-align:right;min-width:120px">Valor Base</th>
-                                        <th style="text-align:center;min-width:140px">PIS / COFINS</th>
-                                        <th style="text-align:center;min-width:120px">ICMS</th>
-                                        <th style="text-align:right;min-width:120px">Valor s/ IPI</th>
-                                        <th style="text-align:center;min-width:120px">IPI %</th>
-                                        <th style="text-align:right;min-width:120px">Valor c/ IPI</th>
-                                        <th style="text-align:center;min-width:120px">Comissão</th>
+                                        <th style="text-align:center;min-width:110px" title="Impostos: PIS, COFINS, ICMS, IPI — passe o mouse nas células para ver detalhes">Impostos ⓘ</th>
+                                        <th style="text-align:right;min-width:130px;color:#c9a227">Valor Final</th>
                                         <th style="text-align:right;min-width:100px">Frete (R$)</th>
-                                        <th style="text-align:right;min-width:130px; color:#c9a227">Valor Final</th>
                                         <th style="text-align:right;min-width:120px">Valor Total</th>
                                         <th style="text-align:center;min-width:80px">Margem %</th>
                                     </tr>
                                 </thead>
                                 <tbody id="tabelaPrecifClienteBody">
                                     <tr>
-                                        <td colspan="14"
+                                        <td colspan="8"
                                                 style="text-align:center;color:#94a3b8;padding:30px">
                                             Calculando...
                                         </td>
