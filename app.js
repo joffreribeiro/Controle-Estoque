@@ -4073,11 +4073,19 @@ function gerarPdfProposta(propostaId, tipo = 'simples') {
         doc.text('Validade: ' + (proposta.dataExpiracao ? new Date(proposta.dataExpiracao).toLocaleDateString('pt-BR') : ''), 195, 28, { align: 'right' });
 
         // CLIENT INFO
+        const clienteObj = (clientes || []).find(c =>
+            (proposta.clienteId && String(c.id) === String(proposta.clienteId)) ||
+            (c.nome || '').toLowerCase().trim() === (proposta.cliente || '').toLowerCase().trim() ||
+            (c.nome || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim() === (proposta.cliente || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim()
+        ) || null;
+
+        const cidadeUf = clienteObj ? [clienteObj.cidade, clienteObj.uf].filter(Boolean).join(' — ') : '';
+        const blocoAltura = cidadeUf ? 36 : 28;
         let y = 45;
         doc.setFillColor(248, 250, 252);
-        doc.rect(10, y - 5, 190, 28, 'F');
+        doc.rect(10, y - 5, 190, blocoAltura, 'F');
         doc.setDrawColor(226, 232, 240);
-        doc.rect(10, y - 5, 190, 28, 'S');
+        doc.rect(10, y - 5, 190, blocoAltura, 'S');
         doc.setFont('helvetica', 'bold');
         doc.setFontSize(8);
         doc.setTextColor(100, 116, 139);
@@ -4087,7 +4095,6 @@ function gerarPdfProposta(propostaId, tipo = 'simples') {
         doc.setTextColor(30, 41, 59);
         doc.text(proposta.cliente || '-', 15, y + 7);
 
-        const clienteObj = (clientes || []).find(c => (c.nome || '').toLowerCase() === (proposta.cliente || '').toLowerCase());
         if (clienteObj) {
             doc.setFont('helvetica', 'normal');
             doc.setFontSize(9);
@@ -4096,6 +4103,7 @@ function gerarPdfProposta(propostaId, tipo = 'simples') {
             if (clienteObj.contato) doc.text('Contato: ' + clienteObj.contato, 100, y + 13);
             if (clienteObj.telefone) doc.text('Tel: ' + clienteObj.telefone, 15, y + 19);
             if (clienteObj.email) doc.text('E-mail: ' + clienteObj.email, 100, y + 19);
+            if (cidadeUf) doc.text(cidadeUf, 15, y + 25);
         }
 
         doc.setFont('helvetica', 'bold');
@@ -4107,7 +4115,7 @@ function gerarPdfProposta(propostaId, tipo = 'simples') {
         doc.text(proposta.representante || '-', 160, y + 7);
 
         // ITENS
-        y += 35;
+        y += blocoAltura + 7;
         let finalY = y;
         const cliente = clienteObj;
 
@@ -4197,7 +4205,12 @@ function gerarPdfProposta(propostaId, tipo = 'simples') {
                         styles: { fontSize: 8 },
                         margin: { left: 10, right: 10 }
                     });
-                    y = doc.lastAutoTable.finalY + 4;
+                    y = doc.lastAutoTable.finalY + 2;
+                    doc.setFont('helvetica', 'italic');
+                    doc.setFontSize(7);
+                    doc.setTextColor(150, 150, 150);
+                    doc.text('* Detalhamento fiscal não disponível para este item', 14, y);
+                    y += 6;
                 }
             });
             finalY = y + 2;
@@ -11109,6 +11122,7 @@ function salvarNovaDistribuicao(event) {
     renderizarTabela();
     renderizarDashboard();
     renderizarRegistroDistribuicao();
+    try { if (document.getElementById('painelSaldoProduto')?.style.display !== 'none') renderizarSaldoPorProduto(); } catch(e) {}
     fecharModal('modalNovaDistribuicao');
 
     try { verificarAlertasEstoque(); } catch (e) {}
@@ -11222,6 +11236,81 @@ function atualizarKPIsDistribuicao() {
         barEl.style.background = pct > 30 ? 'var(--warning-color)' : 'var(--success-color)';
     }
     if (barLblEl) barLblEl.textContent = `${totalDistUnid.toLocaleString('pt-BR')} dist / ${totalDevUnid.toLocaleString('pt-BR')} dev`;
+}
+
+function togglePainelSaldoProduto() {
+    const painel = document.getElementById('painelSaldoProduto');
+    const icon = document.getElementById('iconSaldoProduto');
+    if (!painel) return;
+    const aberto = painel.style.display !== 'none';
+    painel.style.display = aberto ? 'none' : 'block';
+    if (icon) icon.innerHTML = aberto ? '&#9658;' : '&#9660;';
+    if (!aberto) renderizarSaldoPorProduto();
+}
+
+function renderizarSaldoPorProduto() {
+    const painel = document.getElementById('painelSaldoProduto');
+    if (!painel) return;
+
+    const distrib = estoque.registroDistribuicao || [];
+    const devol = estoque.registroDevolucoes || [];
+    const mapa = {};
+
+    distrib.forEach(d => {
+        const nome = d.produtoNome || String(d.produtoId || '');
+        if (!nome) return;
+        if (!mapa[nome]) mapa[nome] = { dist: 0, dev: 0, saldo: 0, porRep: {} };
+        mapa[nome].dist += Number(d.quantidade || 0);
+        const rep = d.representante || '—';
+        mapa[nome].porRep[rep] = (mapa[nome].porRep[rep] || 0) + Number(d.quantidade || 0);
+    });
+
+    devol.forEach(d => {
+        const nome = d.produtoNome || String(d.produtoId || '');
+        if (!nome) return;
+        if (!mapa[nome]) mapa[nome] = { dist: 0, dev: 0, saldo: 0, porRep: {} };
+        mapa[nome].dev += Number(d.quantidade || 0);
+        const rep = d.origem || d.representante || '—';
+        mapa[nome].porRep[rep] = (mapa[nome].porRep[rep] || 0) - Number(d.quantidade || 0);
+    });
+
+    Object.values(mapa).forEach(m => { m.saldo = m.dist - m.dev; });
+
+    const linhas = Object.entries(mapa).sort((a, b) => b[1].saldo - a[1].saldo);
+
+    if (linhas.length === 0) {
+        painel.innerHTML = '<p style="color:var(--text-secondary);font-size:13px;padding:8px 0">Nenhum registro de distribuição encontrado.</p>';
+        return;
+    }
+
+    const tbody = linhas.map(([nome, m]) => {
+        const cor = m.saldo < 0 ? 'color:#dc2626;font-weight:600' : '';
+        const reps = Object.entries(m.porRep)
+            .filter(([, v]) => v > 0)
+            .sort((a, b) => b[1] - a[1])
+            .map(([r, v]) => `${r} (${v})`)
+            .join(', ') || '—';
+        return `<tr>
+            <td style="text-align:left">${_escapeHtml(nome)}</td>
+            <td style="text-align:center">${m.dist.toLocaleString('pt-BR')}</td>
+            <td style="text-align:center">${m.dev.toLocaleString('pt-BR')}</td>
+            <td style="text-align:center;${cor}">${m.saldo.toLocaleString('pt-BR')}</td>
+            <td style="text-align:left;font-size:12px;color:var(--text-secondary)">${_escapeHtml(reps)}</td>
+        </tr>`;
+    }).join('');
+
+    painel.innerHTML = `<div class="table-container" style="margin:0"><div class="table-wrapper">
+        <table class="dashboard-table" style="font-size:13px">
+            <thead><tr>
+                <th style="text-align:left;min-width:180px">Produto</th>
+                <th style="text-align:center;width:100px">Distribuído</th>
+                <th style="text-align:center;width:90px">Devolvido</th>
+                <th style="text-align:center;width:80px">Saldo</th>
+                <th style="text-align:left">Representantes</th>
+            </tr></thead>
+            <tbody>${tbody}</tbody>
+        </table>
+    </div></div>`;
 }
 
 function limparFiltrosDistribuicao() {
@@ -11841,6 +11930,7 @@ function salvarDevolucao(event) {
     renderizarTabela();
     renderizarDashboard();
     atualizarSelectsProdutos();
+    try { if (document.getElementById('painelSaldoProduto')?.style.display !== 'none') renderizarSaldoPorProduto(); } catch(e) {}
 
     fecharModal('modalDevolucao');
 
@@ -18373,6 +18463,7 @@ function criarPropostaDaPrecificacao() {
         id: 'prop-' + Date.now(),
         numero: gerarNumeroProposta(),
         cliente: clienteObj ? clienteObj.nome : (reg.clienteNome || ''),
+        clienteId: reg.clienteId || null,
         representante: clienteObj ? (clienteObj.representante || '') : '',
         data: new Date().toISOString(),
         validade: 30,
@@ -19883,10 +19974,12 @@ function salvarProposta(event) {
     const dataExp = new Date(dataISO);
     dataExp.setDate(dataExp.getDate() + validade);
 
+    const clienteSel = (clientes || []).find(c => c.nome === cliente);
     if (editId) {
         const idx = propostas.findIndex(p => p.id === editId);
         if (idx !== -1) {
             propostas[idx].cliente = cliente;
+            if (clienteSel) propostas[idx].clienteId = clienteSel.id;
             propostas[idx].representante = representante;
             propostas[idx].status = status;
             propostas[idx].data = dataISO;
@@ -19909,6 +20002,7 @@ function salvarProposta(event) {
             id: Date.now().toString(),
             numero: numero,
             cliente: cliente,
+            clienteId: clienteSel ? clienteSel.id : null,
             representante: representante,
             data: dataISO,
             validade: validade,

@@ -21,7 +21,8 @@
       "Bash(Get-ChildItem -Path \"e:\\\\MEUS DOCUMENTOS\\\\OneDrive\\\\Documentos\\\\Sistemas\\\\Estoque\\\\Controle-Estoque\")",
       "Bash(Select-Object Name, Length)",
       "Bash(ls -lh \"/mnt/e/MEUS DOCUMENTOS/OneDrive/Documentos/Sistemas/Estoque/Controle-Estoque/\" 2>/dev/null || ls -lh \"e:/MEUS DOCUMENTOS/OneDrive/Documentos/Sistemas/Estoque/Controle-Estoque/\")",
-      "Read(//mnt/e/MEUS DOCUMENTOS/OneDrive/Documentos/Sistemas/Estoque/**)"
+      "Read(//mnt/e/MEUS DOCUMENTOS/OneDrive/Documentos/Sistemas/Estoque/**)",
+      "Bash(Get-ChildItem -Path \"e:\\\\MEUS DOCUMENTOS\\\\OneDrive\\\\Documentos\\\\Sistemas\\\\Estoque\\\\Controle-Estoque\\\\\" -File | Select-Object Name)"
     ],
     "additionalDirectories": [
       "\\tmp"
