@@ -17427,6 +17427,165 @@ function precifGetProdutosSelecionados() {
 }
 
 // ==========================================
+// Picker multi-seleção de produtos (precificação)
+// ==========================================
+
+let _precifPickerAberto = false;
+let _precifPickerProdutosCache = [];
+
+function precifAbrirPickerProdutos(btn) {
+    const dropdown = document.getElementById('precifPickerDropdown');
+    if (!dropdown) return;
+
+    if (_precifPickerAberto) {
+        precifFecharPickerProdutos();
+        return;
+    }
+
+    const todos = [...(estoque.produtos || [])].sort((a, b) => (a.nome || '').localeCompare(b.nome || '', 'pt-BR'));
+    const principais = todos.filter(p => !p.componente || p.componente.trim() === '' || p.componente.trim() === '-');
+    const pecasPorPai = {};
+    todos.filter(p => p.componente && p.componente.trim() !== '' && p.componente.trim() !== '-').forEach(p => {
+        const pai = p.componente.trim().toUpperCase();
+        if (!pecasPorPai[pai]) pecasPorPai[pai] = [];
+        pecasPorPai[pai].push(p);
+    });
+
+    _precifPickerProdutosCache = todos;
+
+    const lista = document.getElementById('precifPickerLista');
+    if (!lista) return;
+
+    const jaAdicionados = new Set(
+        Array.from(document.querySelectorAll('.precif-linha-produto')).map(l => l.dataset.nomeProduto).filter(Boolean)
+    );
+
+    let html = '';
+    principais.forEach(prod => {
+        const nomeUp = (prod.nome || '').toUpperCase();
+        const filhas = pecasPorPai[nomeUp] || [];
+        const ci = parseFloat(precificacao[prod.nome]?.ci || prod.ci || 0);
+        const ciTxt = ci > 0 ? ` <span style="color:#64748b;font-size:0.75rem">(CI: ${_fmtMoeda(ci)})</span>` : '';
+        const jatem = jaAdicionados.has(prod.nome);
+
+        html += `<div class="precif-picker-row" data-nome="${_escapeHtml(prod.nome)}" style="padding:6px 12px;display:flex;align-items:center;gap:8px;cursor:pointer;border-radius:0" onclick="precifPickerToggleItem(this)">
+            <input type="checkbox" class="precif-picker-cb" value="${_escapeHtml(prod.nome)}" ${jatem ? 'checked' : ''} style="width:15px;height:15px;accent-color:#1e3a5f;flex-shrink:0;pointer-events:none">
+            <span style="font-size:0.85rem;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${_escapeHtml(prod.nome)}${ciTxt}</span>
+            ${filhas.length ? `<span class="precif-picker-expand" data-pai="${_escapeHtml(nomeUp)}" onclick="precifPickerExpandirPai(event, this)" style="cursor:pointer;font-size:0.75rem;color:#94a3b8;flex-shrink:0;padding:2px 4px;border-radius:4px;background:#f1f5f9">&#9658; ${filhas.length} pe&#231;a${filhas.length > 1 ? 's' : ''}</span>` : ''}
+        </div>`;
+
+        filhas.forEach(peca => {
+            const ciP = parseFloat(precificacao[peca.nome]?.ci || peca.ci || 0);
+            const ciPTxt = ciP > 0 ? ` <span style="color:#64748b;font-size:0.75rem">(CI: ${_fmtMoeda(ciP)})</span>` : '';
+            const jatemP = jaAdicionados.has(peca.nome);
+            html += `<div class="precif-picker-row precif-picker-filha" data-nome="${_escapeHtml(peca.nome)}" data-pai-filha="${_escapeHtml(nomeUp)}" style="display:none;padding:5px 12px 5px 30px;align-items:center;gap:8px;cursor:pointer;background:#f8fafc;border-left:3px solid #e2e8f0" onclick="precifPickerToggleItem(this)">
+                <input type="checkbox" class="precif-picker-cb" value="${_escapeHtml(peca.nome)}" ${jatemP ? 'checked' : ''} style="width:14px;height:14px;accent-color:#475569;flex-shrink:0;pointer-events:none">
+                <span style="font-size:0.82rem;color:#475569;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">&#8618; ${_escapeHtml(peca.nome)}${ciPTxt}</span>
+            </div>`;
+        });
+    });
+
+    lista.innerHTML = html || '<div style="padding:14px;color:#94a3b8;font-size:0.85rem;text-align:center">Nenhum produto cadastrado.</div>';
+
+    const buscaEl = document.getElementById('precifPickerBusca');
+    if (buscaEl) buscaEl.value = '';
+
+    dropdown.style.display = 'flex';
+    _precifPickerAberto = true;
+
+    setTimeout(() => {
+        if (buscaEl) buscaEl.focus();
+        document.addEventListener('mousedown', _precifPickerClickFora, true);
+    }, 50);
+}
+
+function _precifPickerClickFora(e) {
+    const dropdown = document.getElementById('precifPickerDropdown');
+    if (dropdown && !dropdown.contains(e.target) && !e.target.closest('[onclick*="precifAbrirPickerProdutos"]')) {
+        precifFecharPickerProdutos();
+    }
+}
+
+function precifFecharPickerProdutos() {
+    const dropdown = document.getElementById('precifPickerDropdown');
+    if (dropdown) dropdown.style.display = 'none';
+    _precifPickerAberto = false;
+    document.removeEventListener('mousedown', _precifPickerClickFora, true);
+}
+
+function precifPickerToggleItem(row) {
+    const cb = row.querySelector('.precif-picker-cb');
+    if (cb) cb.checked = !cb.checked;
+}
+
+function precifPickerExpandirPai(event, spanBtn) {
+    event.stopPropagation();
+    const pai = spanBtn.dataset.pai;
+    const lista = document.getElementById('precifPickerLista');
+    if (!lista || !pai) return;
+    const filhas = lista.querySelectorAll(`.precif-picker-filha[data-pai-filha="${(CSS.escape ? CSS.escape(pai) : pai.replace(/"/g, '\\"'))}"]`);
+    const expandido = spanBtn.dataset.expandido === '1';
+    filhas.forEach(f => { f.style.display = expandido ? 'none' : 'flex'; });
+    spanBtn.dataset.expandido = expandido ? '0' : '1';
+    spanBtn.innerHTML = expandido ? `&#9658; ${filhas.length} pe&#231;a${filhas.length > 1 ? 's' : ''}` : `&#9660; ${filhas.length} pe&#231;a${filhas.length > 1 ? 's' : ''}`;
+}
+
+function precifPickerFiltrar(termo) {
+    const lista = document.getElementById('precifPickerLista');
+    if (!lista) return;
+    const t = termo.trim().toLowerCase();
+    if (!t) {
+        // Sem filtro: restaurar estado original (filhas ocultas, principais visíveis)
+        lista.querySelectorAll('.precif-picker-row:not(.precif-picker-filha)').forEach(r => { r.style.display = 'flex'; });
+        lista.querySelectorAll('.precif-picker-filha').forEach(f => {
+            const span = lista.querySelector(`.precif-picker-expand[data-pai="${CSS.escape(f.dataset.paiFilha)}"]`);
+            f.style.display = (span && span.dataset.expandido === '1') ? 'flex' : 'none';
+        });
+        return;
+    }
+    // Com filtro: mostrar qualquer produto cujo nome corresponda
+    lista.querySelectorAll('.precif-picker-row').forEach(row => {
+        const nome = (row.dataset.nome || '').toLowerCase();
+        row.style.display = nome.includes(t) ? 'flex' : 'none';
+    });
+}
+
+function precifPickerMarcarTodos() {
+    const lista = document.getElementById('precifPickerLista');
+    if (!lista) return;
+    lista.querySelectorAll('.precif-picker-cb').forEach(cb => { cb.checked = true; });
+}
+
+function precifPickerDesmarcarTodos() {
+    const lista = document.getElementById('precifPickerLista');
+    if (!lista) return;
+    lista.querySelectorAll('.precif-picker-cb').forEach(cb => { cb.checked = false; });
+}
+
+function precifConfirmarPickerProdutos() {
+    const lista = document.getElementById('precifPickerLista');
+    if (!lista) return;
+
+    const jaAdicionados = new Set(
+        Array.from(document.querySelectorAll('.precif-linha-produto')).map(l => l.dataset.nomeProduto).filter(Boolean)
+    );
+
+    const marcados = Array.from(lista.querySelectorAll('.precif-picker-cb:checked'))
+        .map(cb => cb.value)
+        .filter(nome => nome && !jaAdicionados.has(nome));
+
+    precifFecharPickerProdutos();
+
+    if (marcados.length === 0) {
+        mostrarNotificacao('Nenhum produto novo selecionado.', 'info');
+        return;
+    }
+
+    marcados.forEach(nome => precifAdicionarProdutoLinha(nome));
+    mostrarNotificacao(`${marcados.length} produto(s) adicionado(s).`, 'success');
+}
+
+// ==========================================
 // UX: Lista de produtos individual na precificação
 // ==========================================
 

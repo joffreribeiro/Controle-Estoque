@@ -5522,6 +5522,19 @@ textarea:focus-visible {
     background: #f8fafc;
 }
 
+/* Picker multi-seleção de produtos */
+.precif-picker-row:hover {
+    background: #f1f5f9 !important;
+}
+.precif-picker-row {
+    transition: background 0.1s;
+    user-select: none;
+}
+.precif-picker-expand:hover {
+    background: #e2e8f0 !important;
+    color: #475569 !important;
+}
+
 /* Inner tabs (Impostos Federais / ICMS) */
 .precif-inner-nav {
     display: flex;

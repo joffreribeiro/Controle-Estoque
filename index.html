@@ -955,7 +955,22 @@
                         Produtos a calcular
                         <span style="font-size:0.75rem;color:#94a3b8;font-weight:400;margin-left:6px">— adicione produtos e ajuste Taxa/ROI individualmente</span>
                     </label>
-                    <button class="btn btn-primary btn-sm" onclick="precifAdicionarProdutoLinha()">+ Adicionar Produto</button>
+                    <div style="position:relative;display:inline-block">
+                        <button class="btn btn-primary btn-sm" onclick="precifAbrirPickerProdutos(this)">+ Adicionar Produto</button>
+                        <div id="precifPickerDropdown" style="display:none;position:absolute;top:calc(100% + 4px);right:0;z-index:9999;background:#fff;border:1px solid #e2e8f0;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,0.13);width:340px;max-height:420px;display:none;flex-direction:column">
+                            <div style="padding:10px 12px;border-bottom:1px solid #f1f5f9;display:flex;gap:8px;align-items:center">
+                                <input id="precifPickerBusca" type="text" placeholder="Buscar produto..." oninput="precifPickerFiltrar(this.value)"
+                                    style="flex:1;padding:5px 9px;border:1px solid #e2e8f0;border-radius:6px;font-size:0.85rem;outline:none">
+                                <button class="btn btn-outline btn-sm" onclick="precifPickerMarcarTodos()" style="white-space:nowrap;font-size:0.78rem">Todos</button>
+                                <button class="btn btn-outline btn-sm" onclick="precifPickerDesmarcarTodos()" style="white-space:nowrap;font-size:0.78rem">Nenhum</button>
+                            </div>
+                            <div id="precifPickerLista" style="overflow-y:auto;flex:1;padding:6px 0"></div>
+                            <div style="padding:10px 12px;border-top:1px solid #f1f5f9;display:flex;justify-content:flex-end;gap:8px">
+                                <button class="btn btn-outline btn-sm" onclick="precifFecharPickerProdutos()">Cancelar</button>
+                                <button class="btn btn-primary btn-sm" onclick="precifConfirmarPickerProdutos()">Adicionar selecionados</button>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Parâmetros globais padrão -->
