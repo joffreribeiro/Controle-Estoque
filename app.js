@@ -15426,6 +15426,14 @@ function trocarSubabaPrecif(subaba) {
         if (res) res.style.display = 'none';
         if (empty) empty.style.display = 'block';
         if (banner) banner.style.display = 'none';
+        // Inicializar footbar e KPI strip
+        try {
+            window._pcAtualizarKpiTaxaROI();
+            const fbCli = document.getElementById('pcFootbarCli');
+            if (fbCli) fbCli.textContent = 'CLI ' + (clientes || []).length;
+            const fbTime = document.getElementById('pcFootbarTime');
+            if (fbTime) fbTime.textContent = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+        } catch (e) {}
     }
 
     if (subaba === 'consultaPrec') {
@@ -18309,7 +18317,164 @@ function popularSelectClientesPrecif() {
     const elTaxa = document.getElementById('precifTaxaPadraoLabel'); if (elTaxa) elTaxa.textContent = 'Padrão: ' + taxaPad + '%';
     const elROI  = document.getElementById('precifROIPadraoLabel'); if (elROI) elROI.textContent = 'Padrão: ' + roiPad + '%';
     const elCom  = document.getElementById('precifComissaoPadraoLabel'); if (elCom) elCom.textContent = 'Padrão: ' + comPad + '%';
+
+    // Atualizar lista Bloomberg
+    try { window._pcRenderizarLista(); } catch (e) {}
 }
+
+// ── Estado do painel Por Cliente (Bloomberg) ──
+window._pcEstado = { busca: '', status: 'ativo' };
+
+window._pcRenderizarLista = function() {
+    const listEl = document.getElementById('pcCliList');
+    const countEl = document.getElementById('pcCliCount');
+    if (!listEl) return;
+
+    const busca = (window._pcEstado.busca || '').toLowerCase().trim();
+    const filtroStatus = window._pcEstado.status || 'ativo';
+
+    let lista = (clientes || []).slice();
+
+    if (filtroStatus === 'ativo') {
+        lista = lista.filter(c => !c.inativo);
+    }
+    if (busca) {
+        lista = lista.filter(c => {
+            return (c.nome || '').toLowerCase().includes(busca)
+                || (c.cnpj || '').replace(/\D/g,'').includes(busca.replace(/\D/g,''))
+                || (c.cpf || '').replace(/\D/g,'').includes(busca.replace(/\D/g,''))
+                || (c.cidade || '').toLowerCase().includes(busca)
+                || (c.uf || '').toLowerCase().includes(busca);
+        });
+    }
+    lista.sort((a, b) => (a.nome || '').localeCompare(b.nome || '', 'pt-BR'));
+
+    if (countEl) countEl.textContent = lista.length + ' cliente' + (lista.length !== 1 ? 's' : '');
+
+    const selecionadoId = (document.getElementById('precifClienteSelect') || {}).value;
+
+    if (!lista.length) {
+        listEl.innerHTML = '<div class="pc-cli-empty">Nenhum cliente encontrado</div>';
+        return;
+    }
+
+    listEl.innerHTML = lista.map(c => {
+        const cnpjLimpo = (c.cnpj || '').replace(/\D/g, '');
+        const tipo = c.tipoPessoa || (cnpjLimpo.length === 14 ? 'PJ' : 'PF');
+        const doc = c.cnpj || c.cpf || '—';
+        const cidade = c.cidade ? c.cidade + (c.uf ? '/' + c.uf : '') : (c.uf || '—');
+        const uf = (c.uf || '').toUpperCase() || '??';
+        const ativo = String(c.id) === String(selecionadoId) ? ' active' : '';
+        return `<div class="pc-cli-item${ativo}" onclick="window._pcSelecionarCliente('${c.id}')" data-cli-id="${c.id}">
+            <div class="pc-cli-cat ${tipo.toLowerCase()}">${tipo}</div>
+            <div class="pc-cli-info">
+                <div class="pc-cli-nome">${_escapeHtml(c.nome || '—')}</div>
+                <div class="pc-cli-doc">${_escapeHtml(doc)} · ${_escapeHtml(cidade)}</div>
+            </div>
+            <div class="pc-cli-uf">${_escapeHtml(uf)}</div>
+        </div>`;
+    }).join('');
+};
+
+window._pcSelecionarCliente = function(id) {
+    const sel = document.getElementById('precifClienteSelect');
+    if (!sel) return;
+    sel.value = id;
+
+    // Atualizar estado visual da lista
+    document.querySelectorAll('.pc-cli-item').forEach(el => {
+        el.classList.toggle('active', el.dataset.cliId === String(id));
+    });
+
+    // Chamar a função existente que faz todo o trabalho
+    selecionarClientePrecif();
+
+    // Atualizar KPI strip e detalhe header
+    const cliente = (clientes || []).find(c => String(c.id) === String(id));
+    if (cliente) {
+        const cnpjLimpo = (cliente.cnpj || '').replace(/\D/g,'');
+        const tipo = cliente.tipoPessoa || (cnpjLimpo.length === 14 ? 'PJ' : 'PF');
+        const doc = cliente.cnpj || cliente.cpf || '—';
+        const uf = (cliente.uf || '').toUpperCase() || '—';
+        const rep = cliente.representante || '—';
+        const cidade = cliente.cidade ? cliente.cidade + (cliente.uf ? '/' + cliente.uf : '') : (cliente.uf || '—');
+
+        const kpiNome = document.getElementById('pcKpiNome'); if (kpiNome) kpiNome.textContent = cliente.nome || '—';
+        const kpiDoc  = document.getElementById('pcKpiDoc');  if (kpiDoc)  kpiDoc.textContent  = doc;
+        const kpiUFTipo = document.getElementById('pcKpiUFTipo'); if (kpiUFTipo) kpiUFTipo.textContent = uf + ' / ' + tipo;
+        const kpiRep = document.getElementById('pcKpiRep'); if (kpiRep) kpiRep.textContent = 'Representante: ' + rep;
+
+        // Propostas deste cliente
+        const propsCliente = (propostas || []).filter(p => p.cliente === cliente.nome || String(p.clienteId) === String(id));
+        const kpiProp = document.getElementById('pcKpiPropostas'); if (kpiProp) kpiProp.textContent = propsCliente.length || '0';
+        const kpiPropSub = document.getElementById('pcKpiPropostasSub'); if (kpiPropSub) kpiPropSub.textContent = 'para este cliente';
+
+        // Última precificação
+        try {
+            const ultima = obterUltimaPrecificacaoCliente(id);
+            const kpiUlt = document.getElementById('pcKpiUltimaPrecif');
+            const kpiUltSub = document.getElementById('pcKpiUltimaPrecifSub');
+            if (kpiUlt) kpiUlt.textContent = ultima ? new Date(ultima.dataCriacao).toLocaleDateString('pt-BR') : '—';
+            if (kpiUltSub) kpiUltSub.textContent = ultima ? 'data de emissão' : 'sem precificação salva';
+        } catch (e) {}
+
+        // Detalhe header
+        const head = document.getElementById('pcDetailHead'); if (head) head.style.display = 'flex';
+        const params = document.getElementById('pcParamsPanel'); if (params) params.style.display = 'block';
+        const detNome = document.getElementById('pcDetailNome'); if (detNome) detNome.textContent = cliente.nome || '—';
+        const detMeta = document.getElementById('pcDetailMeta'); if (detMeta) detMeta.textContent = doc + ' · ' + cidade + ' · ' + tipo;
+
+        // Footbar
+        window._pcAtualizarFootbar(cliente, uf);
+    }
+    window._pcAtualizarKpiTaxaROI();
+};
+
+window._pcFiltrarLista = function(val) {
+    window._pcEstado.busca = val || '';
+    window._pcRenderizarLista();
+};
+
+window._pcSetStatus = function(status, btn) {
+    window._pcEstado.status = status;
+    if (btn) {
+        const seg = btn.closest('.pc-seg');
+        if (seg) seg.querySelectorAll('.pc-seg-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+    }
+    window._pcRenderizarLista();
+};
+
+window._pcAtualizarKpiTaxaROI = function() {
+    const taxaEl = document.getElementById('precifTaxaOverride');
+    const roiEl  = document.getElementById('precifROIOverride');
+    const taxaGlobalRaw = parseFloat(localStorage.getItem('precif_taxa_global'));
+    const roiGlobalRaw  = parseFloat(localStorage.getItem('precif_roi_global'));
+    const taxaGlobal = isNaN(taxaGlobalRaw) ? 20 : taxaGlobalRaw;
+    const roiGlobal  = isNaN(roiGlobalRaw)  ? 30 : roiGlobalRaw;
+    const taxa = !isNaN(parseFloat(taxaEl?.value)) ? parseFloat(taxaEl.value) : taxaGlobal;
+    const roi  = !isNaN(parseFloat(roiEl?.value))  ? parseFloat(roiEl.value)  : roiGlobal;
+    const el = document.getElementById('pcKpiTaxaROI');
+    if (el) el.textContent = taxa + '% / ' + roi + '%';
+};
+
+window._pcAtualizarFootbar = function(cliente, uf) {
+    const cliCount = (document.getElementById('pcCliCount')?.textContent || '').split(' ')[0];
+    const fbCli = document.getElementById('pcFootbarCli');
+    const fbSel = document.getElementById('pcFootbarSel');
+    const fbUF  = document.getElementById('pcFootbarUF');
+    const fbProp = document.getElementById('pcFootbarPropostas');
+    const fbTime = document.getElementById('pcFootbarTime');
+
+    if (fbCli) fbCli.textContent = 'CLI ' + (cliCount || (clientes || []).length);
+    if (cliente) {
+        if (fbSel) fbSel.textContent = 'SEL ' + (cliente.nome || '—').substring(0, 18);
+        if (fbUF)  fbUF.textContent  = 'UF ' + (uf || '—');
+        const nProp = (propostas || []).filter(p => p.cliente === cliente.nome || String(p.clienteId) === String(cliente.id)).length;
+        if (fbProp) fbProp.textContent = 'PROPOSTAS ' + nProp;
+    }
+    if (fbTime) fbTime.textContent = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+};
 
 function popularSelectProdutosPrecif() {
     // Mantida para compatibilidade com chamadas antigas.

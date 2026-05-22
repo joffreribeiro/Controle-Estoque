@@ -27,7 +27,8 @@
       "Bash(ls \"C:\\\\Users\\\\Joffre\\\\.claude\\\\projects\\\\e--MEUS-DOCUMENTOS-OneDrive-Documentos-Sistemas-Estoque-Controle-Estoque\\\\memory\\\\\")",
       "Read(//c/Users/Joffre/.claude/projects/e--MEUS-DOCUMENTOS-OneDrive-Documentos-Sistemas-Estoque-Controle-Estoque/**)",
       "Bash(pkill -f \"serve.*8787\")",
-      "Bash(node -e \"const fs=require\\('fs'\\); const code=fs.readFileSync\\('e:/MEUS DOCUMENTOS/OneDrive/Documentos/Sistemas/Estoque/Controle-Estoque/app.js','utf8'\\); try { new Function\\(code\\); console.log\\('SYNTAX OK'\\); } catch\\(e\\) { console.error\\('SYNTAX ERROR:', e.message\\); }\")"
+      "Bash(node -e \"const fs=require\\('fs'\\); const code=fs.readFileSync\\('e:/MEUS DOCUMENTOS/OneDrive/Documentos/Sistemas/Estoque/Controle-Estoque/app.js','utf8'\\); try { new Function\\(code\\); console.log\\('SYNTAX OK'\\); } catch\\(e\\) { console.error\\('SYNTAX ERROR:', e.message\\); }\")",
+      "Bash(start index.html)"
     ],
     "additionalDirectories": [
       "\\tmp"
