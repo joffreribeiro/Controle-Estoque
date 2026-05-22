@@ -15864,6 +15864,70 @@ function obterPrecoEstadoParaClienteProduto(lojaNome, produtoId) {
 // TABELA DE PREÇO DE VENDA POR ESTADO
 // ========================================
 
+// Mapa UF → Região
+const _TV_UF_REGIAO = {
+    AC:'N', AM:'N', AP:'N', PA:'N', RO:'N', RR:'N', TO:'N',
+    AL:'NE', BA:'NE', CE:'NE', MA:'NE', PB:'NE', PE:'NE', PI:'NE', RN:'NE', SE:'NE',
+    DF:'CO', GO:'CO', MS:'CO', MT:'CO',
+    ES:'SE', MG:'SE', RJ:'SE', SP:'SE',
+    PR:'S', RS:'S', SC:'S',
+};
+
+// Agrupamento região → lista UFs na ordem de ESTADOS_BR
+function _tvRegiaoUFs(regioesFiltro) {
+    const ordem = ['N','NE','CO','SE','S'];
+    const resultado = {};
+    ESTADOS_BR.forEach(uf => {
+        const r = _TV_UF_REGIAO[uf] || 'CO';
+        if (!regioesFiltro || !regioesFiltro.length || regioesFiltro.includes(r)) {
+            if (!resultado[r]) resultado[r] = [];
+            resultado[r].push(uf);
+        }
+    });
+    return ordem.filter(r => resultado[r]).map(r => ({ regiao: r, ufs: resultado[r] }));
+}
+
+function _tvCalcKPIs(produtos, ufs, tipoPessoa, taxaWI, roiWI, ncmOverrides) {
+    let countAtivos = 0, somaMargemPct = 0, countMargem = 0;
+    let pvMin = Infinity, pvMax = -Infinity;
+    let estadoMax = '', estadoMaxVal = -Infinity;
+
+    const versao = _obterVersaoAtivaTabelaVenda();
+    const taxaBase = versao ? (versao.taxaPadrao ?? 0) : 0;
+    const roiBase  = versao ? (versao.roiPadrao  ?? 0) : 0;
+
+    produtos.forEach(prod => {
+        const ci = Number(precificacao[prod.nome]?.ci ?? prod.ci ?? 0);
+        if (!ci) return;
+        countAtivos++;
+        const ncm = prod.ncm || '';
+        const taxaEf = (taxaWI !== null) ? (ncmOverrides?.[ncm]?.taxa ?? taxaWI) : null;
+        const roiEf  = (roiWI  !== null) ? (ncmOverrides?.[ncm]?.roi  ?? roiWI)  : null;
+        ufs.forEach(uf => {
+            let r;
+            try { r = calcularPreco(prod.nome, uf, tipoPessoa, taxaEf, roiEf); } catch(e) {}
+            if (!r) return;
+            const pv = r.precoFinal;
+            if (!pv) return;
+            if (pv < pvMin) pvMin = pv;
+            if (pv > pvMax) pvMax = pv;
+            somaMargemPct += (r.roi || 0);
+            countMargem++;
+            if (pv > estadoMaxVal) { estadoMaxVal = pv; estadoMax = uf; }
+        });
+    });
+
+    return {
+        countAtivos,
+        margemMedia: countMargem ? somaMargemPct / countMargem : 0,
+        pvMin: pvMin === Infinity ? 0 : pvMin,
+        pvMax: pvMax === -Infinity ? 0 : pvMax,
+        estadoMax,
+        estadoMaxVal,
+        taxaBase, roiBase,
+    };
+}
+
 function renderizarTabelaPrecoVenda() {
     const container = document.getElementById('subaba-precif-tabelavenda');
     if (!container) return;
@@ -15882,16 +15946,38 @@ function renderizarTabelaPrecoVenda() {
 
     if (!produtos.length) {
         container.innerHTML = `
-            <div style="display:flex;gap:10px;align-items:center;margin-bottom:14px;flex-wrap:wrap">
-                <h3 style="margin:0;font-size:1rem;color:#1e3a5f;font-weight:700">Tabela de Preço de Venda por Estado</h3>
-                <button class="btn btn-outline btn-sm" onclick="document.getElementById('inputImportarTabelaVenda').click()">📥 Importar Excel</button>
+            <div class="tv-command-bar">
+                <span style="font-size:0.82rem;color:#64748b">Nenhum produto cadastrado.</span>
+                <button class="tv-bar-btn" onclick="document.getElementById('inputImportarTabelaVenda').click()">📥 Importar Excel</button>
                 <input type="file" id="inputImportarTabelaVenda" accept=".xlsx,.xls,.csv" style="display:none" onchange="importarTabelaPrecoVendaExcel(event)">
-            </div>
-            <p style="color:#64748b;padding:20px">Nenhum produto cadastrado. Use o botão Importar Excel para adicionar produtos.</p>`;
+            </div>`;
         return;
     }
 
-    // Agrupar por nome (case-insensitive, trimado)
+    // ── Estado persistente da UI ──
+    const tvState = container._tvState || {};
+    container._tvState = tvState;
+    tvState.tipoPessoa    = tvState.tipoPessoa    || tipoPessoaAtual;
+    tvState.viewMode      = tvState.viewMode      || 'tabela';   // 'tabela' | 'mapa'
+    tvState.density       = tvState.density       || 'normal';   // 'compact'|'normal'|'cozy'
+    tvState.busca         = tvState.busca         || '';
+    tvState.filtroNCMs    = tvState.filtroNCMs    || [];
+    tvState.filtroRegioes = tvState.filtroRegioes || [];
+    tvState.filtroCIMin   = tvState.filtroCIMin   ?? null;
+    tvState.filtroCIMax   = tvState.filtroCIMax   ?? null;
+    tvState.sortCol       = tvState.sortCol       || null;
+    tvState.sortDir       = tvState.sortDir       || 'asc';
+    tvState.whatIfAberto  = tvState.whatIfAberto  || false;
+    tvState.wiTaxa        = tvState.wiTaxa        ?? null;   // null = usar versão ativa
+    tvState.wiROI         = tvState.wiROI         ?? null;
+    tvState.wiNcmOverrides = tvState.wiNcmOverrides || {};
+    tvState.mapaProduto   = tvState.mapaProduto   || null;
+    tvState.openDropdown  = tvState.openDropdown  || null;
+
+    // Ler tipo pessoa do state
+    const tipoPessoa = tvState.tipoPessoa;
+
+    // ── Agrupar produtos por NCM para a tabela ──
     const grupos = {};
     const ordemGrupos = [];
     produtos.forEach(p => {
@@ -15899,160 +15985,810 @@ function renderizarTabelaPrecoVenda() {
         if (!grupos[chave]) { grupos[chave] = []; ordemGrupos.push(chave); }
         grupos[chave].push(p);
     });
-
-    // Dentro de cada grupo: principal = sem componente, ou menor id
     Object.keys(grupos).forEach(chave => {
-        const g = grupos[chave];
-        g.sort((a, b) => {
-            const aSemComp = !a.componente || a.componente.trim() === '';
-            const bSemComp = !b.componente || b.componente.trim() === '';
-            if (aSemComp && !bSemComp) return -1;
-            if (!aSemComp && bSemComp) return 1;
+        grupos[chave].sort((a, b) => {
+            const aSem = !a.componente || a.componente.trim() === '';
+            const bSem = !b.componente || b.componente.trim() === '';
+            if (aSem && !bSem) return -1;
+            if (!aSem && bSem) return 1;
             return (Number(a.id) || 0) - (Number(b.id) || 0);
         });
     });
 
-    let html = _renderizarPainelParametrosTabelaVenda();
-
-    html += `
-        <div style="display:flex;gap:10px;align-items:center;margin-bottom:14px;flex-wrap:wrap">
-            <h3 style="margin:0;font-size:1rem;color:#1e3a5f;font-weight:700">Tabela de Preço de Venda por Estado</h3>
-            <div style="display:flex;border:1px solid #e2e8f0;border-radius:6px;overflow:hidden">
-                <button onclick="renderizarTabelaPrecoVendaTipo('PJ')" id="btnTpvPJ"
-                    style="padding:5px 16px;border:none;cursor:pointer;font-size:0.82rem;font-weight:700;
-                    background:${tipoPessoaAtual==='PJ'?'#1e3a5f':'#f8fafc'};color:${tipoPessoaAtual==='PJ'?'#fff':'#64748b'}">
-                    Lojista (PJ)
-                </button>
-                <button onclick="renderizarTabelaPrecoVendaTipo('PF')" id="btnTpvPF"
-                    style="padding:5px 16px;border:none;cursor:pointer;font-size:0.82rem;font-weight:700;
-                    background:${tipoPessoaAtual==='PF'?'#1e3a5f':'#f8fafc'};color:${tipoPessoaAtual==='PF'?'#fff':'#64748b'}">
-                    Pessoa Física (PF)
-                </button>
-            </div>
-            <button class="btn btn-outline btn-sm" onclick="exportarTabelaPrecoVenda()">📤 Exportar Excel</button>
-            <button class="btn btn-outline btn-sm" onclick="document.getElementById('inputImportarTabelaVenda').click()">📥 Importar Excel</button>
-            <input type="file" id="inputImportarTabelaVenda" accept=".xlsx,.xls,.csv" style="display:none" onchange="importarTabelaPrecoVendaExcel(event)">
-            <button class="btn btn-outline btn-sm" style="color:#dc2626;border-color:#dc2626" onclick="limparTabelaPrecoVenda()">🗑️ Limpar Tabela</button>
-            <span style="font-size:0.77rem;color:#64748b">Preços calculados com impostos de cada estado. CI definido no cadastro do produto.</span>
-        </div>
-        <div style="overflow-x:auto">
-        <table id="tabelaPrecoVendaGrid" style="border-collapse:collapse;font-size:0.78rem;white-space:nowrap">
-            <thead>
-                <tr style="background:#1e3a5f;color:#fff">
-                    <th style="padding:8px 10px;text-align:left;position:sticky;left:0;background:#1e3a5f;z-index:3;min-width:120px;border-right:1px solid #2d4f7c">NCM</th>
-                    <th style="padding:8px 10px;text-align:left;background:#1e3a5f;min-width:80px;border-right:1px solid #2d4f7c">Grupo</th>
-                    <th style="padding:8px 10px;text-align:left;background:#1e3a5f;min-width:110px;border-right:1px solid #2d4f7c">PN</th>
-                    <th style="padding:8px 10px;text-align:left;background:#1e3a5f;min-width:140px;border-right:1px solid #2d4f7c">Nome Fábrica</th>
-                    <th style="padding:8px 10px;text-align:left;background:#1e3a5f;min-width:140px;border-right:1px solid #2d4f7c">Componente</th>
-                    <th style="padding:8px 10px;text-align:left;background:#1e3a5f;min-width:160px;border-right:1px solid #2d4f7c">Nome</th>
-                    <th style="padding:8px 10px;text-align:right;background:#1e3a5f;min-width:90px;border-right:2px solid #4a6fa5">CI</th>`;
-
-    ESTADOS_BR.forEach(uf => {
-        html += `<th style="padding:8px 8px;text-align:center;background:#1e3a5f;min-width:72px">${uf}</th>`;
-    });
-    html += `</tr></thead><tbody>`;
-
-    // Expor grupos para a gaveta lateral
     window._tabelaPrecoGrupos = grupos;
-    window._tabelaPrecoTipoPessoa = tipoPessoaAtual;
+    window._tabelaPrecoTipoPessoa = tipoPessoa;
 
-    function _renderLinhaTV(prod, isPeca, bg) {
+    // ── NCMs únicos para filtro ──
+    const ncmsSet = new Set();
+    produtos.forEach(p => { if (p.ncm) ncmsSet.add(p.ncm); });
+    const todosNCMs = [...ncmsSet].sort();
+
+    // ── Filtrar produtos por busca / NCM / Região / CI ──
+    const buscaLower = (tvState.busca || '').toLowerCase().trim();
+    function _prodPassaFiltro(prod) {
+        if (buscaLower) {
+            const haystack = [prod.nome, prod.nomeFabrica, prod.ncm, prod.pn, prod.categoria]
+                .filter(Boolean).join(' ').toLowerCase();
+            if (!haystack.includes(buscaLower)) return false;
+        }
+        if (tvState.filtroNCMs.length && !tvState.filtroNCMs.includes(prod.ncm)) return false;
         const ci = Number(precificacao[prod.nome]?.ci ?? prod.ci ?? 0);
-        const ciStr = ci > 0 ? _fmtMoeda(ci) : '—';
+        if (tvState.filtroCIMin !== null && ci < tvState.filtroCIMin) return false;
+        if (tvState.filtroCIMax !== null && ci > tvState.filtroCIMax) return false;
+        return true;
+    }
+
+    // UFs visíveis (filtro de região)
+    const gruposRegiao = _tvRegiaoUFs(tvState.filtroRegioes.length ? tvState.filtroRegioes : null);
+    const ufsFiltradas = gruposRegiao.flatMap(g => g.ufs);
+
+    // ── Versão ativa ──
+    const versao = _obterVersaoAtivaTabelaVenda();
+    const taxaGlobal = versao ? (versao.taxaPadrao ?? '—') : '—';
+    const roiGlobal  = versao ? (versao.roiPadrao  ?? '—') : '—';
+    const versaoLabel = versao ? versao.descricao : 'Nenhuma versão';
+    const overrideCount = versao ? Object.keys(versao.params || {}).filter(k => {
+        const p = versao.params[k];
+        return (p.taxa != null && p.taxa !== '') || (p.roi != null && p.roi !== '');
+    }).length : 0;
+
+    // ── KPIs ──
+    const produtosFiltrados = produtos.filter(_prodPassaFiltro);
+    const kpis = _tvCalcKPIs(produtosFiltrados, ufsFiltradas, tipoPessoa,
+        tvState.wiTaxa, tvState.wiROI, tvState.wiNcmOverrides);
+    const temWI = tvState.wiTaxa !== null || tvState.wiROI !== null;
+
+    // ── Ordenação ──
+    let ordemFinal = [...ordemGrupos].filter(chave => _prodPassaFiltro(grupos[chave][0]));
+    if (tvState.sortCol) {
+        ordemFinal.sort((a, b) => {
+            const pA = grupos[a][0], pB = grupos[b][0];
+            let vA, vB;
+            if (tvState.sortCol === 'ncm')  { vA = pA.ncm||''; vB = pB.ncm||''; }
+            else if (tvState.sortCol === 'nome') { vA = pA.nome||''; vB = pB.nome||''; }
+            else if (tvState.sortCol === 'pn')   { vA = pA.pn||''; vB = pB.pn||''; }
+            else if (tvState.sortCol === 'ci')   {
+                vA = Number(precificacao[pA.nome]?.ci ?? pA.ci ?? 0);
+                vB = Number(precificacao[pB.nome]?.ci ?? pB.ci ?? 0);
+            } else {
+                // ordenar por UF
+                let rA, rB;
+                try { const res = calcularPreco(pA.nome, tvState.sortCol, tipoPessoa, tvState.wiTaxa, tvState.wiROI); rA = res ? res.precoFinal : 0; } catch(e) { rA = 0; }
+                try { const res = calcularPreco(pB.nome, tvState.sortCol, tipoPessoa, tvState.wiTaxa, tvState.wiROI); rB = res ? res.precoFinal : 0; } catch(e) { rB = 0; }
+                vA = rA; vB = rB;
+            }
+            const cmp = typeof vA === 'number' ? vA - vB : String(vA).localeCompare(String(vB), 'pt-BR');
+            return tvState.sortDir === 'asc' ? cmp : -cmp;
+        });
+    }
+
+    // ── Callbacks de interação (expostos em window para uso inline) ──
+    window._tvSetTipo = function(tipo) {
+        container._tvState.tipoPessoa = tipo;
+        container._tipoPessoa = tipo;
+        renderizarTabelaPrecoVenda();
+    };
+    window._tvSetView = function(v) {
+        container._tvState.viewMode = v;
+        renderizarTabelaPrecoVenda();
+    };
+    window._tvSetDensity = function(d) {
+        container._tvState.density = d;
+        container.dataset.density = d;
+        renderizarTabelaPrecoVenda();
+    };
+    window._tvToggleWhatIf = function() {
+        container._tvState.whatIfAberto = !container._tvState.whatIfAberto;
+        renderizarTabelaPrecoVenda();
+    };
+    window._tvSetSort = function(col) {
+        const st = container._tvState;
+        if (st.sortCol === col) {
+            st.sortDir = st.sortDir === 'asc' ? 'desc' : 'asc';
+        } else {
+            st.sortCol = col;
+            st.sortDir = 'asc';
+        }
+        renderizarTabelaPrecoVenda();
+    };
+    window._tvBusca = function(val) {
+        container._tvState.busca = val;
+        _tvRenderTabela();
+    };
+    window._tvToggleDropdown = function(nome) {
+        const st = container._tvState;
+        st.openDropdown = st.openDropdown === nome ? null : nome;
+        renderizarTabelaPrecoVenda();
+    };
+    window._tvToggleNCM = function(ncm) {
+        const arr = container._tvState.filtroNCMs;
+        const idx = arr.indexOf(ncm);
+        if (idx >= 0) arr.splice(idx, 1); else arr.push(ncm);
+        renderizarTabelaPrecoVenda();
+    };
+    window._tvToggleRegiao = function(r) {
+        const arr = container._tvState.filtroRegioes;
+        const idx = arr.indexOf(r);
+        if (idx >= 0) arr.splice(idx, 1); else arr.push(r);
+        renderizarTabelaPrecoVenda();
+    };
+    window._tvClearFiltroNCM = function() { container._tvState.filtroNCMs = []; renderizarTabelaPrecoVenda(); };
+    window._tvClearFiltroRegiao = function() { container._tvState.filtroRegioes = []; renderizarTabelaPrecoVenda(); };
+    window._tvSetCIFaixa = function(min, max) {
+        container._tvState.filtroCIMin = min;
+        container._tvState.filtroCIMax = max;
+        renderizarTabelaPrecoVenda();
+    };
+    window._tvSetMapaProduto = function(nome) {
+        container._tvState.mapaProduto = nome;
+        _tvRenderMapa();
+    };
+    window._tvWISetTaxa = function(v) {
+        container._tvState.wiTaxa = v === '' ? null : Number(v);
+        _tvRenderWhatIfImpact();
+        _tvRenderTabela();
+    };
+    window._tvWISetROI = function(v) {
+        container._tvState.wiROI = v === '' ? null : Number(v);
+        _tvRenderWhatIfImpact();
+        _tvRenderTabela();
+    };
+    window._tvWISetNCMOverride = function(ncm, campo, v) {
+        if (!container._tvState.wiNcmOverrides[ncm]) container._tvState.wiNcmOverrides[ncm] = {};
+        container._tvState.wiNcmOverrides[ncm][campo] = v === '' ? null : Number(v);
+        _tvRenderWhatIfImpact();
+        _tvRenderTabela();
+    };
+    window._tvWIResetNCM = function(ncm) {
+        delete container._tvState.wiNcmOverrides[ncm];
+        _tvRenderWhatIfImpact();
+        _tvRenderTabela();
+    };
+    window._tvWIDiscartar = function() {
+        container._tvState.wiTaxa = null;
+        container._tvState.wiROI  = null;
+        container._tvState.wiNcmOverrides = {};
+        renderizarTabelaPrecoVenda();
+    };
+    window._tvWIAplicar = function() {
+        const st = container._tvState;
+        if (st.wiTaxa === null && st.wiROI === null) {
+            mostrarNotificacao('Nenhuma simulação ativa para aplicar.', 'warning');
+            return;
+        }
+        const taxa = st.wiTaxa ?? taxaGlobal;
+        const roi  = st.wiROI  ?? roiGlobal;
+        document.getElementById('tvNovaDescricao') && (document.getElementById('tvNovaDescricao').value = `Simulação ${new Date().toLocaleDateString('pt-BR')}`);
+        document.getElementById('tvNovaTaxaPadrao') && (document.getElementById('tvNovaTaxaPadrao').value = taxa);
+        document.getElementById('tvNovaROIPadrao')  && (document.getElementById('tvNovaROIPadrao').value  = roi);
+        criarNovaVersaoTabelaVenda();
+        window._tvWIDiscartar();
+    };
+
+    // ── Helpers de renderização parcial ──
+    function _tvRenderTabela() {
+        const tBody = document.getElementById('tvTbody');
+        if (!tBody) { renderizarTabelaPrecoVenda(); return; }
+        const st = container._tvState;
+        const tp = st.tipoPessoa;
+        const bL = (st.busca || '').toLowerCase().trim();
+        const wTaxa = st.wiTaxa, wROI = st.wiROI, wOvr = st.wiNcmOverrides;
+        const ufs = _tvRegiaoUFs(st.filtroRegioes.length ? st.filtroRegioes : null).flatMap(g => g.ufs);
+
+        function passaFiltro(prod) {
+            if (bL) {
+                const h = [prod.nome, prod.nomeFabrica, prod.ncm, prod.pn, prod.categoria].filter(Boolean).join(' ').toLowerCase();
+                if (!h.includes(bL)) return false;
+            }
+            if (st.filtroNCMs.length && !st.filtroNCMs.includes(prod.ncm)) return false;
+            const ci = Number(precificacao[prod.nome]?.ci ?? prod.ci ?? 0);
+            if (st.filtroCIMin !== null && ci < st.filtroCIMin) return false;
+            if (st.filtroCIMax !== null && ci > st.filtroCIMax) return false;
+            return true;
+        }
+
+        let ordem = [...ordemGrupos].filter(chave => passaFiltro(grupos[chave][0]));
+        if (st.sortCol) {
+            ordem.sort((a, b) => {
+                const pA = grupos[a][0], pB = grupos[b][0];
+                let vA, vB;
+                if (st.sortCol === 'ncm')  { vA = pA.ncm||''; vB = pB.ncm||''; }
+                else if (st.sortCol === 'nome') { vA = pA.nome||''; vB = pB.nome||''; }
+                else if (st.sortCol === 'pn')   { vA = pA.pn||''; vB = pB.pn||''; }
+                else if (st.sortCol === 'ci')   { vA = Number(precificacao[pA.nome]?.ci ?? pA.ci ?? 0); vB = Number(precificacao[pB.nome]?.ci ?? pB.ci ?? 0); }
+                else {
+                    let rA = 0, rB = 0;
+                    try { const res = calcularPreco(pA.nome, st.sortCol, tp, wTaxa, wROI); rA = res?.precoFinal || 0; } catch(e){}
+                    try { const res = calcularPreco(pB.nome, st.sortCol, tp, wTaxa, wROI); rB = res?.precoFinal || 0; } catch(e){}
+                    vA = rA; vB = rB;
+                }
+                const cmp = typeof vA === 'number' ? vA - vB : String(vA).localeCompare(String(vB), 'pt-BR');
+                return st.sortDir === 'asc' ? cmp : -cmp;
+            });
+        }
+
+        // Agrupar por NCM para linhas de cabeçalho
+        let lastNCM = null;
+        let rows = '';
+        let rowIdx = 0;
+        ordem.forEach(chave => {
+            const grupo = grupos[chave];
+            const principal = grupo[0];
+            const ncmAtual = principal.ncm || '—';
+
+            if (ncmAtual !== lastNCM) {
+                const ncmProdos = ordem.filter(c => grupos[c][0].ncm === ncmAtual);
+                const grupoNome = principal.categoria || '';
+                rows += `<tr class="tv-ncm-group-row"><td colspan="99">${_escapeHtml(ncmAtual)}${grupoNome ? ' · ' + _escapeHtml(grupoNome) : ''} <span style="opacity:0.55;font-weight:400">· ${ncmProdos.length} produto${ncmProdos.length>1?'s':''}</span></td></tr>`;
+                lastNCM = ncmAtual;
+            }
+
+            const bg = rowIdx % 2 === 0 ? '#fff' : '#fafbfd';
+            rows += _tvRenderLinhaHTML(principal, false, bg, tp, ufs, wTaxa, wROI, wOvr);
+            const filhas = pecasPorPaiTV[(principal.nome || '').toUpperCase()] || [];
+            filhas.forEach(peca => {
+                rows += _tvRenderLinhaHTML(peca, true, '#fafbfd', tp, ufs, wTaxa, wROI, wOvr);
+            });
+            rowIdx++;
+        });
+
+        if (!rows) rows = `<tr><td colspan="99" style="padding:20px;text-align:center;color:#94a3b8;font-size:0.82rem">Nenhum produto encontrado para os filtros ativos.</td></tr>`;
+        tBody.innerHTML = rows;
+
+        // Reinjetar botões expand
+        ordem.forEach(chave => {
+            const principal = grupos[chave][0];
+            const filhas = pecasPorPaiTV[(principal.nome || '').toUpperCase()] || [];
+            if (!filhas.length) return;
+            _tvInjetarBtnExpand(principal, filhas, container);
+        });
+
+        // Atualizar footbar
+        _tvRenderFootbar(ordem.length, ufs.length, tp, st);
+    }
+
+    function _tvRenderLinhaHTML(prod, isPeca, bg, tp, ufs, wTaxa, wROI, wOvr) {
+        const ci = Number(precificacao[prod.nome]?.ci ?? prod.ci ?? 0);
+        const ciStr = ci > 0 ? 'R$ ' + _fmtMoeda(ci) : '—';
         const pn = prod.pn || '—';
         const nomeFab = prod.nomeFabrica || '—';
-        const comp = prod.componente || '—';
         const ncm = prod.ncm || '—';
-        const grupoCat = prod.categoria || '—';
         const pecasFilhas = pecasPorPaiTV[(prod.nome || '').toUpperCase()] || [];
         const temPecas = !isPeca && pecasFilhas.length > 0;
         const idExpandTV = 'tv-expand-' + Number(prod.id);
 
-        const pnCell = `<span style="font-family:monospace">${_escapeHtml(pn)}</span>${temPecas ? `<span id="${idExpandTV}"></span>` : ''}`;
+        // Calcular todos os preços para heatmap
+        const precos = {};
+        ufs.forEach(uf => {
+            try {
+                const ncmK = prod.ncm || '';
+                const taxaEf = wTaxa !== null ? (wOvr?.[ncmK]?.taxa ?? wTaxa) : null;
+                const roiEf  = wROI  !== null ? (wOvr?.[ncmK]?.roi  ?? wROI)  : null;
+                const r = calcularPreco(prod.nome, uf, tp, taxaEf, roiEf);
+                precos[uf] = r ? r.precoFinal : null;
+            } catch(e) { precos[uf] = null; }
+        });
+        const vals = Object.values(precos).filter(v => v !== null && v > 0);
+        const pvMin = vals.length ? Math.min(...vals) : 0;
+        const pvMax = vals.length ? Math.max(...vals) : 0;
+        const pvRange = pvMax - pvMin;
 
-        let row = `<tr${isPeca ? ` data-tv-peca-filha="${_escapeHtml((prod.componente||'').trim())}" style="display:none;background:#f8fafc"` : ` style="background:${bg}"`}>
-            <td style="padding:6px 10px;position:sticky;left:0;background:${isPeca?'#f8fafc':bg};z-index:1;border-right:1px solid #e2e8f0;font-family:monospace;font-size:0.77rem">${_escapeHtml(ncm)}</td>
-            <td style="padding:6px 10px;border-right:1px solid #e2e8f0;color:#64748b">${_escapeHtml(grupoCat)}</td>
-            <td style="padding:6px 10px;border-right:1px solid #e2e8f0">${pnCell}</td>
-            <td style="padding:6px 10px;border-right:1px solid #e2e8f0;color:#374151${isPeca?';padding-left:24px':''}">${_escapeHtml(nomeFab)}</td>
-            <td style="padding:6px 10px;border-right:1px solid #e2e8f0;color:#374151">${_escapeHtml(comp)}</td>
-            <td style="padding:6px 10px;border-right:1px solid #e2e8f0"><span style="font-weight:600;color:${isPeca?'#475569':'#1e3a5f'}">${isPeca?'↳ ':''}${_escapeHtml(prod.nome)}</span></td>
-            <td style="padding:6px 10px;text-align:right;border-right:2px solid #e2e8f0;font-weight:600;color:#0f766e">${ciStr}</td>`;
+        const pnCell = `<span style="font-family:var(--tv-font-mono)">${_escapeHtml(pn)}</span>${temPecas ? `<span id="${idExpandTV}"></span>` : ''}`;
 
-        ESTADOS_BR.forEach(uf => {
-            let preco = null;
-            try { const r = calcularPreco(prod.nome, uf, tipoPessoaAtual); preco = r ? r.precoFinal : null; } catch (e) {}
+        let row = `<tr class="tv-data-row${isPeca?' tv-peca-row':''}" style="background:${bg}"${isPeca ? ` data-tv-peca-filha="${_escapeHtml((prod.componente||'').trim())}" style="display:none;background:#fafbfd"` : ''}>
+            <td class="tv-td-fixed" style="background:${isPeca?'#fafbfd':bg}">${_escapeHtml(ncm)}</td>
+            <td style="padding:0 8px">${pnCell}</td>
+            <td style="padding:0 8px;color:#64748b;max-width:160px;overflow:hidden;text-overflow:ellipsis" title="${_escapeHtml(prod.nome)}">${isPeca?'↳ ':''}<span style="font-weight:${isPeca?'400':'600'};color:${isPeca?'#64748b':'var(--tv-navy-900)'}">${_escapeHtml(prod.nome)}</span></td>
+            <td style="padding:0 8px;color:#64748b;font-size:0.72rem;max-width:130px;overflow:hidden;text-overflow:ellipsis">${_escapeHtml(nomeFab)}</td>
+            <td class="tv-ci-cell">${ciStr}</td>`;
+
+        ufs.forEach(uf => {
+            const preco = precos[uf];
             if (preco !== null && preco > 0) {
+                let heatClass = 'tv-heat-mid';
+                if (pvRange > 0) {
+                    const t = (preco - pvMin) / pvRange;
+                    if (t < 0.33) heatClass = 'tv-heat-low';
+                    else if (t > 0.66) heatClass = 'tv-heat-high';
+                }
                 const nomeEsc = _escapeJsString(prod.nome);
-                const tipoEsc = _escapeJsString(tipoPessoaAtual);
-                row += `<td style="padding:6px 8px;text-align:right;border-left:1px solid #f1f5f9;cursor:pointer" onmouseenter="this.style.background='#dbeafe'" onmouseleave="this.style.background=''" onclick="abrirDetalhePrecoVenda('${nomeEsc}','${uf}','${tipoEsc}')">${_fmtMoeda(preco)}</td>`;
+                const tipoEsc = _escapeJsString(tp);
+                row += `<td class="tv-num ${heatClass}" style="cursor:pointer;padding:0 7px" onclick="abrirDetalhePrecoVenda('${nomeEsc}','${uf}','${tipoEsc}')">R$${_fmtMoeda(preco)}</td>`;
             } else {
-                row += `<td style="padding:6px 8px;text-align:right;border-left:1px solid #f1f5f9"><span style="color:#cbd5e1">—</span></td>`;
+                row += `<td class="tv-num" style="padding:0 7px;color:#e2e8f0">—</td>`;
             }
         });
         row += `</tr>`;
-        return { row, temPecas, pecasFilhas, idExpandTV, prod };
+        return row;
     }
 
-    let rowIdx = 0;
-    ordemGrupos.forEach(chave => {
-        const grupo = grupos[chave];
-        const principal = grupo[0];
-        const bg = rowIdx % 2 === 0 ? '#fff' : '#f8fafc';
-        const { row, temPecas, pecasFilhas, idExpandTV } = _renderLinhaTV(principal, false, bg);
-        html += row;
+    function _tvInjetarBtnExpand(principal, filhas, ctr) {
+        const slot = document.getElementById('tv-expand-' + Number(principal.id));
+        if (!slot || slot.dataset.tvInjected) return;
+        slot.dataset.tvInjected = '1';
+        const btn = document.createElement('span');
+        btn.style.cssText = 'cursor:pointer;user-select:none;display:inline-flex;align-items:center;gap:3px;margin-left:5px;vertical-align:middle';
+        btn.title = `${filhas.length} peça(s)`;
+        const icon = document.createElement('span');
+        icon.className = 'tv-expand-icon';
+        icon.style.cssText = 'font-size:0.65rem;color:var(--tv-navy-500)';
+        icon.textContent = '▶';
+        const badge = document.createElement('span');
+        badge.style.cssText = 'background:var(--tv-navy-100);color:var(--tv-navy-600);border-radius:8px;padding:0 5px;font-size:0.65rem;font-weight:700';
+        badge.textContent = String(filhas.length);
+        btn.appendChild(icon); btn.appendChild(badge);
+        btn.addEventListener('click', e => {
+            e.stopPropagation();
+            const expandido = icon.textContent.trim() === '▼';
+            const nomePaiU = (principal.nome || '').toUpperCase();
+            ctr.querySelectorAll('tr[data-tv-peca-filha]').forEach(tr => {
+                if ((tr.dataset.tvPecaFilha || '').toUpperCase() === nomePaiU)
+                    tr.style.display = expandido ? 'none' : 'table-row';
+            });
+            icon.textContent = expandido ? '▶' : '▼';
+        });
+        slot.appendChild(btn);
+    }
 
-        if (temPecas) {
-            pecasFilhas.forEach(peca => {
-                html += _renderLinhaTV(peca, true, '#f8fafc').row;
+    function _tvRenderWhatIfImpact() {
+        const panel = document.getElementById('tvWhatIfImpact');
+        if (!panel) return;
+        const st = container._tvState;
+        const tp = st.tipoPessoa;
+        const kpisWI = _tvCalcKPIs(produtosFiltrados, ufsFiltradas, tp, st.wiTaxa, st.wiROI, st.wiNcmOverrides);
+        const kpisBase = _tvCalcKPIs(produtosFiltrados, ufsFiltradas, tp, null, null, {});
+        const dMargem = kpisWI.margemMedia - kpisBase.margemMedia;
+        const dPV = kpisWI.pvMax - kpisBase.pvMax;
+        panel.innerHTML = `
+            <div class="tv-impact-grid">
+                <div class="tv-impact-card">
+                    <div class="tv-impact-label">Margem Média</div>
+                    <div class="tv-impact-val ${dMargem >= 0 ? 'green' : 'amber'}">${kpisWI.margemMedia.toFixed(1)}%</div>
+                    <div style="font-size:0.67rem;color:var(--tv-navy-500);margin-top:2px">${dMargem >= 0 ? '+' : ''}${dMargem.toFixed(1)} pp vs base</div>
+                </div>
+                <div class="tv-impact-card">
+                    <div class="tv-impact-label">PV Ponta</div>
+                    <div class="tv-impact-val amber">R$ ${_fmtMoeda(kpisWI.pvMax)}</div>
+                    <div style="font-size:0.67rem;color:var(--tv-navy-500);margin-top:2px">${dPV >= 0 ? '+' : ''}R$ ${_fmtMoeda(Math.abs(dPV))} vs base</div>
+                </div>
+                <div class="tv-impact-card">
+                    <div class="tv-impact-label">PV Piso</div>
+                    <div class="tv-impact-val">${kpisWI.pvMin > 0 ? 'R$ ' + _fmtMoeda(kpisWI.pvMin) : '—'}</div>
+                </div>
+                <div class="tv-impact-card">
+                    <div class="tv-impact-label">Estado Mais Caro</div>
+                    <div class="tv-impact-val">${kpisWI.estadoMax || '—'}</div>
+                    <div style="font-size:0.67rem;color:var(--tv-navy-500);margin-top:2px">${kpisWI.estadoMaxVal > 0 ? 'R$ ' + _fmtMoeda(kpisWI.estadoMaxVal) : ''}</div>
+                </div>
+            </div>`;
+    }
+
+    function _tvRenderMapa() {
+        const mapaArea = document.getElementById('tvMapArea');
+        if (!mapaArea) return;
+        const st = container._tvState;
+        const tp = st.tipoPessoa;
+        const nomeProd = st.mapaProduto || (produtosFiltrados[0] && produtosFiltrados[0].nome) || null;
+
+        const TILE_POS = {
+            RR:[2,0], AP:[3,0],
+            AM:[1,1], PA:[2,1], MA:[3,1], CE:[4,1], RN:[5,1],
+            AC:[0,2], TO:[2,2], PI:[3,2], PB:[4,2], PE:[5,2],
+            RO:[1,3], BA:[3,3], AL:[4,3], SE:[5,3],
+            MT:[1,4], GO:[2,4], DF:[3,4], ES:[4,4],
+            MS:[1,5], SP:[2,5], MG:[3,5], RJ:[4,5],
+            PR:[2,6], SC:[2,7], RS:[2,8],
+        };
+
+        // Calcular preços para o produto selecionado
+        const precosPorUF = {};
+        if (nomeProd) {
+            ESTADOS_BR.forEach(uf => {
+                try {
+                    const r = calcularPreco(nomeProd, uf, tp, st.wiTaxa, st.wiROI);
+                    precosPorUF[uf] = r ? r.precoFinal : null;
+                } catch(e) { precosPorUF[uf] = null; }
             });
         }
-        rowIdx++;
+        const vals = Object.values(precosPorUF).filter(v => v !== null && v > 0);
+        const pvMinM = vals.length ? Math.min(...vals) : 0;
+        const pvMaxM = vals.length ? Math.max(...vals) : 0;
+        const pvRangeM = pvMaxM - pvMinM;
+
+        function tileColor(pv) {
+            if (!pv) return '#e2e8f0';
+            if (!pvRangeM) return '#345b85';
+            const t = (pv - pvMinM) / pvRangeM;
+            if (t < 0.33) return `hsl(142, 70%, ${45 + t * 20}%)`;
+            if (t < 0.66) return `hsl(${42 - (t-0.33)*120}, 85%, 50%)`;
+            return `hsl(${0}, 72%, ${50 - (t-0.66)*25}%)`;
+        }
+
+        // Tiles
+        let tilesHTML = '';
+        Object.entries(TILE_POS).forEach(([uf, [col, row]]) => {
+            const pv = precosPorUF[uf];
+            const cor = tileColor(pv);
+            const pvStr = pv ? 'R$ ' + _fmtMoeda(pv) : '—';
+            tilesHTML += `<div class="tv-map-tile" style="grid-column:${col+1};grid-row:${row+1};background:${cor}"
+                title="${uf}: ${pvStr}"
+                onmouseenter="window._tvMapTooltip&&window._tvMapTooltip(event,'${uf}','${pvStr}')"
+                onmouseleave="window._tvMapHideTooltip&&window._tvMapHideTooltip()">
+                <span class="tv-tile-label">${uf}</span>
+            </div>`;
+        });
+
+        // Ranking Top 5 caros / baratos
+        const ranked = ESTADOS_BR.map(uf => ({ uf, pv: precosPorUF[uf] || 0 }))
+            .filter(x => x.pv > 0).sort((a, b) => b.pv - a.pv);
+        const top5 = ranked.slice(0, 5);
+        const bot5 = ranked.slice(-5).reverse();
+
+        let rankingHTML = `<div class="tv-map-ranking-title">↑ Mais Caros</div>`;
+        top5.forEach((x, i) => {
+            rankingHTML += `<div class="tv-map-ranking-item high"><span class="tv-map-ranking-uf">${i+1}. ${x.uf}</span><span class="tv-map-ranking-pv">${'R$ '+_fmtMoeda(x.pv)}</span></div>`;
+        });
+        rankingHTML += `<div class="tv-map-ranking-title" style="margin-top:12px">↓ Mais Baratos</div>`;
+        bot5.forEach((x, i) => {
+            rankingHTML += `<div class="tv-map-ranking-item low"><span class="tv-map-ranking-uf">${i+1}. ${x.uf}</span><span class="tv-map-ranking-pv">${'R$ '+_fmtMoeda(x.pv)}</span></div>`;
+        });
+
+        mapaArea.innerHTML = `
+            <div class="tv-map-layout">
+                <div>
+                    <div class="tv-map-ranking-title">Produto</div>
+                    <div class="tv-map-product-list">
+                        ${produtosFiltrados.map(p => `<div class="tv-map-product-item${p.nome===nomeProd?' active':''}" onclick="window._tvSetMapaProduto('${_escapeJsString(p.nome)}')" title="${_escapeHtml(p.nome)}">${_escapeHtml(p.nome)}</div>`).join('')}
+                    </div>
+                </div>
+                <div style="display:flex;flex-direction:column;align-items:center;gap:8px">
+                    ${nomeProd ? `<div style="font-family:var(--tv-font-sans);font-size:0.75rem;font-weight:600;color:var(--tv-navy-700);text-align:center">${_escapeHtml(nomeProd)}</div>` : ''}
+                    <div class="tv-map-grid">${tilesHTML}</div>
+                </div>
+                <div class="tv-map-ranking">${rankingHTML}</div>
+            </div>`;
+    }
+
+    function _tvRenderFootbar(prodCount, ufCount, tp, st) {
+        const fb = document.getElementById('tvFootbar');
+        if (!fb) return;
+        const sortLabel = st.sortCol ? `${st.sortCol}${st.sortDir==='asc'?'↑':'↓'}` : '—';
+        const wiLabel = (st.wiTaxa !== null || st.wiROI !== null) ? 'WI ATIVO' : '';
+        fb.innerHTML = `
+            <div class="tv-footbar-item"><strong>PROD</strong> ${prodCount}/${produtos.length}</div>
+            <div class="tv-footbar-item"><strong>UF</strong> ${ufCount}/27</div>
+            <div class="tv-footbar-item"><strong>CÉL</strong> ${prodCount * ufCount}</div>
+            <div class="tv-footbar-item"><strong>CLI</strong> ${tp === 'PJ' ? 'Lojista' : 'Varejo'}</div>
+            <div class="tv-footbar-item"><strong>SORT</strong> ${sortLabel}</div>
+            ${wiLabel ? `<div class="tv-footbar-item" style="color:var(--tv-amber-400)"><strong>${wiLabel}</strong></div>` : ''}
+            <div class="tv-footbar-item sep"></div>
+            <div class="tv-footbar-item tv-footbar-shortcut"><kbd>⌘K</kbd> Buscar</div>
+            <div class="tv-footbar-item tv-footbar-shortcut"><kbd>⌘S</kbd> Salvar</div>`;
+    }
+
+    // ══════════════════════════════════════════════════════════
+    // CONSTRUÇÃO DO HTML PRINCIPAL
+    // ══════════════════════════════════════════════════════════
+
+    // -- Card de versão ativa (painel parâmetros colapsável) --
+    const painelParams = _renderizarPainelParametrosTabelaVenda();
+
+    // -- Command bar --
+    const ncmsFiltrados = tvState.filtroNCMs;
+    const regioesFiltradas = tvState.filtroRegioes;
+
+    const dropNCM = tvState.openDropdown === 'ncm' ? `
+        <div class="tv-dropdown">
+            <div class="tv-dropdown-header">Filtrar por NCM</div>
+            ${ncmsFiltrados.length ? `<div class="tv-dropdown-item" onclick="window._tvClearFiltroNCM()">✕ Limpar filtro</div><div class="tv-dropdown-divider"></div>` : ''}
+            ${todosNCMs.map(n => `<label class="tv-dropdown-item">
+                <input type="checkbox" ${ncmsFiltrados.includes(n)?'checked':''} onchange="window._tvToggleNCM('${_escapeJsString(n)}')">
+                <span style="font-family:var(--tv-font-mono)">${_escapeHtml(n)}</span>
+            </label>`).join('')}
+        </div>` : '';
+
+    const dropRegiao = tvState.openDropdown === 'regiao' ? `
+        <div class="tv-dropdown">
+            <div class="tv-dropdown-header">Filtrar por Região</div>
+            ${regioesFiltradas.length ? `<div class="tv-dropdown-item" onclick="window._tvClearFiltroRegiao()">✕ Limpar filtro</div><div class="tv-dropdown-divider"></div>` : ''}
+            ${['N','NE','CO','SE','S'].map(r => `<label class="tv-dropdown-item">
+                <input type="checkbox" ${regioesFiltradas.includes(r)?'checked':''} onchange="window._tvToggleRegiao('${r}')">
+                ${r === 'N' ? 'Norte' : r === 'NE' ? 'Nordeste' : r === 'CO' ? 'Centro-Oeste' : r === 'SE' ? 'Sudeste' : 'Sul'}
+            </label>`).join('')}
+        </div>` : '';
+
+    const dropCI = tvState.openDropdown === 'ci' ? `
+        <div class="tv-dropdown" style="min-width:180px">
+            <div class="tv-dropdown-header">Faixa de CI</div>
+            <div class="tv-dropdown-item" onclick="window._tvSetCIFaixa(null, 500)">Abaixo de R$ 500</div>
+            <div class="tv-dropdown-item" onclick="window._tvSetCIFaixa(500, 2000)">R$ 500 – R$ 2.000</div>
+            <div class="tv-dropdown-item" onclick="window._tvSetCIFaixa(2000, 8000)">R$ 2.000 – R$ 8.000</div>
+            <div class="tv-dropdown-item" onclick="window._tvSetCIFaixa(8000, null)">Acima de R$ 8.000</div>
+            <div class="tv-dropdown-divider"></div>
+            <div class="tv-dropdown-item" onclick="window._tvSetCIFaixa(null, null)">✕ Limpar filtro</div>
+        </div>` : '';
+
+    const ciLabel = tvState.filtroCIMin !== null || tvState.filtroCIMax !== null
+        ? `CI: ${tvState.filtroCIMin != null ? 'R$'+_fmtMoeda(tvState.filtroCIMin) : '0'} – ${tvState.filtroCIMax != null ? 'R$'+_fmtMoeda(tvState.filtroCIMax) : '∞'}`
+        : 'Faixa CI';
+
+    // -- KPI strip --
+    const kpiHtml = `
+        <div class="tv-kpi-strip">
+            <div class="tv-kpi-card">
+                <div class="tv-kpi-label">Produtos Ativos</div>
+                <div class="tv-kpi-val">${kpis.countAtivos}</div>
+                <div class="tv-kpi-sub">${produtosFiltrados.length} filtrados</div>
+            </div>
+            <div class="tv-kpi-card">
+                <div class="tv-kpi-label">Margem Média (ROI)</div>
+                <div class="tv-kpi-val green">${kpis.margemMedia.toFixed(1)}%</div>
+                <div class="tv-kpi-sub">Base: ${kpis.roiBase}%</div>
+            </div>
+            <div class="tv-kpi-card">
+                <div class="tv-kpi-label">PV Mín → Máx</div>
+                <div class="tv-kpi-val amber">${kpis.pvMin > 0 ? 'R$' + _fmtMoeda(kpis.pvMin) : '—'} → ${kpis.pvMax > 0 ? 'R$' + _fmtMoeda(kpis.pvMax) : '—'}</div>
+                <div class="tv-kpi-sub">${ufsFiltradas.length} estados</div>
+            </div>
+            <div class="tv-kpi-card">
+                <div class="tv-kpi-label">Estado Mais Caro</div>
+                <div class="tv-kpi-val">${kpis.estadoMax || '—'}</div>
+                <div class="tv-kpi-sub">${kpis.estadoMaxVal > 0 ? 'R$' + _fmtMoeda(kpis.estadoMaxVal) : ''}</div>
+            </div>
+            <div class="tv-kpi-card">
+                <div class="tv-kpi-label">Versão</div>
+                <div class="tv-kpi-val" style="font-size:0.82rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${_escapeHtml(versaoLabel)}">${_escapeHtml(versaoLabel)}</div>
+                <div class="tv-kpi-sub">Taxa ${taxaGlobal}% · ROI ${roiGlobal}% · ${overrideCount} NCM${overrideCount!==1?'s':''}</div>
+            </div>
+        </div>`;
+
+    // -- Cabeçalho da tabela (2 linhas) --
+    function _thHeader() {
+        const sc = tvState.sortCol, sd = tvState.sortDir;
+        function thSort(col, label, cls='') {
+            const isActive = sc === col;
+            return `<th class="tv-num${isActive?' sort-active':''}${sd==='desc'&&isActive?' sort-desc':''} ${cls}" onclick="window._tvSetSort('${col}')" style="min-width:72px">${label}<span class="tv-sort-caret">▲</span></th>`;
+        }
+        function thFixed(col, label, minW='100px') {
+            const isActive = sc === col;
+            return `<th class="tv-th-fixed${isActive?' sort-active':''}${sd==='desc'&&isActive?' sort-desc':''}" onclick="window._tvSetSort('${col}')" style="min-width:${minW}">${label}<span class="tv-sort-caret">▲</span></th>`;
+        }
+
+        // Linha 1 — região
+        let thead1 = `<tr class="tv-thead-region">
+            <th class="tv-th-fixed" style="background:var(--tv-navy-950)" colspan="5"></th>`;
+        gruposRegiao.forEach(gr => {
+            thead1 += `<th class="tv-region-${gr.regiao}" colspan="${gr.ufs.length}">${gr.regiao}</th>`;
+        });
+        thead1 += `</tr>`;
+
+        // Linha 2 — colunas
+        let thead2 = `<tr class="tv-thead-cols">
+            ${thFixed('ncm', 'NCM', '110px')}
+            <th onclick="window._tvSetSort('pn')" class="${sc==='pn'?'sort-active':''}" style="min-width:100px;cursor:pointer">PN<span class="tv-sort-caret">▲</span></th>
+            <th onclick="window._tvSetSort('nome')" class="${sc==='nome'?'sort-active':''}" style="min-width:150px;cursor:pointer">Nome<span class="tv-sort-caret">▲</span></th>
+            <th style="min-width:130px;cursor:default;color:var(--tv-navy-200)">Fábrica</th>
+            ${thSort('ci', 'CI', 'tv-ci-cell')}`;
+        gruposRegiao.forEach(gr => {
+            gr.ufs.forEach(uf => {
+                thead2 += thSort(uf, uf);
+            });
+        });
+        thead2 += `</tr>`;
+        return thead1 + thead2;
+    }
+
+    // -- Corpo da tabela (primeira renderização) --
+    let lastNCM2 = null;
+    let tbodyRows = '';
+    let rowIdx2 = 0;
+    ordemFinal.forEach(chave => {
+        const principal = grupos[chave][0];
+        const ncmAtual = principal.ncm || '—';
+        if (ncmAtual !== lastNCM2) {
+            const ncmProds2 = ordemFinal.filter(c => grupos[c][0].ncm === ncmAtual);
+            const grupoNome2 = principal.categoria || '';
+            tbodyRows += `<tr class="tv-ncm-group-row"><td colspan="99">${_escapeHtml(ncmAtual)}${grupoNome2 ? ' · ' + _escapeHtml(grupoNome2) : ''} <span style="opacity:0.55;font-weight:400">· ${ncmProds2.length} produto${ncmProds2.length>1?'s':''}</span></td></tr>`;
+            lastNCM2 = ncmAtual;
+        }
+        const bg = rowIdx2 % 2 === 0 ? '#fff' : '#fafbfd';
+        tbodyRows += _tvRenderLinhaHTML(principal, false, bg, tipoPessoa, ufsFiltradas, tvState.wiTaxa, tvState.wiROI, tvState.wiNcmOverrides);
+        const filhas = pecasPorPaiTV[(principal.nome || '').toUpperCase()] || [];
+        filhas.forEach(peca => {
+            tbodyRows += _tvRenderLinhaHTML(peca, true, '#fafbfd', tipoPessoa, ufsFiltradas, tvState.wiTaxa, tvState.wiROI, tvState.wiNcmOverrides);
+        });
+        rowIdx2++;
     });
+    if (!tbodyRows) tbodyRows = `<tr><td colspan="99" style="padding:20px;text-align:center;color:#94a3b8;font-size:0.82rem">Nenhum produto encontrado para os filtros ativos.</td></tr>`;
 
-    html += `</tbody></table></div>`;
-    container.innerHTML = html;
-    container._tipoPessoa = tipoPessoaAtual;
+    // -- Painel What-If --
+    const wiTaxaVal  = tvState.wiTaxa  !== null ? tvState.wiTaxa  : (versao ? (versao.taxaPadrao ?? 27.24) : 27.24);
+    const wiROIVal   = tvState.wiROI   !== null ? tvState.wiROI   : (versao ? (versao.roiPadrao  ?? 40)    : 40);
+    const wiTaxaBase = versao ? (versao.taxaPadrao ?? 27.24) : 27.24;
+    const wiROIBase  = versao ? (versao.roiPadrao  ?? 40)    : 40;
 
-    // Injetar botões expand nos slots (após HTML estar no DOM)
-    ordemGrupos.forEach(chave => {
+    const whatIfPanel = tvState.whatIfAberto ? `
+        <div class="tv-whatif-panel" id="tvWhatIfPanel">
+            <div class="tv-whatif-header">
+                <span class="tv-whatif-title">Simulador What-If</span>
+                <button class="tv-whatif-close" onclick="window._tvToggleWhatIf()" title="Fechar">×</button>
+            </div>
+            <div class="tv-whatif-body">
+                <div class="tv-slider-group">
+                    <div class="tv-slider-label">
+                        <span>Taxa %</span>
+                        <span><span class="tv-slider-val" id="tvWITaxaVal">${Number(wiTaxaVal).toFixed(2)}</span>
+                        <span class="tv-slider-delta ${wiTaxaVal >= wiTaxaBase ? 'pos' : 'neg'}">${wiTaxaVal >= wiTaxaBase?'+':''}${(wiTaxaVal - wiTaxaBase).toFixed(2)} pp</span></span>
+                    </div>
+                    <input type="range" class="tv-slider" id="tvWITaxaSlider" min="1" max="50" step="0.1"
+                        value="${wiTaxaVal}"
+                        oninput="document.getElementById('tvWITaxaVal').textContent=Number(this.value).toFixed(2);window._tvWISetTaxa(this.value)">
+                </div>
+                <div class="tv-slider-group">
+                    <div class="tv-slider-label">
+                        <span>ROI %</span>
+                        <span><span class="tv-slider-val" id="tvWIROIVal">${Number(wiROIVal).toFixed(0)}</span>
+                        <span class="tv-slider-delta ${wiROIVal >= wiROIBase ? 'pos' : 'neg'}">${wiROIVal >= wiROIBase?'+':''}${(wiROIVal - wiROIBase).toFixed(0)} pp</span></span>
+                    </div>
+                    <input type="range" class="tv-slider" id="tvWIROISlider" min="0" max="200" step="1"
+                        value="${wiROIVal}"
+                        oninput="document.getElementById('tvWIROIVal').textContent=Number(this.value).toFixed(0);window._tvWISetROI(this.value)">
+                </div>
+                <div id="tvWhatIfImpact"></div>
+                <div class="tv-whatif-section-title">Override por NCM</div>
+                ${todosNCMs.map(ncm => {
+                    const ovr = tvState.wiNcmOverrides[ncm] || {};
+                    const hasOvr = ovr.taxa != null || ovr.roi != null;
+                    return `<div class="tv-ncm-override-row">
+                        <label title="${_escapeHtml(ncm)}">${_escapeHtml(ncm)}</label>
+                        <input type="number" step="0.1" placeholder="Taxa%" value="${ovr.taxa ?? ''}"
+                            oninput="window._tvWISetNCMOverride('${_escapeJsString(ncm)}','taxa',this.value)">
+                        <input type="number" step="1" placeholder="ROI%" value="${ovr.roi ?? ''}"
+                            oninput="window._tvWISetNCMOverride('${_escapeJsString(ncm)}','roi',this.value)">
+                        <button class="tv-ncm-reset-btn" title="Remover override" onclick="window._tvWIResetNCM('${_escapeJsString(ncm)}')" ${!hasOvr?'style="opacity:0.3"':''}>↺</button>
+                    </div>`;
+                }).join('')}
+            </div>
+            <div class="tv-whatif-footer">
+                <button class="tv-btn-discard" onclick="window._tvWIDiscartar()">Descartar</button>
+                <button class="tv-btn-apply" onclick="window._tvWIAplicar()">Aplicar à versão</button>
+            </div>
+        </div>` : '';
+
+    // -- Tooltip mapa (global) --
+    const tooltipMapaHTML = `<div id="tvMapTooltip" class="tv-map-tooltip"></div>`;
+
+    // ── MONTAGEM FINAL ──
+    container.innerHTML = `
+        ${painelParams}
+
+        <div class="tv-command-bar">
+            <div class="tv-search-box">
+                <span class="tv-search-icon">🔍</span>
+                <input type="text" id="tvBuscaInput" placeholder="Buscar nome, NCM, PN…" value="${_escapeHtml(tvState.busca)}"
+                    oninput="window._tvBusca(this.value)" autocomplete="off">
+                <span class="tv-search-kbd">⌘K</span>
+            </div>
+
+            <div class="tv-filter-chip${ncmsFiltrados.length?' active':''}" onclick="window._tvToggleDropdown('ncm')">
+                NCM ${ncmsFiltrados.length ? `<span class="tv-chip-count">${ncmsFiltrados.length}</span>` : '▾'}
+                ${dropNCM}
+            </div>
+            <div class="tv-filter-chip${regioesFiltradas.length?' active':''}" onclick="window._tvToggleDropdown('regiao')">
+                Região ${regioesFiltradas.length ? `<span class="tv-chip-count">${regioesFiltradas.length}</span>` : '▾'}
+                ${dropRegiao}
+            </div>
+            <div class="tv-filter-chip${(tvState.filtroCIMin!==null||tvState.filtroCIMax!==null)?' active':''}" onclick="window._tvToggleDropdown('ci')">
+                ${ciLabel} ▾
+                ${dropCI}
+            </div>
+
+            <div class="tv-bar-sep"></div>
+
+            <div class="tv-seg">
+                <button class="tv-seg-btn${tvState.viewMode==='tabela'?' active':''}" onclick="window._tvSetView('tabela')">Tabela</button>
+                <button class="tv-seg-btn${tvState.viewMode==='mapa'?' active':''}" onclick="window._tvSetView('mapa')">Mapa BR</button>
+            </div>
+            <div class="tv-seg">
+                <button class="tv-seg-btn${tipoPessoa==='PJ'?' active':''}" onclick="window._tvSetTipo('PJ')">PJ Lojista</button>
+                <button class="tv-seg-btn${tipoPessoa==='PF'?' active':''}" onclick="window._tvSetTipo('PF')">PF Varejo</button>
+            </div>
+            <div class="tv-seg">
+                <button class="tv-seg-btn${tvState.density==='compact'?' active':''}" onclick="window._tvSetDensity('compact')" title="Compacto">▬</button>
+                <button class="tv-seg-btn${tvState.density==='normal'?' active':''}" onclick="window._tvSetDensity('normal')" title="Normal">≡</button>
+                <button class="tv-seg-btn${tvState.density==='cozy'?' active':''}" onclick="window._tvSetDensity('cozy')" title="Espaçado">☰</button>
+            </div>
+
+            <div class="tv-bar-sep"></div>
+
+            <button class="tv-bar-btn${temWI?' primary':''}" onclick="window._tvToggleWhatIf()">
+                ${temWI ? '⚡ What-If ATIVO' : '⚡ Simulador'}
+            </button>
+            <button class="tv-bar-btn" onclick="exportarTabelaPrecoVenda()" title="Exportar Excel">⬇ Excel</button>
+            <button class="tv-bar-btn" onclick="document.getElementById('inputImportarTabelaVendaB').click()" title="Importar">📥</button>
+            <input type="file" id="inputImportarTabelaVendaB" accept=".xlsx,.xls,.csv" style="display:none" onchange="importarTabelaPrecoVendaExcel(event)">
+        </div>
+
+        ${kpiHtml}
+
+        <div class="tv-main-layout" id="tvMainLayout">
+            <div class="tv-table-area" id="tvTableArea">
+                ${tvState.viewMode === 'tabela' ? `
+                <div class="tv-table-wrap">
+                    <table class="tv-table" id="tabelaPrecoVendaGrid">
+                        <thead>${_thHeader()}</thead>
+                        <tbody id="tvTbody">${tbodyRows}</tbody>
+                    </table>
+                </div>` : `<div id="tvMapArea"></div>`}
+            </div>
+            ${whatIfPanel}
+        </div>
+
+        <div class="tv-footbar" id="tvFootbar"></div>
+        ${tooltipMapaHTML}
+    `;
+
+    container._tipoPessoa = tipoPessoa;
+    container.dataset.density = tvState.density;
+
+    // Pós-renderização: injetar botões expand
+    ordemFinal.forEach(chave => {
         const principal = grupos[chave][0];
         const filhas = pecasPorPaiTV[(principal.nome || '').toUpperCase()] || [];
-        if (!filhas.length) return;
-        const slot = document.getElementById('tv-expand-' + Number(principal.id));
-        if (!slot) return;
-        const btnExpand = document.createElement('span');
-        btnExpand.style.cssText = 'cursor:pointer;user-select:none;display:inline-flex;align-items:center;gap:4px;margin-left:6px;vertical-align:middle';
-        btnExpand.title = `Ver ${filhas.length} peça(s)`;
-        const iconSpan = document.createElement('span');
-        iconSpan.className = 'tv-expand-icon';
-        iconSpan.style.cssText = 'font-size:0.75rem;color:#1e3a5f;font-weight:700';
-        iconSpan.textContent = '▶';
-        const badge = document.createElement('span');
-        badge.style.cssText = 'background:#e0f2fe;color:#0369a1;border-radius:10px;padding:1px 7px;font-size:0.72rem;font-weight:700';
-        badge.textContent = `${filhas.length} peça${filhas.length > 1 ? 's' : ''}`;
-        btnExpand.appendChild(iconSpan);
-        btnExpand.appendChild(badge);
-        btnExpand.addEventListener('click', e => {
-            e.stopPropagation();
-            const icon = btnExpand.querySelector('.tv-expand-icon');
-            const expandido = icon && icon.textContent.trim() === '▼';
-            const nomePaiUpper = (principal.nome || '').toUpperCase();
-            container.querySelectorAll('tr[data-tv-peca-filha]').forEach(tr => {
-                if ((tr.dataset.tvPecaFilha || '').toUpperCase() === nomePaiUpper) {
-                    tr.style.display = expandido ? 'none' : 'table-row';
-                }
-            });
-            if (icon) icon.textContent = expandido ? '▶' : '▼';
-        });
-        slot.appendChild(btnExpand);
+        if (filhas.length) _tvInjetarBtnExpand(principal, filhas, container);
     });
+
+    // Renderizar mapa se ativo
+    if (tvState.viewMode === 'mapa') {
+        if (!tvState.mapaProduto && produtosFiltrados[0]) tvState.mapaProduto = produtosFiltrados[0].nome;
+        _tvRenderMapa();
+    }
+
+    // Calcular impacto what-if inicial se painel aberto
+    if (tvState.whatIfAberto) _tvRenderWhatIfImpact();
+
+    // Footbar
+    _tvRenderFootbar(ordemFinal.length, ufsFiltradas.length, tipoPessoa, tvState);
+
+    // Tooltip do mapa
+    window._tvMapTooltip = function(evt, uf, pvStr) {
+        const tt = document.getElementById('tvMapTooltip');
+        if (!tt) return;
+        tt.style.display = 'block';
+        tt.style.left = (evt.clientX + 12) + 'px';
+        tt.style.top  = (evt.clientY - 10) + 'px';
+        const prod2 = container._tvState.mapaProduto || '—';
+        const icmsV = buscarAliquotaICMS ? buscarAliquotaICMS(uf, tipoPessoa, prod2) : '—';
+        tt.innerHTML = `<strong>${uf}</strong><br>${pvStr}<br><span style="opacity:0.7">ICMS: ${icmsV}%</span>`;
+    };
+    window._tvMapHideTooltip = function() {
+        const tt = document.getElementById('tvMapTooltip');
+        if (tt) tt.style.display = 'none';
+    };
+
+    // Fechar dropdown ao clicar fora — remover listener anterior antes de registrar
+    if (container._tvDropdownListener) {
+        document.removeEventListener('click', container._tvDropdownListener);
+        container._tvDropdownListener = null;
+    }
+    if (tvState.openDropdown) {
+        container._tvDropdownListener = function(e) {
+            if (!e.target.closest('.tv-filter-chip')) {
+                container._tvState.openDropdown = null;
+                document.removeEventListener('click', container._tvDropdownListener);
+                container._tvDropdownListener = null;
+                container.querySelectorAll('.tv-dropdown').forEach(d => d.remove());
+            }
+        };
+        setTimeout(() => { document.addEventListener('click', container._tvDropdownListener); }, 0);
+    }
 }
 
 function renderizarTabelaPrecoVendaTipo(tipo) {
     const container = document.getElementById('subaba-precif-tabelavenda');
     if (!container) return;
     container._tipoPessoa = tipo;
+    if (container._tvState) container._tvState.tipoPessoa = tipo;
     renderizarTabelaPrecoVenda();
 }
 
@@ -16492,11 +17228,14 @@ function _renderizarPainelParametrosTabelaVenda() {
 
     // ---- Seção A: versão ativa ----
     const secaoAtiva = versaoAtiva
-        ? `<div style="display:flex;align-items:center;gap:10px;padding:10px 16px;background:#f0fdf4;border-bottom:1px solid #bbf7d0;flex-wrap:wrap">
-            <span style="font-size:0.82rem;color:#15803d;font-weight:700">Versão ativa:</span>
-            <span style="font-size:0.82rem;color:#15803d">${_escapeHtml(versaoAtiva.descricao)}</span>
-            <span style="font-size:0.77rem;color:#64748b">— criada em ${new Date(versaoAtiva.data).toLocaleDateString('pt-BR')}</span>
-            <span style="font-size:0.77rem;color:#374151">| Taxa padrão: <b>${versaoAtiva.taxaPadrao != null ? versaoAtiva.taxaPadrao + '%' : '—'}</b> &nbsp; ROI padrão: <b>${versaoAtiva.roiPadrao != null ? versaoAtiva.roiPadrao + '%' : '—'}</b></span>
+        ? `<div class="tv-version-card">
+            <span class="tv-version-label">Versão Ativa</span>
+            <div class="tv-version-info">
+                <span><strong>${_escapeHtml(versaoAtiva.descricao)}</strong></span>
+                <span>${new Date(versaoAtiva.data).toLocaleDateString('pt-BR')}</span>
+                <span>Taxa <strong>${versaoAtiva.taxaPadrao != null ? versaoAtiva.taxaPadrao + '%' : '—'}</strong></span>
+                <span>ROI <strong>${versaoAtiva.roiPadrao != null ? versaoAtiva.roiPadrao + '%' : '—'}</strong></span>
+            </div>
           </div>`
         : `<div style="padding:8px 16px;background:#fef9c3;border-bottom:1px solid #fde047;font-size:0.82rem;color:#92400e">Nenhuma versão definida. Crie a primeira versão abaixo.</div>`;
 
@@ -16598,12 +17337,12 @@ function _renderizarPainelParametrosTabelaVenda() {
             </div>
         </div>` : '';
 
-    return `<div id="tvPainelParams" style="background:#fff;border:1px solid #e2e8f0;border-radius:10px;margin-bottom:16px;overflow:hidden">
+    return `<div id="tvPainelParams" style="background:#fff;border:1px solid var(--tv-navy-100);border-radius:3px;margin-bottom:10px;overflow:hidden;box-shadow:var(--tv-shadow-sm)">
         <div onclick="var b=document.getElementById('tvPainelParamsBody');var ic=document.getElementById('tvPainelIc');b.style.display=b.style.display==='none'?'block':'none';ic.textContent=b.style.display==='none'?'▶':'▼'"
-            style="padding:10px 16px;cursor:pointer;display:flex;align-items:center;gap:10px;background:#eef2ff;user-select:none">
-            <span id="tvPainelIc" style="font-size:0.75rem;color:#4f46e5">▼</span>
-            <span style="font-weight:700;color:#1e3a5f;font-size:0.88rem">Parâmetros de Cálculo (Taxa e ROI por NCM)</span>
-            <span style="font-size:0.77rem;color:#64748b;margin-left:4px">por produto individual sobrepõe estes valores</span>
+            style="padding:9px 16px;cursor:pointer;display:flex;align-items:center;gap:10px;background:var(--tv-navy-900);user-select:none">
+            <span id="tvPainelIc" style="font-size:0.68rem;color:var(--tv-amber-400)">▼</span>
+            <span style="font-family:var(--tv-font-display);font-weight:700;color:var(--tv-amber-400);font-size:0.78rem;text-transform:uppercase;letter-spacing:0.8px">Parâmetros de Cálculo</span>
+            <span style="font-size:0.72rem;color:var(--tv-navy-200);margin-left:4px">Taxa e ROI por NCM · por produto sobrepõe</span>
         </div>
         <div id="tvPainelParamsBody">
             ${secaoAtiva}
