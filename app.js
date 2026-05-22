@@ -1158,6 +1158,7 @@ function renderConsultaPrecificacoes(dados) {
                             </td>
                         </tr>`;
             if (typeof _cpRenderPaginacao === 'function') _cpRenderPaginacao(totalRegistros);
+            try { if (typeof _cqPosRender === 'function') _cqPosRender(dados); } catch(e) {}
             return;
         }
 
@@ -1255,6 +1256,7 @@ function renderConsultaPrecificacoes(dados) {
 
         body.innerHTML = html;
         if (typeof _cpRenderPaginacao === 'function') _cpRenderPaginacao(totalRegistros);
+        try { if (typeof _cqPosRender === 'function') _cqPosRender(dados); } catch(e) {}
     } catch (e) {
         console.error('renderConsultaPrecificacoes erro:', e);
     }
@@ -1428,6 +1430,110 @@ try {
     window._cpPopularFiltroCliente = _cpPopularFiltroCliente;
     window.renderConsultaPrecificacoes = renderConsultaPrecificacoes;
 } catch (e) {}
+
+// ── Bloomberg: KPI strip + lista lateral de cards ──
+function _cqAtualizarKpiStrip() {
+    try {
+        const lista = Array.isArray(precificacoesCliente) ? precificacoesCliente : [];
+        const total = lista.length;
+        const ativas = lista.filter(p => !_cpExpirada(p)).length;
+        const expiradas = total - ativas;
+        const clientesUnicos = new Set(lista.map(p => (p.clienteNome || p.cliente || '').trim()).filter(Boolean)).size;
+
+        const sorted = lista.slice().sort((a, b) => new Date(b.dataCriacao || b.data || 0) - new Date(a.dataCriacao || a.data || 0));
+        const ultima = sorted[0];
+        const ultimaData = ultima ? new Date(ultima.dataCriacao || ultima.data).toLocaleDateString('pt-BR') : '—';
+        const ultimaCliente = ultima ? (ultima.clienteNome || ultima.cliente || '—') : '—';
+
+        const el = id => document.getElementById(id);
+        if (el('cqKpiTotal')) el('cqKpiTotal').textContent = total;
+        if (el('cqKpiAtivas')) el('cqKpiAtivas').textContent = ativas;
+        if (el('cqKpiExpiradas')) el('cqKpiExpiradas').textContent = expiradas;
+        if (el('cqKpiClientes')) el('cqKpiClientes').textContent = clientesUnicos;
+        if (el('cqKpiUltima')) el('cqKpiUltima').textContent = ultimaData;
+        if (el('cqKpiUltimaSub')) el('cqKpiUltimaSub').textContent = ultimaCliente;
+    } catch (e) {}
+}
+
+function _cqRenderizarCards(dadosPaginaAtual) {
+    const listEl = document.getElementById('cqResultsList');
+    if (!listEl) return;
+    const lista = Array.isArray(_cpState.dados) ? _cpState.dados : [];
+    if (!lista.length) {
+        listEl.innerHTML = '<div class="cq-results-empty">Nenhuma precificação encontrada com os filtros selecionados</div>';
+        return;
+    }
+
+    // Construir mapa de numeração AAAA/NNN
+    const seqMap = new Map();
+    try {
+        const sortedAll = lista.slice().sort((a, b) => new Date(a.dataCriacao || a.data || 0) - new Date(b.dataCriacao || b.data || 0));
+        const counters = {};
+        sortedAll.forEach(p => {
+            const y = new Date(p.dataCriacao || p.data || Date.now()).getFullYear();
+            counters[y] = (counters[y] || 0) + 1;
+            seqMap.set(p.id || p, counters[y]);
+        });
+    } catch (e) {}
+
+    listEl.innerHTML = lista.map(p => {
+        const exp = _cpExpirada(p);
+        const y = new Date(p.dataCriacao || p.data || Date.now()).getFullYear();
+        const seq = seqMap.get(p.id || p) || '?';
+        const num = y + '/' + String(seq).padStart(3, '0');
+        const data = p.dataCriacao ? new Date(p.dataCriacao).toLocaleDateString('pt-BR') : '—';
+        const cliente = _escapeHtml(p.clienteNome || p.cliente || '—');
+        const uf = _escapeHtml((p.clienteUF || p.uf || '').toUpperCase());
+        const rep = _escapeHtml(p.representante || p.rep || '—');
+        const itens = (p.itens || p.produtos || []).length;
+        const statusHtml = exp
+            ? '<span class="cq-card-status-exp">✗ Expirada</span>'
+            : '<span class="cq-card-status-ativa">✓ Ativa</span>';
+        return `<div class="cq-result-card" onclick="window._cqSelecionarCard('${_escapeHtml(String(p.id || ''))}', this)" data-prec-id="${_escapeHtml(String(p.id || ''))}">
+            <div class="cq-card-top">
+                <span class="cq-card-num">${_escapeHtml(num)}</span>
+                ${statusHtml}
+            </div>
+            <div class="cq-card-cliente">${cliente}</div>
+            <div class="cq-card-meta">${data} · UF ${uf || '??'} · ${itens} item(s) · ${rep}</div>
+        </div>`;
+    }).join('');
+
+    // Atualizar contagens no footbar
+    try {
+        const fbReg = document.getElementById('cqFootbarReg');
+        if (fbReg) fbReg.textContent = 'REG ' + lista.length;
+        const fbTime = document.getElementById('cq-footbar-time');
+        if (fbTime) fbTime.textContent = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+    } catch (e) {}
+}
+
+window._cqSelecionarCard = function(id, el) {
+    document.querySelectorAll('.cq-result-card').forEach(c => c.classList.remove('active'));
+    if (el) el.classList.add('active');
+    const prec = (precificacoesCliente || []).find(p => String(p.id) === String(id));
+    if (!prec) return;
+
+    // Atualizar footbar com dados do cliente selecionado
+    try {
+        const fbSel = document.getElementById('cqFootbarCliente');
+        if (fbSel) fbSel.textContent = 'CLI ' + (prec.clienteNome || prec.cliente || '—').substring(0, 20);
+        const exp = _cpExpirada(prec);
+        const fbStatus = document.getElementById('cqFootbarStatus');
+        if (fbStatus) fbStatus.textContent = 'STATUS ' + (exp ? 'EXPIRADA' : 'ATIVA');
+    } catch (e) {}
+};
+
+// Hook pós-renderização: atualizar cards e KPIs após cada render
+function _cqPosRender(dados) {
+    try { _cqRenderizarCards(dados); } catch (e) {}
+    try { _cqAtualizarKpiStrip(); } catch (e) {}
+    try {
+        const countEl = document.getElementById('cq-footbar-count');
+        if (countEl) countEl.textContent = (Array.isArray(_cpState.dados) ? _cpState.dados.length : 0) + ' registros';
+    } catch (e) {}
+}
+window._cqPosRender = _cqPosRender;
 
 function gerarPropostaDePrecificacao(id, idxProduto) {
     try {
@@ -15447,10 +15553,20 @@ function trocarSubabaPrecif(subaba) {
         try { popularSelectsComparativo(); } catch (e) {}
         const res = document.getElementById('compResultado');
         const empty = document.getElementById('compEmpty');
+        const verdict = document.getElementById('cmpVerdict');
         if (res) res.style.display = 'none';
         if (empty) empty.style.display = 'flex';
+        if (verdict) verdict.style.display = 'none';
         const ft = document.getElementById('cmp-footbar-time');
         if (ft) ft.textContent = new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+        // Footbar inicial
+        try {
+            const nProd = (estoque.produtos || []).filter(p => parseFloat((precificacao[p.nome] || {}).ci || p.ci || 0) > 0).length;
+            const fbProd = document.getElementById('cmpFootbarProd');
+            if (fbProd) fbProd.textContent = 'PRODUTOS: ' + nProd;
+            const fbCli = document.getElementById('cmpFootbarCli');
+            if (fbCli) fbCli.textContent = 'CLIENTES: 0/3';
+        } catch(e) {}
     }
     if (subaba === 'precoestado') {
         try { renderizarTabelaPrecoEstado(); } catch (e) {}
@@ -17907,8 +18023,85 @@ function calcularComparativo() {
         const ft = document.getElementById('cmp-footbar-time');
         if (ft) ft.textContent = new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
 
+        // ── Verdict bar ──
+        try { _cmpAtualizarVerdict(clientesData); } catch(e) {}
+        try { _cmpAtualizarFootbar(clientesData); } catch(e) {}
+
     } catch (e) { console.warn('calcularComparativo', e); }
 }
+
+// ── Bloomberg: verdict bar + footbar ──
+function _cmpAtualizarVerdict(clientesData) {
+    const verdictEl = document.getElementById('cmpVerdict');
+    if (!verdictEl) return;
+
+    const produtos = (estoque.produtos || []).filter(p => {
+        const ci = parseFloat((precificacao[p.nome] || {}).ci || p.ci || 0);
+        return ci > 0;
+    });
+
+    // Para cada cliente, calcular margem média
+    const margens = clientesData.map(c => {
+        const precos = produtos.map(p => {
+            try { return calcularPreco(p.nome, c.uf, c.tipo, c.taxa, c.roi, c.comissao); } catch(e) { return null; }
+        }).filter(r => r && r.margem);
+        const avg = precos.length ? precos.reduce((s, r) => s + (r.margem || 0), 0) / precos.length : 0;
+        return { nome: c.nome, margem: avg, uf: c.uf };
+    });
+
+    if (!margens.length) { verdictEl.style.display = 'none'; return; }
+
+    const bestIdx = margens.reduce((b, m, i) => m.margem > margens[b].margem ? i : b, 0);
+    const worstIdx = margens.reduce((b, m, i) => m.margem < margens[b].margem ? i : b, 0);
+
+    // Spread PV — pegar todos os preços finais calculados
+    const allPV = clientesData.flatMap(c =>
+        produtos.map(p => { try { return (calcularPreco(p.nome, c.uf, c.tipo, c.taxa, c.roi, c.comissao) || {}).precoFinal; } catch(e) { return null; } }).filter(v => v > 0)
+    );
+    const minPV = allPV.length ? Math.min(...allPV) : 0;
+    const maxPV = allPV.length ? Math.max(...allPV) : 0;
+    const spreadPct = minPV > 0 ? ((maxPV - minPV) / minPV * 100) : 0;
+
+    const fmt = v => 'R$ ' + parseFloat(v || 0).toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2});
+    const fmtPct = v => (Number(v) || 0).toFixed(1) + '%';
+
+    const el = id => document.getElementById(id);
+    if (el('cmpVerdictMelhor')) el('cmpVerdictMelhor').textContent = margens[bestIdx].nome || '—';
+    if (el('cmpVerdictMelhorPct')) el('cmpVerdictMelhorPct').textContent = fmtPct(margens[bestIdx].margem);
+    if (el('cmpVerdictPior')) el('cmpVerdictPior').textContent = margens[worstIdx].nome || '—';
+    if (el('cmpVerdictPiorPct')) el('cmpVerdictPiorPct').textContent = fmtPct(margens[worstIdx].margem);
+    if (el('cmpVerdictSpread')) el('cmpVerdictSpread').textContent = fmt(minPV) + ' – ' + fmt(maxPV);
+    if (el('cmpVerdictSpreadPct')) el('cmpVerdictSpreadPct').textContent = '+' + fmtPct(spreadPct);
+
+    verdictEl.style.display = 'flex';
+}
+
+function _cmpAtualizarFootbar(clientesData) {
+    const nCli = (clientesData || []).length;
+    const nProd = (estoque.produtos || []).filter(p => parseFloat((precificacao[p.nome] || {}).ci || p.ci || 0) > 0).length;
+    const fbCli = document.getElementById('cmpFootbarCli');
+    const fbProd = document.getElementById('cmpFootbarProd');
+    const fbModo = document.getElementById('cmpFootbarModo');
+    if (fbCli) fbCli.textContent = 'CLIENTES: ' + nCli + '/3';
+    if (fbProd) fbProd.textContent = 'PRODUTOS: ' + nProd;
+    if (fbModo) fbModo.textContent = 'MODO: CLIENTES';
+}
+
+window._cmpSetModo = function(modo, btn) {
+    const seg = btn?.closest('.cmp-seg');
+    if (seg) seg.querySelectorAll('.cmp-seg-btn').forEach(b => b.classList.remove('active'));
+    if (btn) btn.classList.add('active');
+    const fbModo = document.getElementById('cmpFootbarModo');
+    if (fbModo) fbModo.textContent = 'MODO: ' + modo.toUpperCase();
+};
+
+window._cmpSetTipo = function(tipo, btn) {
+    const seg = btn?.closest('.cmp-seg');
+    if (seg) seg.querySelectorAll('.cmp-seg-btn').forEach(b => b.classList.remove('active'));
+    if (btn) btn.classList.add('active');
+    // Recalcular com novo tipo (futuro)
+    try { calcularComparativo(); } catch(e) {}
+};
 
 function exportarComparativo() {
     try {

@@ -682,111 +682,167 @@
                                 <div id="painel-consultaPrec" style="display:none">
 <div class="cq-root">
 
-    <!-- Command bar -->
-    <div class="cq-command-bar">
-        <span class="cq-bar-title">CONSULTA DE PRECIFICAÇÕES</span>
-        <!-- Toggle de modo -->
-        <div class="cq-seg" id="consultaPrecModo">
-            <button id="btnConsultaModoPrecif" class="cq-seg-btn active" onclick="alternarModoConsultaPrec('precificacao')">POR PRECIFICAÇÃO</button>
-            <button id="btnConsultaModoProduto" class="cq-seg-btn" onclick="alternarModoConsultaPrec('produto')">POR PRODUTO</button>
+    <!-- ── Hero search ── -->
+    <div class="cq-hero">
+        <div class="cq-search-wrap">
+            <svg class="cq-search-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="6.5" cy="6.5" r="4.5"/><path d="M10 10l3 3"/></svg>
+            <select id="fcp-cliente" class="cq-hero-input" onchange="filtrarConsultaPrecificacoes(1)" title="Filtrar por cliente">
+                <option value="">Todos os clientes…</option>
+            </select>
+            <span class="cq-search-kbd">⌘K</span>
         </div>
-        <div class="cq-bar-sep"></div>
-        <!-- Filtros -->
-        <select id="fcp-cliente" class="cq-select">
-            <option value="">Todos os clientes</option>
-        </select>
-        <select id="fcp-rep" class="cq-select">
-            <option value="">Todos os representantes</option>
-            <option value="KOLTE">KOLTE</option>
-            <option value="ISA">ISA</option>
-            <option value="LC">LC</option>
-            <option value="ADES">ADES</option>
-            <option value="FL">FL</option>
-            <option value="IMBEL">IMBEL</option>
-        </select>
-        <select id="fcp-status" class="cq-select">
-            <option value="">Todos os status</option>
-            <option value="ativa">Ativa</option>
-            <option value="expirada">Expirada</option>
-        </select>
-        <div class="cq-date-range">
-            <input type="date" id="fcp-de" class="cq-date-input" title="Data inicial">
-            <span class="cq-date-sep">→</span>
-            <input type="date" id="fcp-ate" class="cq-date-input" title="Data final">
+        <div class="cq-hero-tags">
+            <span class="cq-hero-tag-lbl">FILTROS:</span>
+            <div class="cq-seg" id="consultaPrecModo">
+                <button id="btnConsultaModoPrecif" class="cq-seg-btn active" onclick="alternarModoConsultaPrec('precificacao')">POR PRECIFICAÇÃO</button>
+                <button id="btnConsultaModoProduto" class="cq-seg-btn" onclick="alternarModoConsultaPrec('produto')">POR PRODUTO</button>
+            </div>
+            <select id="fcp-rep" class="cq-select sm">
+                <option value="">Todos os representantes</option>
+                <option value="KOLTE">KOLTE</option>
+                <option value="ISA">ISA</option>
+                <option value="LC">LC</option>
+                <option value="ADES">ADES</option>
+                <option value="FL">FL</option>
+                <option value="IMBEL">IMBEL</option>
+            </select>
+            <select id="fcp-status" class="cq-select sm">
+                <option value="">Todos os status</option>
+                <option value="ativa">&#10003; Ativa</option>
+                <option value="expirada">&#10007; Expirada</option>
+            </select>
+            <div class="cq-date-range">
+                <input type="date" id="fcp-de" class="cq-date-input" title="Data inicial">
+                <span class="cq-date-sep">→</span>
+                <input type="date" id="fcp-ate" class="cq-date-input" title="Data final">
+            </div>
+            <button class="cq-btn primary" onclick="filtrarConsultaPrecificacoes()">FILTRAR</button>
+            <button class="cq-btn" onclick="limparFiltrosConsultaPrec()">LIMPAR</button>
+            <div class="cq-bar-sep"></div>
+            <button class="cq-btn" onclick="exportarPrecificacoesExcel()">&#8679; EXCEL</button>
+            <button class="cq-btn" onclick="window.print()">&#9113; IMPRIMIR</button>
         </div>
-        <button class="cq-btn primary" onclick="filtrarConsultaPrecificacoes()">FILTRAR</button>
-        <button class="cq-btn" onclick="limparFiltrosConsultaPrec()">LIMPAR</button>
-        <div class="cq-bar-sep"></div>
-        <button class="cq-btn" onclick="exportarPrecificacoesExcel()">&#8679; EXCEL</button>
-        <button class="cq-btn" onclick="window.print()">&#9113; IMPRIMIR</button>
     </div>
 
-    <!-- Visão: Por Precificação -->
-    <div class="cq-table-wrap">
-        <table class="cq-table" id="tabelaConsultaPrec">
-            <thead>
-                <tr>
-                    <th data-sort="id"       style="min-width:60px">Nº</th>
-                    <th data-sort="data"     style="min-width:100px">DATA</th>
-                    <th data-sort="validade" style="min-width:100px">VALIDADE</th>
-                    <th style="min-width:80px">STATUS</th>
-                    <th data-sort="cliente"  style="min-width:160px;text-align:left">CLIENTE</th>
-                    <th style="min-width:50px">UF</th>
-                    <th style="min-width:50px">TIPO</th>
-                    <th data-sort="rep"      style="min-width:90px">REP.</th>
-                    <th style="min-width:160px;text-align:left">PRODUTO</th>
-                    <th style="min-width:200px;text-align:left">DESCRIÇÃO</th>
-                    <th style="min-width:80px;text-align:center">QTD</th>
-                    <th style="min-width:100px">CI</th>
-                    <th style="text-align:center;min-width:120px">TAXA / ROI</th>
-                    <th style="min-width:110px">VLR BASE</th>
-                    <th style="text-align:center;min-width:140px">PIS / COFINS</th>
-                    <th style="min-width:70px">ICMS %</th>
-                    <th style="min-width:110px">S/ IPI</th>
-                    <th style="min-width:60px">IPI %</th>
-                    <th style="min-width:110px">C/ IPI</th>
-                    <th style="min-width:80px">COMIS. %</th>
-                    <th style="min-width:100px">FRETE</th>
-                    <th style="min-width:120px;color:var(--tv-amber-400)">VLR FINAL</th>
-                    <th style="min-width:120px">VLR TOTAL</th>
-                    <th style="min-width:80px">MARGEM %</th>
-                    <th style="min-width:160px">BENEFÍCIOS</th>
-                    <th style="min-width:110px;position:sticky;right:0">AÇÕES</th>
-                </tr>
-            </thead>
-            <tbody id="bodyConsultaPrec">
-                <tr><td colspan="26" class="cq-empty-cell">
-                    <div class="cq-empty">Nenhuma precificação salva — calcule e salve na aba Por Cliente</div>
-                </td></tr>
-            </tbody>
-        </table>
+    <!-- ── KPI strip ── -->
+    <div class="cq-kpi-strip" id="cqKpiStrip">
+        <div class="cq-kpi">
+            <div class="cq-kpi-lbl">TOTAL PRECIFICAÇÕES</div>
+            <div class="cq-kpi-val" id="cqKpiTotal">—</div>
+            <div class="cq-kpi-sub">todas as salvas</div>
+        </div>
+        <div class="cq-kpi">
+            <div class="cq-kpi-lbl">ATIVAS</div>
+            <div class="cq-kpi-val" id="cqKpiAtivas" style="color:#15803d">—</div>
+            <div class="cq-kpi-sub">dentro da validade</div>
+        </div>
+        <div class="cq-kpi">
+            <div class="cq-kpi-lbl">EXPIRADAS</div>
+            <div class="cq-kpi-val" id="cqKpiExpiradas" style="color:#dc2626">—</div>
+            <div class="cq-kpi-sub">fora da validade</div>
+        </div>
+        <div class="cq-kpi">
+            <div class="cq-kpi-lbl">CLIENTES ÚNICOS</div>
+            <div class="cq-kpi-val" id="cqKpiClientes">—</div>
+            <div class="cq-kpi-sub">com precificação</div>
+        </div>
+        <div class="cq-kpi">
+            <div class="cq-kpi-lbl">ÚLTIMA EMISSÃO</div>
+            <div class="cq-kpi-val" id="cqKpiUltima" style="font-size:0.88rem">—</div>
+            <div class="cq-kpi-sub" id="cqKpiUltimaSub">—</div>
+        </div>
     </div>
 
-    <!-- Paginação -->
-    <div class="pagination-container cq-pagination" id="paginacaoConsultaPrec"></div>
+    <!-- ── Main: lista + detalhe ── -->
+    <div class="cq-main">
 
-    <!-- Visão: Por Produto -->
-    <div id="bodyConsultaPrecPorProduto" class="cq-table-wrap" style="display:none">
-        <table class="cq-table" id="tabelaConsultaPrecPorProduto">
-            <thead>
-                <tr>
-                    <th style="text-align:left;min-width:200px">PRODUTO</th>
-                    <th style="text-align:center;min-width:80px">PRECIF.</th>
-                    <th style="text-align:right;min-width:120px">MENOR PREÇO</th>
-                    <th style="text-align:right;min-width:120px">MAIOR PREÇO</th>
-                    <th style="text-align:right;min-width:120px">ÚLTIMO PREÇO</th>
-                    <th style="text-align:center;min-width:110px">ÚLTIMA DATA</th>
-                    <th style="text-align:center;min-width:80px">DETALHES</th>
-                </tr>
-            </thead>
-            <tbody id="bodyConsultaPrecPorProdutoTabela"></tbody>
-        </table>
-    </div>
+        <!-- Coluna esquerda: lista de resultados -->
+        <div class="cq-results-col">
+            <div class="cq-results-head">
+                <span id="cq-footbar-count" class="cq-results-count">0 registros</span>
+                <span class="cq-results-sort">↓ DATA</span>
+            </div>
+            <!-- Cards de precificação (populados pelo JS) -->
+            <div class="cq-results-list" id="cqResultsList">
+                <div class="cq-results-empty">Nenhuma precificação salva — calcule e salve na aba Por Cliente</div>
+            </div>
+        </div>
 
-    <!-- Footbar -->
+        <!-- Coluna direita: tabela densa -->
+        <div class="cq-detail-col">
+            <!-- Visão: Por Precificação -->
+            <div class="cq-table-wrap" id="cqTabelaWrap">
+                <table class="cq-table" id="tabelaConsultaPrec">
+                    <thead>
+                        <tr>
+                            <th data-sort="id"       style="min-width:60px">Nº</th>
+                            <th data-sort="data"     style="min-width:100px">DATA</th>
+                            <th data-sort="validade" style="min-width:100px">VALIDADE</th>
+                            <th style="min-width:80px">STATUS</th>
+                            <th data-sort="cliente"  style="min-width:160px;text-align:left">CLIENTE</th>
+                            <th style="min-width:50px">UF</th>
+                            <th style="min-width:50px">TIPO</th>
+                            <th data-sort="rep"      style="min-width:90px">REP.</th>
+                            <th style="min-width:160px;text-align:left">PRODUTO</th>
+                            <th style="min-width:200px;text-align:left">DESCRIÇÃO</th>
+                            <th style="min-width:80px;text-align:center">QTD</th>
+                            <th style="min-width:100px">CI</th>
+                            <th style="text-align:center;min-width:120px">TAXA / ROI</th>
+                            <th style="min-width:110px">VLR BASE</th>
+                            <th style="text-align:center;min-width:140px">PIS / COFINS</th>
+                            <th style="min-width:70px">ICMS %</th>
+                            <th style="min-width:110px">S/ IPI</th>
+                            <th style="min-width:60px">IPI %</th>
+                            <th style="min-width:110px">C/ IPI</th>
+                            <th style="min-width:80px">COMIS. %</th>
+                            <th style="min-width:100px">FRETE</th>
+                            <th style="min-width:120px;color:var(--tv-amber-400)">VLR FINAL</th>
+                            <th style="min-width:120px">VLR TOTAL</th>
+                            <th style="min-width:80px">MARGEM %</th>
+                            <th style="min-width:160px">BENEFÍCIOS</th>
+                            <th style="min-width:110px;position:sticky;right:0">AÇÕES</th>
+                        </tr>
+                    </thead>
+                    <tbody id="bodyConsultaPrec">
+                        <tr><td colspan="26" class="cq-empty-cell">
+                            <div class="cq-empty">Nenhuma precificação salva — calcule e salve na aba Por Cliente</div>
+                        </td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Paginação -->
+            <div class="pagination-container cq-pagination" id="paginacaoConsultaPrec"></div>
+
+            <!-- Visão: Por Produto -->
+            <div id="bodyConsultaPrecPorProduto" class="cq-table-wrap" style="display:none">
+                <table class="cq-table" id="tabelaConsultaPrecPorProduto">
+                    <thead>
+                        <tr>
+                            <th style="text-align:left;min-width:200px">PRODUTO</th>
+                            <th style="text-align:center;min-width:80px">PRECIF.</th>
+                            <th style="text-align:right;min-width:120px">MENOR PREÇO</th>
+                            <th style="text-align:right;min-width:120px">MAIOR PREÇO</th>
+                            <th style="text-align:right;min-width:120px">ÚLTIMO PREÇO</th>
+                            <th style="text-align:center;min-width:110px">ÚLTIMA DATA</th>
+                            <th style="text-align:center;min-width:80px">DETALHES</th>
+                        </tr>
+                    </thead>
+                    <tbody id="bodyConsultaPrecPorProdutoTabela"></tbody>
+                </table>
+            </div>
+        </div>
+
+    </div><!-- /cq-main -->
+
+    <!-- ── Footbar ── -->
     <div class="cq-footbar">
         <span class="cq-footbar-tag">CONSULTA</span>
-        <span id="cq-footbar-count"></span>
+        <span id="cqFootbarReg">REG 0</span>
+        <span class="cq-footbar-div">|</span>
+        <span id="cqFootbarStatus">STATUS —</span>
+        <span class="cq-footbar-div">|</span>
+        <span id="cqFootbarCliente">CLI —</span>
         <span style="margin-left:auto;color:var(--tv-navy-600)" id="cq-footbar-time"></span>
     </div>
 
@@ -1058,20 +1114,29 @@
                                                                                 <div id="subaba-precif-comparativo" style="display:none">
 <div class="cmp-root">
 
-    <!-- Command bar -->
+    <!-- ── Command bar ── -->
     <div class="cmp-command-bar">
-        <span class="cmp-bar-title">COMPARATIVO DE PRECIFICAÇÃO</span>
+        <div class="cmp-seg" id="cmpModoSeg">
+            <button class="cmp-seg-btn active" id="btnCmpModoClientes" onclick="window._cmpSetModo('clientes',this)">&#8644; Comparar Clientes</button>
+            <button class="cmp-seg-btn" id="btnCmpModoVersoes" onclick="window._cmpSetModo('versoes',this)">&#9203; Histórico Versões</button>
+        </div>
+        <div class="cmp-bar-divider"></div>
+        <div class="cmp-seg">
+            <button class="cmp-seg-btn active" id="btnCmpPJ" onclick="window._cmpSetTipo('PJ',this)">PJ Lojista</button>
+            <button class="cmp-seg-btn" id="btnCmpPF" onclick="window._cmpSetTipo('PF',this)">PF Varejo</button>
+        </div>
+        <div class="cmp-bar-divider"></div>
+        <span class="cmp-bar-label">CLIENTES PARA COMPARAR <span class="cmp-selecao-hint">até 3</span></span>
         <span class="cmp-bar-sep"></span>
         <button class="cmp-btn primary" onclick="calcularComparativo()">&#9878; COMPARAR</button>
         <button class="cmp-btn" onclick="exportarComparativo()">&#8679; EXPORTAR</button>
     </div>
 
-    <!-- Seleção de clientes -->
+    <!-- ── Seleção de clientes (slots) ── -->
     <div class="cmp-selecao">
-        <div class="cmp-selecao-title">CLIENTES PARA COMPARAR <span class="cmp-selecao-hint">até 3</span></div>
         <div class="cmp-slots">
             <!-- Slot 1 -->
-            <div class="cmp-slot" style="--slot-cor:#f59e0b">
+            <div class="cmp-slot" style="--slot-cor:#f59e0b;border-top:3px solid #f59e0b">
                 <div class="cmp-slot-header">
                     <span class="cmp-slot-mark" style="background:#f59e0b"></span>
                     <span class="cmp-slot-label">CLIENTE 1</span>
@@ -1091,7 +1156,7 @@
                 </div>
             </div>
             <!-- Slot 2 -->
-            <div class="cmp-slot" style="--slot-cor:#0ea5e9">
+            <div class="cmp-slot" style="--slot-cor:#0ea5e9;border-top:3px solid #0ea5e9">
                 <div class="cmp-slot-header">
                     <span class="cmp-slot-mark" style="background:#0ea5e9"></span>
                     <span class="cmp-slot-label">CLIENTE 2</span>
@@ -1111,7 +1176,7 @@
                 </div>
             </div>
             <!-- Slot 3 -->
-            <div class="cmp-slot" style="--slot-cor:#a78bfa">
+            <div class="cmp-slot" style="--slot-cor:#a78bfa;border-top:3px solid #a78bfa">
                 <div class="cmp-slot-header">
                     <span class="cmp-slot-mark" style="background:#a78bfa"></span>
                     <span class="cmp-slot-label">CLIENTE 3 <span class="cmp-slot-opt">(opcional)</span></span>
@@ -1133,7 +1198,29 @@
         </div>
     </div>
 
-    <!-- Resultado: tabela -->
+    <!-- ── Verdict bar (visível só com resultado) ── -->
+    <div class="cmp-verdict" id="cmpVerdict" style="display:none">
+        <div class="cmp-verdict-item best">
+            <span class="cmp-verdict-icon">&#9733;</span>
+            <span class="cmp-verdict-lbl">MAIOR MARGEM</span>
+            <span class="cmp-verdict-val" id="cmpVerdictMelhor">—</span>
+            <span class="cmp-verdict-delta" id="cmpVerdictMelhorPct" style="color:#15803d">—</span>
+        </div>
+        <div class="cmp-verdict-item worst">
+            <span class="cmp-verdict-icon" style="transform:scaleY(-1);display:inline-block">&#10549;</span>
+            <span class="cmp-verdict-lbl">MENOR MARGEM</span>
+            <span class="cmp-verdict-val" id="cmpVerdictPior">—</span>
+            <span class="cmp-verdict-delta" id="cmpVerdictPiorPct" style="color:#dc2626">—</span>
+        </div>
+        <div class="cmp-verdict-item spread">
+            <span class="cmp-verdict-icon" style="color:var(--tv-amber-600)">&#9889;</span>
+            <span class="cmp-verdict-lbl">SPREAD PV</span>
+            <span class="cmp-verdict-val" id="cmpVerdictSpread">—</span>
+            <span class="cmp-verdict-delta" id="cmpVerdictSpreadPct" style="color:var(--tv-amber-600)">—</span>
+        </div>
+    </div>
+
+    <!-- ── Resultado: tabela ── -->
     <div id="compResultado" class="cmp-resultado" style="display:none">
         <div class="cmp-table-wrap">
             <table class="cmp-table" id="tabelaComparativo">
@@ -1143,18 +1230,21 @@
         </div>
     </div>
 
-    <!-- Estado vazio -->
+    <!-- ── Estado vazio ── -->
     <div id="compEmpty" class="cmp-empty">
         <div class="cmp-empty-icon">&#9878;</div>
         <div class="cmp-empty-msg">Selecione ao menos 2 clientes para comparar os preços</div>
         <div class="cmp-empty-hint">Use os campos acima para configurar cada cenário</div>
     </div>
 
-    <!-- Footbar -->
+    <!-- ── Footbar ── -->
     <div class="cmp-footbar">
         <span class="cmp-footbar-tag">COMPARATIVO</span>
-        <span>CLIENTES: até 3</span>
-        <span>PRODUTOS: todos com CI configurado</span>
+        <span id="cmpFootbarCli">CLIENTES: 0/3</span>
+        <span class="cmp-footbar-div">|</span>
+        <span id="cmpFootbarProd">PRODUTOS: —</span>
+        <span class="cmp-footbar-div">|</span>
+        <span id="cmpFootbarModo">MODO: CLIENTES</span>
         <span style="margin-left:auto;color:var(--tv-navy-600)" id="cmp-footbar-time"></span>
     </div>
 
