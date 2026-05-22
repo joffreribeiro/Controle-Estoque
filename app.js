@@ -15399,7 +15399,7 @@ function trocarSubabaPrecif(subaba) {
         else el = document.getElementById('subaba-precif-' + s);
         if (el) {
             if (s === subaba) {
-                el.style.display = (s === 'impostos') ? 'flex' : 'block';
+                el.style.display = (s === 'impostos' || s === 'rastreabilidade' || s === 'precoestado') ? 'flex' : 'block';
             } else {
                 el.style.display = 'none';
             }
@@ -17824,11 +17824,12 @@ function exportarComparativo() {
 }
 
 function renderizarRastreabilidade() {
-    // Tentar recuperar do localStorage se estiver vazio
-    let _dadosPrecif = (Array.isArray(precificacoesCliente) && precificacoesCliente.length > 0)
-        ? precificacoesCliente
-        : null;
+    const container = document.getElementById('subaba-precif-rastreabilidade');
+    if (!container) return;
 
+    // recuperar dados
+    let _dadosPrecif = (Array.isArray(precificacoesCliente) && precificacoesCliente.length > 0)
+        ? precificacoesCliente : null;
     if (!_dadosPrecif) {
         try {
             const raw = localStorage.getItem('precificacoesCliente')
@@ -17836,195 +17837,265 @@ function renderizarRastreabilidade() {
             if (raw) {
                 const parsed = JSON.parse(raw);
                 _dadosPrecif = Array.isArray(parsed) ? parsed
-                    : (parsed && Array.isArray(parsed.precificacoesCliente))
-                        ? parsed.precificacoesCliente : null;
-                if (_dadosPrecif && _dadosPrecif.length > 0) {
-                    precificacoesCliente = _dadosPrecif;
-                }
+                    : (parsed && Array.isArray(parsed.precificacoesCliente)) ? parsed.precificacoesCliente : null;
+                if (_dadosPrecif && _dadosPrecif.length > 0) precificacoesCliente = _dadosPrecif;
             }
         } catch(e) {}
     }
 
-    if (!_dadosPrecif || _dadosPrecif.length === 0) {
-        const container = document.getElementById('painelRastreabilidade') || document.querySelector('[id*="rastreab"]');
-        if (container) container.innerHTML = '<div style="padding:20px;color:#64748b;text-align:center">Nenhuma precificação salva. Calcule e salve uma precificação na aba Por Cliente.</div>';
+    if (!container._rastrState) {
+        container._rastrState = { filtroId: '', periodo: 'todos', clienteAberto: null, eventoSel: null };
+    }
+    const s = container._rastrState;
+
+    const agora = new Date();
+    const inPeriod = iso => {
+        if (!iso || s.periodo === 'todos') return true;
+        const d = new Date(iso);
+        if (s.periodo === 'mes') return d.getMonth() === agora.getMonth() && d.getFullYear() === agora.getFullYear();
+        if (s.periodo === 'trimestre') return Math.floor(d.getMonth()/3) === Math.floor(agora.getMonth()/3) && d.getFullYear() === agora.getFullYear();
+        if (s.periodo === 'ano') return d.getFullYear() === agora.getFullYear();
+        return true;
+    };
+
+    const fmt = v => 'R$ ' + parseFloat(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2});
+    const fmtDate = iso => iso ? new Date(iso).toLocaleDateString('pt-BR') : '—';
+    const fmtTime = iso => iso ? new Date(iso).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}) : '';
+
+    const STATUS_CFG = {
+        rascunho:            { label: 'RASCUNHO',   cor: '#4a7aaa' },
+        enviada:             { label: 'ENVIADA',     cor: '#3b82f6' },
+        aceita:              { label: 'ACEITA',      cor: '#16a34a' },
+        recusada:            { label: 'RECUSADA',    cor: '#dc2626' },
+        expirada:            { label: 'EXPIRADA',    cor: '#d97706' },
+        convertida:          { label: 'CONVERTIDA',  cor: '#0ea5e9' },
+        aguardando_aprovacao:{ label: 'AGUARDANDO',  cor: '#7c3aed' },
+        fechado:             { label: 'FECHADO',     cor: '#16a34a' },
+    };
+
+    window._rastrSetFiltro = (id) => { s.filtroId = id; _renderRastr(container, _dadosPrecif, s, inPeriod, fmt, fmtDate, fmtTime, STATUS_CFG); };
+    window._rastrSetPeriodo = (p) => { s.periodo = p; _renderRastr(container, _dadosPrecif, s, inPeriod, fmt, fmtDate, fmtTime, STATUS_CFG); };
+    window._rastrAbrirCliente = (id) => { s.clienteAberto = s.clienteAberto === id ? null : id; s.eventoSel = null; _renderRastrTimeline(container, _dadosPrecif, s, inPeriod, fmt, fmtDate, fmtTime, STATUS_CFG); _renderRastrDetalhe(container, s, fmtDate, fmt, STATUS_CFG); };
+    window._rastrSelEvento = (tipo, id) => { s.eventoSel = { tipo, id }; _renderRastrDetalhe(container, s, fmtDate, fmt, STATUS_CFG); };
+
+    // ── KPIs globais ──
+    const todosPrecifs = (_dadosPrecif || []).filter(p => inPeriod(p.dataCriacao));
+    const todasPropostas = (propostas || []).filter(p => inPeriod(p.dataCriacao || p.data));
+    const todasVendas = (estoque.registroVendas || []).filter(v => inPeriod(v.data));
+    const totalFat = todasVendas.reduce((s,v) => s + (v.valorTotal||0), 0);
+    const taxaConv = todasPropostas.length ? Math.round((todasPropostas.filter(p=>p.status==='aceita').length / todasPropostas.length)*100) : 0;
+
+    const clientesOpts = (clientes||[]).slice().sort((a,b)=>(a.nome||'').localeCompare(b.nome||''));
+
+    container.innerHTML = `
+<div class="rastr-root">
+    <!-- Command bar -->
+    <div class="rastr-command-bar">
+        <span class="rastr-bar-title">RASTREABILIDADE</span>
+        <select class="rastr-select" onchange="window._rastrSetFiltro(this.value)">
+            <option value="">Todos os clientes</option>
+            ${clientesOpts.map(c=>`<option value="${c.id}"${String(c.id)===String(s.filtroId)?' selected':''}>${_escapeHtml(c.nome||'')}</option>`).join('')}
+        </select>
+        <div class="rastr-seg">
+            ${[['todos','TUDO'],['mes','MÊS'],['trimestre','TRIM.'],['ano','ANO']].map(([v,l])=>
+                `<button class="rastr-seg-btn${s.periodo===v?' active':''}" onclick="window._rastrSetPeriodo('${v}')">${l}</button>`
+            ).join('')}
+        </div>
+        <span style="flex:1"></span>
+        <button class="rastr-bar-btn" onclick="exportarRastreabilidade()">&#8679; EXPORTAR</button>
+    </div>
+    <!-- KPI strip -->
+    <div class="rastr-kpi-strip">
+        <div class="rastr-kpi"><div class="rastr-kpi-label">PRECIFICAÇÕES</div><div class="rastr-kpi-value">${todosPrecifs.length}</div></div>
+        <div class="rastr-kpi"><div class="rastr-kpi-label">PROPOSTAS</div><div class="rastr-kpi-value">${todasPropostas.length}</div></div>
+        <div class="rastr-kpi"><div class="rastr-kpi-label">ACEITAS</div><div class="rastr-kpi-value" style="color:var(--tv-green-500)">${todasPropostas.filter(p=>p.status==='aceita').length}</div></div>
+        <div class="rastr-kpi"><div class="rastr-kpi-label">CONTRATOS</div><div class="rastr-kpi-value">${todasVendas.length}</div></div>
+        <div class="rastr-kpi"><div class="rastr-kpi-label">FATURADO</div><div class="rastr-kpi-value" style="color:var(--tv-amber-400)">${fmt(totalFat)}</div></div>
+        <div class="rastr-kpi"><div class="rastr-kpi-label">CONV. %</div><div class="rastr-kpi-value">${taxaConv}%</div></div>
+    </div>
+    <!-- Layout 2 colunas -->
+    <div class="rastr-layout">
+        <div class="rastr-timeline-col" id="rastr-timeline-col"></div>
+        <div class="rastr-detail-col" id="rastr-detail-col"></div>
+    </div>
+    <!-- Footbar -->
+    <div class="rastr-footbar">
+        <span class="rastr-footbar-tag">AUDIT LOG</span>
+        <span>CLIENTES: ${clientesOpts.length}</span>
+        <span>EVENTOS: ${todosPrecifs.length + todasPropostas.length + todasVendas.length}</span>
+        <span style="margin-left:auto;color:var(--tv-navy-600)">${new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}</span>
+    </div>
+</div>`;
+
+    _renderRastrTimeline(container, _dadosPrecif, s, inPeriod, fmt, fmtDate, fmtTime, STATUS_CFG);
+    _renderRastrDetalhe(container, s, fmtDate, fmt, STATUS_CFG);
+}
+
+function _rastrGetEventos(clienteNome, clienteId, _dadosPrecif, inPeriod) {
+    const precifs = (_dadosPrecif||[])
+        .filter(p => String(p.clienteId)===String(clienteId) && inPeriod(p.dataCriacao))
+        .map(p => ({ ...p, _tipo:'precif', _date:p.dataCriacao, _id: String(p.id||p.dataCriacao) }));
+    const props = (propostas||[])
+        .filter(p => p.cliente===clienteNome && inPeriod(p.dataCriacao||p.data))
+        .map(p => ({ ...p, _tipo:'proposta', _date:p.dataCriacao||p.data, _id: String(p.id||p.numero) }));
+    const vendas = (estoque.registroVendas||[])
+        .filter(v => v.loja===clienteNome && inPeriod(v.data))
+        .map(v => ({ ...v, _tipo:'contrato', _date:v.data, _id: String(v.id||v.contrato) }));
+    return [...precifs, ...props, ...vendas].sort((a,b)=>new Date(b._date||0)-new Date(a._date||0));
+}
+
+function _renderRastrTimeline(container, _dadosPrecif, s, inPeriod, fmt, fmtDate, fmtTime, STATUS_CFG) {
+    const col = document.getElementById('rastr-timeline-col');
+    if (!col) return;
+
+    const clientesFilt = (clientes||[])
+        .filter(c => !s.filtroId || String(c.id)===String(s.filtroId))
+        .slice().sort((a,b)=>(a.nome||'').localeCompare(b.nome||''));
+
+    if (!clientesFilt.length) {
+        col.innerHTML = `<div class="rastr-empty">Nenhum cliente encontrado.</div>`;
         return;
     }
-        const selCliente = document.getElementById('rastreaCliente');
-        if (selCliente) {
-                const currentVal = selCliente.value;
-                selCliente.innerHTML = '<option value="">Todos os clientes</option>'
-                        + (clientes || []).slice().sort((a, b) => (a.nome || '').localeCompare(b.nome || ''))
-                                .map(c => `<option value="${c.id}" ${String(c.id) === String(currentVal) ? 'selected' : ''}>${_escapeHtml(c.nome || '')}</option>`).join('');
+
+    const TIPO_DOT = { precif:'var(--tv-amber-500)', proposta:'#3b82f6', contrato:'var(--tv-green-500)' };
+    const TIPO_LABEL = { precif:'PRECIF', proposta:'PROPOSTA', contrato:'CONTRATO' };
+
+    col.innerHTML = clientesFilt.map(cliente => {
+        const eventos = _rastrGetEventos(cliente.nome, cliente.id, _dadosPrecif, inPeriod);
+        if (!eventos.length) return '';
+        const aberto = s.clienteAberto === String(cliente.id);
+        const tipo = ((cliente.cnpj||'').replace(/\D/g,'').length===14)?'PJ':'PF';
+        const totalFatC = eventos.filter(e=>e._tipo==='contrato').reduce((a,e)=>a+(e.valorTotal||0),0);
+
+        // agrupar por data
+        const porDia = {};
+        eventos.forEach(e => {
+            const dia = fmtDate(e._date);
+            if (!porDia[dia]) porDia[dia] = [];
+            porDia[dia].push(e);
+        });
+
+        const timelineHTML = aberto ? Object.entries(porDia).map(([dia, evts]) => `
+            <div class="rastr-day-group">
+                <div class="rastr-day-label">${dia}</div>
+                ${evts.map(ev => {
+                    const dot = TIPO_DOT[ev._tipo] || '#888';
+                    const lbl = TIPO_LABEL[ev._tipo] || ev._tipo;
+                    const isSel = s.eventoSel && s.eventoSel.tipo===ev._tipo && s.eventoSel.id===ev._id;
+                    let title = '';
+                    if (ev._tipo==='precif') title = `v${ev.versao||'—'} · ${(ev.itens||[]).length}p`;
+                    if (ev._tipo==='proposta') title = `${ev.numero||''} · ${(STATUS_CFG[ev.status]||{}).label||ev.status||''}`;
+                    if (ev._tipo==='contrato') title = `#${ev.contrato||''} · ${ev.representante||''}`;
+                    return `<div class="rastr-event-row${isSel?' selected':''}" onclick="window._rastrSelEvento('${ev._tipo}','${ev._id}')">
+                        <span class="rastr-event-dot" style="background:${dot}"></span>
+                        <span class="rastr-event-type">${lbl}</span>
+                        <span class="rastr-event-title">${_escapeHtml(title)}</span>
+                        <span class="rastr-event-time">${fmtTime(ev._date)}</span>
+                    </div>`;
+                }).join('')}
+            </div>`).join('')
+        : '';
+
+        return `<div class="rastr-client-block${aberto?' open':''}">
+            <div class="rastr-client-header" onclick="window._rastrAbrirCliente('${cliente.id}')">
+                <div class="rastr-client-expand">${aberto?'&#9660;':'&#9654;'}</div>
+                <div class="rastr-client-info">
+                    <span class="rastr-client-nome">${_escapeHtml(cliente.nome||'')}</span>
+                    <span class="rastr-client-meta">${_escapeHtml(cliente.uf||'—')} · ${tipo}</span>
+                </div>
+                <div class="rastr-client-stats">
+                    <span class="rastr-client-count">${eventos.length} eventos</span>
+                    ${totalFatC>0?`<span class="rastr-client-fat">${fmt(totalFatC)}</span>`:''}
+                </div>
+            </div>
+            ${aberto?`<div class="rastr-timeline-body">${timelineHTML}</div>`:''}
+        </div>`;
+    }).filter(Boolean).join('') || `<div class="rastr-empty">Nenhum evento no período.</div>`;
+}
+
+function _renderRastrDetalhe(container, s, fmtDate, fmt, STATUS_CFG) {
+    const col = document.getElementById('rastr-detail-col');
+    if (!col) return;
+
+    if (!s.eventoSel) {
+        col.innerHTML = `<div class="rastr-detail-empty"><div class="rastr-detail-empty-icon">&#9776;</div><div>Selecione um evento na timeline</div></div>`;
+        return;
+    }
+
+    const { tipo, id } = s.eventoSel;
+    let ev = null;
+    if (tipo === 'precif') ev = (precificacoesCliente||[]).find(p => String(p.id||p.dataCriacao)===id);
+    if (tipo === 'proposta') ev = (propostas||[]).find(p => String(p.id||p.numero)===id);
+    if (tipo === 'contrato') ev = (estoque.registroVendas||[]).find(v => String(v.id||v.contrato)===id);
+
+    if (!ev) { col.innerHTML = `<div class="rastr-detail-empty">Evento não encontrado.</div>`; return; }
+
+    const TIPO_COLORS = { precif:'var(--tv-amber-500)', proposta:'#3b82f6', contrato:'var(--tv-green-500)' };
+    const TIPO_TITLES = { precif:'PRECIFICAÇÃO', proposta:'PROPOSTA COMERCIAL', contrato:'CONTRATO / VENDA' };
+    const cor = TIPO_COLORS[tipo] || 'var(--tv-amber-500)';
+
+    let rows = [];
+    if (tipo === 'precif') {
+        rows = [
+            ['Versão', `v${ev.versao||'—'}`],
+            ['Data', fmtDate(ev.dataCriacao)],
+            ['Taxa %', `${ev.taxa||'—'}%`],
+            ['ROI %', `${ev.roi||'—'}%`],
+            ['Produtos', `${(ev.itens||[]).length}`],
+            ['Status', ev.status||'—'],
+            ['Descrição', ev.descricao||'—'],
+        ];
+        if (ev.propostaId) {
+            const prop = (propostas||[]).find(p=>p.id===ev.propostaId);
+            rows.push(['Gerou Proposta', prop?.numero||ev.propostaId]);
         }
+    } else if (tipo === 'proposta') {
+        const sc = STATUS_CFG[ev.status]||{};
+        rows = [
+            ['Número', ev.numero||'—'],
+            ['Data', fmtDate(ev.dataCriacao||ev.data)],
+            ['Status', `<span style="color:${sc.cor||'#888'};font-weight:700">${sc.label||ev.status||'—'}</span>`],
+            ['Itens', `${(ev.itens||[]).length}`],
+            ['Valor Total', `<span style="color:var(--tv-green-500);font-weight:700">${fmt(ev.valorTotal)}</span>`],
+        ];
+        if (ev.contratoNumero) rows.push(['Contrato', `#${ev.contratoNumero}`]);
+    } else if (tipo === 'contrato') {
+        rows = [
+            ['Contrato', `#${ev.contrato||'—'}`],
+            ['Data', fmtDate(ev.data)],
+            ['Representante', ev.representante||'—'],
+            ['Itens', `${(ev.itens||[]).length}`],
+            ['Valor Total', `<span style="color:var(--tv-green-500);font-weight:700">${fmt(ev.valorTotal)}</span>`],
+        ];
+    }
 
-        const filtroId = selCliente?.value || '';
-        const periodo = document.getElementById('rastreaPeriodo')?.value || 'todos';
-        const agora = new Date();
+    // Itens da precif/proposta/contrato
+    const itens = ev.itens || [];
+    const itensHTML = itens.length ? `
+        <div class="rastr-detail-section-title">ITENS</div>
+        <table class="rastr-detail-table">
+            <thead><tr>
+                <th>Produto</th>
+                ${tipo==='precif'?'<th>CI</th><th>Preço Final</th>':''}
+                ${tipo!=='precif'?'<th>Qtd</th><th>Valor</th>':''}
+            </tr></thead>
+            <tbody>${itens.map(it=>`<tr>
+                <td>${_escapeHtml(it.produto||it.nome||'—')}</td>
+                ${tipo==='precif'?`<td>${it.ci||'—'}</td><td>${fmt(it.precoFinal||it.valorFinal||0)}</td>`:''}
+                ${tipo!=='precif'?`<td>${it.quantidade||it.qtd||1}</td><td>${fmt(it.valorTotal||it.valor||0)}</td>`:''}
+            </tr>`).join('')}</tbody>
+        </table>` : '';
 
-        const inPeriod = iso => {
-                if (!iso || periodo === 'todos') return true;
-                const d = new Date(iso);
-                if (periodo === 'mes') return d.getMonth() === agora.getMonth() && d.getFullYear() === agora.getFullYear();
-                if (periodo === 'trimestre') return Math.floor(d.getMonth() / 3) === Math.floor(agora.getMonth() / 3) && d.getFullYear() === agora.getFullYear();
-                if (periodo === 'ano') return d.getFullYear() === agora.getFullYear();
-                return true;
-        };
-
-        const clientesFilt = (clientes || []).filter(c => !filtroId || String(c.id) === String(filtroId));
-        const fmt = v => 'R$ ' + parseFloat(v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
-
-        const statusColor = {
-                rascunho: '#64748b', enviada: '#1d4ed8', aceita: '#166534',
-                recusada: '#dc2626', expirada: '#d97706', convertida: '#0ea5e9',
-                aguardando_aprovacao: '#7c3aed'
-        };
-
-        const container = document.getElementById('painelRastreabilidade');
-        if (!container) return;
-
-        const html = clientesFilt.map(cliente => {
-                const precifs = (_dadosPrecif || [])
-                        .filter(p => String(p.clienteId) === String(cliente.id) && inPeriod(p.dataCriacao))
-                        .sort((a, b) => new Date(b.dataCriacao) - new Date(a.dataCriacao));
-                const propostasC = (propostas || [])
-                        .filter(p => p.cliente === cliente.nome && inPeriod(p.dataCriacao || p.data))
-                        .sort((a, b) => new Date(b.dataCriacao || b.data || 0) - new Date(a.dataCriacao || a.data || 0));
-                const vendasC = (estoque.registroVendas || [])
-                        .filter(v => v.loja === cliente.nome && inPeriod(v.data))
-                        .sort((a, b) => new Date(b.data || 0) - new Date(a.data || 0));
-
-                const totalFat = vendasC.reduce((s, v) => s + (v.valorTotal || 0), 0);
-                const eventos = [
-                        ...precifs.map(p => ({ ...p, _tipo: 'precif', _date: p.dataCriacao })),
-                        ...propostasC.map(p => ({ ...p, _tipo: 'proposta', _date: p.dataCriacao || p.data })),
-                        ...vendasC.map(v => ({ ...v, _tipo: 'contrato', _date: v.data }))
-                ].sort((a, b) => new Date(b._date || 0) - new Date(a._date || 0));
-
-                return `
-            <div style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;
-                                    margin-bottom:20px;overflow:hidden">
-                <div style="background:linear-gradient(135deg,#1e3a5f,#2d5a8b);
-                                        padding:14px 20px;display:flex;justify-content:space-between;align-items:center">
-                    <div>
-                        <div style="font-size:1rem;font-weight:700;color:#fff">${_escapeHtml(cliente.nome || '')}</div>
-                        <div style="font-size:0.8rem;color:rgba(255,255,255,0.7);margin-top:2px">
-                            ${_escapeHtml(cliente.uf || '—')} · ${((cliente.cnpj || '').replace(/\D/g, '').length === 14 ? 'PJ' : 'PF')}
-                        </div>
-                    </div>
-                    <div style="text-align:right">
-                        <div style="font-size:0.75rem;color:rgba(255,255,255,0.6)">Total faturado</div>
-                        <div style="font-size:1.2rem;font-weight:800;color:#7ee787">${fmt(totalFat)}</div>
-                    </div>
-                </div>
-                <div style="display:flex;border-bottom:1px solid #f1f5f9;background:#f8fafc">
-                    ${[
-                            { icon: '💰', label: 'Precificações', val: precifs.length, cor: '#c9a227' },
-                            { icon: '📋', label: 'Propostas', val: propostasC.length, cor: '#1d4ed8' },
-                            { icon: '✅', label: 'Aceitas', val: propostasC.filter(p => p.status === 'aceita').length, cor: '#16a34a' },
-                            { icon: '📄', label: 'Contratos', val: vendasC.length, cor: '#0ea5e9' },
-                    ].map(s => `<div style="flex:1;padding:10px;text-align:center;border-right:1px solid #f1f5f9">
-                        <div>${s.icon}</div>
-                        <div style="font-size:1.2rem;font-weight:700;color:${s.cor}">${s.val}</div>
-                        <div style="font-size:0.72rem;color:#64748b">${s.label}</div>
-                    </div>`).join('')}
-                </div>
-                <div style="padding:16px 20px">
-                    <div style="position:relative;padding-left:24px">
-                        <div style="position:absolute;left:8px;top:0;bottom:0;width:2px;background:#e2e8f0"></div>
-                        ${eventos.map(item => {
-                                const d = new Date(item._date || new Date()).toLocaleDateString('pt-BR');
-                                if (item._tipo === 'precif') return `
-                                <div style="position:relative;margin-bottom:14px">
-                                    <div style="position:absolute;left:-19px;top:4px;width:12px;height:12px;
-                                                            border-radius:50%;background:#c9a227;border:2px solid #fff;
-                                                            box-shadow:0 0 0 2px #c9a227"></div>
-                                    <div style="background:#fffbf0;border:1px solid #fed7aa;border-radius:8px;padding:10px 14px">
-                                        <div style="display:flex;justify-content:space-between">
-                                            <span style="font-weight:600;color:#92400e;font-size:0.85rem">
-                                                💰 Precificação v${item.versao || '—'}
-                                            </span>
-                                            <span style="font-size:0.78rem;color:#94a3b8">${d}</span>
-                                        </div>
-                                        <div style="font-size:0.78rem;color:#64748b;margin-top:3px">
-                                            Taxa: ${item.taxa || '—'}% · ROI: ${item.roi || '—'}% ·
-                                            ${(item.itens || []).length} produto(s)
-                                            ${item.descricao ? ` · &quot;${_escapeHtml(item.descricao)}&quot;` : ''}
-                                        </div>
-                                        ${item.propostaId
-                                                ? `<div style="font-size:0.72rem;color:#0ea5e9;margin-top:3px">
-                                                     → Gerou proposta ${_escapeHtml((propostas || []).find(p => p.id === item.propostaId)?.numero || '—')}
-                                                 </div>` : ''}
-                                    </div>
-                                </div>`;
-                                if (item._tipo === 'proposta') {
-                                        const sc = statusColor[item.status] || '#64748b';
-                                        return `
-                                    <div style="position:relative;margin-bottom:14px">
-                                        <div style="position:absolute;left:-19px;top:4px;width:12px;height:12px;
-                                                                border-radius:50%;background:${sc};border:2px solid #fff;
-                                                                box-shadow:0 0 0 2px ${sc}"></div>
-                                        <div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:8px;padding:10px 14px">
-                                            <div style="display:flex;justify-content:space-between;align-items:center">
-                                                <span style="font-weight:600;color:#0369a1;font-size:0.85rem">
-                                                    📋 Proposta ${_escapeHtml(item.numero || '')}
-                                                </span>
-                                                <div style="display:flex;gap:6px;align-items:center">
-                                                    <span style="background:${sc}20;color:${sc};font-size:0.7rem;
-                                                                             font-weight:600;padding:1px 8px;border-radius:20px">
-                                                        ${_escapeHtml(item.status || '')}
-                                                    </span>
-                                                    <span style="font-size:0.78rem;color:#94a3b8">${d}</span>
-                                                </div>
-                                            </div>
-                                            <div style="display:flex;justify-content:space-between;margin-top:4px">
-                                                <span style="font-size:0.78rem;color:#64748b">
-                                                    ${(item.itens || []).length} item(ns)
-                                                </span>
-                                                <span style="font-size:0.85rem;font-weight:700;color:#16a34a">
-                                                    ${fmt(item.valorTotal)}
-                                                </span>
-                                            </div>
-                                            ${item.contratoNumero
-                                                ? `<div style="font-size:0.72rem;color:#0ea5e9;margin-top:3px">
-                                                         → Contrato #${_escapeHtml(item.contratoNumero)}
-                                                     </div>` : ''}
-                                        </div>
-                                    </div>`;
-                                }
-                                if (item._tipo === 'contrato') return `
-                                <div style="position:relative;margin-bottom:14px">
-                                    <div style="position:absolute;left:-19px;top:4px;width:12px;height:12px;
-                                                            border-radius:50%;background:#16a34a;border:2px solid #fff;
-                                                            box-shadow:0 0 0 2px #16a34a"></div>
-                                    <div style="background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:10px 14px">
-                                        <div style="display:flex;justify-content:space-between;align-items:center">
-                                            <span style="font-weight:700;color:#166534;font-size:0.9rem">
-                                                📄 Contrato #${_escapeHtml(item.contrato || '')}
-                                            </span>
-                                            <span style="font-size:0.78rem;color:#94a3b8">${d}</span>
-                                        </div>
-                                        <div style="display:flex;justify-content:space-between;margin-top:4px">
-                                            <span style="font-size:0.78rem;color:#64748b">
-                                                Rep: ${_escapeHtml(item.representante || '')} · ${(item.itens || []).length} item(ns)
-                                            </span>
-                                            <span style="font-size:1rem;font-weight:800;color:#16a34a">
-                                                ${fmt(item.valorTotal)}
-                                            </span>
-                                        </div>
-                                    </div>
-                                </div>`;
-                                return '';
-                        }).join('')}
-                    </div>
-                </div>
-            </div>`;
-        }).filter(Boolean).join('');
-
-        container.innerHTML = html || `
-        <div style="text-align:center;padding:60px;color:#94a3b8">
-            <div style="font-size:3rem;margin-bottom:12px">🔗</div>
-            <div>Nenhuma rastreabilidade encontrada</div>
+    col.innerHTML = `
+        <div class="rastr-detail-header" style="border-top:3px solid ${cor}">
+            <span class="rastr-detail-type" style="color:${cor}">${TIPO_TITLES[tipo]}</span>
+            <span class="rastr-detail-close" onclick="window._rastrSelEvento(null,null)">&#10005;</span>
+        </div>
+        <div class="rastr-detail-body">
+            <table class="rastr-detail-kv">
+                ${rows.map(([k,v])=>`<tr><td class="rastr-kv-key">${k}</td><td class="rastr-kv-val">${v}</td></tr>`).join('')}
+            </table>
+            ${itensHTML}
         </div>`;
 }
 
