@@ -17832,7 +17832,7 @@ function calcularComparativo() {
               <th class="cmp-th-verdict" style="border-top:3px solid #f59e0b">&#916;</th>
             </tr>
             <tr class="cmp-thead-sub">
-              <th style="position:sticky;left:0;z-index:3;background:#061018"></th>
+              <th style="position:sticky;left:0;z-index:3;background:var(--tv-navy-900)"></th>
               ${clientesData.map(() => `
                 <th class="cmp-th-sub">PREÇO FINAL</th>
                 <th class="cmp-th-sub">MARGEM</th>
@@ -17846,7 +17846,7 @@ function calcularComparativo() {
         // Build rows — Bloomberg style
         const fmt = v => 'R$ ' + parseFloat(v || 0).toLocaleString('pt-BR', {minimumFractionDigits:2,maximumFractionDigits:2});
         const fmtPct = v => (Number(v) || 0).toFixed(1) + '%';
-        const corMargem = m => m >= 30 ? '#4ade80' : m >= 15 ? '#f59e0b' : '#f87171';
+        const corMargem = m => m >= 30 ? '#15803d' : m >= 15 ? '#d97706' : '#dc2626';
 
         const produtosLista = (estoque.produtos || []).slice();
         const bodyEl = document.getElementById('compBody');
@@ -17855,13 +17855,13 @@ function calcularComparativo() {
         bodyEl.innerHTML = produtosLista.map((produto, rowIdx) => {
             const precos = clientesData.map(c => _calcularPrecoComparativo(produto.nome, c.uf, c.tipo, c.taxa, c.roi, c.comissao));
             const zebra = rowIdx % 2 === 1;
-            const rowBg = zebra ? '#071320' : '#060f1a';
+            const rowBg = zebra ? 'var(--tv-navy-50)' : '#fff';
 
             if (precos.every(r => !r)) {
                 return `
-                    <tr style="background:${rowBg};opacity:0.35">
+                    <tr style="background:${rowBg};opacity:0.5">
                       <td class="cmp-td-prod" style="position:sticky;left:0;z-index:1;background:${rowBg}">${_escapeHtml(produto.nome||'')}</td>
-                      <td colspan="${nCols*2+3}" style="text-align:center;color:var(--tv-navy-600);font-size:0.75rem;font-family:var(--tv-font-mono)">CI não configurado</td>
+                      <td colspan="${nCols*2+3}" style="text-align:center;color:var(--tv-navy-400);font-size:0.75rem;font-family:var(--tv-font-mono)">CI não configurado</td>
                     </tr>
                 `;
             }
@@ -17876,20 +17876,20 @@ function calcularComparativo() {
               <tr style="background:${rowBg}">
                 <td class="cmp-td-prod" style="position:sticky;left:0;z-index:1;background:${rowBg}">${_escapeHtml(produto.nome||'')}</td>
                 ${precos.map((r,i) => {
-                    if (!r) return `<td colspan="2" class="cmp-td-val" style="background:${rowBg};text-align:center;color:var(--tv-navy-600)">—</td>`;
+                    if (!r) return `<td colspan="2" class="cmp-td-val" style="background:${rowBg};text-align:center;color:var(--tv-navy-400)">—</td>`;
                     const isMax = r.precoFinal === maxPreco && nCols > 1 && maxPreco !== minPreco;
                     const isMin = r.precoFinal === minPreco && nCols > 1 && maxPreco !== minPreco;
-                    const priceBg = isMin ? 'rgba(74,222,128,0.08)' : isMax ? 'rgba(248,113,113,0.08)' : 'transparent';
-                    const priceCol = isMin ? '#4ade80' : isMax ? '#f87171' : '#d8e4f0';
+                    const priceBg = isMin ? 'rgba(22,163,74,0.08)' : isMax ? 'rgba(220,38,38,0.07)' : 'transparent';
+                    const priceCol = isMin ? '#15803d' : isMax ? '#dc2626' : 'var(--tv-navy-700)';
                     const badge = isMin ? '<span class="cmp-badge min">MIN</span>' : isMax ? '<span class="cmp-badge max">MAX</span>' : '';
                     return `
                       <td class="cmp-td-val" style="background:${priceBg};text-align:right;color:${priceCol};font-weight:700">${badge}${fmt(r.precoFinal)}</td>
                       <td class="cmp-td-pct" style="background:${rowBg};color:${corMargem(r.margem)}">${fmtPct(r.margem)}</td>
                     `;
                 }).join('')}
-                <td class="cmp-td-val" style="background:${rowBg};color:#f87171;text-align:center">${maxPreco > 0 ? fmt(maxPreco) : '—'}</td>
-                <td class="cmp-td-val" style="background:${rowBg};color:#4ade80;text-align:center">${minPreco > 0 ? fmt(minPreco) : '—'}</td>
-                <td class="cmp-td-val" style="background:${rowBg};color:#f59e0b;text-align:center">${diff > 0 ? fmtPct(diffPct) : '—'}</td>
+                <td class="cmp-td-val" style="background:${rowBg};color:#dc2626;text-align:center">${maxPreco > 0 ? fmt(maxPreco) : '—'}</td>
+                <td class="cmp-td-val" style="background:${rowBg};color:#15803d;text-align:center">${minPreco > 0 ? fmt(minPreco) : '—'}</td>
+                <td class="cmp-td-val" style="background:${rowBg};color:var(--tv-amber-600);text-align:center">${diff > 0 ? fmtPct(diffPct) : '—'}</td>
               </tr>
             `;
         }).join('');
