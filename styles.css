@@ -7397,7 +7397,7 @@ table.imp-icms-table tbody tr:hover td.td-desc {
     flex-direction: column;
     height: 100%;
     min-height: 0;
-    background: var(--tv-navy-950);
+    background: var(--tv-navy-50);
     font-family: var(--tv-font-display);
     overflow: hidden;
     flex: 1;
@@ -7408,17 +7408,18 @@ table.imp-icms-table tbody tr:hover td.td-desc {
     display: flex;
     align-items: center;
     gap: 10px;
-    background: var(--tv-navy-900);
-    border-bottom: 1px solid var(--tv-navy-700);
-    padding: 7px 16px;
+    background: #fff;
+    border-bottom: 1px solid var(--tv-navy-100);
+    padding: 8px 16px;
     flex-shrink: 0;
+    box-shadow: 0 1px 3px rgba(10,24,40,0.06);
 }
 .loj2-cmdbar-title {
     font-family: var(--tv-font-display);
     font-size: 0.72rem;
     font-weight: 700;
-    letter-spacing: 0.08em;
-    color: var(--tv-amber-400);
+    letter-spacing: 0.07em;
+    color: var(--tv-navy-700);
     text-transform: uppercase;
     white-space: nowrap;
 }
@@ -7426,62 +7427,64 @@ table.imp-icms-table tbody tr:hover td.td-desc {
     display: flex;
     align-items: center;
     gap: 5px;
-    background: var(--tv-navy-800);
-    border: 1px solid var(--tv-navy-700);
+    background: var(--tv-navy-50);
+    border: 1px solid var(--tv-navy-200);
     border-radius: 3px;
     padding: 3px 9px;
 }
-.loj2-search-icon { font-size: 0.8rem; color: var(--tv-navy-500); }
+.loj2-search-icon { font-size: 0.8rem; color: var(--tv-navy-400); }
 .loj2-search-input {
     background: transparent;
     border: none;
     outline: none;
     font-family: var(--tv-font-mono);
     font-size: 0.75rem;
-    color: #d8e4f0;
+    color: var(--tv-navy-700);
     width: 160px;
 }
-.loj2-search-input::placeholder { color: var(--tv-navy-500); }
+.loj2-search-input::placeholder { color: var(--tv-navy-300); }
 .loj2-btn {
     font-family: var(--tv-font-display);
     font-size: 0.68rem;
     font-weight: 700;
     letter-spacing: 0.04em;
-    background: var(--tv-navy-800);
-    border: 1px solid var(--tv-navy-600);
-    color: #c4d1e1;
+    background: #fff;
+    border: 1px solid var(--tv-navy-200);
+    color: var(--tv-navy-600);
     border-radius: 3px;
     padding: 5px 12px;
     cursor: pointer;
     white-space: nowrap;
-    transition: background 0.1s, color 0.1s;
+    transition: background 0.1s, color 0.1s, border-color 0.1s;
 }
-.loj2-btn:hover { background: var(--tv-navy-700); color: var(--tv-amber-300); }
+.loj2-btn:hover { background: var(--tv-navy-50); border-color: var(--tv-navy-300); color: var(--tv-navy-800); }
 .loj2-btn.primary { background: var(--tv-amber-600); border-color: var(--tv-amber-600); color: #fff; }
-.loj2-btn.primary:hover { background: var(--tv-amber-700); }
+.loj2-btn.primary:hover { background: var(--tv-amber-700); border-color: var(--tv-amber-700); }
 .loj2-btn.icon { padding: 5px 9px; }
 
 /* ── Tier strip horizontal ── */
 .loj2-tier-strip {
     display: flex;
     gap: 0;
-    background: var(--tv-navy-900);
-    border-bottom: 2px solid var(--tv-amber-700);
+    background: #fff;
+    border-bottom: 2px solid var(--tv-navy-100);
     flex-shrink: 0;
+    box-shadow: 0 1px 0 var(--tv-navy-100);
 }
 .loj2-tier-card {
     flex: 1;
     padding: 12px 16px;
-    border-right: 1px solid var(--tv-navy-800);
+    border-right: 1px solid var(--tv-navy-100);
     cursor: pointer;
     transition: background 0.1s, border-color 0.1s;
     position: relative;
     border-top: 3px solid transparent;
+    background: #fff;
 }
 .loj2-tier-card:last-child { border-right: none; }
-.loj2-tier-card:hover { background: rgba(255,255,255,0.03); }
+.loj2-tier-card:hover { background: var(--tv-navy-50); }
 .loj2-tier-card.active {
-    background: rgba(255,255,255,0.05);
+    background: var(--tv-navy-50);
     border-top-color: var(--tc, var(--tv-amber-600));
 }
 .loj2-tier-top {
@@ -7500,7 +7503,7 @@ table.imp-icms-table tbody tr:hover td.td-desc {
     font-family: var(--tv-font-display);
     font-size: 0.82rem;
     font-weight: 700;
-    color: #d8e4f0;
+    color: var(--tv-navy-800);
 }
 .loj2-tier-ufs {
     font-family: var(--tv-font-mono);
@@ -7520,37 +7523,37 @@ table.imp-icms-table tbody tr:hover td.td-desc {
     font-size: 0.58rem;
     font-weight: 700;
     letter-spacing: 0.06em;
-    color: var(--tv-navy-500);
+    color: var(--tv-navy-400);
     text-transform: uppercase;
 }
 .loj2-tier-kpi-val {
     font-family: var(--tv-font-mono);
     font-size: 1.05rem;
     font-weight: 700;
-    color: #d8e4f0;
+    color: var(--tv-navy-700);
     line-height: 1.1;
 }
 .loj2-tier-meta {
     font-family: var(--tv-font-mono);
     font-size: 0.62rem;
-    color: var(--tv-navy-500);
+    color: var(--tv-navy-400);
     margin-top: 6px;
 }
 
 /* ── KPI strip ── */
 .loj2-kpi-strip {
     display: flex;
-    background: var(--tv-navy-950);
-    border-bottom: 1px solid var(--tv-navy-800);
+    background: var(--tv-navy-50);
+    border-bottom: 1px solid var(--tv-navy-100);
     flex-shrink: 0;
 }
 .loj2-kpi {
     flex: 1;
-    padding: 8px 16px;
-    border-right: 1px solid var(--tv-navy-800);
+    padding: 10px 18px;
+    border-right: 1px solid var(--tv-navy-100);
     display: flex;
     flex-direction: column;
-    gap: 1px;
+    gap: 2px;
 }
 .loj2-kpi:last-child { border-right: none; }
 .loj2-kpi-lbl {
@@ -7558,21 +7561,21 @@ table.imp-icms-table tbody tr:hover td.td-desc {
     font-size: 0.6rem;
     font-weight: 700;
     letter-spacing: 0.08em;
-    color: var(--tv-navy-500);
+    color: var(--tv-navy-400);
     text-transform: uppercase;
 }
 .loj2-kpi-val {
     font-family: var(--tv-font-mono);
     font-size: 1.2rem;
     font-weight: 700;
-    color: #d8e4f0;
+    color: var(--tv-navy-700);
     line-height: 1.1;
     font-variant-numeric: tabular-nums;
 }
 .loj2-kpi-sub {
     font-family: var(--tv-font-mono);
     font-size: 0.62rem;
-    color: var(--tv-navy-500);
+    color: var(--tv-navy-400);
 }
 
 /* ── Corpo principal: tabela + edit panel ── */
@@ -7581,6 +7584,7 @@ table.imp-icms-table tbody tr:hover td.td-desc {
     display: flex;
     min-height: 0;
     overflow: hidden;
+    background: var(--tv-navy-50);
 }
 .loj2-table-area {
     flex: 1;
@@ -7593,8 +7597,8 @@ table.imp-icms-table tbody tr:hover td.td-desc {
     display: flex;
     align-items: center;
     padding: 6px 16px;
-    background: var(--tv-navy-900);
-    border-bottom: 1px solid var(--tv-navy-700);
+    background: #fff;
+    border-bottom: 1px solid var(--tv-navy-100);
     flex-shrink: 0;
 }
 .loj2-table-title {
@@ -7602,13 +7606,17 @@ table.imp-icms-table tbody tr:hover td.td-desc {
     font-size: 0.7rem;
     font-weight: 700;
     letter-spacing: 0.06em;
-    color: var(--tv-amber-400);
+    color: var(--tv-navy-600);
     text-transform: uppercase;
 }
 .loj2-table-wrap {
     flex: 1;
     overflow: auto;
     min-height: 0;
+    border: 1px solid var(--tv-navy-100);
+    border-radius: 3px;
+    margin: 8px;
+    box-shadow: 0 1px 4px rgba(10,24,40,0.07);
 }
 table.loj2-table {
     border-collapse: collapse;
@@ -7616,11 +7624,12 @@ table.loj2-table {
     font-family: var(--tv-font-mono);
     font-size: 0.82rem;
     white-space: nowrap;
+    background: #fff;
 }
-table.loj2-table thead tr { border-bottom: 2px solid var(--tv-amber-700); }
+table.loj2-table thead tr { border-bottom: 2px solid var(--tv-navy-700); }
 .loj2-th-nome {
     background: var(--tv-navy-900);
-    color: var(--tv-amber-400);
+    color: var(--tv-navy-200);
     font-family: var(--tv-font-display);
     font-size: 0.65rem;
     font-weight: 700;
@@ -7636,7 +7645,7 @@ table.loj2-table thead tr { border-bottom: 2px solid var(--tv-amber-700); }
 }
 .loj2-th-grupo {
     background: var(--tv-navy-900);
-    color: var(--tv-amber-400);
+    color: var(--tv-navy-200);
     font-family: var(--tv-font-display);
     font-size: 0.65rem;
     font-weight: 700;
@@ -7645,9 +7654,9 @@ table.loj2-table thead tr { border-bottom: 2px solid var(--tv-amber-700); }
     padding: 6px 16px;
     text-align: center;
     min-width: 150px;
-    border-left: 1px solid var(--tv-navy-800);
+    border-left: 1px solid var(--tv-navy-700);
 }
-.loj2-th-grupo.active { background: rgba(245,158,11,0.08); color: #fff; }
+.loj2-th-grupo.active { background: rgba(245,158,11,0.15); color: var(--tv-amber-400); }
 .loj2-th-ufs {
     font-family: var(--tv-font-mono);
     font-size: 0.6rem;
@@ -7657,49 +7666,50 @@ table.loj2-table thead tr { border-bottom: 2px solid var(--tv-amber-700); }
     text-transform: none;
     margin-top: 2px;
 }
-.loj2-tr-prod { background: #07111d; border-bottom: 1px solid var(--tv-navy-800); transition: background 0.07s; }
-.loj2-tr-prod.alt { background: #0b1826; }
-.loj2-tr-prod:hover { background: #112040 !important; }
-.loj2-tr-peca { background: #060f18; border-bottom: 1px solid var(--tv-navy-800); }
-.loj2-tr-peca:hover { background: #0e1e30 !important; }
+/* rows — fundo branco igual T.Venda */
+.loj2-tr-prod { background: #fff; border-bottom: 1px solid #f1f5f9; transition: background 0.07s; }
+.loj2-tr-prod.alt { background: var(--tv-navy-50); }
+.loj2-tr-prod:hover { background: #eef3f9 !important; }
+.loj2-tr-peca { background: #fafbfd; border-bottom: 1px solid #f1f5f9; }
+.loj2-tr-peca:hover { background: #eef3f9 !important; }
 .loj2-td-nome {
     padding: 7px 16px;
     position: sticky;
     left: 0;
-    background: #07111d;
+    background: #fff;
     z-index: 1;
-    border-right: 1px solid var(--tv-navy-700);
+    border-right: 1px solid var(--tv-navy-100);
     min-width: 220px;
 }
-.loj2-tr-prod.alt .loj2-td-nome { background: #0b1826; }
-.loj2-tr-prod:hover .loj2-td-nome { background: #112040 !important; }
-.loj2-tr-peca .loj2-td-nome { background: #060f18; }
-.loj2-tr-peca:hover .loj2-td-nome { background: #0e1e30 !important; }
+.loj2-tr-prod.alt .loj2-td-nome { background: var(--tv-navy-50); }
+.loj2-tr-prod:hover .loj2-td-nome { background: #eef3f9 !important; }
+.loj2-tr-peca .loj2-td-nome { background: #fafbfd; }
+.loj2-tr-peca:hover .loj2-td-nome { background: #eef3f9 !important; }
 .loj2-nome-prod {
     font-family: var(--tv-font-display);
     font-size: 0.82rem;
     font-weight: 600;
-    color: #d8e4f0;
+    color: var(--tv-navy-700);
 }
 .loj2-nome-peca {
     font-family: var(--tv-font-display);
     font-size: 0.75rem;
-    color: #6a9bbf;
+    color: var(--tv-navy-400);
     padding-left: 12px;
 }
 .loj2-td-val {
     padding: 4px 12px;
     text-align: center;
-    border-left: 1px solid var(--tv-navy-800);
+    border-left: 1px solid #f1f5f9;
     vertical-align: middle;
 }
-.loj2-td-val.active { background: rgba(245,158,11,0.06) !important; }
+.loj2-td-val.active { background: rgba(229,161,40,0.06) !important; }
 .loj2-price-input {
     width: 110px;
-    background: var(--tv-navy-800);
-    border: 1px solid var(--tv-navy-700);
+    background: var(--tv-navy-50);
+    border: 1px solid var(--tv-navy-200);
     border-radius: 2px;
-    color: #e0eaf5;
+    color: var(--tv-navy-700);
     font-family: var(--tv-font-mono);
     font-size: 0.8rem;
     font-weight: 600;
@@ -7709,8 +7719,8 @@ table.loj2-table thead tr { border-bottom: 2px solid var(--tv-amber-700); }
     outline: none;
     transition: border-color 0.12s, background 0.12s;
 }
-.loj2-price-input:focus { background: var(--tv-navy-700); }
-.loj2-price-input::placeholder { color: var(--tv-navy-600); }
+.loj2-price-input:focus { background: #fff; border-color: var(--tv-amber-500); }
+.loj2-price-input::placeholder { color: var(--tv-navy-300); }
 .loj2-expand-btn {
     display: inline-flex;
     align-items: center;
@@ -7722,8 +7732,8 @@ table.loj2-table thead tr { border-bottom: 2px solid var(--tv-amber-700); }
 }
 .loj2-expand-icon { font-size: 0.62rem; color: var(--tv-amber-500); }
 .loj2-expand-badge {
-    background: rgba(245,158,11,0.12);
-    color: var(--tv-amber-400);
+    background: rgba(229,161,40,0.1);
+    color: var(--tv-amber-600);
     font-family: var(--tv-font-mono);
     font-size: 0.6rem;
     font-weight: 700;
@@ -7735,23 +7745,25 @@ table.loj2-table thead tr { border-bottom: 2px solid var(--tv-amber-700); }
 .loj2-edit-panel {
     width: 280px;
     flex-shrink: 0;
-    background: var(--tv-navy-900);
-    border-left: 1px solid var(--tv-navy-700);
+    background: #fff;
+    border-left: 1px solid var(--tv-navy-100);
     display: flex;
     flex-direction: column;
     overflow: hidden;
+    box-shadow: -2px 0 6px rgba(10,24,40,0.05);
 }
 .loj2-edit-head {
     padding: 14px 16px 10px;
-    border-bottom: 1px solid var(--tv-navy-700);
+    border-bottom: 1px solid var(--tv-navy-100);
     flex-shrink: 0;
+    background: var(--tv-navy-900);
 }
 .loj2-edit-title {
     font-family: var(--tv-font-display);
     font-size: 0.78rem;
     font-weight: 700;
     letter-spacing: 0.05em;
-    color: #d8e4f0;
+    color: var(--tv-navy-100);
     text-transform: uppercase;
 }
 .loj2-edit-id {
@@ -7764,13 +7776,14 @@ table.loj2-table thead tr { border-bottom: 2px solid var(--tv-amber-700); }
     flex: 1;
     overflow-y: auto;
     padding: 14px 16px;
+    background: var(--tv-navy-50);
 }
 .loj2-edit-sec-title {
     font-family: var(--tv-font-display);
     font-size: 0.6rem;
     font-weight: 700;
     letter-spacing: 0.1em;
-    color: var(--tv-navy-500);
+    color: var(--tv-navy-400);
     text-transform: uppercase;
     margin-bottom: 8px;
 }
@@ -7781,9 +7794,9 @@ table.loj2-table thead tr { border-bottom: 2px solid var(--tv-amber-700); }
     margin-bottom: 4px;
 }
 .loj2-uf-badge {
-    background: var(--tv-navy-800);
-    border: 1px solid var(--tv-navy-600);
-    color: #c4d1e1;
+    background: #fff;
+    border: 1px solid var(--tv-navy-200);
+    color: var(--tv-navy-600);
     font-family: var(--tv-font-mono);
     font-size: 0.65rem;
     font-weight: 600;
@@ -7800,8 +7813,8 @@ table.loj2-table thead tr { border-bottom: 2px solid var(--tv-amber-700); }
     align-items: center;
     justify-content: space-between;
     gap: 6px;
-    background: var(--tv-navy-800);
-    border: 1px solid var(--tv-navy-700);
+    background: #fff;
+    border: 1px solid var(--tv-navy-100);
     border-radius: 3px;
     padding: 5px 8px;
 }
@@ -7816,7 +7829,7 @@ table.loj2-table thead tr { border-bottom: 2px solid var(--tv-amber-700); }
     font-family: var(--tv-font-display);
     font-size: 0.68rem;
     font-weight: 600;
-    color: #c4d1e1;
+    color: var(--tv-navy-700);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -7824,7 +7837,7 @@ table.loj2-table thead tr { border-bottom: 2px solid var(--tv-amber-700); }
 .loj2-hist-data {
     font-family: var(--tv-font-mono);
     font-size: 0.6rem;
-    color: var(--tv-navy-500);
+    color: var(--tv-navy-400);
 }
 .loj2-hist-btns {
     display: flex;
@@ -7835,29 +7848,30 @@ table.loj2-table thead tr { border-bottom: 2px solid var(--tv-amber-700); }
     font-family: var(--tv-font-display);
     font-size: 0.6rem;
     font-weight: 700;
-    background: var(--tv-navy-700);
-    border: 1px solid var(--tv-navy-600);
-    color: var(--tv-navy-300);
+    background: var(--tv-navy-50);
+    border: 1px solid var(--tv-navy-200);
+    color: var(--tv-navy-600);
     border-radius: 2px;
     padding: 2px 5px;
     cursor: pointer;
     transition: background 0.1s, color 0.1s;
 }
-.loj2-hist-btns button:hover { background: var(--tv-navy-600); color: var(--tv-amber-300); }
-.loj2-hist-btns button.danger:hover { background: rgba(239,68,68,0.15); color: #ef4444; }
+.loj2-hist-btns button:hover { background: var(--tv-navy-100); color: var(--tv-navy-800); }
+.loj2-hist-btns button.danger:hover { background: rgba(239,68,68,0.08); color: #dc2626; }
 .loj2-hist-empty {
     font-family: var(--tv-font-mono);
     font-size: 0.72rem;
-    color: var(--tv-navy-600);
+    color: var(--tv-navy-300);
     padding: 8px 0;
 }
 .loj2-edit-foot {
     padding: 12px 16px;
-    border-top: 1px solid var(--tv-navy-700);
+    border-top: 1px solid var(--tv-navy-100);
     display: flex;
     flex-direction: column;
     gap: 6px;
     flex-shrink: 0;
+    background: #fff;
 }
 .loj2-edit-btn {
     display: block;
@@ -7867,26 +7881,26 @@ table.loj2-table thead tr { border-bottom: 2px solid var(--tv-amber-700); }
     font-weight: 700;
     letter-spacing: 0.05em;
     text-transform: uppercase;
-    color: #c4d1e1;
-    background: var(--tv-navy-800);
-    border: 1px solid var(--tv-navy-600);
+    color: var(--tv-navy-600);
+    background: #fff;
+    border: 1px solid var(--tv-navy-200);
     border-radius: 3px;
     padding: 7px 10px;
     cursor: pointer;
     text-align: center;
-    transition: background 0.12s, color 0.12s;
+    transition: background 0.12s, color 0.12s, border-color 0.12s;
 }
-.loj2-edit-btn:hover { background: var(--tv-navy-700); color: var(--tv-amber-300); }
+.loj2-edit-btn:hover { background: var(--tv-navy-50); color: var(--tv-navy-800); border-color: var(--tv-navy-300); }
 .loj2-edit-btn.primary { background: var(--tv-amber-600); border-color: var(--tv-amber-600); color: #fff; }
-.loj2-edit-btn.primary:hover { background: var(--tv-amber-700); }
+.loj2-edit-btn.primary:hover { background: var(--tv-amber-700); border-color: var(--tv-amber-700); }
 
 /* ── Footbar ── */
 .loj2-footbar {
     display: flex;
     align-items: center;
     gap: 16px;
-    background: var(--tv-navy-950);
-    border-top: 1px solid var(--tv-navy-800);
+    background: var(--tv-navy-900);
+    border-top: 1px solid var(--tv-navy-700);
     padding: 4px 16px;
     font-family: var(--tv-font-mono);
     font-size: 0.68rem;
