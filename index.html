@@ -983,64 +983,109 @@
 
                                                                                 <!-- Sub-aba Comparativo - comparar preços entre clientes -->
                                                                                 <div id="subaba-precif-comparativo" style="display:none">
+<div class="cmp-root">
 
-                    <div style="background:#fff; border:1px solid #e2e8f0; border-radius:10px; padding:16px 20px; margin-bottom:20px">
-                        <div style="font-size:0.8rem; font-weight:600; color:#64748b; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:14px">Selecionar Clientes para Comparar (até 3)</div>
-                        <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:14px">
-                            <div>
-                                <label style="font-size:0.82rem; color:#64748b; margin-bottom:4px; display:block">Cliente 1</label>
-                                <select id="compCliente1" onchange="calcularComparativo()" style="width:100%; padding:8px 10px; border:1px solid #e2e8f0; border-radius:6px; font-size:0.85rem">
-                                    <option value="">— não selecionado —</option>
-                                </select>
-                                <div style="margin-top:6px; display:flex; gap:6px">
-                                    <input type="number" step="0.01" id="compTaxa1" placeholder="Taxa %" oninput="calcularComparativo()" style="width:50%; padding:5px 8px; border:1px solid #e2e8f0; border-radius:6px; font-size:0.8rem">
-                                    <input type="number" step="0.01" id="compROI1" placeholder="ROI %" oninput="calcularComparativo()" style="width:50%; padding:5px 8px; border:1px solid #e2e8f0; border-radius:6px; font-size:0.8rem">
-                                </div>
-                            </div>
-                            <div>
-                                <label style="font-size:0.82rem; color:#64748b; margin-bottom:4px; display:block">Cliente 2</label>
-                                <select id="compCliente2" onchange="calcularComparativo()" style="width:100%; padding:8px 10px; border:1px solid #e2e8f0; border-radius:6px; font-size:0.85rem">
-                                    <option value="">— não selecionado —</option>
-                                </select>
-                                <div style="margin-top:6px; display:flex; gap:6px">
-                                    <input type="number" step="0.01" id="compTaxa2" placeholder="Taxa %" oninput="calcularComparativo()" style="width:50%; padding:5px 8px; border:1px solid #e2e8f0; border-radius:6px; font-size:0.8rem">
-                                    <input type="number" step="0.01" id="compROI2" placeholder="ROI %" oninput="calcularComparativo()" style="width:50%; padding:5px 8px; border:1px solid #e2e8f0; border-radius:6px; font-size:0.8rem">
-                                </div>
-                            </div>
-                            <div>
-                                <label style="font-size:0.82rem; color:#64748b; margin-bottom:4px; display:block">Cliente 3</label>
-                                <select id="compCliente3" onchange="calcularComparativo()" style="width:100%; padding:8px 10px; border:1px solid #e2e8f0; border-radius:6px; font-size:0.85rem">
-                                    <option value="">— não selecionado —</option>
-                                </select>
-                                <div style="margin-top:6px; display:flex; gap:6px">
-                                    <input type="number" step="0.01" id="compTaxa3" placeholder="Taxa %" oninput="calcularComparativo()" style="width:50%; padding:5px 8px; border:1px solid #e2e8f0; border-radius:6px; font-size:0.8rem">
-                                    <input type="number" step="0.01" id="compROI3" placeholder="ROI %" oninput="calcularComparativo()" style="width:50%; padding:5px 8px; border:1px solid #e2e8f0; border-radius:6px; font-size:0.8rem">
-                                </div>
-                            </div>
-                        </div>
-                        <div style="display:flex; gap:8px; margin-top:12px">
-                            <button class="btn btn-primary" onclick="calcularComparativo()">⚖️ Comparar</button>
-                            <button class="btn btn-outline btn-sm" onclick="exportarComparativo()">📤 Exportar Excel</button>
-                        </div>
+    <!-- Command bar -->
+    <div class="cmp-command-bar">
+        <span class="cmp-bar-title">COMPARATIVO DE PRECIFICAÇÃO</span>
+        <span class="cmp-bar-sep"></span>
+        <button class="cmp-btn primary" onclick="calcularComparativo()">&#9878; COMPARAR</button>
+        <button class="cmp-btn" onclick="exportarComparativo()">&#8679; EXPORTAR</button>
+    </div>
+
+    <!-- Seleção de clientes -->
+    <div class="cmp-selecao">
+        <div class="cmp-selecao-title">CLIENTES PARA COMPARAR <span class="cmp-selecao-hint">até 3</span></div>
+        <div class="cmp-slots">
+            <!-- Slot 1 -->
+            <div class="cmp-slot" style="--slot-cor:#f59e0b">
+                <div class="cmp-slot-header">
+                    <span class="cmp-slot-mark" style="background:#f59e0b"></span>
+                    <span class="cmp-slot-label">CLIENTE 1</span>
+                </div>
+                <select id="compCliente1" onchange="calcularComparativo()" class="cmp-select">
+                    <option value="">— não selecionado —</option>
+                </select>
+                <div class="cmp-slot-params">
+                    <div class="cmp-param-field">
+                        <span class="cmp-param-lbl">TAXA %</span>
+                        <input type="number" step="0.01" id="compTaxa1" placeholder="—" oninput="calcularComparativo()" class="cmp-param-input">
                     </div>
-
-                    <!-- Comparative table -->
-                    <div id="compResultado" style="display:none">
-                        <div class="table-container">
-                            <div class="table-wrapper">
-                                <table class="dashboard-table" id="tabelaComparativo">
-                                    <thead id="compHeader"></thead>
-                                    <tbody id="compBody"></tbody>
-                                </table>
-                            </div>
-                        </div>
+                    <div class="cmp-param-field">
+                        <span class="cmp-param-lbl">ROI %</span>
+                        <input type="number" step="0.01" id="compROI1" placeholder="—" oninput="calcularComparativo()" class="cmp-param-input">
                     </div>
-
-                    <div id="compEmpty" style="text-align:center; padding:60px; color:#94a3b8">
-                        <div style="font-size:3rem; margin-bottom:12px">⚖️</div>
-                        <div>Selecione ao menos 2 clientes para comparar os preços</div>
+                </div>
+            </div>
+            <!-- Slot 2 -->
+            <div class="cmp-slot" style="--slot-cor:#0ea5e9">
+                <div class="cmp-slot-header">
+                    <span class="cmp-slot-mark" style="background:#0ea5e9"></span>
+                    <span class="cmp-slot-label">CLIENTE 2</span>
+                </div>
+                <select id="compCliente2" onchange="calcularComparativo()" class="cmp-select">
+                    <option value="">— não selecionado —</option>
+                </select>
+                <div class="cmp-slot-params">
+                    <div class="cmp-param-field">
+                        <span class="cmp-param-lbl">TAXA %</span>
+                        <input type="number" step="0.01" id="compTaxa2" placeholder="—" oninput="calcularComparativo()" class="cmp-param-input">
                     </div>
+                    <div class="cmp-param-field">
+                        <span class="cmp-param-lbl">ROI %</span>
+                        <input type="number" step="0.01" id="compROI2" placeholder="—" oninput="calcularComparativo()" class="cmp-param-input">
+                    </div>
+                </div>
+            </div>
+            <!-- Slot 3 -->
+            <div class="cmp-slot" style="--slot-cor:#a78bfa">
+                <div class="cmp-slot-header">
+                    <span class="cmp-slot-mark" style="background:#a78bfa"></span>
+                    <span class="cmp-slot-label">CLIENTE 3 <span class="cmp-slot-opt">(opcional)</span></span>
+                </div>
+                <select id="compCliente3" onchange="calcularComparativo()" class="cmp-select">
+                    <option value="">— não selecionado —</option>
+                </select>
+                <div class="cmp-slot-params">
+                    <div class="cmp-param-field">
+                        <span class="cmp-param-lbl">TAXA %</span>
+                        <input type="number" step="0.01" id="compTaxa3" placeholder="—" oninput="calcularComparativo()" class="cmp-param-input">
+                    </div>
+                    <div class="cmp-param-field">
+                        <span class="cmp-param-lbl">ROI %</span>
+                        <input type="number" step="0.01" id="compROI3" placeholder="—" oninput="calcularComparativo()" class="cmp-param-input">
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 
+    <!-- Resultado: tabela -->
+    <div id="compResultado" class="cmp-resultado" style="display:none">
+        <div class="cmp-table-wrap">
+            <table class="cmp-table" id="tabelaComparativo">
+                <thead id="compHeader"></thead>
+                <tbody id="compBody"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Estado vazio -->
+    <div id="compEmpty" class="cmp-empty">
+        <div class="cmp-empty-icon">&#9878;</div>
+        <div class="cmp-empty-msg">Selecione ao menos 2 clientes para comparar os preços</div>
+        <div class="cmp-empty-hint">Use os campos acima para configurar cada cenário</div>
+    </div>
+
+    <!-- Footbar -->
+    <div class="cmp-footbar">
+        <span class="cmp-footbar-tag">COMPARATIVO</span>
+        <span>CLIENTES: até 3</span>
+        <span>PRODUTOS: todos com CI configurado</span>
+        <span style="margin-left:auto;color:var(--tv-navy-600)" id="cmp-footbar-time"></span>
+    </div>
+
+</div><!-- /cmp-root -->
                                                                                 </div>
 
                                 <!-- Sub-aba Tabela de CI -->

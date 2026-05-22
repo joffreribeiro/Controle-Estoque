@@ -15398,7 +15398,7 @@ function trocarSubabaPrecif(subaba) {
         else el = document.getElementById('subaba-precif-' + s);
         if (el) {
             if (s === subaba) {
-                el.style.display = (s === 'impostos' || s === 'rastreabilidade' || s === 'precoestado' || s === 'consultaPrec') ? 'flex' : 'block';
+                el.style.display = (s === 'impostos' || s === 'rastreabilidade' || s === 'precoestado' || s === 'consultaPrec' || s === 'comparativo') ? 'flex' : 'block';
             } else {
                 el.style.display = 'none';
             }
@@ -15440,7 +15440,9 @@ function trocarSubabaPrecif(subaba) {
         const res = document.getElementById('compResultado');
         const empty = document.getElementById('compEmpty');
         if (res) res.style.display = 'none';
-        if (empty) empty.style.display = 'block';
+        if (empty) empty.style.display = 'flex';
+        const ft = document.getElementById('cmp-footbar-time');
+        if (ft) ft.textContent = new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
     }
     if (subaba === 'precoestado') {
         try { renderizarTabelaPrecoEstado(); } catch (e) {}
@@ -15539,8 +15541,7 @@ function renderizarTabelaPrecoEstado() {
     const container = document.getElementById('subaba-precif-precoestado');
     if (!container) return;
 
-    // ── preservar state entre re-renders ──
-    const st = container._lojState || { grupoAtivo: null, busca: '' };
+    const st = container._lojState || { grupoAtivo: GRUPOS_PRECO_ESTADO[0]?.id || null, busca: '', showAll: false };
     container._lojState = st;
 
     const tabela = getTabelaPrecoEstado();
@@ -15555,202 +15556,245 @@ function renderizarTabelaPrecoEstado() {
         pecasPorPaiLE[pai].push(p);
     });
 
-    // ── métricas ──
     const totalProds = produtosPrincipais.length;
     const totalVersoes = historico.length;
-    const totalPreench = produtosPrincipais.filter(p =>
-        GRUPOS_PRECO_ESTADO.some(g => tabela[p.id]?.[g.id] !== undefined && tabela[p.id]?.[g.id] !== '')
-    ).length;
-    const totalCelulas = produtosPrincipais.length * GRUPOS_PRECO_ESTADO.length;
-    const totalCelulasPreench = GRUPOS_PRECO_ESTADO.reduce((acc, g) =>
-        acc + produtosPrincipais.filter(p => tabela[p.id]?.[g.id] !== undefined && tabela[p.id]?.[g.id] !== '').length, 0);
-    const pct = totalCelulas > 0 ? Math.round(totalCelulasPreench / totalCelulas * 100) : 0;
+    const fmtBRL = v => v > 0 ? 'R$ ' + v.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2}) : '—';
 
-    // menor e maior preço entre todos os valores preenchidos
-    const todosValores = GRUPOS_PRECO_ESTADO.flatMap(g =>
-        produtosPrincipais.map(p => tabela[p.id]?.[g.id]).filter(v => v !== undefined && v !== '')
-    ).map(v => Number(v)).filter(v => !isNaN(v) && v > 0);
-    const pvMin = todosValores.length ? Math.min(...todosValores) : 0;
-    const pvMax = todosValores.length ? Math.max(...todosValores) : 0;
-    const fmtBRL = v => v > 0 ? 'R$ ' + v.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2}) : '—';
-
-    // ── KPI strip HTML ──
-    const kpiStrip = `
-<div class="loj-kpi-strip">
-    <div class="loj-kpi">
-        <div class="loj-kpi-lbl">PRODUTOS</div>
-        <div class="loj-kpi-val">${totalProds}</div>
-        <div class="loj-kpi-sub">no catálogo</div>
-    </div>
-    <div class="loj-kpi">
-        <div class="loj-kpi-lbl">PREENCHIMENTO</div>
-        <div class="loj-kpi-val loj-kpi-accent">${pct}%</div>
-        <div class="loj-kpi-sub">${totalCelulasPreench}/${totalCelulas} células</div>
-    </div>
-    <div class="loj-kpi">
-        <div class="loj-kpi-lbl">PRODUTOS ATIVOS</div>
-        <div class="loj-kpi-val">${totalPreench}</div>
-        <div class="loj-kpi-sub">com ao menos 1 grupo</div>
-    </div>
-    <div class="loj-kpi">
-        <div class="loj-kpi-lbl">PV MÍNIMO</div>
-        <div class="loj-kpi-val loj-kpi-green">${fmtBRL(pvMin)}</div>
-        <div class="loj-kpi-sub">menor valor tabela</div>
-    </div>
-    <div class="loj-kpi">
-        <div class="loj-kpi-lbl">PV MÁXIMO</div>
-        <div class="loj-kpi-val">${fmtBRL(pvMax)}</div>
-        <div class="loj-kpi-sub">maior valor tabela</div>
-    </div>
-</div>`;
-
-    // ── Tier cards (grupos) ──
-    const tierCards = GRUPOS_PRECO_ESTADO.map(g => {
-        const nPreench = produtosPrincipais.filter(p => tabela[p.id]?.[g.id] !== undefined && tabela[p.id]?.[g.id] !== '').length;
-        const isAtivo = st.grupoAtivo === g.id;
+    // métricas por grupo
+    const grupoStats = GRUPOS_PRECO_ESTADO.map(g => {
         const vals = produtosPrincipais.map(p => tabela[p.id]?.[g.id]).filter(v => v !== undefined && v !== '').map(Number).filter(v => !isNaN(v) && v > 0);
-        const mediaGrupo = vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : 0;
-        return `<div class="loj-tier-card${isAtivo ? ' active' : ''}" data-grupo-id="${g.id}" onclick="window._lojSelecionarGrupo('${g.id}')" style="--tier-cor:${g.cor}">
-            <div class="loj-tier-accent" style="background:${g.cor};width:${isAtivo?'6px':'4px'}"></div>
-            <div class="loj-tier-body">
-                <div class="loj-tier-label">${g.label.toUpperCase()}</div>
-                <div class="loj-tier-ufs">${g.ufs.slice(0,5).join(' · ')}${g.ufs.length>5?` +${g.ufs.length-5}`:''}</div>
-                <div class="loj-tier-stats-row">
-                    <div class="loj-tier-stat"><span class="loj-tier-val">${nPreench}</span><span class="loj-tier-of">/${totalProds}</span> <span class="loj-tier-stat-lbl">preench.</span></div>
-                    ${mediaGrupo > 0 ? `<div class="loj-tier-avg">${mediaGrupo.toLocaleString('pt-BR',{minimumFractionDigits:0,maximumFractionDigits:0})}</div>` : ''}
+        const nPreench = vals.length;
+        const media = nPreench ? vals.reduce((a,b) => a+b, 0) / nPreench : 0;
+        const pvMin = nPreench ? Math.min(...vals) : 0;
+        const pvMax = nPreench ? Math.max(...vals) : 0;
+        return { g, nPreench, media, pvMin, pvMax };
+    });
+
+    const grupoAtivo = st.grupoAtivo && GRUPOS_PRECO_ESTADO.find(g => g.id === st.grupoAtivo)
+        ? GRUPOS_PRECO_ESTADO.find(g => g.id === st.grupoAtivo)
+        : GRUPOS_PRECO_ESTADO[0];
+    const statsAtivo = grupoStats.find(s => s.g.id === grupoAtivo?.id);
+
+    // ── Tier cards horizontais ──
+    const tierCardsHTML = grupoStats.map(({ g, nPreench, media, pvMin, pvMax }) => {
+        const isAtivo = grupoAtivo?.id === g.id;
+        const pctPreench = totalProds > 0 ? Math.round(nPreench / totalProds * 100) : 0;
+        return `<div class="loj2-tier-card${isAtivo ? ' active' : ''}" onclick="window._lojSelecionarGrupo('${g.id}')" style="--tc:${g.cor}">
+            <div class="loj2-tier-top">
+                <span class="loj2-tier-dot" style="background:${g.cor}"></span>
+                <span class="loj2-tier-nome">${g.label}</span>
+            </div>
+            <div class="loj2-tier-ufs">${g.ufs.slice(0,5).join(' · ')}${g.ufs.length>5?` +${g.ufs.length-5}`:''}</div>
+            <div class="loj2-tier-kpis">
+                <div class="loj2-tier-kpi">
+                    <div class="loj2-tier-kpi-lbl">PREENCH.</div>
+                    <div class="loj2-tier-kpi-val" style="color:${pctPreench>=80?'#4ade80':pctPreench>=40?'#f59e0b':'#f87171'}">${pctPreench}%</div>
                 </div>
+                <div class="loj2-tier-kpi">
+                    <div class="loj2-tier-kpi-lbl">MÉDIA PV</div>
+                    <div class="loj2-tier-kpi-val" style="color:#e0c97a">${media > 0 ? media.toLocaleString('pt-BR',{minimumFractionDigits:0,maximumFractionDigits:0}) : '—'}</div>
+                </div>
+            </div>
+            <div class="loj2-tier-meta">
+                <span>${nPreench}/${totalProds} preenchidos</span>
             </div>
         </div>`;
     }).join('');
 
-    // ── Histórico ──
-    const histItems = historico.length
-        ? historico.slice().reverse().map((h, i) => {
-            const idx = historico.length - 1 - i;
-            return `<div class="loj-hist-item">
-                <div class="loj-hist-info">
-                    <span class="loj-hist-nome">${_escapeHtml(h.nome)}</span>
-                    <span class="loj-hist-data">${h.data}</span>
-                </div>
-                <div class="loj-hist-actions">
-                    <button class="loj-hist-btn" onclick="visualizarTabelaLojistasHistorico(${idx})">VER</button>
-                    <button class="loj-hist-btn" onclick="restaurarTabelaLojistas(${idx})">REST.</button>
-                    <button class="loj-hist-btn danger" onclick="excluirTabelaLojistasHistorico(${idx})">&times;</button>
-                </div>
-            </div>`;
-        }).join('')
-        : `<div style="color:var(--tv-navy-600);font-size:0.75rem;padding:8px 0;font-family:var(--tv-font-mono)">Nenhuma versão salva.</div>`;
-
-    // ── HTML principal ──
-    container.innerHTML = `
-<div class="loj-root">
-    <!-- Coluna esquerda: tiers + historico + acoes -->
-    <div class="loj-sidebar">
-        <div class="loj-sidebar-section">
-            <div class="loj-sidebar-title">GRUPOS DE PREÇO</div>
-            <div class="loj-tier-cards">${tierCards}</div>
-        </div>
-        <div class="loj-sidebar-section" style="margin-top:16px">
-            <div class="loj-sidebar-title">VERSÕES SALVAS</div>
-            <div class="loj-hist-list">${histItems}</div>
-        </div>
-        <div class="loj-sidebar-section" style="margin-top:auto;padding-top:16px;border-top:1px solid var(--tv-navy-800)">
-            <button class="loj-action-btn primary" onclick="salvarTabelaPrecoEstado()">&#10003; SALVAR TABELA</button>
-            <button class="loj-action-btn" onclick="salvarNovaVersaoTabelaLojistas()" style="margin-top:6px">+ NOVA VERSÃO</button>
-            <button class="loj-action-btn" onclick="exportarTabelaLojistas(null)" style="margin-top:6px">&#8679; EXPORTAR CSV</button>
-        </div>
+    // ── KPI strip (grupo ativo) ──
+    const kpiHTML = `
+<div class="loj2-kpi-strip">
+    <div class="loj2-kpi">
+        <div class="loj2-kpi-lbl">GRUPO SELECIONADO</div>
+        <div class="loj2-kpi-val" style="font-size:1rem;color:#d8e4f0">${grupoAtivo?.label || '—'}</div>
+        <div class="loj2-kpi-sub" style="color:${grupoAtivo?.cor}">${grupoAtivo?.id || ''}</div>
     </div>
-
-    <!-- Coluna direita: tabela de preços -->
-    <div class="loj-main">
-        <div class="loj-command-bar">
-            <span class="loj-bar-title">TABELA DE PREÇOS — LOJISTAS</span>
-            <div class="loj-search-wrap">
-                <span class="loj-search-icon">&#128269;</span>
-                <input type="text" class="loj-search-input" id="loj-busca-prod" placeholder="Buscar produto..." value="${_escapeHtml(st.busca)}" oninput="window._lojFiltrarTabela(this.value)">
-            </div>
-            <span style="flex:1"></span>
-            <span class="loj-bar-stat">${totalPreench}/${totalProds} produtos preenchidos</span>
-            <span class="loj-bar-stat loj-bar-stat-muted">${totalVersoes} versões</span>
-        </div>
-        ${kpiStrip}
-        <div class="loj-table-wrap" id="precoEstadoTabelaWrap">
-            <table class="loj-table">
-                <thead>
-                    <tr>
-                        <th class="loj-th-prod">PRODUTO</th>
-                        ${GRUPOS_PRECO_ESTADO.map(g => `<th class="loj-th-grupo${st.grupoAtivo === g.id ? ' active' : ''}" style="--grupo-cor:${g.cor}">${g.label.toUpperCase()}<div class="loj-th-ufs">${g.ufs.slice(0,4).join(' · ')}${g.ufs.length>4?`…`:''}</div></th>`).join('')}
-                    </tr>
-                </thead>
-                <tbody id="loj-tbody"></tbody>
-            </table>
-        </div>
-        <div class="loj-footbar">
-            <span class="loj-footbar-tag">LOJISTAS</span>
-            <span>PROD: <b style="color:#d8e4f0">${totalProds}</b></span>
-            <span>GRUPOS: <b style="color:#d8e4f0">${GRUPOS_PRECO_ESTADO.length}</b></span>
-            <span>PREENCH: <b style="color:${pct>=80?'#4ade80':pct>=40?'#f59e0b':'#f87171'}">${pct}%</b></span>
-            ${st.grupoAtivo ? `<span>FILTRO: <b style="color:var(--tv-amber-400)">${GRUPOS_PRECO_ESTADO.find(g=>g.id===st.grupoAtivo)?.label||''}</b></span>` : ''}
-            <span style="margin-left:auto;color:var(--tv-navy-600)">${new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}</span>
-        </div>
+    <div class="loj2-kpi">
+        <div class="loj2-kpi-lbl">PRODUTOS</div>
+        <div class="loj2-kpi-val">${totalProds}</div>
+        <div class="loj2-kpi-sub">no catálogo</div>
+    </div>
+    <div class="loj2-kpi">
+        <div class="loj2-kpi-lbl">PREENCHIDOS</div>
+        <div class="loj2-kpi-val" style="color:var(--tv-amber-400)">${statsAtivo?.nPreench || 0}/${totalProds}</div>
+        <div class="loj2-kpi-sub">neste grupo</div>
+    </div>
+    <div class="loj2-kpi">
+        <div class="loj2-kpi-lbl">PV MÍNIMO</div>
+        <div class="loj2-kpi-val" style="color:#4ade80;font-size:0.88rem">${fmtBRL(statsAtivo?.pvMin || 0)}</div>
+        <div class="loj2-kpi-sub">menor valor</div>
+    </div>
+    <div class="loj2-kpi">
+        <div class="loj2-kpi-lbl">PV MÁXIMO</div>
+        <div class="loj2-kpi-val" style="font-size:0.88rem">${fmtBRL(statsAtivo?.pvMax || 0)}</div>
+        <div class="loj2-kpi-sub">maior valor</div>
     </div>
 </div>`;
 
-    // ── Renderizar linhas da tabela ──
+    // ── Edit panel (grupo ativo) ──
+    const editPanelHTML = `
+<div class="loj2-edit-panel">
+    <div class="loj2-edit-head">
+        <div>
+            <div class="loj2-edit-title">EDITAR ${(grupoAtivo?.label||'').toUpperCase()}</div>
+            <div class="loj2-edit-id" style="color:${grupoAtivo?.cor}">${grupoAtivo?.id || ''}</div>
+        </div>
+    </div>
+    <div class="loj2-edit-body">
+        <div class="loj2-edit-sec-title">ESTADOS INCLUÍDOS</div>
+        <div class="loj2-edit-ufs">
+            ${(grupoAtivo?.ufs || []).map(uf => `<span class="loj2-uf-badge">${uf}</span>`).join('')}
+        </div>
+        <div class="loj2-edit-sec-title" style="margin-top:14px">VERSÕES SALVAS</div>
+        <div class="loj2-hist-list">
+            ${historico.length
+                ? historico.slice().reverse().slice(0,5).map((h, i) => {
+                    const idx = historico.length - 1 - i;
+                    return `<div class="loj2-hist-item">
+                        <div class="loj2-hist-info">
+                            <span class="loj2-hist-nome">${_escapeHtml(h.nome)}</span>
+                            <span class="loj2-hist-data">${h.data}</span>
+                        </div>
+                        <div class="loj2-hist-btns">
+                            <button onclick="visualizarTabelaLojistasHistorico(${idx})">VER</button>
+                            <button onclick="restaurarTabelaLojistas(${idx})">REST.</button>
+                            <button class="danger" onclick="excluirTabelaLojistasHistorico(${idx})">&times;</button>
+                        </div>
+                    </div>`;
+                }).join('')
+                : `<div class="loj2-hist-empty">Nenhuma versão salva.</div>`
+            }
+        </div>
+    </div>
+    <div class="loj2-edit-foot">
+        <button class="loj2-edit-btn" onclick="salvarNovaVersaoTabelaLojistas()">+ NOVA VERSÃO</button>
+        <button class="loj2-edit-btn" onclick="exportarTabelaLojistas('${grupoAtivo?.id || ''}')">&#8679; EXPORTAR</button>
+        <button class="loj2-edit-btn primary" onclick="salvarTabelaPrecoEstado()">&#10003; SALVAR</button>
+    </div>
+</div>`;
+
+    // ── Cabeçalho da tabela ──
+    const theadHTML = `<tr>
+        <th class="loj2-th-nome">PRODUTO</th>
+        ${GRUPOS_PRECO_ESTADO.map(g => {
+            const isAtivo2 = grupoAtivo?.id === g.id;
+            return `<th class="loj2-th-grupo${isAtivo2 ? ' active' : ''}" style="--gc:${g.cor};border-top:3px solid ${g.cor}">
+                ${g.label.toUpperCase()}
+                <div class="loj2-th-ufs">${g.ufs.slice(0,4).join(' · ')}${g.ufs.length>4?'…':''}</div>
+            </th>`;
+        }).join('')}
+    </tr>`;
+
+    // ── HTML principal ──
+    container.innerHTML = `
+<div class="loj2-root">
+    <!-- Command bar -->
+    <div class="loj2-cmdbar">
+        <span class="loj2-cmdbar-title">TABELA DE PREÇOS — LOJISTAS</span>
+        <div class="loj2-search-wrap">
+            <span class="loj2-search-icon">&#9906;</span>
+            <input type="text" class="loj2-search-input" id="loj-busca-prod"
+                placeholder="Buscar produto..." value="${_escapeHtml(st.busca)}"
+                oninput="window._lojFiltrarTabela(this.value)">
+        </div>
+        <span style="flex:1"></span>
+        <button class="loj2-btn" onclick="visualizarTabelaLojistasHistorico" title="Histórico">
+            &#128336; Histórico (${totalVersoes})
+        </button>
+        <button class="loj2-btn primary" onclick="salvarTabelaPrecoEstado()">
+            &#10003; Publicar tabela
+        </button>
+        <button class="loj2-btn icon" onclick="exportarTabelaLojistas(null)" title="Imprimir/Exportar">&#9113;</button>
+    </div>
+
+    <!-- Tier cards -->
+    <div class="loj2-tier-strip">${tierCardsHTML}</div>
+
+    <!-- KPI strip -->
+    ${kpiHTML}
+
+    <!-- Corpo: tabela + edit panel -->
+    <div class="loj2-body">
+        <div class="loj2-table-area">
+            <div class="loj2-table-header">
+                <span class="loj2-table-title">Matriz Produto × Grupo · <span style="color:var(--tv-navy-400);font-weight:400">${totalProds} produtos</span></span>
+            </div>
+            <div class="loj2-table-wrap" id="precoEstadoTabelaWrap">
+                <table class="loj2-table">
+                    <thead>${theadHTML}</thead>
+                    <tbody id="loj-tbody"></tbody>
+                </table>
+            </div>
+        </div>
+        ${editPanelHTML}
+    </div>
+
+    <!-- Footbar -->
+    <div class="loj2-footbar">
+        <span class="loj2-footbar-tag">LOJISTAS</span>
+        <span>GRUPO: <b style="color:${grupoAtivo?.cor}">${grupoAtivo?.label||'—'}</b></span>
+        <span>PROD: <b style="color:#d8e4f0">${totalProds}</b></span>
+        <span>GRUPOS: <b style="color:#d8e4f0">${GRUPOS_PRECO_ESTADO.length}</b></span>
+        <span style="margin-left:auto;color:var(--tv-navy-600)">${new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}</span>
+    </div>
+</div>`;
+
+    // ── Renderizar linhas ──
     const tbody = document.getElementById('loj-tbody');
     if (!tbody) return;
 
-    function _lojLinhaHTML(prod, isPeca) {
+    function _lojLinhaHTML(prod, isPeca, rowIdx) {
         const pecasFilhas = !isPeca ? (pecasPorPaiLE[(prod.nome || '').toUpperCase()] || []) : [];
         const temPecas = pecasFilhas.length > 0;
         const idSlot = 'loj-expand-' + Number(prod.id);
         const nomeInner = isPeca
-            ? `<span class="loj-nome-peca">&#8627; ${_escapeHtml(prod.nome)}</span>`
-            : `<span class="loj-nome-prod">${_escapeHtml(prod.nome)}</span>${temPecas ? `<span id="${idSlot}"></span>` : ''}`;
-        const trClass = isPeca ? 'loj-tr-peca' : 'loj-tr-prod';
+            ? `<span class="loj2-nome-peca">&#8627; ${_escapeHtml(prod.nome)}</span>`
+            : `<span class="loj2-nome-prod">${_escapeHtml(prod.nome)}</span>${temPecas ? `<span id="${idSlot}"></span>` : ''}`;
+        const trClass = isPeca ? 'loj2-tr-peca' : (rowIdx % 2 === 0 ? 'loj2-tr-prod' : 'loj2-tr-prod alt');
         const trAttrs = isPeca ? ` data-le-peca-filha="${_escapeHtml((prod.componente||'').trim())}" style="display:none"` : '';
         const cells = GRUPOS_PRECO_ESTADO.map(g => {
             const val = (tabela[prod.id] && tabela[prod.id][g.id] !== undefined) ? tabela[prod.id][g.id] : '';
             const displayVal = val !== '' ? Number(val).toLocaleString('pt-BR', {minimumFractionDigits:2,maximumFractionDigits:2}) : '';
-            const isGrupoAtivo = st.grupoAtivo === g.id;
-            return `<td class="loj-td-val${isGrupoAtivo ? ' loj-td-ativo' : ''}"><input type="text" inputmode="decimal"
-                class="loj-price-input" data-prod="${prod.id}" data-grupo="${g.id}"
-                value="${displayVal}" placeholder="—"
-                oninput="formatarMoedaPrecoEstado(this)"
-                style="--focus-cor:${g.cor}"></td>`;
+            const isGrupoAtivo = grupoAtivo?.id === g.id;
+            return `<td class="loj2-td-val${isGrupoAtivo ? ' active' : ''}">
+                <input type="text" inputmode="decimal" class="loj2-price-input"
+                    data-prod="${prod.id}" data-grupo="${g.id}"
+                    value="${displayVal}" placeholder="—"
+                    oninput="formatarMoedaPrecoEstado(this)"
+                    style="--fc:${g.cor}">
+            </td>`;
         }).join('');
-        return `<tr class="${trClass}"${trAttrs}><td class="loj-td-prod">${nomeInner}</td>${cells}</tr>`;
+        return `<tr class="${trClass}"${trAttrs}><td class="loj2-td-nome">${nomeInner}</td>${cells}</tr>`;
     }
 
     function _lojRenderLinhas(filtro) {
-        let rowsHTML = '';
         const f = (filtro || '').toLowerCase().trim();
+        let html = '';
+        let rowIdx = 0;
         produtosPrincipais.forEach(prod => {
-            const match = !f || (prod.nome || '').toLowerCase().includes(f);
-            if (match) {
-                rowsHTML += _lojLinhaHTML(prod, false);
-                const filhas = pecasPorPaiLE[(prod.nome||'').toUpperCase()] || [];
-                filhas.forEach(p => { rowsHTML += _lojLinhaHTML(p, true); });
-            }
+            if (f && !(prod.nome || '').toLowerCase().includes(f)) return;
+            html += _lojLinhaHTML(prod, false, rowIdx++);
+            (pecasPorPaiLE[(prod.nome||'').toUpperCase()] || []).forEach(p => {
+                html += _lojLinhaHTML(p, true, rowIdx);
+            });
         });
-        return rowsHTML || `<tr><td colspan="${GRUPOS_PRECO_ESTADO.length + 1}" style="padding:20px;text-align:center;color:var(--tv-navy-500);font-family:var(--tv-font-mono);font-size:0.8rem">Nenhum produto encontrado para "${_escapeHtml(f)}"</td></tr>`;
+        return html || `<tr><td colspan="${GRUPOS_PRECO_ESTADO.length + 1}" style="padding:20px;text-align:center;color:var(--tv-navy-500);font-family:var(--tv-font-mono);font-size:0.8rem">Nenhum produto encontrado</td></tr>`;
     }
 
     tbody.innerHTML = _lojRenderLinhas(st.busca);
 
-    // ── Botões expand (post-render) ──
+    // ── Expand buttons ──
     produtosPrincipais.forEach(prod => {
         const filhas = pecasPorPaiLE[(prod.nome||'').toUpperCase()] || [];
         if (!filhas.length) return;
         const slot = document.getElementById('loj-expand-' + Number(prod.id));
         if (!slot) return;
         const btn = document.createElement('span');
-        btn.className = 'loj-expand-btn';
-        btn.title = `Ver ${filhas.length} peça(s)`;
-        btn.innerHTML = `<span class="loj-expand-icon">&#9654;</span><span class="loj-expand-badge">${filhas.length}p</span>`;
+        btn.className = 'loj2-expand-btn';
+        btn.innerHTML = `<span class="loj2-expand-icon">&#9654;</span><span class="loj2-expand-badge">${filhas.length}p</span>`;
         btn.addEventListener('click', e => {
             e.stopPropagation();
-            const icon = btn.querySelector('.loj-expand-icon');
+            const icon = btn.querySelector('.loj2-expand-icon');
             const aberto = icon && icon.innerHTML.trim() === '&#9660;';
             const nomeUp = (prod.nome||'').toUpperCase();
             container.querySelectorAll('tr[data-le-peca-filha]').forEach(tr => {
@@ -15762,17 +15806,18 @@ function renderizarTabelaPrecoEstado() {
         slot.appendChild(btn);
     });
 
-    // ── Focus handler para cor do grupo ──
-    container.querySelectorAll('.loj-price-input').forEach(inp => {
-        inp.addEventListener('focus', () => { inp.style.borderColor = inp.style.getPropertyValue('--focus-cor') || 'var(--tv-amber-500)'; });
+    // ── Focus handlers ──
+    container.querySelectorAll('.loj2-price-input').forEach(inp => {
+        inp.addEventListener('focus', () => { inp.style.borderColor = getComputedStyle(inp).getPropertyValue('--fc') || 'var(--tv-amber-500)'; });
         inp.addEventListener('blur', () => { inp.style.borderColor = ''; });
     });
 
     // ── Callbacks globais ──
     window._lojSelecionarGrupo = function(grupoId) {
         const c = document.getElementById('subaba-precif-precoestado');
-        if (!c || !c._lojState) return;
-        c._lojState.grupoAtivo = c._lojState.grupoAtivo === grupoId ? null : grupoId;
+        if (!c) return;
+        if (!c._lojState) c._lojState = {};
+        c._lojState.grupoAtivo = grupoId;
         renderizarTabelaPrecoEstado();
     };
     window._lojFiltrarTabela = function(val) {
@@ -15782,9 +15827,8 @@ function renderizarTabelaPrecoEstado() {
         const tb = c.querySelector('#loj-tbody');
         if (!tb) return;
         tb.innerHTML = _lojRenderLinhas(val);
-        // re-attach expand buttons after filter
-        c.querySelectorAll('.loj-price-input').forEach(inp => {
-            inp.addEventListener('focus', () => { inp.style.borderColor = inp.style.getPropertyValue('--focus-cor') || 'var(--tv-amber-500)'; });
+        c.querySelectorAll('.loj2-price-input').forEach(inp => {
+            inp.addEventListener('focus', () => { inp.style.borderColor = getComputedStyle(inp).getPropertyValue('--fc') || 'var(--tv-amber-500)'; });
             inp.addEventListener('blur', () => { inp.style.borderColor = ''; });
         });
     };
@@ -17757,7 +17801,7 @@ function calcularComparativo() {
 
         if (clientesSelecionados.length < 2) {
             const resEl = document.getElementById('compResultado'); if (resEl) resEl.style.display = 'none';
-            const emptyEl = document.getElementById('compEmpty'); if (emptyEl) emptyEl.style.display = 'block';
+            const emptyEl = document.getElementById('compEmpty'); if (emptyEl) emptyEl.style.display = 'flex';
             return;
         }
 
@@ -17769,52 +17813,55 @@ function calcularComparativo() {
             return { ...sel, nome: c?.nome, uf, tipo };
         });
 
-        // Build header
+        // Build header — Bloomberg style
         const nCols = clientesData.length;
+        const slotCores = ['#f59e0b','#0ea5e9','#a78bfa'];
         const headerEl = document.getElementById('compHeader');
         if (!headerEl) return;
         headerEl.innerHTML = `
-            <tr>
-              <th style="text-align:left; padding-left:15px; min-width:220px; position:sticky; left:0; background:#1e3a5f; z-index:2">Produto</th>
+            <tr class="cmp-thead-top">
+              <th class="cmp-th-prod" style="position:sticky;left:0;z-index:3">PRODUTO</th>
               ${clientesData.map((c,i) => `
-                <th colspan="2" style="text-align:center; background:${['#1e3a5f','#2d5a8b','#3d7ab5'][i]}; min-width:200px">
-                  ${_escapeHtml(c.nome||'')}<br>
-                  <span style="font-size:0.7rem; font-weight:400; color:rgba(255,255,255,0.75)">${_escapeHtml(c.uf||'')} / ${_escapeHtml(c.tipo||'')} | Taxa ${c.taxa}% | ROI ${c.roi}%</span>
+                <th colspan="2" class="cmp-th-cliente" style="--cli-cor:${slotCores[i]};border-top:3px solid ${slotCores[i]}">
+                  <div class="cmp-th-nome">${_escapeHtml(c.nome||'')}</div>
+                  <div class="cmp-th-meta">${_escapeHtml(c.uf||'')} · ${_escapeHtml(c.tipo||'')} · T${c.taxa}% R${c.roi}%</div>
                 </th>
               `).join('')}
-              <th style="min-width:100px; text-align:center">Maior preço</th>
-              <th style="min-width:100px; text-align:center">Menor preço</th>
-              <th style="min-width:90px; text-align:center">Diferença</th>
+              <th class="cmp-th-verdict" style="border-top:3px solid #f87171">&#9650; MAX</th>
+              <th class="cmp-th-verdict" style="border-top:3px solid #4ade80">&#9660; MIN</th>
+              <th class="cmp-th-verdict" style="border-top:3px solid #f59e0b">&#916;</th>
             </tr>
-            <tr>
-              <th style="position:sticky; left:0; background:#161b22"></th>
+            <tr class="cmp-thead-sub">
+              <th style="position:sticky;left:0;z-index:3;background:#061018"></th>
               ${clientesData.map(() => `
-                <th style="font-size:0.7rem; font-weight:400; background:#161b22; color:#8b949e">Preço Final</th>
-                <th style="font-size:0.7rem; font-weight:400; background:#161b22; color:#8b949e">Margem</th>
+                <th class="cmp-th-sub">PREÇO FINAL</th>
+                <th class="cmp-th-sub">MARGEM</th>
               `).join('')}
-              <th style="background:#161b22"></th>
-              <th style="background:#161b22"></th>
-              <th style="background:#161b22"></th>
+              <th class="cmp-th-sub"></th>
+              <th class="cmp-th-sub"></th>
+              <th class="cmp-th-sub">SPREAD</th>
             </tr>
         `;
 
-        // Build rows
-        const fmt = v => 'R$ ' + parseFloat(v || 0).toLocaleString('pt-BR', {minimumFractionDigits:2,maximumFractionDigits:2});
+        // Build rows — Bloomberg style
+        const fmt = v => 'R$ ' + parseFloat(v || 0).toLocaleString('pt-BR', {minimumFractionDigits:2,maximumFractionDigits:2});
         const fmtPct = v => (Number(v) || 0).toFixed(1) + '%';
-        const corMargem = m => m >= 30 ? '#16a34a' : m>=15 ? '#d97706' : '#dc2626';
+        const corMargem = m => m >= 30 ? '#4ade80' : m >= 15 ? '#f59e0b' : '#f87171';
 
         const produtosLista = (estoque.produtos || []).slice();
         const bodyEl = document.getElementById('compBody');
         if (!bodyEl) return;
 
-        bodyEl.innerHTML = produtosLista.map(produto => {
+        bodyEl.innerHTML = produtosLista.map((produto, rowIdx) => {
             const precos = clientesData.map(c => _calcularPrecoComparativo(produto.nome, c.uf, c.tipo, c.taxa, c.roi, c.comissao));
+            const zebra = rowIdx % 2 === 1;
+            const rowBg = zebra ? '#071320' : '#060f1a';
 
             if (precos.every(r => !r)) {
                 return `
-                    <tr style="opacity:0.4">
-                      <td style="text-align:left; padding-left:15px; position:sticky; left:0; background:#fff; z-index:1">${_escapeHtml(produto.nome||'')}</td>
-                      <td colspan="${nCols*2+3}" style="text-align:center; color:#94a3b8; font-size:0.8rem">CI não configurado</td>
+                    <tr style="background:${rowBg};opacity:0.35">
+                      <td class="cmp-td-prod" style="position:sticky;left:0;z-index:1;background:${rowBg}">${_escapeHtml(produto.nome||'')}</td>
+                      <td colspan="${nCols*2+3}" style="text-align:center;color:var(--tv-navy-600);font-size:0.75rem;font-family:var(--tv-font-mono)">CI não configurado</td>
                     </tr>
                 `;
             }
@@ -17826,26 +17873,31 @@ function calcularComparativo() {
             const diffPct  = minPreco > 0 ? (diff / minPreco * 100) : 0;
 
             return `
-              <tr>
-                <td style="text-align:left; padding-left:15px; font-weight:500; position:sticky; left:0; background:#fff; z-index:1; border-right:1px solid #e2e8f0">${_escapeHtml(produto.nome||'')}</td>
+              <tr style="background:${rowBg}">
+                <td class="cmp-td-prod" style="position:sticky;left:0;z-index:1;background:${rowBg}">${_escapeHtml(produto.nome||'')}</td>
                 ${precos.map((r,i) => {
-                    if (!r) return '<td colspan="2" style="text-align:center;color:#94a3b8">—</td>';
-                    const isMax = r.precoFinal === maxPreco && nCols > 1;
+                    if (!r) return `<td colspan="2" class="cmp-td-val" style="background:${rowBg};text-align:center;color:var(--tv-navy-600)">—</td>`;
+                    const isMax = r.precoFinal === maxPreco && nCols > 1 && maxPreco !== minPreco;
                     const isMin = r.precoFinal === minPreco && nCols > 1 && maxPreco !== minPreco;
+                    const priceBg = isMin ? 'rgba(74,222,128,0.08)' : isMax ? 'rgba(248,113,113,0.08)' : 'transparent';
+                    const priceCol = isMin ? '#4ade80' : isMax ? '#f87171' : '#d8e4f0';
+                    const badge = isMin ? '<span class="cmp-badge min">MIN</span>' : isMax ? '<span class="cmp-badge max">MAX</span>' : '';
                     return `
-                      <td style="text-align:right; padding-right:8px; font-weight:700; color:${isMin?'#16a34a':isMax?'#dc2626':'#1e3a5f'}; background:${isMin?'#f0fdf4':isMax?'#fef2f2':'transparent'}">${fmt(r.precoFinal)} ${isMin?'<span style="font-size:0.65rem">▼min</span>':''} ${isMax?'<span style="font-size:0.65rem">▲max</span>':''}</td>
-                      <td style="text-align:center; font-size:0.82rem; font-weight:600; color:${corMargem(r.margem)}">${fmtPct(r.margem)}</td>
+                      <td class="cmp-td-val" style="background:${priceBg};text-align:right;color:${priceCol};font-weight:700">${badge}${fmt(r.precoFinal)}</td>
+                      <td class="cmp-td-pct" style="background:${rowBg};color:${corMargem(r.margem)}">${fmtPct(r.margem)}</td>
                     `;
                 }).join('')}
-                <td style="text-align:center; font-weight:700; color:#dc2626">${maxPreco > 0 ? fmt(maxPreco) : '—'}</td>
-                <td style="text-align:center; font-weight:700; color:#16a34a">${minPreco > 0 ? fmt(minPreco) : '—'}</td>
-                <td style="text-align:center; font-weight:600; color:#d97706">${diff > 0 ? fmt(diff) + '<br><span style="font-size:0.72rem">(' + fmtPct(diffPct) + ')</span>' : '—'}</td>
+                <td class="cmp-td-val" style="background:${rowBg};color:#f87171;text-align:center">${maxPreco > 0 ? fmt(maxPreco) : '—'}</td>
+                <td class="cmp-td-val" style="background:${rowBg};color:#4ade80;text-align:center">${minPreco > 0 ? fmt(minPreco) : '—'}</td>
+                <td class="cmp-td-val" style="background:${rowBg};color:#f59e0b;text-align:center">${diff > 0 ? fmtPct(diffPct) : '—'}</td>
               </tr>
             `;
         }).join('');
 
-        document.getElementById('compResultado').style.display = 'block';
+        document.getElementById('compResultado').style.display = 'flex';
         document.getElementById('compEmpty').style.display = 'none';
+        const ft = document.getElementById('cmp-footbar-time');
+        if (ft) ft.textContent = new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
 
     } catch (e) { console.warn('calcularComparativo', e); }
 }
