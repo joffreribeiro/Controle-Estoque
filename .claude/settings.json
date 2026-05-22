@@ -22,7 +22,10 @@
       "Bash(Select-Object Name, Length)",
       "Bash(ls -lh \"/mnt/e/MEUS DOCUMENTOS/OneDrive/Documentos/Sistemas/Estoque/Controle-Estoque/\" 2>/dev/null || ls -lh \"e:/MEUS DOCUMENTOS/OneDrive/Documentos/Sistemas/Estoque/Controle-Estoque/\")",
       "Read(//mnt/e/MEUS DOCUMENTOS/OneDrive/Documentos/Sistemas/Estoque/**)",
-      "Bash(Get-ChildItem -Path \"e:\\\\MEUS DOCUMENTOS\\\\OneDrive\\\\Documentos\\\\Sistemas\\\\Estoque\\\\Controle-Estoque\\\\\" -File | Select-Object Name)"
+      "Bash(Get-ChildItem -Path \"e:\\\\MEUS DOCUMENTOS\\\\OneDrive\\\\Documentos\\\\Sistemas\\\\Estoque\\\\Controle-Estoque\\\\\" -File | Select-Object Name)",
+      "Bash(git commit -m ' *)",
+      "Bash(ls \"C:\\\\Users\\\\Joffre\\\\.claude\\\\projects\\\\e--MEUS-DOCUMENTOS-OneDrive-Documentos-Sistemas-Estoque-Controle-Estoque\\\\memory\\\\\")",
+      "Read(//c/Users/Joffre/.claude/projects/e--MEUS-DOCUMENTOS-OneDrive-Documentos-Sistemas-Estoque-Controle-Estoque/**)"
     ],
     "additionalDirectories": [
       "\\tmp"
