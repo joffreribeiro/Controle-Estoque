@@ -1544,25 +1544,24 @@ function alternarModoConsultaPrec(modo) {
     _consultaPrecModo = modo;
     const btnPrecif = document.getElementById('btnConsultaModoPrecif');
     const btnProduto = document.getElementById('btnConsultaModoProduto');
-    const tabelaNormal = document.querySelector('#painel-consultaPrec .table-container');
+    // suporte ao novo layout Bloomberg (cq-table-wrap) e ao legado (.table-container)
+    const tabelaNormal = document.querySelector('#painel-consultaPrec .cq-table-wrap:not(#bodyConsultaPrecPorProduto)')
+                      || document.querySelector('#painel-consultaPrec .table-container');
     const paginacao = document.getElementById('paginacaoConsultaPrec');
     const porProduto = document.getElementById('bodyConsultaPrecPorProduto');
-    const filtros = document.querySelector('#painel-consultaPrec .section-header');
 
     if (modo === 'produto') {
-        if (btnPrecif) { btnPrecif.className = 'btn btn-outline btn-sm'; }
-        if (btnProduto) { btnProduto.className = 'btn btn-primary btn-sm'; }
+        if (btnPrecif) { btnPrecif.classList.remove('active'); }
+        if (btnProduto) { btnProduto.classList.add('active'); }
         if (tabelaNormal) tabelaNormal.style.display = 'none';
         if (paginacao) paginacao.style.display = 'none';
-        if (filtros) filtros.style.display = 'none';
         if (porProduto) porProduto.style.display = 'block';
         renderizarConsultaPorProduto();
     } else {
-        if (btnPrecif) { btnPrecif.className = 'btn btn-primary btn-sm'; }
-        if (btnProduto) { btnProduto.className = 'btn btn-outline btn-sm'; }
+        if (btnPrecif) { btnPrecif.classList.add('active'); }
+        if (btnProduto) { btnProduto.classList.remove('active'); }
         if (tabelaNormal) tabelaNormal.style.display = '';
         if (paginacao) paginacao.style.display = '';
-        if (filtros) filtros.style.display = '';
         if (porProduto) porProduto.style.display = 'none';
     }
 }
@@ -15399,7 +15398,7 @@ function trocarSubabaPrecif(subaba) {
         else el = document.getElementById('subaba-precif-' + s);
         if (el) {
             if (s === subaba) {
-                el.style.display = (s === 'impostos' || s === 'rastreabilidade' || s === 'precoestado') ? 'flex' : 'block';
+                el.style.display = (s === 'impostos' || s === 'rastreabilidade' || s === 'precoestado' || s === 'consultaPrec') ? 'flex' : 'block';
             } else {
                 el.style.display = 'none';
             }
@@ -15540,6 +15539,10 @@ function renderizarTabelaPrecoEstado() {
     const container = document.getElementById('subaba-precif-precoestado');
     if (!container) return;
 
+    // ── preservar state entre re-renders ──
+    const st = container._lojState || { grupoAtivo: null, busca: '' };
+    container._lojState = st;
+
     const tabela = getTabelaPrecoEstado();
     const todosProds = (estoque.produtos || []).filter(p => p.nome);
     const historico = getHistoricoTabelasLojistas();
@@ -15552,22 +15555,70 @@ function renderizarTabelaPrecoEstado() {
         pecasPorPaiLE[pai].push(p);
     });
 
-    // ── KPIs ──
+    // ── métricas ──
+    const totalProds = produtosPrincipais.length;
+    const totalVersoes = historico.length;
     const totalPreench = produtosPrincipais.filter(p =>
         GRUPOS_PRECO_ESTADO.some(g => tabela[p.id]?.[g.id] !== undefined && tabela[p.id]?.[g.id] !== '')
     ).length;
-    const totalProds = produtosPrincipais.length;
-    const totalVersoes = historico.length;
+    const totalCelulas = produtosPrincipais.length * GRUPOS_PRECO_ESTADO.length;
+    const totalCelulasPreench = GRUPOS_PRECO_ESTADO.reduce((acc, g) =>
+        acc + produtosPrincipais.filter(p => tabela[p.id]?.[g.id] !== undefined && tabela[p.id]?.[g.id] !== '').length, 0);
+    const pct = totalCelulas > 0 ? Math.round(totalCelulasPreench / totalCelulas * 100) : 0;
+
+    // menor e maior preço entre todos os valores preenchidos
+    const todosValores = GRUPOS_PRECO_ESTADO.flatMap(g =>
+        produtosPrincipais.map(p => tabela[p.id]?.[g.id]).filter(v => v !== undefined && v !== '')
+    ).map(v => Number(v)).filter(v => !isNaN(v) && v > 0);
+    const pvMin = todosValores.length ? Math.min(...todosValores) : 0;
+    const pvMax = todosValores.length ? Math.max(...todosValores) : 0;
+    const fmtBRL = v => v > 0 ? 'R$ ' + v.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2}) : '—';
+
+    // ── KPI strip HTML ──
+    const kpiStrip = `
+<div class="loj-kpi-strip">
+    <div class="loj-kpi">
+        <div class="loj-kpi-lbl">PRODUTOS</div>
+        <div class="loj-kpi-val">${totalProds}</div>
+        <div class="loj-kpi-sub">no catálogo</div>
+    </div>
+    <div class="loj-kpi">
+        <div class="loj-kpi-lbl">PREENCHIMENTO</div>
+        <div class="loj-kpi-val loj-kpi-accent">${pct}%</div>
+        <div class="loj-kpi-sub">${totalCelulasPreench}/${totalCelulas} células</div>
+    </div>
+    <div class="loj-kpi">
+        <div class="loj-kpi-lbl">PRODUTOS ATIVOS</div>
+        <div class="loj-kpi-val">${totalPreench}</div>
+        <div class="loj-kpi-sub">com ao menos 1 grupo</div>
+    </div>
+    <div class="loj-kpi">
+        <div class="loj-kpi-lbl">PV MÍNIMO</div>
+        <div class="loj-kpi-val loj-kpi-green">${fmtBRL(pvMin)}</div>
+        <div class="loj-kpi-sub">menor valor tabela</div>
+    </div>
+    <div class="loj-kpi">
+        <div class="loj-kpi-lbl">PV MÁXIMO</div>
+        <div class="loj-kpi-val">${fmtBRL(pvMax)}</div>
+        <div class="loj-kpi-sub">maior valor tabela</div>
+    </div>
+</div>`;
 
     // ── Tier cards (grupos) ──
     const tierCards = GRUPOS_PRECO_ESTADO.map(g => {
         const nPreench = produtosPrincipais.filter(p => tabela[p.id]?.[g.id] !== undefined && tabela[p.id]?.[g.id] !== '').length;
-        return `<div class="loj-tier-card">
-            <div class="loj-tier-accent" style="background:${g.cor}"></div>
+        const isAtivo = st.grupoAtivo === g.id;
+        const vals = produtosPrincipais.map(p => tabela[p.id]?.[g.id]).filter(v => v !== undefined && v !== '').map(Number).filter(v => !isNaN(v) && v > 0);
+        const mediaGrupo = vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : 0;
+        return `<div class="loj-tier-card${isAtivo ? ' active' : ''}" data-grupo-id="${g.id}" onclick="window._lojSelecionarGrupo('${g.id}')" style="--tier-cor:${g.cor}">
+            <div class="loj-tier-accent" style="background:${g.cor};width:${isAtivo?'6px':'4px'}"></div>
             <div class="loj-tier-body">
                 <div class="loj-tier-label">${g.label.toUpperCase()}</div>
-                <div class="loj-tier-ufs">${g.ufs.slice(0,5).join(' · ')}${g.ufs.length>5?` +${g.ufs.length-5}`:''}${g.ufs.length>5?'':''}</div>
-                <div class="loj-tier-stat"><span class="loj-tier-val">${nPreench}</span><span class="loj-tier-of">/${totalProds}</span> preenchidos</div>
+                <div class="loj-tier-ufs">${g.ufs.slice(0,5).join(' · ')}${g.ufs.length>5?` +${g.ufs.length-5}`:''}</div>
+                <div class="loj-tier-stats-row">
+                    <div class="loj-tier-stat"><span class="loj-tier-val">${nPreench}</span><span class="loj-tier-of">/${totalProds}</span> <span class="loj-tier-stat-lbl">preench.</span></div>
+                    ${mediaGrupo > 0 ? `<div class="loj-tier-avg">${mediaGrupo.toLocaleString('pt-BR',{minimumFractionDigits:0,maximumFractionDigits:0})}</div>` : ''}
+                </div>
             </div>
         </div>`;
     }).join('');
@@ -15614,16 +15665,21 @@ function renderizarTabelaPrecoEstado() {
     <div class="loj-main">
         <div class="loj-command-bar">
             <span class="loj-bar-title">TABELA DE PREÇOS — LOJISTAS</span>
+            <div class="loj-search-wrap">
+                <span class="loj-search-icon">&#128269;</span>
+                <input type="text" class="loj-search-input" id="loj-busca-prod" placeholder="Buscar produto..." value="${_escapeHtml(st.busca)}" oninput="window._lojFiltrarTabela(this.value)">
+            </div>
             <span style="flex:1"></span>
             <span class="loj-bar-stat">${totalPreench}/${totalProds} produtos preenchidos</span>
             <span class="loj-bar-stat loj-bar-stat-muted">${totalVersoes} versões</span>
         </div>
+        ${kpiStrip}
         <div class="loj-table-wrap" id="precoEstadoTabelaWrap">
             <table class="loj-table">
                 <thead>
                     <tr>
                         <th class="loj-th-prod">PRODUTO</th>
-                        ${GRUPOS_PRECO_ESTADO.map(g => `<th class="loj-th-grupo" style="--grupo-cor:${g.cor}">${g.label.toUpperCase()}<div class="loj-th-ufs">${g.ufs.slice(0,4).join(' · ')}${g.ufs.length>4?`…`:''}</div></th>`).join('')}
+                        ${GRUPOS_PRECO_ESTADO.map(g => `<th class="loj-th-grupo${st.grupoAtivo === g.id ? ' active' : ''}" style="--grupo-cor:${g.cor}">${g.label.toUpperCase()}<div class="loj-th-ufs">${g.ufs.slice(0,4).join(' · ')}${g.ufs.length>4?`…`:''}</div></th>`).join('')}
                     </tr>
                 </thead>
                 <tbody id="loj-tbody"></tbody>
@@ -15631,8 +15687,10 @@ function renderizarTabelaPrecoEstado() {
         </div>
         <div class="loj-footbar">
             <span class="loj-footbar-tag">LOJISTAS</span>
-            <span>PRODUTOS: ${totalProds}</span>
-            <span>GRUPOS: ${GRUPOS_PRECO_ESTADO.length}</span>
+            <span>PROD: <b style="color:#d8e4f0">${totalProds}</b></span>
+            <span>GRUPOS: <b style="color:#d8e4f0">${GRUPOS_PRECO_ESTADO.length}</b></span>
+            <span>PREENCH: <b style="color:${pct>=80?'#4ade80':pct>=40?'#f59e0b':'#f87171'}">${pct}%</b></span>
+            ${st.grupoAtivo ? `<span>FILTRO: <b style="color:var(--tv-amber-400)">${GRUPOS_PRECO_ESTADO.find(g=>g.id===st.grupoAtivo)?.label||''}</b></span>` : ''}
             <span style="margin-left:auto;color:var(--tv-navy-600)">${new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}</span>
         </div>
     </div>
@@ -15654,7 +15712,8 @@ function renderizarTabelaPrecoEstado() {
         const cells = GRUPOS_PRECO_ESTADO.map(g => {
             const val = (tabela[prod.id] && tabela[prod.id][g.id] !== undefined) ? tabela[prod.id][g.id] : '';
             const displayVal = val !== '' ? Number(val).toLocaleString('pt-BR', {minimumFractionDigits:2,maximumFractionDigits:2}) : '';
-            return `<td class="loj-td-val"><input type="text" inputmode="decimal"
+            const isGrupoAtivo = st.grupoAtivo === g.id;
+            return `<td class="loj-td-val${isGrupoAtivo ? ' loj-td-ativo' : ''}"><input type="text" inputmode="decimal"
                 class="loj-price-input" data-prod="${prod.id}" data-grupo="${g.id}"
                 value="${displayVal}" placeholder="—"
                 oninput="formatarMoedaPrecoEstado(this)"
@@ -15663,13 +15722,21 @@ function renderizarTabelaPrecoEstado() {
         return `<tr class="${trClass}"${trAttrs}><td class="loj-td-prod">${nomeInner}</td>${cells}</tr>`;
     }
 
-    let rowsHTML = '';
-    produtosPrincipais.forEach(prod => {
-        rowsHTML += _lojLinhaHTML(prod, false);
-        const filhas = pecasPorPaiLE[(prod.nome||'').toUpperCase()] || [];
-        filhas.forEach(p => { rowsHTML += _lojLinhaHTML(p, true); });
-    });
-    tbody.innerHTML = rowsHTML;
+    function _lojRenderLinhas(filtro) {
+        let rowsHTML = '';
+        const f = (filtro || '').toLowerCase().trim();
+        produtosPrincipais.forEach(prod => {
+            const match = !f || (prod.nome || '').toLowerCase().includes(f);
+            if (match) {
+                rowsHTML += _lojLinhaHTML(prod, false);
+                const filhas = pecasPorPaiLE[(prod.nome||'').toUpperCase()] || [];
+                filhas.forEach(p => { rowsHTML += _lojLinhaHTML(p, true); });
+            }
+        });
+        return rowsHTML || `<tr><td colspan="${GRUPOS_PRECO_ESTADO.length + 1}" style="padding:20px;text-align:center;color:var(--tv-navy-500);font-family:var(--tv-font-mono);font-size:0.8rem">Nenhum produto encontrado para "${_escapeHtml(f)}"</td></tr>`;
+    }
+
+    tbody.innerHTML = _lojRenderLinhas(st.busca);
 
     // ── Botões expand (post-render) ──
     produtosPrincipais.forEach(prod => {
@@ -15700,6 +15767,27 @@ function renderizarTabelaPrecoEstado() {
         inp.addEventListener('focus', () => { inp.style.borderColor = inp.style.getPropertyValue('--focus-cor') || 'var(--tv-amber-500)'; });
         inp.addEventListener('blur', () => { inp.style.borderColor = ''; });
     });
+
+    // ── Callbacks globais ──
+    window._lojSelecionarGrupo = function(grupoId) {
+        const c = document.getElementById('subaba-precif-precoestado');
+        if (!c || !c._lojState) return;
+        c._lojState.grupoAtivo = c._lojState.grupoAtivo === grupoId ? null : grupoId;
+        renderizarTabelaPrecoEstado();
+    };
+    window._lojFiltrarTabela = function(val) {
+        const c = document.getElementById('subaba-precif-precoestado');
+        if (!c || !c._lojState) return;
+        c._lojState.busca = val;
+        const tb = c.querySelector('#loj-tbody');
+        if (!tb) return;
+        tb.innerHTML = _lojRenderLinhas(val);
+        // re-attach expand buttons after filter
+        c.querySelectorAll('.loj-price-input').forEach(inp => {
+            inp.addEventListener('focus', () => { inp.style.borderColor = inp.style.getPropertyValue('--focus-cor') || 'var(--tv-amber-500)'; });
+            inp.addEventListener('blur', () => { inp.style.borderColor = ''; });
+        });
+    };
 }
 
 function formatarMoedaPrecoEstado(input) {
