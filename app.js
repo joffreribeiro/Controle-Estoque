@@ -15397,7 +15397,13 @@ function trocarSubabaPrecif(subaba) {
         let el = null;
         if (s === 'consultaPrec') el = document.getElementById('painel-consultaPrec');
         else el = document.getElementById('subaba-precif-' + s);
-        if (el) el.style.display = (s === subaba) ? 'block' : 'none';
+        if (el) {
+            if (s === subaba) {
+                el.style.display = (s === 'impostos') ? 'flex' : 'block';
+            } else {
+                el.style.display = 'none';
+            }
+        }
 
         const btnId = (s === 'consultaPrec') ? 'btnConsultaPrecificacao' : ('sbtn-' + s);
         const btn = document.getElementById(btnId);
@@ -15450,19 +15456,11 @@ function trocarSubabaPrecif(subaba) {
 }
 
 function trocarSubabaImpostos(painel) {
-    const paineis = ['federais', 'icms'];
-    paineis.forEach(p => {
-        const el = document.getElementById('impostos-painel-' + p);
-        if (el) el.style.display = (p === painel) ? 'block' : 'none';
-        const btn = document.getElementById('ibtn-' + p);
-        if (btn) {
-            btn.classList.toggle('active', p === painel);
-            btn.style.color = '';
-            btn.style.borderBottomColor = '';
-        }
-    });
-    if (painel === 'federais') try { renderizarImpostosFederais(); } catch (e) {}
-    if (painel === 'icms') try { renderizarICMSPorEstado(); } catch (e) {}
+    const container = document.getElementById('subaba-precif-impostos');
+    if (!container) return;
+    if (!container._impState) container._impState = { view: 'federais', tipoPJ: 'PJ', buscaFed: '', buscaICM: '', filtroNCM: '' };
+    container._impState.view = painel;
+    _renderizarImpostosBloomb(container);
 }
 
 function atualizarKPIsCI() {
@@ -19874,38 +19872,11 @@ function inicializarImpostosEditaveis() {
 }
 
 function renderizarImpostosFederais() {
-    inicializarImpostosEditaveis();
-    const tbody = document.getElementById('tabelaImpostosFederaisBody');
-    if (!tbody) return;
-    const produtos = estoque.produtos || [];
-    const entries = Object.entries(impostosEditaveis);
-    tbody.innerHTML = entries.map(([ncm, imp]) => {
-        const vinculados = produtos.filter(p => (p.ncm || detectarNCM(p.nome)) === ncm).length;
-        const idSafe = ncm.replace(/\./g,'_');
-        return `
-            <tr id="row-fed-${idSafe}">
-                <td style="text-align:left; padding-left:15px; font-weight:600; font-family:monospace; color:#1e3a5f">${ncm}</td>
-                <td style="text-align:left">
-                    <input type="text" value="${(imp.descricao||'')}" onchange="editarImpostoFederal('${ncm}','descricao',this.value)" style="width:100%; border:1px solid transparent; border-radius:4px; padding:4px 6px; font-size:0.85rem; background:transparent" onfocus="this.style.borderColor='#1e3a5f'" onblur="this.style.borderColor='transparent'">
-                </td>
-                <td>
-                    <input type="number" step="0.01" min="0" max="100" value="${imp.pis}" onchange="editarImpostoFederal('${ncm}','pis',this.value)" style="width:70px; border:1px solid #e2e8f0; border-radius:4px; padding:4px 6px; text-align:center; font-size:0.85rem">
-                </td>
-                <td>
-                    <input type="number" step="0.01" min="0" max="100" value="${imp.cofins}" onchange="editarImpostoFederal('${ncm}','cofins',this.value)" style="width:70px; border:1px solid #e2e8f0; border-radius:4px; padding:4px 6px; text-align:center; font-size:0.85rem">
-                </td>
-                <td>
-                    <input type="number" step="0.01" min="0" max="100" value="${imp.ipi}" onchange="editarImpostoFederal('${ncm}','ipi',this.value)" style="width:70px; border:1px solid #e2e8f0; border-radius:4px; padding:4px 6px; text-align:center; font-size:0.85rem">
-                </td>
-                <td style="text-align:center">
-                    <span style="background:#e0f2fe; color:#0369a1; font-size:0.75rem; font-weight:600; padding:2px 8px; border-radius:20px">${vinculados} produto(s)</span>
-                </td>
-                <td style="text-align:center">
-                    <button onclick="excluirNCM('${ncm}')" style="background:none; border:none; cursor:pointer; color:#dc2626; font-size:1rem" title="Excluir NCM">🗑️</button>
-                </td>
-            </tr>
-        `;
-    }).join('');
+    const container = document.getElementById('subaba-precif-impostos');
+    if (!container) return;
+    if (!container._impState) container._impState = { view: 'federais', tipoPJ: 'PJ', buscaFed: '', buscaICM: '', filtroNCM: '' };
+    container._impState.view = 'federais';
+    _renderizarImpostosBloomb(container);
 }
 
 function editarImpostoFederal(ncm, campo, valor) {
@@ -19923,44 +19894,36 @@ function editarImpostoFederal(ncm, campo, valor) {
 }
 
 function adicionarNCM() {
-    // Criar modal inline
     const overlay = document.createElement('div');
-    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:9999;display:flex;align-items:center;justify-content:center';
+    overlay.className = 'imp-modal-overlay';
     overlay.innerHTML = `
-        <div style="background:#fff;border-radius:12px;padding:28px 32px;min-width:380px;box-shadow:0 8px 40px rgba(0,0,0,0.18)">
-            <h3 style="margin:0 0 20px;color:#1e3a5f;font-size:1.05rem">Cadastrar Novo NCM</h3>
-            <div style="display:flex;flex-direction:column;gap:12px">
-                <div>
-                    <label style="font-size:0.82rem;font-weight:600;color:#374151;display:block;margin-bottom:4px">Código NCM <span style="color:#dc2626">*</span></label>
-                    <input id="_ncmNovoCode" type="text" placeholder="Ex: 9302.00.00" maxlength="20"
-                        style="width:100%;padding:8px 10px;border:1px solid #d1d5db;border-radius:6px;font-family:monospace;font-size:0.95rem;box-sizing:border-box">
+        <div class="imp-modal">
+            <div class="imp-modal-title">Cadastrar NCM</div>
+            <div class="imp-modal-field">
+                <label class="imp-modal-label">Código NCM <span>*</span></label>
+                <input id="_ncmNovoCode" class="imp-modal-input" type="text" placeholder="Ex: 9302.00.00" maxlength="20">
+            </div>
+            <div class="imp-modal-field">
+                <label class="imp-modal-label">Descrição <span>*</span></label>
+                <input id="_ncmNovoDesc" class="imp-modal-input" type="text" placeholder="Ex: Revólveres e pistolas">
+            </div>
+            <div class="imp-modal-grid">
+                <div class="imp-modal-field">
+                    <label class="imp-modal-label">PIS (%)</label>
+                    <input id="_ncmNovoPis" class="imp-modal-input" type="number" step="0.01" min="0" value="1.65">
                 </div>
-                <div>
-                    <label style="font-size:0.82rem;font-weight:600;color:#374151;display:block;margin-bottom:4px">Descrição <span style="color:#dc2626">*</span></label>
-                    <input id="_ncmNovoDesc" type="text" placeholder="Ex: Revólveres e pistolas"
-                        style="width:100%;padding:8px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:0.92rem;box-sizing:border-box">
+                <div class="imp-modal-field">
+                    <label class="imp-modal-label">COFINS (%)</label>
+                    <input id="_ncmNovoCofins" class="imp-modal-input" type="number" step="0.01" min="0" value="7.60">
                 </div>
-                <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">
-                    <div>
-                        <label style="font-size:0.78rem;font-weight:600;color:#374151;display:block;margin-bottom:4px">PIS (%)</label>
-                        <input id="_ncmNovoPis" type="number" step="0.01" min="0" value="1.65"
-                            style="width:100%;padding:7px 8px;border:1px solid #d1d5db;border-radius:6px;font-size:0.88rem;box-sizing:border-box">
-                    </div>
-                    <div>
-                        <label style="font-size:0.78rem;font-weight:600;color:#374151;display:block;margin-bottom:4px">COFINS (%)</label>
-                        <input id="_ncmNovoCofins" type="number" step="0.01" min="0" value="7.60"
-                            style="width:100%;padding:7px 8px;border:1px solid #d1d5db;border-radius:6px;font-size:0.88rem;box-sizing:border-box">
-                    </div>
-                    <div>
-                        <label style="font-size:0.78rem;font-weight:600;color:#374151;display:block;margin-bottom:4px">IPI (%)</label>
-                        <input id="_ncmNovoIpi" type="number" step="0.01" min="0" value="0"
-                            style="width:100%;padding:7px 8px;border:1px solid #d1d5db;border-radius:6px;font-size:0.88rem;box-sizing:border-box">
-                    </div>
+                <div class="imp-modal-field">
+                    <label class="imp-modal-label">IPI (%)</label>
+                    <input id="_ncmNovoIpi" class="imp-modal-input" type="number" step="0.01" min="0" value="0">
                 </div>
             </div>
-            <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:22px">
-                <button id="_ncmNovoCancelar" class="btn btn-outline">Cancelar</button>
-                <button id="_ncmNovoSalvar" class="btn btn-primary">Salvar NCM</button>
+            <div class="imp-modal-actions">
+                <button id="_ncmNovoCancelar" class="imp-modal-cancel">CANCELAR</button>
+                <button id="_ncmNovoSalvar" class="imp-modal-save">SALVAR NCM</button>
             </div>
         </div>`;
     document.body.appendChild(overlay);
@@ -19983,7 +19946,7 @@ function adicionarNCM() {
         renderizarImpostosFederais();
         salvarDados();
         overlay.remove();
-        mostrarNotificacao(`NCM ${code} cadastrado com sucesso!`, 'success');
+        mostrarNotificacao(`NCM ${code} cadastrado.`, 'success');
     };
     inp.addEventListener('keydown', e => { if (e.key === 'Enter') overlay.querySelector('#_ncmNovoDesc').focus(); });
 }
@@ -20042,36 +20005,216 @@ function inicializarICMSEditavel() {
 }
 
 function renderizarICMSPorEstado() {
+    const container = document.getElementById('subaba-precif-impostos');
+    if (!container) return;
+    if (!container._impState) container._impState = { view: 'icms', tipoPJ: 'PJ', buscaFed: '', buscaICM: '', filtroNCM: '' };
+    container._impState.view = 'icms';
+    _renderizarImpostosBloomb(container);
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// BLOOMBERG — Aba Impostos (renderização principal)
+// ═══════════════════════════════════════════════════════════════════════
+function _renderizarImpostosBloomb(container) {
+    inicializarImpostosEditaveis();
+    inicializarICMSEditavel();
+
+    if (!container._impState) {
+        container._impState = { view: 'federais', tipoPJ: 'PJ', buscaFed: '', buscaICM: '', filtroNCM: '' };
+    }
+    const s = container._impState;
+    const produtos = estoque.produtos || [];
+
+    // ── KPI stats ──
+    const ncms = Object.keys(impostosEditaveis);
+    const totalNCMs = ncms.length;
+    const totalVinculados = new Set(
+        produtos.map(p => p.ncm || detectarNCM(p.nome)).filter(n => impostosEditaveis[n])
+    ).size;
+    const ipiAltos = ncms.filter(n => (impostosEditaveis[n]?.ipi || 0) >= 50).length;
+    const pisMedio = ncms.length
+        ? (ncms.reduce((a, n) => a + (impostosEditaveis[n]?.pis || 0), 0) / ncms.length).toFixed(2)
+        : '—';
+    const cofinsMedio = ncms.length
+        ? (ncms.reduce((a, n) => a + (impostosEditaveis[n]?.cofins || 0), 0) / ncms.length).toFixed(2)
+        : '—';
+
+    // ── Callbacks globais ──
+    window._impSetView = (v) => { s.view = v; _renderizarImpostosBloomb(container); };
+    window._impSetTipo = (t) => { s.tipoPJ = t; _renderizarImpostosBloomb(container); };
+    window._impBuscaFed = (v) => { s.buscaFed = v; _impRenderFedBody(container); _impRenderFootbar(container); };
+    window._impBuscaICM = (v) => { s.buscaICM = v; _impRenderICMBody(container); _impRenderFootbar(container); };
+    window._impFiltroNCM = (v) => { s.filtroNCM = v; _impRenderICMBody(container); _impRenderFootbar(container); };
+
+    container.innerHTML = `
+<div class="imp-nav">
+    <button class="imp-nav-btn${s.view==='federais'?' active':''}" onclick="window._impSetView('federais')">IMPOSTOS FEDERAIS</button>
+    <button class="imp-nav-btn${s.view==='icms'?' active':''}" onclick="window._impSetView('icms')">ICMS × ESTADO</button>
+</div>
+<div class="imp-kpi-strip">
+    <div class="imp-kpi"><div class="imp-kpi-label">NCMs Cadastrados</div><div class="imp-kpi-value">${totalNCMs}</div><div class="imp-kpi-sub">${totalVinculados} com produtos</div></div>
+    <div class="imp-kpi"><div class="imp-kpi-label">PIS Médio</div><div class="imp-kpi-value">${pisMedio}%</div><div class="imp-kpi-sub">sobre receita bruta</div></div>
+    <div class="imp-kpi"><div class="imp-kpi-label">COFINS Médio</div><div class="imp-kpi-value">${cofinsMedio}%</div><div class="imp-kpi-sub">sobre receita bruta</div></div>
+    <div class="imp-kpi"><div class="imp-kpi-label">IPI ≥ 50%</div><div class="imp-kpi-value">${ipiAltos}</div><div class="imp-kpi-sub">NCMs de alta alíquota</div></div>
+</div>
+<div id="imp-panel-federais" style="display:${s.view==='federais'?'flex':'none'};flex-direction:column;flex:1;overflow:hidden">
+    <div class="imp-command-bar">
+        <input class="imp-search" type="text" placeholder="Buscar NCM ou descrição..." value="${s.buscaFed||''}" oninput="window._impBuscaFed(this.value)">
+        <div class="imp-bar-sep"></div>
+        <button class="imp-bar-btn primary" onclick="adicionarNCM()">+ NOVO NCM</button>
+        <button class="imp-bar-btn" onclick="exportarImpostosFederais()">&#8679; EXPORTAR</button>
+        <button class="imp-bar-btn" onclick="importarImpostosFederais()">&#8681; IMPORTAR</button>
+        <input type="file" id="inputImportarFederais" accept=".xlsx,.xls,.csv" style="display:none" onchange="importarImpostosFederaisArquivo(event)">
+    </div>
+    <div class="imp-info-box">Impostos pré-carregados por NCM. Alterações sobrescrevem os valores padrão para todos os produtos com esse NCM.</div>
+    <div class="imp-fed-wrap">
+        <table class="imp-fed-table">
+            <thead>
+                <tr>
+                    <th style="min-width:110px">NCM</th>
+                    <th style="min-width:240px">Descrição</th>
+                    <th class="num" style="min-width:90px">PIS (%)</th>
+                    <th class="num" style="min-width:90px">COFINS (%)</th>
+                    <th class="num" style="min-width:90px">IPI (%)</th>
+                    <th style="min-width:110px;text-align:center">Produtos</th>
+                    <th style="min-width:50px;text-align:center"></th>
+                </tr>
+            </thead>
+            <tbody id="imp-fed-tbody"></tbody>
+        </table>
+    </div>
+</div>
+<div id="imp-panel-icms" style="display:${s.view==='icms'?'flex':'none'};flex-direction:column;flex:1;overflow:hidden">
+    <div class="imp-command-bar">
+        <input class="imp-search" type="text" placeholder="Buscar NCM..." value="${s.buscaICM||''}" oninput="window._impBuscaICM(this.value)">
+        <div class="imp-seg">
+            <button class="imp-seg-btn${s.tipoPJ==='PJ'?' active':''}" onclick="window._impSetTipo('PJ')">PJ</button>
+            <button class="imp-seg-btn${s.tipoPJ==='PF'?' active':''}" onclick="window._impSetTipo('PF')">PF</button>
+        </div>
+        <div class="imp-bar-sep"></div>
+        <button class="imp-bar-btn" onclick="exportarICMSEstados()">&#8679; EXPORTAR</button>
+        <button class="imp-bar-btn" onclick="importarICMSEstados()">&#8681; IMPORTAR</button>
+        <input type="file" id="inputImportarICMSEstados" accept=".xlsx,.xls,.csv" style="display:none" onchange="importarICMSEstadosArquivo(event)">
+    </div>
+    <div class="imp-info-box">Clique em qualquer célula de alíquota para editar. Alterações salvas automaticamente.</div>
+    <div class="imp-icms-wrap">
+        <table class="imp-icms-table" id="imp-icms-table">
+            <thead id="imp-icms-thead"></thead>
+            <tbody id="imp-icms-tbody"></tbody>
+        </table>
+    </div>
+</div>
+<div class="imp-footbar" id="imp-footbar"></div>
+`;
+
+    _impRenderFedBody(container);
+    _impRenderICMBody(container);
+    _impRenderFootbar(container);
+}
+
+function _impRenderFedBody(container) {
+    const s = container._impState;
+    const tbody = document.getElementById('imp-fed-tbody');
+    if (!tbody) return;
+    const produtos = estoque.produtos || [];
+    const busca = (s.buscaFed || '').toLowerCase();
+    const entries = Object.entries(impostosEditaveis).filter(([ncm, imp]) => {
+        if (!busca) return true;
+        return ncm.toLowerCase().includes(busca) || (imp.descricao||'').toLowerCase().includes(busca);
+    });
+    tbody.innerHTML = entries.map(([ncm, imp]) => {
+        const vinculados = produtos.filter(p => (p.ncm || detectarNCM(p.nome)) === ncm).length;
+        const desc = (imp.descricao || '').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+        return `<tr>
+            <td class="ncm-code">${ncm}</td>
+            <td><input class="imp-fed-input-desc" type="text" value="${desc}" title="${desc}" onchange="editarImpostoFederal('${ncm}','descricao',this.value)"></td>
+            <td class="num"><input class="imp-fed-input" type="number" step="0.01" min="0" max="100" value="${imp.pis}" onchange="editarImpostoFederal('${ncm}','pis',this.value)"></td>
+            <td class="num"><input class="imp-fed-input" type="number" step="0.01" min="0" max="100" value="${imp.cofins}" onchange="editarImpostoFederal('${ncm}','cofins',this.value)"></td>
+            <td class="num"><input class="imp-fed-input" type="number" step="0.01" min="0" max="100" value="${imp.ipi}" onchange="editarImpostoFederal('${ncm}','ipi',this.value)"></td>
+            <td style="text-align:center"><span class="imp-badge-link">${vinculados} prod.</span></td>
+            <td style="text-align:center"><button class="imp-del-btn" onclick="excluirNCM('${ncm}')" title="Excluir NCM">&#10005;</button></td>
+        </tr>`;
+    }).join('');
+}
+
+function _impRenderICMBody(container) {
+    const s = container._impState;
+    const thead = document.getElementById('imp-icms-thead');
+    const tbody = document.getElementById('imp-icms-tbody');
+    if (!thead || !tbody) return;
     inicializarICMSEditavel();
     inicializarImpostosEditaveis();
-    const tipo = document.getElementById('filtroICMS_Tipo')?.value || 'PJ';
-    const filtroNCM = document.getElementById('filtroICMS_NCM')?.value || '';
+
+    const tipo = s.tipoPJ || 'PJ';
     const tabela = tipo === 'PF' ? icmsEditavelPF : icmsEditavelPJ;
-    const selectNCM = document.getElementById('filtroICMS_NCM');
-    if (selectNCM) {
-        const ncms = Object.keys(impostosEditaveis);
-        selectNCM.innerHTML = '<option value="">Todos os NCMs</option>' + ncms.map(ncm => `<option value="${ncm}" ${ncm===filtroNCM?'selected':''}>${ncm} — ${impostosEditaveis[ncm]?.descricao || ''}</option>`).join('');
-    }
-    const ncmsParaExibir = filtroNCM ? [filtroNCM] : Object.keys(tabela);
-    document.getElementById('icmsEstadosHeader').innerHTML = `
-        <th style="text-align:left; padding-left:10px; min-width:120px; position:sticky; left:0; background:#1e3a5f; z-index:2">NCM</th>
-        <th style="text-align:left; min-width:180px; position:sticky; left:120px; background:#1e3a5f; z-index:2">Descrição</th>
-        ${ESTADOS_LISTA.map(uf => `<th style="min-width:52px; text-align:center">${uf}</th>`).join('')}
-    `;
-    document.getElementById('tabelaICMSEstadosBody').innerHTML = ncmsParaExibir.map(ncm => {
+    const busca = (s.buscaICM || '').toLowerCase();
+
+    const REGIOES = [
+        { nome: 'N',  ufs: ['AC','AM','AP','PA','RO','RR','TO'] },
+        { nome: 'NE', ufs: ['AL','BA','CE','MA','PB','PE','PI','RN','SE'] },
+        { nome: 'CO', ufs: ['DF','GO','MS','MT'] },
+        { nome: 'SE', ufs: ['ES','MG','RJ','SP'] },
+        { nome: 'S',  ufs: ['PR','RS','SC'] },
+    ];
+    const allUFs = REGIOES.flatMap(r => r.ufs);
+
+    // header
+    const regionCells = REGIOES.map(r =>
+        `<th colspan="${r.ufs.length}" style="text-align:center">${r.nome}</th>`
+    ).join('');
+    const colCells = allUFs.map(uf => `<th>${uf}</th>`).join('');
+    thead.innerHTML = `
+        <tr class="region-row">
+            <th class="sticky-ncm" colspan="1" rowspan="1">NCM</th>
+            <th class="sticky-desc" colspan="1" rowspan="1">Descrição</th>
+            ${regionCells}
+        </tr>
+        <tr class="col-row">
+            <th class="sticky-ncm">NCM</th>
+            <th class="sticky-desc">DESCRIÇÃO</th>
+            ${colCells}
+        </tr>`;
+
+    const ncmsParaExibir = (busca
+        ? Object.keys(tabela).filter(n =>
+            n.toLowerCase().includes(busca) || (impostosEditaveis[n]?.descricao||'').toLowerCase().includes(busca)
+          )
+        : Object.keys(tabela)
+    );
+
+    tbody.innerHTML = ncmsParaExibir.map(ncm => {
         const mapa = tabela[ncm] || {};
         const desc = impostosEditaveis[ncm]?.descricao || ncm;
-        return `
-            <tr>
-                <td style="text-align:left; padding-left:10px; font-weight:600; font-family:monospace; color:#1e3a5f; font-size:0.78rem; position:sticky; left:0; background:#fff; z-index:1; border-right:1px solid #e2e8f0">${ncm}</td>
-                <td style="text-align:left; font-size:0.82rem; color:#475569; position:sticky; left:120px; background:#fff; z-index:1; border-right:2px solid #e2e8f0; max-width:180px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap" title="${desc}">${desc}</td>
-                ${ESTADOS_LISTA.map(uf => {
-                    const val = mapa[uf] !== undefined ? mapa[uf] : '';
-                    return `<td style="padding:2px 3px; text-align:center"><input type="number" step="0.5" min="0" max="100" value="${val}" placeholder="—" title="${ncm} / ${uf} / ${tipo}: ${val}%" onchange="editarICMSEstado('${ncm}','${uf}','${tipo}',this.value)" style="width:46px; border:1px solid #e2e8f0; border-radius:4px; padding:3px 2px; text-align:center; font-size:0.8rem; background:${val===''?'#f8fafc':'#fff'}"></td>`;
-                }).join('')}
-            </tr>
-        `;
+        const descSafe = desc.replace(/"/g,'&quot;');
+        const cells = allUFs.map(uf => {
+            const val = mapa[uf] !== undefined ? mapa[uf] : '';
+            const cls = val !== '' ? 'has-val' : 'empty';
+            return `<td><input class="imp-icms-input ${cls}" type="number" step="0.5" min="0" max="100" value="${val}" placeholder="—" onchange="editarICMSEstado('${ncm}','${uf}','${tipo}',this.value)"></td>`;
+        }).join('');
+        return `<tr>
+            <td class="td-ncm">${ncm}</td>
+            <td class="td-desc" title="${descSafe}">${desc}</td>
+            ${cells}
+        </tr>`;
     }).join('');
+}
+
+function _impRenderFootbar(container) {
+    const s = container._impState;
+    const fb = document.getElementById('imp-footbar');
+    if (!fb) return;
+    const tipo = s.tipoPJ || 'PJ';
+    const tabela = s.view === 'icms' ? (tipo === 'PF' ? icmsEditavelPF : icmsEditavelPJ) : null;
+    const ncmCount = s.view === 'federais'
+        ? Object.keys(impostosEditaveis).length
+        : (tabela ? Object.keys(tabela).length : 0);
+    const busca = s.view === 'federais' ? (s.buscaFed||'') : (s.buscaICM||'');
+    const view = s.view === 'federais' ? 'FEDERAIS' : `ICMS / ${tipo}`;
+    fb.innerHTML = `
+        <span class="imp-footbar-tag">${view}</span>
+        <span>NCMs: ${ncmCount}</span>
+        ${busca ? `<span>FILTRO: <span style="color:var(--tv-amber-300)">${busca}</span></span>` : ''}
+        <span style="margin-left:auto;color:var(--tv-navy-600)">${new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}</span>`;
 }
 
 function editarICMSEstado(ncm, estado, tipoPessoa, valor) {
