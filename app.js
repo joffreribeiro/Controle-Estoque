@@ -15544,7 +15544,6 @@ function renderizarTabelaPrecoEstado() {
     const todosProds = (estoque.produtos || []).filter(p => p.nome);
     const historico = getHistoricoTabelasLojistas();
 
-    // Separar principais e peças (mesmo critério da T.Venda)
     const produtosPrincipais = todosProds.filter(p => !p.componente || p.componente.trim() === '' || p.componente.trim() === '-');
     const pecasPorPaiLE = {};
     todosProds.filter(p => p.componente && p.componente.trim() !== '' && p.componente.trim() !== '-').forEach(p => {
@@ -15553,138 +15552,153 @@ function renderizarTabelaPrecoEstado() {
         pecasPorPaiLE[pai].push(p);
     });
 
-    if (!produtosPrincipais.length && !todosProds.length) {
-        container.innerHTML = '<p style="color:#64748b;padding:20px">Nenhum produto cadastrado.</p>';
-        return;
-    }
+    // ── KPIs ──
+    const totalPreench = produtosPrincipais.filter(p =>
+        GRUPOS_PRECO_ESTADO.some(g => tabela[p.id]?.[g.id] !== undefined && tabela[p.id]?.[g.id] !== '')
+    ).length;
+    const totalProds = produtosPrincipais.length;
+    const totalVersoes = historico.length;
 
-    // Seção histórico
-    let historicoHtml = '';
-    if (historico.length) {
-        historicoHtml = `
-        <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:14px 16px;margin-bottom:20px">
-            <div style="font-size:0.85rem;font-weight:700;color:#1e3a5f;margin-bottom:10px">📂 Tabelas Salvas Anteriormente</div>
-            <div style="display:flex;flex-direction:column;gap:6px">`;
-        historico.slice().reverse().forEach((h, i) => {
+    // ── Tier cards (grupos) ──
+    const tierCards = GRUPOS_PRECO_ESTADO.map(g => {
+        const nPreench = produtosPrincipais.filter(p => tabela[p.id]?.[g.id] !== undefined && tabela[p.id]?.[g.id] !== '').length;
+        return `<div class="loj-tier-card">
+            <div class="loj-tier-accent" style="background:${g.cor}"></div>
+            <div class="loj-tier-body">
+                <div class="loj-tier-label">${g.label.toUpperCase()}</div>
+                <div class="loj-tier-ufs">${g.ufs.slice(0,5).join(' · ')}${g.ufs.length>5?` +${g.ufs.length-5}`:''}${g.ufs.length>5?'':''}</div>
+                <div class="loj-tier-stat"><span class="loj-tier-val">${nPreench}</span><span class="loj-tier-of">/${totalProds}</span> preenchidos</div>
+            </div>
+        </div>`;
+    }).join('');
+
+    // ── Histórico ──
+    const histItems = historico.length
+        ? historico.slice().reverse().map((h, i) => {
             const idx = historico.length - 1 - i;
-            historicoHtml += `
-                <div style="display:flex;align-items:center;gap:10px;background:#fff;border:1px solid #e2e8f0;border-radius:6px;padding:8px 12px">
-                    <span style="font-size:0.85rem;color:#475569;flex:1">
-                        <strong>${_escapeHtml(h.nome)}</strong>
-                        <span style="color:#94a3b8;margin-left:8px;font-size:0.78rem">${h.data}</span>
-                    </span>
-                    <button class="btn btn-outline btn-sm" onclick="visualizarTabelaLojistasHistorico(${idx})">🔍 Visualizar</button>
-                    <button class="btn btn-outline btn-sm" onclick="restaurarTabelaLojistas(${idx})" title="Restaurar como tabela atual">↩️ Restaurar</button>
-                    <button class="btn btn-outline btn-sm" style="color:#cf222e" onclick="excluirTabelaLojistasHistorico(${idx})">🗑️</button>
-                </div>`;
-        });
-        historicoHtml += `</div></div>`;
-    }
+            return `<div class="loj-hist-item">
+                <div class="loj-hist-info">
+                    <span class="loj-hist-nome">${_escapeHtml(h.nome)}</span>
+                    <span class="loj-hist-data">${h.data}</span>
+                </div>
+                <div class="loj-hist-actions">
+                    <button class="loj-hist-btn" onclick="visualizarTabelaLojistasHistorico(${idx})">VER</button>
+                    <button class="loj-hist-btn" onclick="restaurarTabelaLojistas(${idx})">REST.</button>
+                    <button class="loj-hist-btn danger" onclick="excluirTabelaLojistasHistorico(${idx})">&times;</button>
+                </div>
+            </div>`;
+        }).join('')
+        : `<div style="color:var(--tv-navy-600);font-size:0.75rem;padding:8px 0;font-family:var(--tv-font-mono)">Nenhuma versão salva.</div>`;
 
-    let html = `
-        <div style="display:flex;gap:8px;align-items:center;margin-bottom:14px;flex-wrap:wrap">
-            <h3 style="margin:0;font-size:1rem;color:#1e3a5f;font-weight:700">Tabela de Preços para Lojistas</h3>
-            <button class="btn btn-primary btn-sm" onclick="salvarTabelaPrecoEstado()">💾 Salvar</button>
-            <button class="btn btn-outline btn-sm" onclick="salvarNovaVersaoTabelaLojistas()">📋 Salvar como nova versão</button>
-            <button class="btn btn-outline btn-sm" onclick="exportarTabelaLojistas(null)">📤 Exportar Todos</button>
-            <select class="prod-filter-select" style="font-size:0.82rem" onchange="if(this.value){exportarTabelaLojistas(this.value);this.value=''}">
-                <option value="">Exportar por grupo…</option>
-                ${GRUPOS_PRECO_ESTADO.map(g => `<option value="${g.id}">${g.label} (${g.ufs.slice(0,3).join(', ')}${g.ufs.length > 3 ? '…' : ''})</option>`).join('')}
-            </select>
-            <span style="font-size:0.77rem;color:#64748b">O preço é preenchido automaticamente na venda conforme a UF do cliente.</span>
+    // ── HTML principal ──
+    container.innerHTML = `
+<div class="loj-root">
+    <!-- Coluna esquerda: tiers + historico + acoes -->
+    <div class="loj-sidebar">
+        <div class="loj-sidebar-section">
+            <div class="loj-sidebar-title">GRUPOS DE PREÇO</div>
+            <div class="loj-tier-cards">${tierCards}</div>
         </div>
-        ${historicoHtml}
-        <div id="precoEstadoTabelaWrap">
-        <table style="border-collapse:collapse;width:100%;font-size:0.88rem">
-            <thead>
-                <tr>
-                    <th style="padding:10px 14px;text-align:left;background:#1e3a5f;color:#fff;min-width:180px">Produto</th>`;
+        <div class="loj-sidebar-section" style="margin-top:16px">
+            <div class="loj-sidebar-title">VERSÕES SALVAS</div>
+            <div class="loj-hist-list">${histItems}</div>
+        </div>
+        <div class="loj-sidebar-section" style="margin-top:auto;padding-top:16px;border-top:1px solid var(--tv-navy-800)">
+            <button class="loj-action-btn primary" onclick="salvarTabelaPrecoEstado()">&#10003; SALVAR TABELA</button>
+            <button class="loj-action-btn" onclick="salvarNovaVersaoTabelaLojistas()" style="margin-top:6px">+ NOVA VERSÃO</button>
+            <button class="loj-action-btn" onclick="exportarTabelaLojistas(null)" style="margin-top:6px">&#8679; EXPORTAR CSV</button>
+        </div>
+    </div>
 
-    GRUPOS_PRECO_ESTADO.forEach(g => {
-        const ufsList = g.ufs.join(' · ');
-        html += `<th style="padding:8px 16px;text-align:center;background:${g.cor};color:#fff;min-width:180px">
-            <div style="font-size:0.95rem;font-weight:700;margin-bottom:3px">${ufsList}</div>
-        </th>`;
-    });
-    html += `</tr></thead><tbody>`;
+    <!-- Coluna direita: tabela de preços -->
+    <div class="loj-main">
+        <div class="loj-command-bar">
+            <span class="loj-bar-title">TABELA DE PREÇOS — LOJISTAS</span>
+            <span style="flex:1"></span>
+            <span class="loj-bar-stat">${totalPreench}/${totalProds} produtos preenchidos</span>
+            <span class="loj-bar-stat loj-bar-stat-muted">${totalVersoes} versões</span>
+        </div>
+        <div class="loj-table-wrap" id="precoEstadoTabelaWrap">
+            <table class="loj-table">
+                <thead>
+                    <tr>
+                        <th class="loj-th-prod">PRODUTO</th>
+                        ${GRUPOS_PRECO_ESTADO.map(g => `<th class="loj-th-grupo" style="--grupo-cor:${g.cor}">${g.label.toUpperCase()}<div class="loj-th-ufs">${g.ufs.slice(0,4).join(' · ')}${g.ufs.length>4?`…`:''}</div></th>`).join('')}
+                    </tr>
+                </thead>
+                <tbody id="loj-tbody"></tbody>
+            </table>
+        </div>
+        <div class="loj-footbar">
+            <span class="loj-footbar-tag">LOJISTAS</span>
+            <span>PRODUTOS: ${totalProds}</span>
+            <span>GRUPOS: ${GRUPOS_PRECO_ESTADO.length}</span>
+            <span style="margin-left:auto;color:var(--tv-navy-600)">${new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}</span>
+        </div>
+    </div>
+</div>`;
 
-    function _renderLinhaLE(prod, isPeca, rowIdx) {
-        const bg = isPeca ? '#f8fafc' : (rowIdx % 2 === 0 ? '#fff' : '#f8fafc');
+    // ── Renderizar linhas da tabela ──
+    const tbody = document.getElementById('loj-tbody');
+    if (!tbody) return;
+
+    function _lojLinhaHTML(prod, isPeca) {
         const pecasFilhas = !isPeca ? (pecasPorPaiLE[(prod.nome || '').toUpperCase()] || []) : [];
         const temPecas = pecasFilhas.length > 0;
-        const idSlot = 'le-expand-' + Number(prod.id);
-
-        const nomeCell = isPeca
-            ? `<span style="padding-left:18px;color:#475569">↳ ${_escapeHtml(prod.nome)}</span>`
-            : `<span style="font-weight:600;color:#1e3a5f">${_escapeHtml(prod.nome)}</span>${temPecas ? `<span id="${idSlot}"></span>` : ''}`;
-
-        let row = `<tr${isPeca ? ` data-le-peca-filha="${_escapeHtml((prod.componente||'').trim())}" style="display:none;background:#f8fafc"` : ` style="background:${bg}"`}>
-            <td style="padding:8px 14px;border-bottom:1px solid #f1f5f9">${nomeCell}</td>`;
-
-        GRUPOS_PRECO_ESTADO.forEach(g => {
-            const chave = g.id;
-            const val = (tabela[prod.id] && tabela[prod.id][chave] !== undefined) ? tabela[prod.id][chave] : '';
+        const idSlot = 'loj-expand-' + Number(prod.id);
+        const nomeInner = isPeca
+            ? `<span class="loj-nome-peca">&#8627; ${_escapeHtml(prod.nome)}</span>`
+            : `<span class="loj-nome-prod">${_escapeHtml(prod.nome)}</span>${temPecas ? `<span id="${idSlot}"></span>` : ''}`;
+        const trClass = isPeca ? 'loj-tr-peca' : 'loj-tr-prod';
+        const trAttrs = isPeca ? ` data-le-peca-filha="${_escapeHtml((prod.componente||'').trim())}" style="display:none"` : '';
+        const cells = GRUPOS_PRECO_ESTADO.map(g => {
+            const val = (tabela[prod.id] && tabela[prod.id][g.id] !== undefined) ? tabela[prod.id][g.id] : '';
             const displayVal = val !== '' ? Number(val).toLocaleString('pt-BR', {minimumFractionDigits:2,maximumFractionDigits:2}) : '';
-            row += `<td style="padding:6px 10px;text-align:center;border-bottom:1px solid #f1f5f9">
-                <div style="display:flex;align-items:center;justify-content:center;gap:4px">
-                    <span style="font-size:0.75rem;color:#94a3b8">R$</span>
-                    <input type="text" inputmode="decimal"
-                        data-prod="${prod.id}" data-grupo="${chave}"
-                        value="${displayVal}"
-                        placeholder="0,00"
-                        oninput="formatarMoedaPrecoEstado(this)"
-                        style="width:100px;text-align:right;border:1px solid #e2e8f0;border-radius:5px;padding:5px 8px;font-size:0.85rem;font-weight:600;outline:none"
-                        onfocus="this.style.borderColor='${g.cor}';this.style.boxShadow='0 0 0 2px ${g.cor}22'"
-                        onblur="this.style.borderColor='#e2e8f0';this.style.boxShadow=''">
-                </div>
-            </td>`;
-        });
-        row += `</tr>`;
-        return { row, temPecas, pecasFilhas, idSlot };
+            return `<td class="loj-td-val"><input type="text" inputmode="decimal"
+                class="loj-price-input" data-prod="${prod.id}" data-grupo="${g.id}"
+                value="${displayVal}" placeholder="—"
+                oninput="formatarMoedaPrecoEstado(this)"
+                style="--focus-cor:${g.cor}"></td>`;
+        }).join('');
+        return `<tr class="${trClass}"${trAttrs}><td class="loj-td-prod">${nomeInner}</td>${cells}</tr>`;
     }
 
-    produtosPrincipais.forEach((prod, i) => {
-        const { row, temPecas, pecasFilhas } = _renderLinhaLE(prod, false, i);
-        html += row;
-        if (temPecas) {
-            pecasFilhas.forEach(peca => { html += _renderLinhaLE(peca, true, i).row; });
-        }
+    let rowsHTML = '';
+    produtosPrincipais.forEach(prod => {
+        rowsHTML += _lojLinhaHTML(prod, false);
+        const filhas = pecasPorPaiLE[(prod.nome||'').toUpperCase()] || [];
+        filhas.forEach(p => { rowsHTML += _lojLinhaHTML(p, true); });
+    });
+    tbody.innerHTML = rowsHTML;
+
+    // ── Botões expand (post-render) ──
+    produtosPrincipais.forEach(prod => {
+        const filhas = pecasPorPaiLE[(prod.nome||'').toUpperCase()] || [];
+        if (!filhas.length) return;
+        const slot = document.getElementById('loj-expand-' + Number(prod.id));
+        if (!slot) return;
+        const btn = document.createElement('span');
+        btn.className = 'loj-expand-btn';
+        btn.title = `Ver ${filhas.length} peça(s)`;
+        btn.innerHTML = `<span class="loj-expand-icon">&#9654;</span><span class="loj-expand-badge">${filhas.length}p</span>`;
+        btn.addEventListener('click', e => {
+            e.stopPropagation();
+            const icon = btn.querySelector('.loj-expand-icon');
+            const aberto = icon && icon.innerHTML.trim() === '&#9660;';
+            const nomeUp = (prod.nome||'').toUpperCase();
+            container.querySelectorAll('tr[data-le-peca-filha]').forEach(tr => {
+                if ((tr.dataset.lePecaFilha||'').toUpperCase() === nomeUp)
+                    tr.style.display = aberto ? 'none' : 'table-row';
+            });
+            if (icon) icon.innerHTML = aberto ? '&#9654;' : '&#9660;';
+        });
+        slot.appendChild(btn);
     });
 
-    html += `</tbody></table></div>`;
-    container.innerHTML = html;
-
-    // Injetar botões expand após HTML estar no DOM
-    produtosPrincipais.forEach((prod, i) => {
-        const filhas = pecasPorPaiLE[(prod.nome || '').toUpperCase()] || [];
-        if (!filhas.length) return;
-        const slot = document.getElementById('le-expand-' + Number(prod.id));
-        if (!slot) return;
-        const btnExpand = document.createElement('span');
-        btnExpand.style.cssText = 'cursor:pointer;user-select:none;display:inline-flex;align-items:center;gap:4px;margin-left:8px;vertical-align:middle';
-        btnExpand.title = `Ver ${filhas.length} peça(s)`;
-        const iconSpan = document.createElement('span');
-        iconSpan.className = 'le-expand-icon';
-        iconSpan.style.cssText = 'font-size:0.75rem;color:#1e3a5f;font-weight:700';
-        iconSpan.textContent = '▶';
-        const badge = document.createElement('span');
-        badge.style.cssText = 'background:#e0f2fe;color:#0369a1;border-radius:10px;padding:1px 7px;font-size:0.72rem;font-weight:700';
-        badge.textContent = `${filhas.length} peça${filhas.length > 1 ? 's' : ''}`;
-        btnExpand.appendChild(iconSpan);
-        btnExpand.appendChild(badge);
-        btnExpand.addEventListener('click', e => {
-            e.stopPropagation();
-            const icon = btnExpand.querySelector('.le-expand-icon');
-            const expandido = icon && icon.textContent.trim() === '▼';
-            const nomePaiUpper = (prod.nome || '').toUpperCase();
-            container.querySelectorAll('tr[data-le-peca-filha]').forEach(tr => {
-                if ((tr.dataset.lePecaFilha || '').toUpperCase() === nomePaiUpper) {
-                    tr.style.display = expandido ? 'none' : 'table-row';
-                }
-            });
-            if (icon) icon.textContent = expandido ? '▶' : '▼';
-        });
-        slot.appendChild(btnExpand);
+    // ── Focus handler para cor do grupo ──
+    container.querySelectorAll('.loj-price-input').forEach(inp => {
+        inp.addEventListener('focus', () => { inp.style.borderColor = inp.style.getPropertyValue('--focus-cor') || 'var(--tv-amber-500)'; });
+        inp.addEventListener('blur', () => { inp.style.borderColor = ''; });
     });
 }
 

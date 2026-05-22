@@ -7370,3 +7370,384 @@ table.imp-icms-table tbody tr:hover td.td-desc {
     background: var(--tv-navy-950);
     font-family: var(--tv-font-display);
 }
+
+/* ═══════════════════════════════════════════════════════════════════
+   BLOOMBERG / TERMINAL — Aba Preço Lojistas
+   ═══════════════════════════════════════════════════════════════════ */
+
+#subaba-precif-precoestado {
+    padding: 0 !important;
+}
+
+/* ── Layout raiz ── */
+.loj-root {
+    display: flex;
+    height: 100%;
+    min-height: 0;
+    background: var(--tv-navy-950);
+    font-family: var(--tv-font-display);
+    overflow: hidden;
+}
+
+/* ── Sidebar ── */
+.loj-sidebar {
+    width: 240px;
+    min-width: 200px;
+    background: var(--tv-navy-900);
+    border-right: 1px solid var(--tv-navy-800);
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+    padding: 12px;
+    gap: 0;
+    flex-shrink: 0;
+}
+.loj-sidebar-section {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+.loj-sidebar-title {
+    font-family: var(--tv-font-display);
+    font-size: 0.63rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    color: var(--tv-navy-500);
+    text-transform: uppercase;
+    margin-bottom: 4px;
+}
+
+/* ── Tier cards ── */
+.loj-tier-cards {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+.loj-tier-card {
+    display: flex;
+    background: var(--tv-navy-800);
+    border: 1px solid var(--tv-navy-700);
+    border-radius: 3px;
+    overflow: hidden;
+}
+.loj-tier-accent {
+    width: 4px;
+    flex-shrink: 0;
+}
+.loj-tier-body {
+    padding: 7px 9px;
+    flex: 1;
+    min-width: 0;
+}
+.loj-tier-label {
+    font-family: var(--tv-font-display);
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    color: var(--tv-amber-400);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.loj-tier-ufs {
+    font-family: var(--tv-font-mono);
+    font-size: 0.65rem;
+    color: var(--tv-navy-400);
+    margin-top: 2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.loj-tier-stat {
+    font-family: var(--tv-font-mono);
+    font-size: 0.65rem;
+    color: var(--tv-navy-500);
+    margin-top: 3px;
+}
+.loj-tier-val {
+    color: var(--tv-navy-200);
+    font-weight: 700;
+}
+.loj-tier-of { color: var(--tv-navy-600); }
+
+/* ── Histórico sidebar ── */
+.loj-hist-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    max-height: 200px;
+    overflow-y: auto;
+}
+.loj-hist-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+    background: var(--tv-navy-800);
+    border: 1px solid var(--tv-navy-700);
+    border-radius: 3px;
+    padding: 5px 7px;
+}
+.loj-hist-info {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    min-width: 0;
+    flex: 1;
+}
+.loj-hist-nome {
+    font-family: var(--tv-font-display);
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: var(--tv-navy-200);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.loj-hist-data {
+    font-family: var(--tv-font-mono);
+    font-size: 0.62rem;
+    color: var(--tv-navy-500);
+}
+.loj-hist-actions {
+    display: flex;
+    gap: 3px;
+    flex-shrink: 0;
+}
+.loj-hist-btn {
+    font-family: var(--tv-font-display);
+    font-size: 0.62rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    background: var(--tv-navy-700);
+    border: 1px solid var(--tv-navy-600);
+    color: var(--tv-navy-300);
+    border-radius: 2px;
+    padding: 2px 5px;
+    cursor: pointer;
+    transition: background 0.1s, color 0.1s;
+}
+.loj-hist-btn:hover { background: var(--tv-navy-600); color: var(--tv-amber-300); }
+.loj-hist-btn.danger:hover { background: rgba(239,68,68,0.15); color: #ef4444; }
+
+/* ── Botões de ação sidebar ── */
+.loj-action-btn {
+    display: block;
+    width: 100%;
+    font-family: var(--tv-font-display);
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    color: var(--tv-navy-300);
+    background: var(--tv-navy-800);
+    border: 1px solid var(--tv-navy-600);
+    border-radius: 3px;
+    padding: 7px 10px;
+    cursor: pointer;
+    text-align: center;
+    transition: background 0.12s, color 0.12s;
+    text-transform: uppercase;
+}
+.loj-action-btn:hover { background: var(--tv-navy-700); color: var(--tv-amber-300); }
+.loj-action-btn.primary {
+    background: var(--tv-amber-600);
+    border-color: var(--tv-amber-600);
+    color: #fff;
+}
+.loj-action-btn.primary:hover { background: var(--tv-amber-700); }
+
+/* ── Área principal ── */
+.loj-main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    overflow: hidden;
+}
+
+/* ── Command bar ── */
+.loj-command-bar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: var(--tv-navy-900);
+    border-bottom: 1px solid var(--tv-navy-700);
+    padding: 7px 14px;
+    flex-shrink: 0;
+}
+.loj-bar-title {
+    font-family: var(--tv-font-display);
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    color: var(--tv-amber-400);
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+.loj-bar-stat {
+    font-family: var(--tv-font-mono);
+    font-size: 0.7rem;
+    color: var(--tv-navy-300);
+    white-space: nowrap;
+}
+.loj-bar-stat-muted { color: var(--tv-navy-500); }
+
+/* ── Tabela ── */
+.loj-table-wrap {
+    flex: 1;
+    overflow: auto;
+    min-height: 0;
+}
+table.loj-table {
+    border-collapse: collapse;
+    width: 100%;
+    font-family: var(--tv-font-mono);
+    font-size: 0.82rem;
+    white-space: nowrap;
+}
+table.loj-table thead tr {
+    border-bottom: 2px solid var(--tv-amber-700);
+}
+table.loj-table .loj-th-prod {
+    background: var(--tv-navy-900);
+    color: var(--tv-amber-400);
+    font-family: var(--tv-font-display);
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    padding: 8px 14px;
+    text-align: left;
+    min-width: 200px;
+    position: sticky;
+    left: 0;
+    z-index: 2;
+    border-right: 1px solid var(--tv-navy-700);
+}
+table.loj-table .loj-th-grupo {
+    background: var(--tv-navy-900);
+    color: var(--tv-amber-400);
+    font-family: var(--tv-font-display);
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    padding: 6px 14px;
+    text-align: center;
+    min-width: 140px;
+    border-left: 1px solid var(--tv-navy-800);
+    border-top: 3px solid var(--grupo-cor, var(--tv-amber-600));
+}
+.loj-th-ufs {
+    font-family: var(--tv-font-mono);
+    font-size: 0.62rem;
+    font-weight: 400;
+    color: var(--tv-navy-400);
+    letter-spacing: 0;
+    text-transform: none;
+    margin-top: 2px;
+}
+table.loj-table .loj-tr-prod {
+    border-bottom: 1px solid var(--tv-navy-800);
+    transition: background 0.07s;
+}
+table.loj-table .loj-tr-prod:nth-child(even) { background: #0a1525; }
+table.loj-table .loj-tr-prod:hover { background: rgba(17,40,75,0.7); }
+table.loj-table .loj-tr-peca {
+    border-bottom: 1px solid var(--tv-navy-800);
+    background: #08121e;
+}
+table.loj-table .loj-tr-peca:hover { background: #0a1828; }
+table.loj-table .loj-td-prod {
+    padding: 7px 14px;
+    position: sticky;
+    left: 0;
+    background: inherit;
+    z-index: 1;
+    border-right: 1px solid var(--tv-navy-700);
+    min-width: 200px;
+}
+table.loj-table .loj-tr-prod:hover .loj-td-prod { background: rgba(17,40,75,0.7); }
+.loj-nome-prod {
+    font-family: var(--tv-font-display);
+    font-weight: 600;
+    color: var(--tv-navy-100);
+    font-size: 0.82rem;
+}
+.loj-nome-peca {
+    font-family: var(--tv-font-display);
+    font-size: 0.75rem;
+    color: var(--tv-navy-400);
+    padding-left: 14px;
+}
+table.loj-table .loj-td-val {
+    padding: 4px 10px;
+    text-align: center;
+    border-left: 1px solid var(--tv-navy-800);
+    vertical-align: middle;
+}
+.loj-price-input {
+    width: 100px;
+    background: var(--tv-navy-800);
+    border: 1px solid transparent;
+    border-radius: 2px;
+    color: var(--tv-navy-100);
+    font-family: var(--tv-font-mono);
+    font-size: 0.8rem;
+    font-weight: 600;
+    padding: 4px 8px;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    outline: none;
+    transition: border-color 0.12s, background 0.12s;
+}
+.loj-price-input:focus {
+    background: var(--tv-navy-700);
+    border-color: var(--tv-amber-500);
+}
+.loj-price-input::placeholder { color: var(--tv-navy-600); }
+
+/* ── Expand button ── */
+.loj-expand-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    margin-left: 8px;
+    cursor: pointer;
+    user-select: none;
+    vertical-align: middle;
+}
+.loj-expand-icon {
+    font-size: 0.65rem;
+    color: var(--tv-amber-500);
+    font-weight: 700;
+}
+.loj-expand-badge {
+    background: rgba(245,158,11,0.12);
+    color: var(--tv-amber-400);
+    font-family: var(--tv-font-mono);
+    font-size: 0.62rem;
+    font-weight: 700;
+    padding: 1px 5px;
+    border-radius: 2px;
+}
+
+/* ── Footbar Lojistas ── */
+.loj-footbar {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    background: var(--tv-navy-950);
+    border-top: 1px solid var(--tv-navy-800);
+    padding: 4px 14px;
+    font-family: var(--tv-font-mono);
+    font-size: 0.68rem;
+    color: var(--tv-navy-400);
+    flex-shrink: 0;
+}
+.loj-footbar-tag {
+    color: var(--tv-amber-500);
+    font-weight: 700;
+    letter-spacing: 0.06em;
+}
+.loj-footbar span { white-space: nowrap; }
