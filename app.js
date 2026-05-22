@@ -15583,9 +15583,334 @@ function trocarSubabaPrecif(subaba) {
 function trocarSubabaImpostos(painel) {
     const container = document.getElementById('subaba-precif-impostos');
     if (!container) return;
-    if (!container._impState) container._impState = { view: 'federais', tipoPJ: 'PJ', buscaFed: '', buscaICM: '', filtroNCM: '' };
+    if (!container._impState) container._impState = { view: 'federais', tipoPJ: 'PJ', buscaFed: '', buscaICM: '', filtroNCM: '', filtroRegioes: new Set(), edits: {} };
     container._impState.view = painel;
     _renderizarImpostosBloomb(container);
+}
+
+// ── Dados auxiliares para a matriz NCM×UF ──
+const _IMP_ESTADOS = [
+    { uf:'AC', nome:'Acre',               regiao:'N'  },
+    { uf:'AL', nome:'Alagoas',            regiao:'NE' },
+    { uf:'AM', nome:'Amazonas',           regiao:'N'  },
+    { uf:'AP', nome:'Amapá',              regiao:'N'  },
+    { uf:'BA', nome:'Bahia',              regiao:'NE' },
+    { uf:'CE', nome:'Ceará',              regiao:'NE' },
+    { uf:'DF', nome:'Distrito Federal',   regiao:'CO' },
+    { uf:'ES', nome:'Espírito Santo',     regiao:'SE' },
+    { uf:'GO', nome:'Goiás',              regiao:'CO' },
+    { uf:'MA', nome:'Maranhão',           regiao:'NE' },
+    { uf:'MG', nome:'Minas Gerais',       regiao:'SE' },
+    { uf:'MS', nome:'Mato Grosso do Sul', regiao:'CO' },
+    { uf:'MT', nome:'Mato Grosso',        regiao:'CO' },
+    { uf:'PA', nome:'Pará',               regiao:'N'  },
+    { uf:'PB', nome:'Paraíba',            regiao:'NE' },
+    { uf:'PE', nome:'Pernambuco',         regiao:'NE' },
+    { uf:'PI', nome:'Piauí',              regiao:'NE' },
+    { uf:'PR', nome:'Paraná',             regiao:'S'  },
+    { uf:'RJ', nome:'Rio de Janeiro',     regiao:'SE' },
+    { uf:'RN', nome:'Rio G. do Norte',    regiao:'NE' },
+    { uf:'RO', nome:'Rondônia',           regiao:'N'  },
+    { uf:'RR', nome:'Roraima',            regiao:'N'  },
+    { uf:'RS', nome:'Rio G. do Sul',      regiao:'S'  },
+    { uf:'SC', nome:'Santa Catarina',     regiao:'S'  },
+    { uf:'SE', nome:'Sergipe',            regiao:'NE' },
+    { uf:'SP', nome:'São Paulo',          regiao:'SE' },
+    { uf:'TO', nome:'Tocantins',          regiao:'N'  },
+];
+const _IMP_REGIOES = { N:'Norte', NE:'Nordeste', CO:'Centro-Oeste', SE:'Sudeste', S:'Sul' };
+const _IMP_NCM_GRUPOS = Object.entries(NCM_PRODUTOS).map(([ncm, desc]) => ({ ncm, desc }));
+
+function _renderizarImpostosBloomb(container) {
+    if (!container) return;
+    if (!container._impState) container._impState = { view: 'federais', tipoPJ: 'PJ', filtroRegioes: new Set(), edits: {} };
+    const s = container._impState;
+    if (!s.filtroRegioes) s.filtroRegioes = new Set();
+    if (!s.edits) s.edits = {};
+
+    const IPI_NCM = {
+        '9301.90.00': 55, '9302.00.00': 55,
+        '9305.10.00': 29.25, '9305.91.00': 0,
+        '8211.10.00': 7.8,  '8201.40.00': 0
+    };
+
+    const icmsBase = (uf, ncm) => {
+        const mapa = s.tipoPJ === 'PF' ? ICMS_PF_POR_NCM : ICMS_PJ_POR_NCM;
+        return (mapa[ncm] && mapa[ncm][uf] != null) ? mapa[ncm][uf] : 12;
+    };
+    const effective = (uf, ncm) => {
+        const k = uf + '-' + ncm;
+        return s.edits[k] != null ? s.edits[k] : icmsBase(uf, ncm);
+    };
+    const icmsClass = v => {
+        if (v >= 35) return 'tax-very-high';
+        if (v >= 25) return 'tax-high';
+        if (v >= 18) return 'tax-mid';
+        if (v >= 10) return 'tax-low';
+        return 'tax-very-low';
+    };
+
+    const visEstados = _IMP_ESTADOS.filter(e => !s.filtroRegioes.size || s.filtroRegioes.has(e.regiao));
+    const visNCMs = _IMP_NCM_GRUPOS;
+    const editCount = Object.keys(s.edits).length;
+
+    // KPIs
+    const allVals = _IMP_ESTADOS.flatMap(e => visNCMs.map(g => effective(e.uf, g.ncm)));
+    const avgBrasil = allVals.length ? (allVals.reduce((a,b)=>a+b,0)/allVals.length).toFixed(2) : '—';
+    const avgPorUF = {};
+    _IMP_ESTADOS.forEach(e => {
+        const vals = visNCMs.map(g => effective(e.uf, g.ncm));
+        avgPorUF[e.uf] = vals.reduce((a,b)=>a+b,0)/vals.length;
+    });
+    const sorted = Object.entries(avgPorUF).sort((a,b)=>b[1]-a[1]);
+    const ufMaisCara    = sorted[0]   || ['—','—'];
+    const ufMaisBarata  = sorted[sorted.length-1] || ['—','—'];
+    const totalCombinacoes = _IMP_ESTADOS.length * visNCMs.length;
+
+    // registros NCMs cadastrados no sistema
+    const ncmsCadastrados = Object.keys(NCM_PRODUTOS).length;
+    const ncmsComProd = new Set((estoque.produtos||[]).map(p=>p.ncm).filter(Boolean)).size;
+
+    // callbacks
+    window._impSetView = v => { s.view = v; _renderizarImpostosBloomb(container); };
+    window._impSetTipoPJ = t => { s.tipoPJ = t; _renderizarImpostosBloomb(container); };
+    window._impToggleRegiao = r => {
+        if (s.filtroRegioes.has(r)) s.filtroRegioes.delete(r); else s.filtroRegioes.add(r);
+        _renderizarImpostosBloomb(container);
+    };
+    window._impSetCell = (uf, ncm, val) => {
+        const nv = parseFloat(val);
+        if (!isNaN(nv)) s.edits[uf+'-'+ncm] = nv;
+        else delete s.edits[uf+'-'+ncm];
+        // re-render parcial: apenas atualizar KPIs e marcadores sem full-render para performance
+        try { _impAtualizarKPIsInline(container, s, effective, visNCMs); } catch(e) {}
+    };
+    window._impResetCell = (uf, ncm) => {
+        delete s.edits[uf+'-'+ncm];
+        _renderizarImpostosBloomb(container);
+    };
+    window._impResetAll = () => { s.edits = {}; _renderizarImpostosBloomb(container); };
+    window._impAplicar = () => {
+        // Persistir edições no tabelaICMS real
+        Object.entries(s.edits).forEach(([k, val]) => {
+            const [uf, ...ncmParts] = k.split('-');
+            const ncm = ncmParts.join('-');
+            const tp = s.tipoPJ || 'PJ';
+            const idx = tabelaICMS.findIndex(r => r.ncm===ncm && r.estado===uf && r.tipoPessoa===tp);
+            if (idx>=0) tabelaICMS[idx].aliquota = val;
+            else tabelaICMS.push({ id:`edit_${ncm}_${uf}_${tp}`, ncm, estado:uf, tipoPessoa:tp, categoriaProduto:'Todos', aliquota:val });
+        });
+        salvarDados();
+        s.edits = {};
+        _renderizarImpostosBloomb(container);
+        mostrarNotificacao && mostrarNotificacao(`${editCount} alíquota(s) aplicada(s).`, 'success');
+    };
+
+    // ── view ICMS: matriz ──
+    const matrizHTML = () => {
+        const avgPorNCM = {};
+        visNCMs.forEach(g => {
+            const vals = _IMP_ESTADOS.map(e => effective(e.uf, g.ncm));
+            avgPorNCM[g.ncm] = (vals.reduce((a,b)=>a+b,0)/vals.length).toFixed(2);
+        });
+        const theadCols = visNCMs.map(g => `
+            <th class="imp-ncm-head">
+                <div class="imp-ncm-code">${g.ncm}</div>
+                <div class="imp-ncm-grp" title="${_escapeHtml(g.desc)}">${_escapeHtml(g.desc.split(' ').slice(0,3).join(' '))}</div>
+                <div class="imp-ncm-avg">média <b>${avgPorNCM[g.ncm]}%</b></div>
+            </th>`).join('');
+
+        const rows = visEstados.map(e => {
+            const cells = visNCMs.map(g => {
+                const v = effective(e.uf, g.ncm);
+                const base = icmsBase(e.uf, g.ncm);
+                const isEdit = s.edits[e.uf+'-'+g.ncm] != null;
+                const delta = (v - base).toFixed(1);
+                const cls = icmsClass(v);
+                return `<td class="imp-cell ${cls}${isEdit?' edited':''}" onclick="">
+                    <input type="number" step="0.1" value="${v}"
+                        onchange="window._impSetCell('${e.uf}','${g.ncm}',this.value)"
+                        onclick="event.stopPropagation()"
+                        data-base="${base}">
+                    <span class="imp-pct">%</span>
+                    ${isEdit?`<div class="imp-cell-edit-mark" title="Base: ${base}% — clique para resetar" onclick="event.stopPropagation();window._impResetCell('${e.uf}','${g.ncm}')"></div>`:''}
+                    ${isEdit?`<div class="imp-cell-delta">${parseFloat(delta)>0?'+':''}${delta}</div>`:''}
+                </td>`;
+            }).join('');
+            const avg = (visNCMs.map(g=>effective(e.uf,g.ncm)).reduce((a,b)=>a+b,0)/visNCMs.length).toFixed(2);
+            return `<tr class="imp-row">
+                <td class="imp-state">
+                    <div class="imp-state-region">${e.regiao}</div>
+                    <div class="imp-state-uf">${e.uf}</div>
+                    <div class="imp-state-name">${_escapeHtml(e.nome)}</div>
+                </td>
+                ${cells}
+                <td class="imp-state-avg">${avg}%</td>
+            </tr>`;
+        }).join('');
+
+        return `<div class="imp-content">
+            <div class="imp-table-wrap">
+                <table class="imp-matrix">
+                    <thead>
+                        <tr>
+                            <th class="imp-corner">UF</th>
+                            ${theadCols}
+                            <th class="imp-avg-head">
+                                <div class="imp-ncm-code">MÉDIA</div>
+                                <div class="imp-ncm-grp">por UF</div>
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody>${rows}</tbody>
+                </table>
+            </div>
+            <div class="imp-legend">
+                <span class="imp-legend-lbl">Intensidade ICMS:</span>
+                <span class="imp-legend-cell tax-very-low">&lt; 10%</span>
+                <span class="imp-legend-cell tax-low">10–18%</span>
+                <span class="imp-legend-cell tax-mid">18–25%</span>
+                <span class="imp-legend-cell tax-high">25–35%</span>
+                <span class="imp-legend-cell tax-very-high">≥ 35%</span>
+                <span class="imp-legend-note">● indica valor editado · alíquota base: ICMS por NCM/UF ${s.tipoPJ==='PF'?'PF':'PJ'} 2025</span>
+            </div>
+        </div>`;
+    };
+
+    // ── view IPI: cards ──
+    const ipiHTML = () => {
+        const cards = visNCMs.map(g => {
+            const fed = IMPOSTOS_FEDERAIS_POR_NCM[g.ncm] || {};
+            const ipi = IPI_NCM[g.ncm] != null ? IPI_NCM[g.ncm] : (fed.ipi || 0);
+            return `<div class="imp-ipi-card">
+                <div class="imp-ipi-head">
+                    <div class="imp-ipi-ncm">${g.ncm}</div>
+                    <div class="imp-ipi-name">${_escapeHtml(g.desc)}</div>
+                </div>
+                <div class="imp-ipi-val-row">
+                    <input type="number" step="0.5" value="${ipi}">
+                    <span class="imp-ipi-pct">%</span>
+                </div>
+                <div class="imp-ipi-info">
+                    <div class="imp-ipi-info-row"><span class="l">TIPI 2024</span><span class="v">${ipi}%</span></div>
+                    <div class="imp-ipi-info-row"><span class="l">EX-Tarifário</span><span class="v">—</span></div>
+                    <div class="imp-ipi-info-row"><span class="l">PIS/COFINS</span><span class="v">${((fed.pis||0)+(fed.cofins||0)).toFixed(2)}%</span></div>
+                </div>
+            </div>`;
+        }).join('');
+        return `<div class="imp-content"><div class="imp-ipi-grid">${cards}</div></div>`;
+    };
+
+    // ── view Regimes: cards ──
+    const regimesHTML = () => {
+        const regimes = [
+            { id:'simples', nome:'Simples Nacional', faixa:'Anexo II — Indústria',  aliquota:'17,42%', desc:'Para receita bruta até R$ 4,8M/ano. Faixa varia por receita.', ativo:true  },
+            { id:'pres',    nome:'Lucro Presumido',  faixa:'Comércio/Indústria',     aliquota:'11,33%', desc:'Receita bruta até R$ 78M/ano. IRPJ + CSLL sobre base presumida.', ativo:false },
+            { id:'real',    nome:'Lucro Real',        faixa:'IRPJ/CSLL apurado',      aliquota:'34,00%', desc:'Apuração com base no lucro líquido real. Obrigatório para > R$ 78M/ano.', ativo:false },
+        ];
+        const cards = regimes.map(r => `<div class="imp-regime-card">
+            <div class="imp-regime-head">
+                <div class="imp-regime-nm">${r.nome}</div>
+                <div class="imp-regime-fx">${r.faixa}</div>
+            </div>
+            <div class="imp-regime-val">${r.aliquota}</div>
+            <div class="imp-regime-desc">${r.desc}</div>
+            ${r.ativo?`<div class="imp-regime-active">⚡ Regime atual</div>`:''}
+        </div>`).join('');
+        return `<div class="imp-content"><div class="imp-regime-grid">${cards}</div></div>`;
+    };
+
+    const viewMap = { federais: matrizHTML, icms: matrizHTML, ipi: ipiHTML, regimes: regimesHTML };
+    const renderView = (viewMap[s.view] || matrizHTML)();
+
+    const regPills = Object.entries(_IMP_REGIOES).map(([r,l]) =>
+        `<button class="imp-region-pill${s.filtroRegioes.has(r)?' active':''}" onclick="window._impToggleRegiao('${r}')">${l}</button>`
+    ).join('');
+
+    const editBadge = editCount > 0
+        ? `<span class="imp-edits-badge"><span class="cnt">${editCount}</span> edição${editCount>1?'ões':''}</span>` : '';
+    const descartarBtn = editCount > 0
+        ? `<button class="imp-bar-btn" onclick="window._impResetAll()">↺ Descartar</button>` : '';
+
+    container.innerHTML = `<div class="imp-root">
+        <div class="imp-cmdbar">
+            <div class="imp-seg">
+                <button class="imp-seg-btn${(s.view==='federais'||s.view==='icms')?' active':''}" onclick="window._impSetView('icms')">📊 ICMS por NCM/UF</button>
+                <button class="imp-seg-btn${s.view==='ipi'?' active':''}" onclick="window._impSetView('ipi')">🧾 IPI por NCM</button>
+                <button class="imp-seg-btn${s.view==='regimes'?' active':''}" onclick="window._impSetView('regimes')">⚖ Regimes</button>
+            </div>
+            <div class="imp-bar-div"></div>
+            <div class="imp-seg" style="margin-left:0">
+                <button class="imp-seg-btn${s.tipoPJ==='PJ'?' active':''}" onclick="window._impSetTipoPJ('PJ')">PJ</button>
+                <button class="imp-seg-btn${s.tipoPJ==='PF'?' active':''}" onclick="window._impSetTipoPJ('PF')">PF</button>
+            </div>
+            <div class="imp-bar-div"></div>
+            <span class="imp-region-lbl">REGIÃO:</span>
+            ${regPills}
+            <span style="flex:1"></span>
+            ${editBadge}
+            ${descartarBtn}
+            <button class="imp-bar-btn accent" onclick="window._impAplicar()" ${editCount===0?'disabled':''}>✓ Aplicar mudanças</button>
+            <button class="imp-bar-btn" onclick="">⬇ Exportar</button>
+        </div>
+        <div class="imp-kpi-strip">
+            <div class="imp-kpi">
+                <div class="imp-kpi-lbl">NCMs Cadastrados</div>
+                <div class="imp-kpi-val">${ncmsCadastrados}</div>
+                <div class="imp-kpi-sub">${ncmsComProd} com produtos</div>
+            </div>
+            <div class="imp-kpi">
+                <div class="imp-kpi-lbl">ICMS Médio Brasil</div>
+                <div class="imp-kpi-val">${avgBrasil}%</div>
+                <div class="imp-kpi-sub">média ponderada</div>
+            </div>
+            <div class="imp-kpi">
+                <div class="imp-kpi-lbl">UF Mais Cara</div>
+                <div class="imp-kpi-val big">${ufMaisCara[0]}</div>
+                <div class="imp-kpi-sub">${typeof ufMaisCara[1]==='number'?ufMaisCara[1].toFixed(2)+'% médio':'—'}</div>
+            </div>
+            <div class="imp-kpi">
+                <div class="imp-kpi-lbl">UF Mais Barata</div>
+                <div class="imp-kpi-val big pos">${ufMaisBarata[0]}</div>
+                <div class="imp-kpi-sub">${typeof ufMaisBarata[1]==='number'?ufMaisBarata[1].toFixed(2)+'% médio':'—'}</div>
+            </div>
+            <div class="imp-kpi">
+                <div class="imp-kpi-lbl">Edições Pendentes</div>
+                <div class="imp-kpi-val${editCount>0?' accent':''}">${editCount}</div>
+                <div class="imp-kpi-sub">${editCount>0?'requer aplicar':'sincronizado'}</div>
+            </div>
+        </div>
+        ${renderView}
+        <div class="imp-footbar">
+            <span class="imp-footbar-tag">FEDERAIS</span>
+            <span>NCMs: ${ncmsCadastrados}</span>
+            <span class="imp-footbar-div">|</span>
+            <span>UFs: ${visEstados.length}/27</span>
+            <span class="imp-footbar-div">|</span>
+            <span>CÉLULAS: ${visEstados.length * visNCMs.length}</span>
+            ${editCount>0?`<span class="imp-footbar-div">|</span><span style="color:var(--tv-amber-400)">EDIÇÕES: ${editCount}</span>`:''}
+            <div class="imp-footbar-keys">
+                <span><b>Tab</b> Próx. célula</span>
+                <span><b>Esc</b> Descartar</span>
+            </div>
+        </div>
+    </div>`;
+}
+
+function _impAtualizarKPIsInline(container, s, effective, visNCMs) {
+    const editCount = Object.keys(s.edits).length;
+    const kpiEl = container.querySelector('.imp-kpi:last-child .imp-kpi-val');
+    if (kpiEl) {
+        kpiEl.textContent = editCount;
+        kpiEl.className = 'imp-kpi-val' + (editCount > 0 ? ' accent' : '');
+    }
+    const kpiSub = container.querySelector('.imp-kpi:last-child .imp-kpi-sub');
+    if (kpiSub) kpiSub.textContent = editCount > 0 ? 'requer aplicar' : 'sincronizado';
+    // atualizar badge e botões
+    const badge = container.querySelector('.imp-edits-badge');
+    if (badge) badge.innerHTML = `<span class="cnt">${editCount}</span> edição${editCount>1?'ões':''}`;
+    const applyBtn = container.querySelector('.imp-bar-btn.accent');
+    if (applyBtn) applyBtn.disabled = editCount === 0;
 }
 
 function atualizarKPIsCI() {
@@ -18185,7 +18510,7 @@ function renderizarRastreabilidade() {
     }
 
     if (!container._rastrState) {
-        container._rastrState = { filtroId: '', periodo: 'todos', clienteAberto: null, eventoSel: null };
+        container._rastrState = { filtroId: '', periodo: 'todos', clienteAberto: null, eventoSel: null, busca: '', tiposFiltro: { precif: true, proposta: true, contrato: true } };
     }
     const s = container._rastrState;
 
@@ -18214,8 +18539,14 @@ function renderizarRastreabilidade() {
         fechado:             { label: 'FECHADO',     cor: '#16a34a' },
     };
 
-    window._rastrSetFiltro = (id) => { s.filtroId = id; _renderRastr(container, _dadosPrecif, s, inPeriod, fmt, fmtDate, fmtTime, STATUS_CFG); };
-    window._rastrSetPeriodo = (p) => { s.periodo = p; _renderRastr(container, _dadosPrecif, s, inPeriod, fmt, fmtDate, fmtTime, STATUS_CFG); };
+    window._rastrSetFiltro = (id) => { s.filtroId = id; renderizarRastreabilidade(); };
+    window._rastrSetPeriodo = (p) => { s.periodo = p; renderizarRastreabilidade(); };
+    window._rastrSetBusca = (v) => { s.busca = v; _renderRastrTimeline(container, _dadosPrecif, s, inPeriod, fmt, fmtDate, fmtTime, STATUS_CFG); };
+    window._rastrToggleTipo = (tipo, el) => {
+        s.tiposFiltro[tipo] = !s.tiposFiltro[tipo];
+        el && el.classList.toggle('off', !s.tiposFiltro[tipo]);
+        _renderRastrTimeline(container, _dadosPrecif, s, inPeriod, fmt, fmtDate, fmtTime, STATUS_CFG);
+    };
     window._rastrAbrirCliente = (id) => { s.clienteAberto = s.clienteAberto === id ? null : id; s.eventoSel = null; _renderRastrTimeline(container, _dadosPrecif, s, inPeriod, fmt, fmtDate, fmtTime, STATUS_CFG); _renderRastrDetalhe(container, s, fmtDate, fmt, STATUS_CFG); };
     window._rastrSelEvento = (tipo, id) => { s.eventoSel = { tipo, id }; _renderRastrDetalhe(container, s, fmtDate, fmt, STATUS_CFG); };
 
@@ -18228,11 +18559,22 @@ function renderizarRastreabilidade() {
 
     const clientesOpts = (clientes||[]).slice().sort((a,b)=>(a.nome||'').localeCompare(b.nome||''));
 
+    const totalEventos = todosPrecifs.length + todasPropostas.length + todasVendas.length;
+    const PILL_CFG = [
+        { tipo:'precif',   label:'PRECIF',   count: todosPrecifs.length,            bg:'rgba(217,119,6,0.12)',    color:'#b45309', border:'rgba(217,119,6,0.3)'  },
+        { tipo:'proposta', label:'PROPOSTA', count: todasPropostas.length,           bg:'rgba(59,130,246,0.12)',   color:'#1d4ed8', border:'rgba(59,130,246,0.3)' },
+        { tipo:'contrato', label:'CONTRATO', count: todasVendas.length,              bg:'rgba(22,163,74,0.12)',    color:'#15803d', border:'rgba(22,163,74,0.3)'  },
+    ];
+
     container.innerHTML = `
 <div class="rastr-root">
     <!-- Command bar -->
     <div class="rastr-command-bar">
         <span class="rastr-bar-title">RASTREABILIDADE</span>
+        <div class="rastr-search-wrap">
+            <span class="rastr-search-icon">🔍</span>
+            <input type="text" class="rastr-search-input" placeholder="Buscar cliente..." value="${_escapeHtml(s.busca||'')}" oninput="window._rastrSetBusca(this.value)">
+        </div>
         <select class="rastr-select" onchange="window._rastrSetFiltro(this.value)">
             <option value="">Todos os clientes</option>
             ${clientesOpts.map(c=>`<option value="${c.id}"${String(c.id)===String(s.filtroId)?' selected':''}>${_escapeHtml(c.nome||'')}</option>`).join('')}
@@ -18245,14 +18587,17 @@ function renderizarRastreabilidade() {
         <span style="flex:1"></span>
         <button class="rastr-bar-btn" onclick="exportarRastreabilidade()">&#8679; EXPORTAR</button>
     </div>
+    <!-- Type pills bar -->
+    <div class="rastr-type-bar">
+        <span class="rastr-type-label">TIPO:</span>
+        ${PILL_CFG.map(p=>`<span class="rastr-type-pill${s.tiposFiltro[p.tipo]===false?' off':''}" style="background:${p.bg};color:${p.color};border-color:${p.border}" onclick="window._rastrToggleTipo('${p.tipo}',this)">${p.label} <span class="rastr-pill-count">${p.count}</span></span>`).join('')}
+    </div>
     <!-- KPI strip -->
     <div class="rastr-kpi-strip">
+        <div class="rastr-kpi"><div class="rastr-kpi-label">EVENTOS</div><div class="rastr-kpi-value">${totalEventos}</div></div>
         <div class="rastr-kpi"><div class="rastr-kpi-label">PRECIFICAÇÕES</div><div class="rastr-kpi-value">${todosPrecifs.length}</div></div>
-        <div class="rastr-kpi"><div class="rastr-kpi-label">PROPOSTAS</div><div class="rastr-kpi-value">${todasPropostas.length}</div></div>
-        <div class="rastr-kpi"><div class="rastr-kpi-label">ACEITAS</div><div class="rastr-kpi-value" style="color:var(--tv-green-500)">${todasPropostas.filter(p=>p.status==='aceita').length}</div></div>
-        <div class="rastr-kpi"><div class="rastr-kpi-label">CONTRATOS</div><div class="rastr-kpi-value">${todasVendas.length}</div></div>
-        <div class="rastr-kpi"><div class="rastr-kpi-label">FATURADO</div><div class="rastr-kpi-value" style="color:var(--tv-amber-400)">${fmt(totalFat)}</div></div>
-        <div class="rastr-kpi"><div class="rastr-kpi-label">CONV. %</div><div class="rastr-kpi-value">${taxaConv}%</div></div>
+        <div class="rastr-kpi"><div class="rastr-kpi-label">PROPOSTAS</div><div class="rastr-kpi-value">${todasPropostas.length}</div><div style="font-family:var(--tv-font-mono);font-size:0.62rem;color:#15803d">${todasPropostas.filter(p=>p.status==='aceita').length} aceitas · ${taxaConv}% conv.</div></div>
+        <div class="rastr-kpi"><div class="rastr-kpi-label">FATURADO</div><div class="rastr-kpi-value" style="color:var(--tv-amber-600)">${fmt(totalFat)}</div><div style="font-family:var(--tv-font-mono);font-size:0.62rem;color:var(--tv-navy-400)">${todasVendas.length} contratos</div></div>
     </div>
     <!-- Layout 2 colunas -->
     <div class="rastr-layout">
@@ -18263,7 +18608,7 @@ function renderizarRastreabilidade() {
     <div class="rastr-footbar">
         <span class="rastr-footbar-tag">AUDIT LOG</span>
         <span>CLIENTES: ${clientesOpts.length}</span>
-        <span>EVENTOS: ${todosPrecifs.length + todasPropostas.length + todasVendas.length}</span>
+        <span>EVENTOS: ${totalEventos}</span>
         <span style="margin-left:auto;color:var(--tv-navy-600)">${new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}</span>
     </div>
 </div>`;
@@ -18289,8 +18634,13 @@ function _renderRastrTimeline(container, _dadosPrecif, s, inPeriod, fmt, fmtDate
     const col = document.getElementById('rastr-timeline-col');
     if (!col) return;
 
+    const buscaNorm = (s.busca||'').trim().toLowerCase();
     const clientesFilt = (clientes||[])
-        .filter(c => !s.filtroId || String(c.id)===String(s.filtroId))
+        .filter(c => {
+            if (s.filtroId && String(c.id)!==String(s.filtroId)) return false;
+            if (buscaNorm && !(c.nome||'').toLowerCase().includes(buscaNorm)) return false;
+            return true;
+        })
         .slice().sort((a,b)=>(a.nome||'').localeCompare(b.nome||''));
 
     if (!clientesFilt.length) {
@@ -18301,8 +18651,10 @@ function _renderRastrTimeline(container, _dadosPrecif, s, inPeriod, fmt, fmtDate
     const TIPO_DOT = { precif:'var(--tv-amber-500)', proposta:'#3b82f6', contrato:'var(--tv-green-500)' };
     const TIPO_LABEL = { precif:'PRECIF', proposta:'PROPOSTA', contrato:'CONTRATO' };
 
+    const tiposFiltro = s.tiposFiltro || { precif: true, proposta: true, contrato: true };
     col.innerHTML = clientesFilt.map(cliente => {
-        const eventos = _rastrGetEventos(cliente.nome, cliente.id, _dadosPrecif, inPeriod);
+        const todosEvts = _rastrGetEventos(cliente.nome, cliente.id, _dadosPrecif, inPeriod);
+        const eventos = todosEvts.filter(e => tiposFiltro[e._tipo] !== false);
         if (!eventos.length) return '';
         const aberto = s.clienteAberto === String(cliente.id);
         const tipo = ((cliente.cnpj||'').replace(/\D/g,'').length===14)?'PJ':'PF';
@@ -18427,9 +18779,11 @@ function _renderRastrDetalhe(container, s, fmtDate, fmt, STATUS_CFG) {
             </tr>`).join('')}</tbody>
         </table>` : '';
 
+    const TIPO_BG = { precif:'rgba(217,119,6,0.12)', proposta:'rgba(59,130,246,0.12)', contrato:'rgba(22,163,74,0.12)' };
+    const tipoBg = TIPO_BG[tipo] || 'rgba(100,100,100,0.1)';
     col.innerHTML = `
         <div class="rastr-detail-header" style="border-top:3px solid ${cor}">
-            <span class="rastr-detail-type" style="color:${cor}">${TIPO_TITLES[tipo]}</span>
+            <span class="rastr-detail-type-badge" style="background:${tipoBg};color:${cor};border:1px solid ${cor}40;font-family:var(--tv-font-display);font-size:0.62rem;font-weight:700;letter-spacing:0.09em;padding:2px 8px;border-radius:2px">${TIPO_TITLES[tipo]}</span>
             <span class="rastr-detail-close" onclick="window._rastrSelEvento(null,null)">&#10005;</span>
         </div>
         <div class="rastr-detail-body">
