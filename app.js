@@ -7353,7 +7353,18 @@ function renderControleImbelMovimentacao() {
     container.innerHTML = '';
     container.style.cssText = 'display:flex;flex-direction:column;height:100%;overflow:hidden;background:var(--tv-navy-50)';
 
-    // ── Command bar Bloomberg ──
+    // ── state dos filtros (período e tipo) ──
+    if (!container._movState) container._movState = { periodo: '30d', tipo: '' };
+    const movState = container._movState;
+
+    // calcular contagens por categoria para os chips de tipo
+    const movAll0 = (data.movimentacoes||[]);
+    const cntEntrada = movAll0.filter(m => imbelTipoAumentaEstoque(m.tipo)).length;
+    const cntSaida   = movAll0.filter(m => !imbelTipoAumentaEstoque(m.tipo) && !(m.tipo||'').toUpperCase().includes('AJUSTE')).length;
+    const cntAjuste  = movAll0.filter(m => (m.tipo||'').toUpperCase().includes('AJUSTE')).length;
+    const cntTransf  = movAll0.filter(m => (m.tipo||'').toUpperCase().includes('TRANSFER')||getImbelTipo(m.tipo).categoria==='transferencia').length;
+
+    // ── Command bar linha 1: busca + produto + botões de ação ──
     const cmdbar = document.createElement('div');
     cmdbar.className = 'imbel-cmdbar';
     cmdbar.innerHTML = `
@@ -7361,29 +7372,17 @@ function renderControleImbelMovimentacao() {
         <svg class="imbel-search-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
         <input type="text" id="imbel_filter_dest" class="imbel-search-input" placeholder="Destinatário..." />
       </div>
-      <input type="text" id="imbel_filter_cpf" class="imbel-search-input" placeholder="CPF/CNPJ" style="width:130px" />
-      <div class="imbel-seg">
-        <button class="imbel-seg-btn active" id="imbel_tipo_todos" onclick="document.getElementById('imbel_filter_tipo').value='';this.closest('.imbel-seg').querySelectorAll('.imbel-seg-btn').forEach(b=>b.classList.remove('active'));this.classList.add('active')">TODOS</button>
-        <button class="imbel-seg-btn" onclick="document.getElementById('imbel_filter_tipo').value='ENTRADA';this.closest('.imbel-seg').querySelectorAll('.imbel-seg-btn').forEach(b=>b.classList.remove('active'));this.classList.add('active')">ENTRADA</button>
-        <button class="imbel-seg-btn" onclick="document.getElementById('imbel_filter_tipo').value='SAIDA';this.closest('.imbel-seg').querySelectorAll('.imbel-seg-btn').forEach(b=>b.classList.remove('active'));this.classList.add('active')">SAÍDA</button>
-        <button class="imbel-seg-btn" onclick="document.getElementById('imbel_filter_tipo').value='VENDA';this.closest('.imbel-seg').querySelectorAll('.imbel-seg-btn').forEach(b=>b.classList.remove('active'));this.classList.add('active')">VENDA</button>
-      </div>
-      <select id="imbel_filter_prod" class="imbel-search-input" style="width:160px;padding-left:8px">
+      <select id="imbel_filter_prod" class="imbel-search-input" style="width:170px;padding-left:8px">
         <option value="">Todos os produtos</option>
       </select>
-      <input type="date" id="imbel_filter_date_start" class="imbel-search-input" style="width:130px" />
-      <span style="color:var(--tv-navy-400);font-size:0.7rem">—</span>
-      <input type="date" id="imbel_filter_date_end" class="imbel-search-input" style="width:130px" />
-      <label style="display:flex;align-items:center;gap:4px;font-family:var(--tv-font-display);font-size:0.7rem;color:var(--tv-navy-600);cursor:pointer">
-        <input type="checkbox" id="imbel_filter_pago" style="accent-color:var(--tv-amber-600)"> Pagos
-      </label>
-      <label style="display:flex;align-items:center;gap:4px;font-family:var(--tv-font-display);font-size:0.7rem;color:var(--tv-navy-600);cursor:pointer">
-        <input type="checkbox" id="imbel_filter_entregue_only" style="accent-color:var(--tv-amber-600)"> Entregues
-      </label>
-      <label style="display:flex;align-items:center;gap:4px;font-family:var(--tv-font-display);font-size:0.7rem;color:var(--tv-navy-600);cursor:pointer">
-        <input type="checkbox" id="imbel_filter_fi_only" style="accent-color:var(--tv-amber-600)"> FI
-      </label>
-      <button id="imbel_filter_reset" class="imbel-bar-btn" title="Limpar filtros">↺</button>
+      <input type="hidden" id="imbel_filter_tipo" value="${movState.tipo}" />
+      <input type="hidden" id="imbel_filter_date_start" value="" />
+      <input type="hidden" id="imbel_filter_date_end" value="" />
+      <input type="hidden" id="imbel_filter_cpf" value="" />
+      <input type="hidden" id="imbel_filter_pago" />
+      <input type="hidden" id="imbel_filter_entregue_only" />
+      <input type="hidden" id="imbel_filter_fi_only" />
+      <button id="imbel_filter_reset" class="imbel-bar-btn" title="Limpar filtros">↺ Reset</button>
       <span id="imbelMovContador" style="font-family:var(--tv-font-mono);font-size:0.65rem;color:var(--tv-navy-400)"></span>
       <div class="imbel-bar-right">
         <button class="imbel-bar-btn" onclick="document.getElementById('inputImportarImbelMov').click()">IMPORTAR</button>
@@ -7392,7 +7391,72 @@ function renderControleImbelMovimentacao() {
         <button class="imbel-bar-btn" id="imbelBtnLimpar">LIMPAR</button>
         <button class="imbel-bar-btn accent" id="imbelBtnAddMov">+ MOVIMENTAÇÃO</button>
       </div>`;
+
+    // ── Linha 2: chips de período + chips de tipo (estilo Bloomberg) ──
+    const filterBar = document.createElement('div');
+    filterBar.id = 'imbelFilterBar';
+    filterBar.style.cssText = 'display:flex;align-items:center;gap:8px;padding:5px 12px 5px;background:var(--tv-navy-50);border-bottom:1px solid var(--tv-navy-200);flex-wrap:wrap';
+
+    const periodos = [
+        { key:'7d',   label:'7d' },
+        { key:'30d',  label:'30d' },
+        { key:'90d',  label:'90d' },
+        { key:'',     label:'Tudo' },
+    ];
+    const periodoWrap = document.createElement('div');
+    periodoWrap.style.cssText = 'display:flex;align-items:center;gap:2px;background:var(--tv-navy-100);border-radius:5px;padding:2px';
+    periodoWrap.innerHTML = '<span style="font-family:var(--tv-font-display);font-size:0.62rem;font-weight:700;letter-spacing:.08em;color:var(--tv-navy-500);padding:0 6px 0 4px">PERÍODO</span>';
+    periodos.forEach(p => {
+        const btn = document.createElement('button');
+        btn.textContent = p.label;
+        btn.dataset.periodo = p.key;
+        btn.style.cssText = `font-family:var(--tv-font-display);font-size:0.68rem;font-weight:700;letter-spacing:.04em;padding:3px 9px;border:none;border-radius:3px;cursor:pointer;transition:background .15s,color .15s;background:${movState.periodo===p.key?'var(--tv-navy-700)':'transparent'};color:${movState.periodo===p.key?'#fff':'var(--tv-navy-600)'}`;
+        btn.onclick = function() {
+            movState.periodo = p.key;
+            periodoWrap.querySelectorAll('button').forEach(b => {
+                b.style.background = b.dataset.periodo === p.key ? 'var(--tv-navy-700)' : 'transparent';
+                b.style.color      = b.dataset.periodo === p.key ? '#fff' : 'var(--tv-navy-600)';
+            });
+            populateTbody();
+        };
+        periodoWrap.appendChild(btn);
+    });
+    filterBar.appendChild(periodoWrap);
+
+    // separador
+    filterBar.insertAdjacentHTML('beforeend','<span style="color:var(--tv-navy-300);font-size:0.9rem">|</span>');
+
+    // chips de tipo com contagem
+    filterBar.insertAdjacentHTML('beforeend','<span style="font-family:var(--tv-font-display);font-size:0.62rem;font-weight:700;letter-spacing:.08em;color:var(--tv-navy-500)">TIPO:</span>');
+    const tipoChips = [
+        { key:'',        label:'Todos',        cnt: movAll0.length,    bg:'var(--tv-navy-200)', clr:'var(--tv-navy-700)', actBg:'var(--tv-navy-700)', actClr:'#fff' },
+        { key:'ENTRADA', label:'+ Entrada',    cnt: cntEntrada,        bg:'rgba(22,163,74,.1)', clr:'#15803d',           actBg:'rgba(22,163,74,.85)', actClr:'#fff' },
+        { key:'SAIDA',   label:'↗ Saída',      cnt: cntSaida,          bg:'rgba(220,38,38,.1)', clr:'#dc2626',           actBg:'rgba(220,38,38,.85)', actClr:'#fff' },
+        { key:'AJUSTE',  label:'⬡ Ajuste',     cnt: cntAjuste,         bg:'rgba(37,99,235,.1)', clr:'#1d4ed8',           actBg:'rgba(37,99,235,.8)', actClr:'#fff' },
+    ];
+    tipoChips.forEach(tc => {
+        const chip = document.createElement('button');
+        const isActive = movState.tipo === tc.key;
+        chip.dataset.tipoChip = tc.key;
+        chip.style.cssText = `display:inline-flex;align-items:center;gap:5px;font-family:var(--tv-font-display);font-size:0.68rem;font-weight:700;letter-spacing:.04em;padding:3px 9px;border:1px solid ${isActive?'transparent':tc.clr+'44'};border-radius:20px;cursor:pointer;background:${isActive?tc.actBg:tc.bg};color:${isActive?tc.actClr:tc.clr};transition:all .15s`;
+        chip.innerHTML = `${tc.label} <span style="font-size:0.6rem;opacity:.8;font-family:var(--tv-font-mono)">${tc.cnt}</span>`;
+        chip.onclick = function() {
+            movState.tipo = tc.key;
+            document.getElementById('imbel_filter_tipo').value = tc.key;
+            filterBar.querySelectorAll('[data-tipo-chip]').forEach(c => {
+                const d = tipoChips.find(x=>x.key===c.dataset.tipoChip);
+                if (!d) return;
+                const act = c.dataset.tipoChip === tc.key;
+                c.style.background   = act ? d.actBg : d.bg;
+                c.style.color        = act ? d.actClr : d.clr;
+                c.style.borderColor  = act ? 'transparent' : d.clr+'44';
+            });
+            populateTbody();
+        };
+        filterBar.appendChild(chip);
+    });
     container.appendChild(cmdbar);
+    container.appendChild(filterBar);
 
     // KPI strip
     const movAll = (data.movimentacoes||[]);
@@ -7442,40 +7506,25 @@ function renderControleImbelMovimentacao() {
     };
     cmdbar.querySelector('#imbelBtnRelatorio').onclick = () => gerarRelatorioVendasImbel();
 
-    // wrap para tabela (preenchido depois de populateTbody)
-    const filtrosWrap = cmdbar; // alias — select listeners buscam por ID, não por referência
-
     // Popular select de tipos do modal com os tipos definidos em IMBEL_TIPOS
     try {
         const tipoSelect = document.getElementById('imbel_mov_tipo');
         if (tipoSelect) {
             tipoSelect.innerHTML = '';
             const optEmpty = document.createElement('option'); optEmpty.value = ''; optEmpty.textContent = '— selecione o tipo —'; tipoSelect.appendChild(optEmpty);
-            // incluir opções 'ENTRADA'/'SAIDA' como categorias rápidas
-            const optE = document.createElement('option'); optE.value = 'ENTRADA'; optE.textContent = 'Entrada (categoria)'; tipoSelect.appendChild(optE);
-            const optS = document.createElement('option'); optS.value = 'SAIDA'; optS.textContent = 'Saída (categoria)'; tipoSelect.appendChild(optS);
             Object.keys(IMBEL_TIPOS).forEach(key => {
                 const opt = document.createElement('option'); opt.value = key; opt.textContent = IMBEL_TIPOS[key].label || key; tipoSelect.appendChild(opt);
             });
         }
     } catch(e) { console.warn('Não foi possível popular select de tipos IMBEL', e); }
 
-    // popular opções de produto no filtro
-    const selFilterProd = filtrosWrap.querySelector('#imbel_filter_prod');
-    (data.produtos||[]).forEach(p=>{
-        const o = document.createElement('option'); o.value = p.id; o.textContent = p.nome; selFilterProd.appendChild(o);
-    });
-    // popular opções de tipo no filtro com categorias e tipos específicos
-    try {
-        const selTipoFilter = filtrosWrap.querySelector('#imbel_filter_tipo');
-        if (selTipoFilter) {
-            selTipoFilter.innerHTML = '';
-            const oAll = document.createElement('option'); oAll.value = ''; oAll.textContent = 'Todos os tipos'; selTipoFilter.appendChild(oAll);
-            const oE = document.createElement('option'); oE.value = 'ENTRADA'; oE.textContent = 'Entrada (categoria)'; selTipoFilter.appendChild(oE);
-            const oS = document.createElement('option'); oS.value = 'SAIDA'; oS.textContent = 'Saída (categoria)'; selTipoFilter.appendChild(oS);
-            Object.keys(IMBEL_TIPOS).forEach(k => { const o = document.createElement('option'); o.value = k; o.textContent = IMBEL_TIPOS[k].label || k; selTipoFilter.appendChild(o); });
-        }
-    } catch(e) { console.warn('Não foi possível popular filtro de tipos IMBEL', e); }
+    // popular opções de produto no filtro da cmdbar
+    const selFilterProd = cmdbar.querySelector('#imbel_filter_prod');
+    if (selFilterProd) {
+        (data.produtos||[]).forEach(p=>{
+            const o = document.createElement('option'); o.value = p.id; o.textContent = p.nome; selFilterProd.appendChild(o);
+        });
+    }
 
     // ---- Tabela histórico ----
     const tabelaWrap = document.createElement('div');
@@ -7491,8 +7540,9 @@ function renderControleImbelMovimentacao() {
                              .forEach(c=>c.checked=this.checked)"
                          title="Selecionar todos">
         </th>
+        <th style="${thStyle};text-align:left;min-width:80px">ID</th>
         <th style="${thStyle};text-align:left">Destinatário</th>
-        <th style="${thStyle}">Data</th>
+        <th style="${thStyle}">Data / Hora</th>
         <th style="${thStyle}">Tipo</th>
         <th style="${thStyle};text-align:left">Produto</th>
         <th style="${thStyle}">Qtd</th>
@@ -7515,15 +7565,16 @@ function renderControleImbelMovimentacao() {
 
             // Apply filters
             const fProd  = (document.getElementById('imbel_filter_prod')||{}).value||'';
-            const fTipo  = (document.getElementById('imbel_filter_tipo')||{}).value||'';
-            const fStart = (document.getElementById('imbel_filter_date_start')||{}).value||'';
-            const fEnd   = (document.getElementById('imbel_filter_date_end')||{}).value||'';
-            const fDest  = ((document.getElementById('imbel_filter_dest')||{}).value||'')
-                .trim().toUpperCase();
-            const fCpf   = ((document.getElementById('imbel_filter_cpf')||{}).value||'')
-                .trim().toUpperCase();
-            const fPago  = document.getElementById('imbel_filter_pago')?.checked;
-            const fFi    = document.getElementById('imbel_filter_fi_only')?.checked;
+            const fTipo  = movState.tipo || '';
+            const fDest  = ((document.getElementById('imbel_filter_dest')||{}).value||'').trim().toUpperCase();
+
+            // filtro de período
+            let fStart = '', fEnd = '';
+            if (movState.periodo) {
+                const dias = movState.periodo === '7d' ? 7 : movState.periodo === '30d' ? 30 : 90;
+                const d = new Date(); d.setDate(d.getDate() - dias);
+                fStart = d.toISOString().slice(0,10);
+            }
 
             const filtered = all.filter(m => {
                 if (fProd) {
@@ -7532,13 +7583,16 @@ function renderControleImbelMovimentacao() {
                         : [m.produtoId];
                     if (!ids.includes(fProd)) return false;
                 }
-                if (fTipo && (m.tipo||'').toUpperCase() !== fTipo.toUpperCase()) return false;
+                if (fTipo) {
+                    const tipoUp = (m.tipo||'').toUpperCase();
+                    if (fTipo === 'ENTRADA') { if (!imbelTipoAumentaEstoque(m.tipo)) return false; }
+                    else if (fTipo === 'SAIDA') { if (imbelTipoAumentaEstoque(m.tipo) || tipoUp.includes('AJUSTE')) return false; }
+                    else if (fTipo === 'AJUSTE') { if (!tipoUp.includes('AJUSTE')) return false; }
+                    else { if (tipoUp !== fTipo) return false; }
+                }
                 if (fStart && (m.data||'') < fStart) return false;
                 if (fEnd   && (m.data||'') > fEnd)   return false;
                 if (fDest  && !(m.destinatario||'').toUpperCase().includes(fDest)) return false;
-                if (fCpf   && !(m.cpfCnpj||'').replace(/\D/g,'').includes(fCpf.replace(/\D/g,''))) return false;
-                if (fPago  && (m.pagamento||'').toUpperCase() !== 'SIM') return false;
-                if (fFi    && (m.fi||'').toUpperCase() !== 'SIM') return false;
                 return true;
             });
 
@@ -7639,33 +7693,50 @@ function renderControleImbelMovimentacao() {
                                                  title="FI">
                                 </td>`;
 
+                                // ── badge de tipo: entrada=verde, saída=vermelho, ajuste=azul ──
+                                const isEntrada = cfgSafe.categoria === 'entrada';
+                                const isAjuste  = (first.tipo||'').toUpperCase().includes('AJUSTE');
+                                const badgeBg   = isAjuste  ? 'rgba(37,99,235,.12)' : isEntrada ? 'rgba(22,163,74,.12)' : 'rgba(220,38,38,.10)';
+                                const badgeClr  = isAjuste  ? '#1d4ed8' : isEntrada ? '#15803d' : '#dc2626';
+                                const badgePfx  = isAjuste  ? '⬡' : isEntrada ? '+ ' : '↗ ';
+                                const tipoBadge = `<span style="display:inline-flex;align-items:center;gap:3px;background:${badgeBg};color:${badgeClr};font-family:var(--tv-font-display);font-size:0.65rem;font-weight:700;letter-spacing:.06em;padding:2px 7px;border-radius:3px;white-space:nowrap;border:1px solid ${badgeClr}33">${badgePfx}${cfgSafe.label||first.tipo||'—'}</span>`;
+
+                                // ── quantidade colorida: + verde / - vermelho ──
+                                const qtdColor  = isEntrada ? '#15803d' : '#dc2626';
+                                const qtdSign   = isEntrada ? '+' : '−';
+                                const qtdCell   = `<td style="${tdCenter};font-family:var(--tv-font-mono);font-size:.82rem;font-weight:700;color:${qtdColor};letter-spacing:.02em">${qtdSign}${totalQtd}</td>`;
+
+                                // ── ID do grupo (primeiro item) ──
+                                const movId = (first.id || '').toString();
+                                const idShort = movId.length > 8 ? movId.slice(0,8) : movId;
+
                                 trGroup.innerHTML = `
         <td style="${tdCenter};width:36px" onclick="event.stopPropagation()">
             <input type="checkbox" class="imbel_table_chk_sel"
                          data-ids="${itens.map(m=>m.id).join(',')}"
                          style="width:15px;height:15px;cursor:pointer">
         </td>
+        <td style="${tdStyle};white-space:nowrap" onclick="event.stopPropagation()">
+            <span style="font-family:var(--tv-font-mono);font-size:0.68rem;font-weight:700;color:var(--tv-navy-700);background:var(--tv-navy-100);padding:1px 6px;border-radius:2px;letter-spacing:.04em" title="${first.id||''}">${idShort}</span>
+        </td>
         <td style="${tdStyle};font-weight:600;color:#1e293b">
             ${first.destinatario || '<span style="color:#94a3b8">—</span>'}
-            ${first.cpfCnpj ? `<div style="font-size:0.72rem;color:#94a3b8;font-weight:400;margin-top:1px">${first.cpfCnpj}</div>` : ''}
+            ${first.cpfCnpj ? `<div style="font-family:var(--tv-font-mono);font-size:0.62rem;color:#94a3b8;font-weight:400;margin-top:1px">${first.cpfCnpj}</div>` : ''}
         </td>
-        <td style="${tdCenter};white-space:nowrap;font-size:0.82rem;color:#475569">
-            ${dataFmt}
+        <td style="${tdCenter};white-space:nowrap;font-family:var(--tv-font-mono);font-size:0.72rem;color:var(--tv-navy-600)">
+            <div>${dataFmt}</div>
+            ${first.hora ? `<div style="font-size:0.62rem;color:var(--tv-navy-400)">${first.hora}</div>` : ''}
         </td>
-        <td style="${tdCenter}">
-            <span style="background:${cfgSafe.bg||'#f8fafc'};color:${cfgSafe.cor||'#64748b'};padding:2px 8px;border-radius:20px;font-size:0.75rem;font-weight:700;white-space:nowrap">
-                ${cfgSafe.icon||''} ${cfgSafe.label||first.tipo||'—'}
-            </span>
-        </td>
+        <td style="${tdCenter}">${tipoBadge}</td>
         ${produtoCell}
-        <td style="${tdCenter};font-weight:700">${totalQtd}</td>
-        <td style="${tdCenter};font-weight:700;color:#16a34a">${fmt(totalVal)}</td>
+        ${qtdCell}
+        <td style="${tdCenter};font-family:var(--tv-font-mono);font-size:0.75rem;font-weight:700;color:#15803d">${fmt(totalVal)}</td>
         ${entCell}
         ${pagCell}
         ${fiCell}
         <td style="${tdCenter}">
-            <button class="btn btn-outline" style="padding:3px 8px;font-size:.75rem;margin-right:4px" data-editmov="${itens[0].id}" data-editid="${itens[0].id}" title="Editar">✎</button>
-            <button class="btn btn-outline" style="padding:3px 8px;font-size:.75rem;color:#dc2626;border-color:#fca5a5" data-delid="${itens[0].id}" title="Excluir">🗑️</button>
+            <button class="imbel-row-btn" style="padding:2px 8px" data-editmov="${itens[0].id}" data-editid="${itens[0].id}" title="Editar">✎</button>
+            <button class="imbel-row-btn danger" style="padding:2px 8px" data-delid="${itens[0].id}" title="Excluir">✕</button>
         </td>`;
 
                                 // Click no cabeçalho do grupo: toggle apenas a linha de detalhes (CPF/contato/endereço/obs)
@@ -7690,14 +7761,16 @@ function renderControleImbelMovimentacao() {
                         trItem.style.cssText =
                             'display:none;background:#f0f9ff;' +
                             'border-bottom:1px solid #e2e8f0;font-size:0.85rem';
+                        const itIsEntrada = cfgSafe.categoria === 'entrada';
+                        const itQtdColor = itIsEntrada ? '#15803d' : '#dc2626';
+                        const itQtdSign  = itIsEntrada ? '+' : '−';
                         trItem.innerHTML = `
                     <td style="${tdCenter}"></td>
-                    <td colspan="2" style="${tdBase};padding-left:32px;\n                                    color:#64748b;font-size:0.8rem">
-                      └
-                    </td>
+                    <td style="${tdCenter}"></td>
+                    <td colspan="2" style="${tdBase};padding-left:32px;color:#64748b;font-size:0.8rem">└</td>
                     <td></td>
                     <td style="${tdBase};font-weight:500;color:#1e293b">${pNome}</td>
-                    <td style="${tdCenter};font-weight:600">${it.quantidade||0}</td>
+                    <td style="${tdCenter};font-family:var(--tv-font-mono);font-size:.82rem;font-weight:700;color:${itQtdColor}">${itQtdSign}${it.quantidade||0}</td>
                     <td style="${tdCenter};font-weight:600;color:#16a34a">R$ ${Number(it.valor||0).toLocaleString('pt-BR',{minimumFractionDigits:2})}</td>
                     <td colspan="4"></td>`;
                         tbody.appendChild(trItem);
@@ -7719,8 +7792,8 @@ function renderControleImbelMovimentacao() {
                 ].filter(Boolean);
 
                 trDetail.innerHTML = `
-            <td colspan="11"
-                    style="padding:10px 12px 10px 52px;background:#f8fafc;\n                           border-left:4px solid #1e3a5f;border-bottom:1px solid #e2e8f0;\n                           font-size:0.82rem">
+            <td colspan="12"
+                    style="padding:10px 12px 10px 52px;background:#f8fafc;border-left:4px solid #1e3a5f;border-bottom:1px solid #e2e8f0;font-size:0.82rem">
                 ${campos.length
                     ? campos.map(c => `<span style="margin-right:24px;color:#475569">${c}</span>`).join('')
                     : '<span style="color:#94a3b8">Sem informações adicionais</span>'}
@@ -7840,22 +7913,32 @@ function renderControleImbelMovimentacao() {
             mostrarNotificacao('Movimentação excluída.', 'warning');
         };
 
-    // conectar eventos dos filtros
-    ['imbel_filter_prod','imbel_filter_tipo','imbel_filter_date_start','imbel_filter_date_end','imbel_filter_dest','imbel_filter_cpf','imbel_filter_pago','imbel_filter_entregue_only','imbel_filter_fi_only'].forEach(id=>{
+    // conectar eventos dos filtros (busca por destinatário e produto)
+    ['imbel_filter_prod','imbel_filter_dest'].forEach(id=>{
         const el = document.getElementById(id);
-        if (el) el.addEventListener('change', function(){ populateTbody(); try{ atualizarResumoMovimentacoes(); }catch(e){} });
-        if (el && el.addEventListener && el.tagName === 'INPUT') el.addEventListener('input', function(){ populateTbody(); try{ atualizarResumoMovimentacoes(); }catch(e){} });
+        if (el) el.addEventListener('change', function(){ populateTbody(); });
+        if (el && el.tagName === 'INPUT') el.addEventListener('input', function(){ populateTbody(); });
     });
-    const btnResetFiltros = document.getElementById('imbel_filter_reset'); if (btnResetFiltros) btnResetFiltros.onclick = function(){
+    const btnResetFiltros = document.getElementById('imbel_filter_reset');
+    if (btnResetFiltros) btnResetFiltros.onclick = function(){
         document.getElementById('imbel_filter_prod').value = '';
-        document.getElementById('imbel_filter_tipo').value = '';
-        document.getElementById('imbel_filter_date_start').value = '';
-        document.getElementById('imbel_filter_date_end').value = '';
         document.getElementById('imbel_filter_dest').value = '';
-        document.getElementById('imbel_filter_cpf').value = '';
-        document.getElementById('imbel_filter_pago').checked = false;
-        document.getElementById('imbel_filter_entregue_only').checked = false;
-        document.getElementById('imbel_filter_fi_only').checked = false;
+        movState.tipo = '';
+        movState.periodo = '30d';
+        document.getElementById('imbel_filter_tipo').value = '';
+        // resetar chips tipo
+        filterBar.querySelectorAll('[data-tipo-chip]').forEach(c => {
+            const d = tipoChips.find(x=>x.key===c.dataset.tipoChip);
+            if (!d) return;
+            c.style.background  = c.dataset.tipoChip==='' ? d.actBg : d.bg;
+            c.style.color       = c.dataset.tipoChip==='' ? d.actClr : d.clr;
+            c.style.borderColor = c.dataset.tipoChip==='' ? 'transparent' : d.clr+'44';
+        });
+        // resetar chips período
+        periodoWrap.querySelectorAll('button').forEach(b => {
+            b.style.background = b.dataset.periodo==='30d' ? 'var(--tv-navy-700)' : 'transparent';
+            b.style.color      = b.dataset.periodo==='30d' ? '#fff' : 'var(--tv-navy-600)';
+        });
         populateTbody();
     };
 
