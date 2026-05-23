@@ -2026,106 +2026,29 @@
 
                 <!-- Sub-aba: Dashboard IMBEL -->
                 <div id="controleImbel-dashboard" class="controleimbel-subtab" style="display:none">
-                    <div class="section-header">
-                        <h2 class="section-title">Dashboard</h2>
-                        <div class="header-actions">
-                            <button class="btn btn-outline btn-sm" onclick="renderControleImbelDashboard()">
-                                <span class="btn-icon">🔄</span> Atualizar
-                            </button>
-                        </div>
-                    </div>
-                    <div id="controleImbelDashboardContainer"></div>
+                    <div id="controleImbelDashboardContainer" style="height:100%;display:flex;flex-direction:column"></div>
                 </div>
 
                 <!-- Sub-aba: Movimentação -->
                 <div id="controleImbel-movimentacao" class="controleimbel-subtab" style="display:none">
-                    <div class="section-header">
-                        <h2 class="section-title">Movimentação</h2>
-                        <div class="header-actions">
-                            <button class="btn btn-outline btn-sm" onclick="document.getElementById('inputImportarImbelMov').click()">
-                                <span class="btn-icon">📥</span> Importar
-                            </button>
-                            <input type="file" id="inputImportarImbelMov" accept=".csv,.xlsx,.xls" style="display:none" onchange="importarImbelMovimentacao(event)">
-                            <button class="btn btn-outline btn-sm" onclick="exportarImbelMovimentacao()">
-                                <span class="btn-icon">📤</span> Exportar
-                            </button>
-                        </div>
-                    </div>
-                    <div id="controleImbelMovContainer"></div>
+                    <input type="file" id="inputImportarImbelMov" accept=".csv,.xlsx,.xls" style="display:none" onchange="importarImbelMovimentacao(event)">
+                    <div id="controleImbelMovContainer" style="height:100%;display:flex;flex-direction:column"></div>
                 </div>
 
                 <!-- Sub-aba: Preços -->
                 <div id="controleImbel-precos" class="controleimbel-subtab" style="display:none">
-                    <div class="section-header">
-                        <h2 class="section-title">Tabela de Preços — IMBEL Sede</h2>
-                        <div class="header-actions">
-                            <button class="btn btn-primary" onclick="abrirModalPrecoImbel()">
-                                <span class="btn-icon">➕</span> Novo Período
-                            </button>
-                        </div>
-                    </div>
-                    <div id="controleImbelPrecosContainer"></div>
+                    <div id="controleImbelPrecosContainer" style="height:100%;display:flex;flex-direction:column"></div>
                 </div>
 
                 <!-- Sub-aba: Cadastro -->
                 <div id="controleImbel-cadastro" class="controleimbel-subtab" style="display:none">
-                    <div class="section-header">
-                        <h2 class="section-title">Cadastro de Produtos</h2>
-                        <div class="header-actions">
-                            <button class="btn btn-outline btn-sm" onclick="document.getElementById('inputImportarImbelCadastro').click()">
-                                <span class="btn-icon">📥</span> Importar
-                            </button>
-                            <input type="file" id="inputImportarImbelCadastro" accept=".csv,.xlsx,.xls" style="display:none" onchange="importarImbelCadastro(event)">
-                            <button class="btn btn-outline btn-sm" onclick="exportarImbelCadastro()">
-                                <span class="btn-icon">📤</span> Exportar
-                            </button>
-                        </div>
-                    </div>
-                    <div id="controleImbelCadastroContainer"></div>
+                    <input type="file" id="inputImportarImbelCadastro" accept=".csv,.xlsx,.xls" style="display:none" onchange="importarImbelCadastro(event)">
+                    <div id="controleImbelCadastroContainer" style="height:100%;display:flex;flex-direction:column"></div>
                 </div>
 
                 <!-- Sub-aba: Auditoria IMBEL -->
                 <div id="controleImbel-auditoria" class="controleimbel-subtab" style="display:none">
-                    <div class="section-header">
-                        <h2 class="section-title">Auditoria IMBEL</h2>
-                        <div class="header-actions">
-                            <input type="text" id="imbelAuditoriaBusca" placeholder="Buscar por ID, usuário, produto..." oninput="renderControleImbelAuditoria()"
-                                   style="padding:7px 12px;border:1px solid #e2e8f0;border-radius:8px;font-size:0.8rem;width:220px;background:#f8fafc">
-                            <select id="imbelAuditoriaFiltroAcao" onchange="renderControleImbelAuditoria()"
-                                    style="padding:7px 12px;border:1px solid #e2e8f0;border-radius:8px;font-size:0.8rem;background:#f8fafc">
-                                <option value="">Todas as ações</option>
-                                <option value="criacao">Criação</option>
-                                <option value="edicao">Edição</option>
-                                <option value="exclusao">Exclusão</option>
-                            </select>
-                            <select id="imbelAuditoriaFiltroEntidade" onchange="renderControleImbelAuditoria()"
-                                    style="padding:7px 12px;border:1px solid #e2e8f0;border-radius:8px;font-size:0.8rem;background:#f8fafc">
-                                <option value="">Produtos e Movimentações</option>
-                                <option value="produto">Somente Produtos</option>
-                                <option value="movimentacao">Somente Movimentações</option>
-                            </select>
-                            <button class="btn btn-outline btn-sm" onclick="exportarAuditoriaImbel()">
-                                <span class="btn-icon">📤</span> Exportar
-                            </button>
-                        </div>
-                    </div>
-                    <div style="max-height:520px;overflow-y:auto">
-                        <table class="dashboard-table" style="font-size:0.82rem">
-                            <thead style="position:sticky;top:0;z-index:1">
-                                <tr>
-                                    <th style="min-width:150px">Data / Hora</th>
-                                    <th style="min-width:110px">Usuário</th>
-                                    <th style="min-width:120px">Ação</th>
-                                    <th style="min-width:100px">Entidade</th>
-                                    <th>Detalhes</th>
-                                </tr>
-                            </thead>
-                            <tbody id="imbelAuditoriaTbody">
-                                <tr><td colspan="5" style="text-align:center;color:#94a3b8;padding:30px">Carregando auditoria...</td></tr>
-                            </tbody>
-                        </table>
-                    </div>
-                    <div id="imbelAuditoriaCount" style="font-size:0.75rem;color:#94a3b8;padding:8px 20px;text-align:right;border-top:1px solid #f1f5f9"></div>
+                    <div id="imbelAuditoriaContainer" style="height:100%;display:flex;flex-direction:column"></div>
                 </div>
             </div>
         </div>

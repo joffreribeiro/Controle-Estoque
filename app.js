@@ -1,4 +1,4 @@
-// ========================================
+﻿// ========================================
 // SISTEMA DE CONTROLE DE ESTOQUE
 // Material Bélico - v2.0
 // ========================================
@@ -5659,70 +5659,200 @@ function registrarAuditoriaImbel(acao, entidade, objAntes, objDepois, detalhes =
 }
 
 function renderControleImbelAuditoria() {
-    const tbody = document.getElementById('imbelAuditoriaTbody');
-    const countEl = document.getElementById('imbelAuditoriaCount');
-    if (!tbody) return;
+    const container = document.getElementById('imbelAuditoriaContainer');
+    if (!container) return;
 
     let lista = [];
     try { lista = JSON.parse(localStorage.getItem(IMBEL_AUDITORIA_KEY) || '[]'); } catch(e) {}
 
-    const busca = (document.getElementById('imbelAuditoriaBusca')?.value || '').toLowerCase();
-    const filtroAcao = document.getElementById('imbelAuditoriaFiltroAcao')?.value || '';
+    // preserve filter state
+    const state = container._audState || { busca: '', filtroAcao: '', filtroEntidade: '', sel: null };
+    container._audState = state;
+
+    // ── if already rendered, only refresh list ──
+    const existingList = container.querySelector('#imbelAudList');
+    if (existingList) {
+        _imbelAudRenderList(container, lista, state);
+        return;
+    }
+
+    container.innerHTML = '';
+    container.style.cssText = 'display:flex;flex-direction:column;height:100%;overflow:hidden;background:var(--tv-navy-50)';
+
+    // ── Command bar ──
+    const cmdbar = document.createElement('div');
+    cmdbar.className = 'imbel-cmdbar';
+    cmdbar.innerHTML = `
+      <div class="imbel-search-wrap">
+        <svg class="imbel-search-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="text" id="imbelAuditoriaBusca" class="imbel-search-input" placeholder="Buscar..." style="width:180px" oninput="renderControleImbelAuditoria()" />
+      </div>
+      <div class="imbel-seg">
+        <button class="imbel-seg-btn ${!state.filtroAcao?'active':''}" onclick="document.getElementById('imbelAuditoriaFiltroAcao').value='';renderControleImbelAuditoria()">TODAS</button>
+        <button class="imbel-seg-btn ${state.filtroAcao==='criacao'?'active':''}" onclick="document.getElementById('imbelAuditoriaFiltroAcao').value='criacao';renderControleImbelAuditoria()">CRIAÇÃO</button>
+        <button class="imbel-seg-btn ${state.filtroAcao==='edicao'?'active':''}" onclick="document.getElementById('imbelAuditoriaFiltroAcao').value='edicao';renderControleImbelAuditoria()">EDIÇÃO</button>
+        <button class="imbel-seg-btn ${state.filtroAcao==='exclusao'?'active':''}" onclick="document.getElementById('imbelAuditoriaFiltroAcao').value='exclusao';renderControleImbelAuditoria()">EXCLUSÃO</button>
+      </div>
+      <select id="imbelAuditoriaFiltroEntidade" class="imbel-search-input" style="width:160px;padding-left:8px" onchange="renderControleImbelAuditoria()">
+        <option value="">Produtos e Movimentações</option>
+        <option value="produto">Somente Produtos</option>
+        <option value="movimentacao">Somente Movimentações</option>
+      </select>
+      <!-- hidden inputs needed by existing code -->
+      <input type="hidden" id="imbelAuditoriaFiltroAcao" value="" />
+      <div class="imbel-bar-right">
+        <button class="imbel-bar-btn" onclick="exportarAuditoriaImbel()">EXPORTAR</button>
+      </div>`;
+    container.appendChild(cmdbar);
+
+    // KPI strip
+    const criacoes  = lista.filter(a=>a.acao==='criacao').length;
+    const edicoes   = lista.filter(a=>a.acao==='edicao').length;
+    const exclusoes = lista.filter(a=>a.acao==='exclusao').length;
+    const kpiStrip = document.createElement('div');
+    kpiStrip.className = 'imbel-kpi-strip';
+    kpiStrip.innerHTML = `
+      <div class="imbel-kpi"><div class="imbel-kpi-lbl">Total Eventos</div><div class="imbel-kpi-val">${lista.length}</div><div class="imbel-kpi-sub">no log de auditoria</div></div>
+      <div class="imbel-kpi"><div class="imbel-kpi-lbl">Criações</div><div class="imbel-kpi-val pos">${criacoes}</div><div class="imbel-kpi-sub">produtos e movs</div></div>
+      <div class="imbel-kpi"><div class="imbel-kpi-lbl">Edições</div><div class="imbel-kpi-val amber">${edicoes}</div><div class="imbel-kpi-sub">alterações</div></div>
+      <div class="imbel-kpi"><div class="imbel-kpi-lbl">Exclusões</div><div class="imbel-kpi-val ${exclusoes?'neg':''}">${exclusoes}</div><div class="imbel-kpi-sub">remoções</div></div>`;
+    container.appendChild(kpiStrip);
+
+    // ── Layout: timeline | detail ──
+    const layout = document.createElement('div');
+    layout.className = 'imbel-aud-layout';
+
+    const listEl = document.createElement('div');
+    listEl.className = 'imbel-aud-list';
+    listEl.id = 'imbelAudList';
+
+    const panelEl = document.createElement('div');
+    panelEl.className = 'imbel-aud-panel';
+    panelEl.id = 'imbelAudPanel';
+    panelEl.innerHTML = '<div class="imbel-aud-panel-empty">Selecione um evento para ver detalhes</div>';
+
+    layout.appendChild(listEl);
+    layout.appendChild(panelEl);
+    container.appendChild(layout);
+
+    // Footbar
+    const footbar = document.createElement('div');
+    footbar.className = 'imbel-footbar';
+    footbar.id = 'imbelAudFootbar';
+    footbar.innerHTML = `<span class="imbel-footbar-tag">IMBEL</span><span class="imbel-footbar-div">|</span><span>AUDITORIA</span><span class="imbel-footbar-div">|</span><span id="imbelAudCount">${lista.length} eventos</span>`;
+    container.appendChild(footbar);
+
+    _imbelAudRenderList(container, lista, state);
+}
+
+function _imbelAudRenderList(container, lista, state) {
+    const busca          = (document.getElementById('imbelAuditoriaBusca')?.value || '').toLowerCase();
+    const filtroAcao     = document.getElementById('imbelAuditoriaFiltroAcao')?.value || '';
     const filtroEntidade = document.getElementById('imbelAuditoriaFiltroEntidade')?.value || '';
+
+    state.busca = busca; state.filtroAcao = filtroAcao; state.filtroEntidade = filtroEntidade;
 
     const filtrada = lista.slice().reverse().filter(a => {
         if (filtroAcao && a.acao !== filtroAcao) return false;
         if (filtroEntidade && a.entidade !== filtroEntidade) return false;
         if (busca) {
             const dep = a.depois || a.antes || {};
-            return (a.quem || '').toLowerCase().includes(busca) ||
-                   (a.acao || '').toLowerCase().includes(busca) ||
-                   (a.detalhes || '').toLowerCase().includes(busca) ||
-                   (dep.nome || '').toLowerCase().includes(busca) ||
-                   (dep.destinatario || '').toLowerCase().includes(busca) ||
-                   String(a.entityId || '').toLowerCase().includes(busca);
+            return (a.quem||'').toLowerCase().includes(busca) ||
+                   (a.acao||'').toLowerCase().includes(busca) ||
+                   (a.detalhes||'').toLowerCase().includes(busca) ||
+                   (dep.nome||'').toLowerCase().includes(busca) ||
+                   (dep.destinatario||'').toLowerCase().includes(busca) ||
+                   String(a.entityId||'').toLowerCase().includes(busca);
         }
         return true;
     });
 
-    const acaoCfg = {
-        criacao:  { bg: '#f0fdf4', text: '#16a34a', icon: '➕', label: 'CRIAÇÃO' },
-        edicao:   { bg: '#eff6ff', text: '#1d4ed8', icon: '✏️', label: 'EDIÇÃO' },
-        exclusao: { bg: '#fef2f2', text: '#dc2626', icon: '🗑️', label: 'EXCLUSÃO' }
-    };
+    const listEl = document.getElementById('imbelAudList');
+    const countEl = document.getElementById('imbelAudCount');
+    if (!listEl) return;
+    if (countEl) countEl.textContent = `${filtrada.length} de ${lista.length} eventos`;
 
     if (!filtrada.length) {
-        tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;color:#94a3b8;padding:40px">Nenhum registro encontrado</td></tr>`;
-        if (countEl) countEl.textContent = '0 registros';
+        listEl.innerHTML = '<div style="padding:40px;text-align:center;color:var(--tv-navy-400);font-size:0.8rem">Nenhum evento encontrado</div>';
         return;
     }
 
-    tbody.innerHTML = filtrada.map((a, i) => {
+    // group by day
+    const byDay = new Map();
+    filtrada.forEach(a => {
+        const day = a.quando ? new Date(a.quando).toLocaleDateString('pt-BR',{weekday:'short',day:'2-digit',month:'short',year:'numeric'}) : '—';
+        if (!byDay.has(day)) byDay.set(day, []);
+        byDay.get(day).push(a);
+    });
+
+    let html = '';
+    byDay.forEach((eventos, day) => {
+        html += `<div class="imbel-aud-day-head">${day} · ${eventos.length} evento(s)</div>`;
+        eventos.forEach(a => {
+            const time = a.quando ? new Date(a.quando).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}) : '—';
+            const dep = a.depois || a.antes || {};
+            const descricao = a.detalhes || (dep.nome||dep.destinatario||'');
+            html += `<div class="imbel-aud-row" data-audid="${a.id}" onclick="window._imbelAudSelect('${a.id}')">
+              <div class="imbel-aud-time">${time}</div>
+              <div class="imbel-aud-dot ${a.acao||''}"></div>
+              <div class="imbel-aud-main">
+                <div class="imbel-aud-who">${_escapeHtml(a.quem||'Sistema')}</div>
+                <div class="imbel-aud-detail">${_escapeHtml(descricao||'—')}</div>
+              </div>
+              <span class="imbel-aud-action-badge ${a.acao||''}">${(a.acao||'').toUpperCase()}</span>
+            </div>`;
+        });
+    });
+    listEl.innerHTML = html;
+
+    window._imbelAudSelect = function(id) {
+        const allRows = document.querySelectorAll('.imbel-aud-row');
+        allRows.forEach(r => r.style.background = '');
+        const row = document.querySelector(`.imbel-aud-row[data-audid="${id}"]`);
+        if (row) row.style.background = '#eef3f9';
+
+        let lista2 = [];
+        try { lista2 = JSON.parse(localStorage.getItem(IMBEL_AUDITORIA_KEY)||'[]'); } catch(e) {}
+        const a = lista2.find(x => String(x.id) === String(id));
+        const panelEl = document.getElementById('imbelAudPanel');
+        if (!panelEl || !a) return;
+
         const dt = a.quando ? new Date(a.quando).toLocaleString('pt-BR') : '—';
-        const ac = acaoCfg[a.acao] || { bg: '#f8fafc', text: '#475569', icon: '📝', label: (a.acao || '').toUpperCase() };
-        const entidadeLabel = a.entidade === 'produto' ? '📦 Produto' : a.entidade === 'movimentacao' ? '🔄 Movimentação' : a.entidade || '—';
+        const campos = a.entidade === 'produto'
+            ? ['nome', 'codigo', 'quantidadeInicial', 'valorUnitario', 'pontoReposicao', 'observacao']
+            : ['tipo', 'data', 'destinatario', 'cpfCnpj', 'quantidade', 'valor', 'pagamento', 'entregue', 'fi'];
 
-        // Montar resumo de detalhes comparando antes x depois
-        let delta = a.detalhes || '';
-        if (a.antes && a.depois) {
-            const campos = a.entidade === 'produto'
-                ? ['nome', 'codigo', 'quantidadeInicial', 'valorUnitario']
-                : ['tipo', 'data', 'destinatario', 'quantidade', 'valor'];
-            const diffs = campos.filter(c => JSON.stringify(a.antes[c]) !== JSON.stringify(a.depois[c]))
-                                .map(c => `${c}: ${a.antes[c]} → ${a.depois[c]}`);
-            if (diffs.length) delta = diffs.join(' | ');
-        }
+        const diffRows = campos.map(c => {
+            const antes = a.antes ? a.antes[c] : undefined;
+            const depois = a.depois ? a.depois[c] : undefined;
+            if (antes === undefined && depois === undefined) return '';
+            const changed = JSON.stringify(antes) !== JSON.stringify(depois);
+            return `<div class="imbel-diff-row ${changed?'':'dim'}">
+              <span class="imbel-diff-field">${c}</span>
+              ${a.antes ? `<span class="imbel-diff-before">${antes ?? '—'}</span>` : ''}
+              ${a.depois ? `<span class="imbel-diff-after">${depois ?? '—'}</span>` : ''}
+            </div>`;
+        }).filter(Boolean).join('');
 
-        return `<tr style="background:${i % 2 === 0 ? '#fff' : '#f8fafc'};border-bottom:1px solid #f1f5f9">
-            <td style="font-size:0.78rem;color:#475569;white-space:nowrap">${dt}</td>
-            <td style="font-size:0.8rem;font-weight:500;color:#1e293b">${a.quem || 'Sistema'}</td>
-            <td><span style="background:${ac.bg};color:${ac.text};font-size:0.72rem;font-weight:600;padding:2px 8px;border-radius:20px;white-space:nowrap">${ac.icon} ${ac.label}</span></td>
-            <td style="font-size:0.8rem;color:#475569">${entidadeLabel}</td>
-            <td style="font-size:0.78rem;color:#64748b;max-width:320px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${delta}">${delta || '—'}</td>
-        </tr>`;
-    }).join('');
-
-    if (countEl) countEl.textContent = `${filtrada.length} de ${lista.length} registros`;
+        panelEl.innerHTML = `
+          <div class="imbel-diff-block">
+            <div class="imbel-diff-head">Evento — ${dt}</div>
+            <div class="imbel-diff-row">
+              <span class="imbel-diff-field">ação</span>
+              <span class="imbel-aud-action-badge ${a.acao||''}">${(a.acao||'').toUpperCase()}</span>
+            </div>
+            <div class="imbel-diff-row">
+              <span class="imbel-diff-field">entidade</span>
+              <span>${a.entidade||'—'}</span>
+            </div>
+            <div class="imbel-diff-row">
+              <span class="imbel-diff-field">usuário</span>
+              <span>${_escapeHtml(a.quem||'Sistema')}</span>
+            </div>
+          </div>
+          ${diffRows ? `<div class="imbel-diff-block"><div class="imbel-diff-head">Campos alterados</div>${diffRows}</div>` : ''}
+          ${a.detalhes ? `<div class="imbel-diff-block"><div class="imbel-diff-head">Detalhes</div><div style="padding:8px 10px;font-size:0.72rem;color:var(--tv-navy-600)">${_escapeHtml(a.detalhes)}</div></div>` : ''}`;
+    };
 }
 
 function exportarAuditoriaImbel() {
@@ -5912,53 +6042,100 @@ function renderControleImbelPrecos() {
     const container = document.getElementById('controleImbelPrecosContainer');
     if (!container) return;
     container.innerHTML = '';
+    container.style.cssText = 'display:flex;flex-direction:column;height:100%;overflow:hidden;background:var(--tv-navy-50)';
 
     const byProduto = {};
     (data.precos || []).forEach(p => {
-        if (!byProduto[p.produtoId]) byProduto[p.produtoId] = { produto: (data.produtos||[]).find(x => x.id === p.produtoId) || { id: p.produtoId, nome: '(Produto não encontrado)' }, precos: [] };
+        if (!byProduto[p.produtoId]) byProduto[p.produtoId] = {
+            produto: (data.produtos||[]).find(x => x.id === p.produtoId) || { id: p.produtoId, nome: '(Produto não encontrado)' },
+            precos: []
+        };
         byProduto[p.produtoId].precos.push(p);
     });
 
     const anoAtual = new Date().getFullYear();
-    if (Object.keys(byProduto).length === 0) {
-        container.innerHTML = '<div class="muted">Nenhum preço cadastrado ainda.</div>';
-        return;
-    }
+    const totalProdutos = Object.keys(byProduto).length;
+    const totalRegistros = (data.precos||[]).length;
+    const precoAtualList = Object.values(byProduto).map(g => {
+        const pr = g.precos.find(p => Number(p.ano) === anoAtual) || g.precos.sort((a,b)=>b.ano-a.ano)[0];
+        return pr ? Number(pr.valor)||0 : 0;
+    });
+    const avgPreco = precoAtualList.length ? precoAtualList.reduce((s,v)=>s+v,0)/precoAtualList.length : 0;
 
-    container.innerHTML = Object.entries(byProduto).map(([prodId, grupo]) => {
-        const precosOrdenados = grupo.precos.slice().sort((a,b) => b.ano - a.ano);
-        const produtoNome = grupo.produto.nome || grupo.produto.descricao || prodId;
-        return `
-          <div class="card" style="margin-bottom:12px">
-            <div class="card-header" style="display:flex;justify-content:space-between;align-items:center">
-              <strong>${produtoNome}</strong>
-              <div style="display:flex;gap:8px">
-                <button class="btn btn-outline" onclick="abrirModalPrecoImbel()">Novo</button>
+    // ── Command bar ──
+    const cmdbar = document.createElement('div');
+    cmdbar.className = 'imbel-cmdbar';
+    cmdbar.innerHTML = `
+      <span style="font-family:var(--tv-font-display);font-size:0.7rem;font-weight:700;color:var(--tv-navy-600)">TABELA DE PREÇOS — IMBEL SEDE</span>
+      <div class="imbel-bar-right">
+        <button class="imbel-bar-btn accent" onclick="abrirModalPrecoImbel()">+ NOVO PERÍODO</button>
+      </div>`;
+    container.appendChild(cmdbar);
+
+    // ── KPI strip ──
+    const kpiStrip = document.createElement('div');
+    kpiStrip.className = 'imbel-kpi-strip';
+    kpiStrip.innerHTML = `
+      <div class="imbel-kpi"><div class="imbel-kpi-lbl">Produtos c/ Preço</div><div class="imbel-kpi-val">${totalProdutos}</div><div class="imbel-kpi-sub">de ${(data.produtos||[]).length} cadastrados</div></div>
+      <div class="imbel-kpi"><div class="imbel-kpi-lbl">Registros</div><div class="imbel-kpi-val">${totalRegistros}</div><div class="imbel-kpi-sub">histórico de preços</div></div>
+      <div class="imbel-kpi"><div class="imbel-kpi-lbl">Preço Médio ${anoAtual}</div><div class="imbel-kpi-val amber">R$ ${avgPreco.toLocaleString('pt-BR',{minimumFractionDigits:2})}</div><div class="imbel-kpi-sub">ano vigente</div></div>`;
+    container.appendChild(kpiStrip);
+
+    // ── Cards grid ──
+    const scrollArea = document.createElement('div');
+    scrollArea.className = 'imbel-scroll';
+
+    if (totalProdutos === 0) {
+        scrollArea.innerHTML = `<div style="padding:40px;text-align:center;color:var(--tv-navy-400);font-family:var(--tv-font-display);font-size:0.8rem">
+          Nenhum preço cadastrado ainda.<br>
+          <button class="imbel-bar-btn accent" style="margin-top:12px" onclick="abrirModalPrecoImbel()">+ Novo Período</button>
+        </div>`;
+    } else {
+        const grid = document.createElement('div');
+        grid.className = 'imbel-precos-grid';
+
+        Object.entries(byProduto).forEach(([prodId, grupo]) => {
+            const precosOrdenados = grupo.precos.slice().sort((a,b) => b.ano - a.ano);
+            const produtoNome = grupo.produto.nome || grupo.produto.descricao || prodId;
+            const card = document.createElement('div');
+            card.className = 'imbel-preco-card';
+            card.innerHTML = `
+              <div class="imbel-preco-card-head">
+                <span class="imbel-preco-card-name">${_escapeHtml(produtoNome)}</span>
+                <button class="imbel-row-btn" onclick="abrirModalPrecoImbel()">+ Novo</button>
               </div>
-            </div>
-            <div class="card-body" style="padding:8px 12px">
-              <table style="width:100%;border-collapse:collapse">
-                <thead><tr><th style="text-align:left">Ano</th><th style="text-align:right">Valor (R$)</th><th style="text-align:left">Obs</th><th></th></tr></thead>
-                <tbody>
-                  ${precosOrdenados.map(pr => {
-                     const isAtual = Number(pr.ano) === Number(anoAtual);
-                     return `
-                       <tr style="${isAtual ? 'background:#f8fafc' : ''}">
-                         <td style="padding:8px 6px">${pr.ano}</td>
-                         <td style="padding:8px 6px;text-align:right">${(Number(pr.valor)||0).toFixed(2).replace('.',',')}</td>
-                         <td style="padding:8px 6px">${pr.obs||''}</td>
-                         <td style="padding:8px 6px;text-align:right">
-                           <button class="btn btn-outline" onclick="abrirModalPrecoImbel('${pr.id}')">Editar</button>
-                           <button class="btn btn-danger" onclick="excluirPrecoImbel('${pr.id}')">Excluir</button>
-                         </td>
-                       </tr>`;
-                  }).join('')}
-                </tbody>
-              </table>
-            </div>
-          </div>`;
-    }).join('');
+              ${precosOrdenados.map(pr => {
+                const isAtual = Number(pr.ano) === Number(anoAtual);
+                return `<div class="imbel-preco-entry">
+                  <span class="imbel-preco-ano">${pr.ano}${isAtual ? ' ●' : ''}</span>
+                  <span class="imbel-preco-val">R$ ${(Number(pr.valor)||0).toLocaleString('pt-BR',{minimumFractionDigits:2})}</span>
+                  ${pr.obs ? `<span class="imbel-preco-obs">${_escapeHtml(pr.obs)}</span>` : ''}
+                  <div style="display:flex;gap:4px;margin-left:auto">
+                    <button class="imbel-row-btn" onclick="abrirModalPrecoImbel('${pr.id}')">✎</button>
+                    <button class="imbel-row-btn danger" onclick="excluirPrecoImbel('${pr.id}')">✕</button>
+                  </div>
+                </div>`;
+              }).join('')}`;
+            grid.appendChild(card);
+        });
+        scrollArea.appendChild(grid);
+    }
+    container.appendChild(scrollArea);
 
+    // ── Footbar ──
+    const footbar = document.createElement('div');
+    footbar.className = 'imbel-footbar';
+    footbar.innerHTML = `
+      <span class="imbel-footbar-tag">IMBEL</span>
+      <span class="imbel-footbar-div">|</span>
+      <span>PREÇOS</span>
+      <span class="imbel-footbar-div">|</span>
+      <span>${totalProdutos} PRODUTOS</span>
+      <span class="imbel-footbar-div">|</span>
+      <span>${totalRegistros} REG</span>`;
+    container.appendChild(footbar);
+
+    // ── Modal salvar handler ──
     const btnSalvar = document.getElementById('imbel_preco_salvar');
     if (btnSalvar) {
         btnSalvar.onclick = function() {
@@ -5971,12 +6148,7 @@ function renderControleImbelPrecos() {
             const d = loadImbel(); d.precos = d.precos || [];
             if (editId) {
                 const idx = d.precos.findIndex(x => x.id === editId);
-                if (idx >= 0) {
-                    d.precos[idx].produtoId = produtoId;
-                    d.precos[idx].ano = ano;
-                    d.precos[idx].valor = valor;
-                    d.precos[idx].obs = obs;
-                }
+                if (idx >= 0) { d.precos[idx].produtoId = produtoId; d.precos[idx].ano = ano; d.precos[idx].valor = valor; d.precos[idx].obs = obs; }
             } else {
                 d.precos.push({ id: 'p_' + Date.now(), produtoId, ano, valor, obs, criadoEm: new Date().toISOString() });
             }
@@ -6078,7 +6250,7 @@ function trocarSubAbaControleImbel(sub) {
     // Mostrar / ocultar painéis
     document.querySelectorAll('.controleimbel-subtab').forEach(el => el.style.display = 'none');
     const sel = document.getElementById(`controleImbel-${sub}`);
-    if (sel) sel.style.display = 'block';
+    if (sel) sel.style.display = 'flex';
 
     // Renderizar conteúdo
     if (sub === 'estoque') renderControleImbelEstoque();
@@ -6424,385 +6596,319 @@ function renderControleImbelDashboard() {
     if (!container) return;
     container.innerHTML = '';
 
-    // Top indicators
+    const fmtM = v => 'R$ ' + Number(v).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+
     const movimentacoes = (data.movimentacoes || []).slice();
-    // Considerar apenas tipos que marcam receita como vendas para faturamento
     const vendas = movimentacoes.filter(m => getImbelTipo(m.tipo).contaReceita);
-    const receitaTotal = vendas.reduce((s,m) => s + (Number(m.valor)||0), 0);
-    const unidadesVendidas = vendas.reduce((s,m) => s + (Number(m.quantidade)||0), 0);
-    const clientes = new Set(vendas.filter(v=> (v.destinatario||'').trim() ).map(v => (v.destinatario||'').toString().toUpperCase()));
-    const clientesAtivos = clientes.size;
-    const pedidosCount = vendas.length;
-    const ticketMedio = pedidosCount > 0 ? receitaTotal / pedidosCount : 0;
 
-    const indicadores = document.createElement('div');
-    indicadores.className = 'kpi-grid';
-    indicadores.style.cssText = 'grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px';
-    const kpiV2 = (label, valor, subtitulo, variant, iconSvg) => {
-        const c = document.createElement('article');
-        c.className = `kpi-card-v2 ${variant}`;
-        c.innerHTML = `<div class="kpi-v2-top">
-            <div class="kpi-v2-body">
-                <div class="kpi-v2-label">${label}</div>
-                <div class="kpi-v2-value kpi-v2-value--sm">${valor}</div>
-                <div class="kpi-v2-subtitle">${subtitulo}</div>
-            </div>
-            <div class="kpi-v2-icon">${iconSvg}</div>
-        </div>`;
-        return c;
-    };
-
-    const fmtMoeda = v => 'R$ ' + v.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
-    indicadores.appendChild(kpiV2('Receita Total', fmtMoeda(receitaTotal), 'Vendas com receita', 'kpi-success',
-        '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>'));
-    indicadores.appendChild(kpiV2('Unidades Vendidas', unidadesVendidas.toString(), 'Total de unidades', 'kpi-info',
-        '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>'));
-    indicadores.appendChild(kpiV2('Clientes Ativos', clientesAtivos.toString(), 'Destinatários únicos', 'kpi-accent-v2',
-        '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>'));
-    indicadores.appendChild(kpiV2('Ticket Médio', fmtMoeda(ticketMedio), 'Por pedido (receita)', 'kpi-warning',
-        '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>'));
-
-    container.appendChild(indicadores);
-
-    // Inserir container da tabela detalhada de estoque logo após os KPIs
-    try {
-        let detalheEstoqueWrapper = document.getElementById('controleImbelEstoqueContainer');
-        if (!detalheEstoqueWrapper) {
-            detalheEstoqueWrapper = document.createElement('div');
-            detalheEstoqueWrapper.id = 'controleImbelEstoqueContainer';
-            detalheEstoqueWrapper.style.cssText = 'margin-top:16px';
-            container.appendChild(detalheEstoqueWrapper);
-        }
-        try { renderControleImbelEstoque(); } catch(e) { console.warn('Erro ao renderizar tabela de estoque dentro do Dashboard', e); }
-    } catch(e) { console.warn('Erro ao inserir container de estoque no Dashboard', e); }
-
-    // Controle financeiro: pendentes e comparação
-    const pendentes = vendas.filter(v => (v.pagamento||'').toString().toUpperCase() !== 'SIM');
-    const valorPendentes = pendentes.reduce((s,m) => s + (Number(m.valor)||0), 0);
-    const pagosCount = vendas.filter(v => (v.pagamento||'').toString().toUpperCase() === 'SIM').length;
-    const naoConfirmadosCount = vendas.length - pagosCount;
-
-    const financeiroLabel = document.createElement('div');
-    financeiroLabel.className = 'imbel-section-divider';
-    financeiroLabel.innerHTML = '<span>Controle Financeiro</span>';
-    container.appendChild(financeiroLabel);
-
-    const financeiroWrap = document.createElement('div');
-    financeiroWrap.className = 'kpi-grid';
-    financeiroWrap.style.cssText = 'grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px';
-
-    const finKpi = (label, valor, subtitulo, variant, iconSvg) => {
-        const c = document.createElement('article');
-        c.className = `kpi-card-v2 ${variant}`;
-        c.innerHTML = `<div class="kpi-v2-top">
-            <div class="kpi-v2-body">
-                <div class="kpi-v2-label">${label}</div>
-                <div class="kpi-v2-value">${valor}</div>
-                <div class="kpi-v2-subtitle">${subtitulo}</div>
-            </div>
-            <div class="kpi-v2-icon">${iconSvg}</div>
-        </div>`;
-        return c;
-    };
-
-    financeiroWrap.appendChild(finKpi('Pendente Recebimento', fmtMoeda(valorPendentes), `${pendentes.length} pedido(s) pendentes`, 'kpi-warning',
-        '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>'));
-    financeiroWrap.appendChild(finKpi('Pedidos Pagos', pagosCount.toString(), 'Comprovante confirmado', 'kpi-success',
-        '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>'));
-    financeiroWrap.appendChild(finKpi('Não Confirmados', naoConfirmadosCount.toString(), 'Aguard. comprovante/GRU', 'kpi-danger',
-        '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>'));
-
-    // Chart card
-    const chartCard = document.createElement('article');
-    chartCard.className = 'kpi-card-v2 kpi-info';
-    chartCard.innerHTML = `<div class="kpi-v2-label" style="margin-bottom:8px">Pagos vs Não Confirmados</div><canvas id="imbelPaidChart" style="height:70px"></canvas>`;
-    financeiroWrap.appendChild(chartCard);
-
-    container.appendChild(financeiroWrap);
-
-    // render chart if Chart available
-    setTimeout(() => {
-        try {
-            const ctx = document.getElementById('imbelPaidChart');
-            if (ctx && window.Chart) {
-                // destroy previous chart instance if any
-                if (ctx._chartInstance) try { ctx._chartInstance.destroy(); } catch(e){}
-                const ch = new Chart(ctx.getContext('2d'), {
-                    type: 'bar',
-                    data: {
-                        labels: ['Pagos','Não confirmados'],
-                        datasets: [{
-                            label: 'Pedidos',
-                            data: [pagosCount, naoConfirmadosCount],
-                            backgroundColor: ['#28a745','#ffc107']
-                        }]
-                    },
-                    options: {plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{precision:0}}}}
-                });
-                ctx._chartInstance = ch;
-            }
-        } catch (e) { console.warn('Chart render falhou', e); }
-    }, 40);
-
-    // Gestão de estoque em tempo real com semáforo
-    const estoqueWrap = document.createElement('div');
-    estoqueWrap.style.cssText = 'background:#fff;border-radius:10px;padding:12px;box-shadow:0 1px 6px rgba(0,0,0,.06);margin-top:12px';
-    estoqueWrap.innerHTML = `<h3 style="margin:0 0 8px 0;font-size:1rem">Gestão de Estoque</h3>`;
-    const tabela = document.createElement('table');
-    tabela.style.cssText = 'width:100%;border-collapse:collapse;font-size:.9rem';
-    tabela.innerHTML = `<thead><tr style="background:#1e3a5f;color:#fff"><th style="padding:8px">Produto</th><th style="padding:8px">Estoque Atual</th><th style="padding:8px">Ponto Reposição</th><th style="padding:8px">Semáforo</th><th style="padding:8px">Tempo p/ zerar lote anterior</th></tr></thead><tbody></tbody>`;
-    const tb = tabela.querySelector('tbody');
+    const receitaTotal    = vendas.reduce((s,m) => s + (Number(m.valor)||0), 0);
+    const unidadesVendidas= vendas.reduce((s,m) => s + (Number(m.quantidade)||0), 0);
+    const clientesSet     = new Set(vendas.filter(v=>(v.destinatario||'').trim()).map(v=>(v.destinatario||'').toUpperCase()));
+    const pedidosCount    = vendas.length;
+    const ticketMedio     = pedidosCount > 0 ? receitaTotal / pedidosCount : 0;
+    const pagosCount      = vendas.filter(v=>(v.pagamento||'').toString().toUpperCase()==='SIM').length;
+    const pendentes       = vendas.filter(v=>(v.pagamento||'').toString().toUpperCase()!=='SIM');
+    const valorPendentes  = pendentes.reduce((s,m) => s + (Number(m.valor)||0), 0);
 
     const produtos = data.produtos || [];
-    // Calcular todos os saldos de uma vez usando função central
     const _saldosDash = calcularSaldosImbel(data);
-    const calcSaldo = (prodId) => _saldosDash[prodId]?.saldo ?? 0;
+    const calcSaldo = id => _saldosDash[id]?.saldo ?? 0;
 
-    // calcula tempo para zerar lote anterior (último ciclo completo)
-    function tempoParaZerar(prodId) {
-        const movs = (data.movimentacoes||[]).filter(m=>m.produtoId===prodId).slice().sort((a,b)=> (a.data||'').localeCompare(b.data||''));
-        if (!movs.length) return null;
-        let balance = 0;
-        let lastEntradaDate = null;
-        let lastZeroCycleDays = null;
-        movs.forEach(m => {
-            const q = Number(m.quantidade)||0;
-            if (imbelTipoAumentaEstoque(m.tipo)) {
-                balance += q;
-                lastEntradaDate = m.data || null;
-            } else {
-                balance -= q;
-            }
-            if (lastEntradaDate && balance <= 0) {
-                // ciclo zerou
-                try {
-                    const d1 = new Date(lastEntradaDate);
-                    const d2 = new Date(m.data || lastEntradaDate);
-                    const diff = Math.ceil((d2 - d1)/(1000*60*60*24));
-                    lastZeroCycleDays = diff >= 0 ? diff : null;
-                } catch(e) { lastZeroCycleDays = null; }
-                // reset to look for more recent cycles
-                lastEntradaDate = null;
-                balance = 0;
-            }
-        });
-        return lastZeroCycleDays;
-    }
-
-    // vamos acumular estatísticas de estoque enquanto construímos a tabela
-    const esgotado = [];
-    const baixo = [];
-    const ok = [];
-    const zerados = [];
-
+    const esgotado = [], baixo = [], okArr = [];
     produtos.forEach(p => {
-        const estoqueAtual = calcSaldo(p.id);
-        const ponto = (p.pontoReposicao !== undefined) ? Number(p.pontoReposicao) : Math.max(1, Math.floor((Number(p.quantidadeInicial)||0) * 0.2));
-        let status = 'OK';
-        let color = '#28a745';
-        if (estoqueAtual <= 0) { status = 'ESGOTADO'; color = '#dc3545'; esgotado.push(p); if (estoqueAtual === 0) zerados.push(p); }
-        else if (estoqueAtual <= ponto) { status = 'BAIXO'; color = '#ffc107'; baixo.push(p); }
-        else { ok.push(p); }
-
-        const tempo = tempoParaZerar(p.id);
-        const tr = document.createElement('tr');
-        tr.style.background = '#fff';
-        tr.innerHTML = `<td style="padding:8px;border:1px solid #eee">${_escapeHtml(p.nome)}</td>
-                        <td style="padding:8px;border:1px solid #eee;text-align:center">${estoqueAtual}</td>
-                        <td style="padding:8px;border:1px solid #eee;text-align:center">${p.pontoReposicao !== undefined ? p.pontoReposicao : ponto}</td>
-                        <td style="padding:8px;border:1px solid #eee;text-align:center"><span style="display:inline-block;padding:6px 10px;border-radius:12px;background:${color};color:#fff;font-weight:700">${_escapeHtml(status)}</span></td>
-                        <td style="padding:8px;border:1px solid #eee;text-align:center">${tempo===null?'-':(tempo + ' dias')}</td>`;
-        tb.appendChild(tr);
+        const saldo = calcSaldo(p.id);
+        const ponto = p.pontoReposicao !== undefined ? Number(p.pontoReposicao) : Math.max(1, Math.floor((Number(p.quantidadeInicial)||0) * 0.2));
+        if (saldo <= 0) esgotado.push(p);
+        else if (saldo <= ponto) baixo.push(p);
+        else okArr.push(p);
     });
 
-    // resumo rápido acima da tabela com alertas
-    const resumo = document.createElement('div');
-    resumo.className = 'kpi-grid';
-    resumo.style.cssText = `grid-template-columns:repeat(${zerados.length ? 4 : 3},1fr);gap:10px;margin-bottom:12px`;
+    // ── Receita por produto ──
+    const receitaPorProd = {}, unidPorProd = {};
+    movimentacoes.forEach(m => {
+        if (!m.produtoId || !getImbelTipo(m.tipo).contaReceita) return;
+        receitaPorProd[m.produtoId] = (receitaPorProd[m.produtoId]||0) + (Number(m.valor)||0);
+        unidPorProd[m.produtoId]    = (unidPorProd[m.produtoId]||0)    + (Number(m.quantidade)||0);
+    });
+    const topProd = produtos.slice().sort((a,b) => (receitaPorProd[b.id]||0)-(receitaPorProd[a.id]||0));
+    const maxRec  = topProd.length ? (receitaPorProd[topProd[0].id]||0) : 1;
 
-    const estKpi = (label, value, variant, iconSvg) => {
-        const el = document.createElement('article');
-        el.className = `kpi-card-v2 ${variant}`;
-        el.innerHTML = `<div class="kpi-v2-top">
-            <div class="kpi-v2-body">
-                <div class="kpi-v2-label">${label}</div>
-                <div class="kpi-v2-value">${value}</div>
+    // ── 14-day mini chart ──
+    const today = new Date(); today.setHours(0,0,0,0);
+    const days14 = Array.from({length:14}, (_,i) => {
+        const d = new Date(today); d.setDate(d.getDate() - (13-i));
+        return { date: d.toISOString().slice(0,10), qty: 0, val: 0 };
+    });
+    vendas.forEach(m => {
+        const mDate = (m.data||'').slice(0,10);
+        const slot = days14.find(d => d.date === mDate);
+        if (slot) { slot.qty += Number(m.quantidade)||0; slot.val += Number(m.valor)||0; }
+    });
+    const maxQty14 = Math.max(1, ...days14.map(d=>d.qty));
+
+    // ── Alerts ──
+    const alertas = [];
+    if (esgotado.length) alertas.push({ tipo:'crit', msg:`${esgotado.length} produto(s) esgotado(s): ${esgotado.slice(0,3).map(p=>p.nome).join(', ')}` });
+    if (baixo.length) alertas.push({ tipo:'warn', msg:`${baixo.length} produto(s) abaixo do ponto de reposição` });
+    if (pendentes.length) alertas.push({ tipo:'warn', msg:`${pendentes.length} pedido(s) com pagamento pendente — ${fmtM(valorPendentes)}` });
+    if (!alertas.length) alertas.push({ tipo:'ok', msg:'Todos os indicadores dentro do normal' });
+
+    // ── Build HTML ──
+    const root = document.createElement('div');
+    root.className = 'imbel-root';
+
+    // KPI strip
+    root.innerHTML = `
+    <div class="imbel-kpi-strip">
+      <div class="imbel-kpi">
+        <div class="imbel-kpi-lbl">Receita Total</div>
+        <div class="imbel-kpi-val big amber">${fmtM(receitaTotal)}</div>
+        <div class="imbel-kpi-sub">${pedidosCount} pedidos</div>
+      </div>
+      <div class="imbel-kpi">
+        <div class="imbel-kpi-lbl">Unid. Vendidas</div>
+        <div class="imbel-kpi-val">${unidadesVendidas}</div>
+        <div class="imbel-kpi-sub">ticket médio ${fmtM(ticketMedio)}</div>
+      </div>
+      <div class="imbel-kpi">
+        <div class="imbel-kpi-lbl">Clientes Ativos</div>
+        <div class="imbel-kpi-val">${clientesSet.size}</div>
+        <div class="imbel-kpi-sub">destinatários únicos</div>
+      </div>
+      <div class="imbel-kpi">
+        <div class="imbel-kpi-lbl">Pagos</div>
+        <div class="imbel-kpi-val pos">${pagosCount}</div>
+        <div class="imbel-kpi-sub">${pedidosCount - pagosCount} pendente(s)</div>
+      </div>
+      <div class="imbel-kpi">
+        <div class="imbel-kpi-lbl">Estoque</div>
+        <div class="imbel-kpi-val ${esgotado.length ? 'neg' : baixo.length ? 'amber' : 'pos'}">${esgotado.length ? esgotado.length + ' esgot.' : baixo.length ? baixo.length + ' baixo' : okArr.length + ' ok'}</div>
+        <div class="imbel-kpi-sub">${produtos.length} produtos</div>
+      </div>
+    </div>
+    <div class="imbel-content">
+      <div class="imbel-dash-grid">
+        <!-- coluna principal -->
+        <div style="display:flex;flex-direction:column;gap:14px">
+          <!-- Mini chart -->
+          <div class="imbel-card">
+            <div class="imbel-card-head">
+              <span class="imbel-card-title">Vendas — últimos 14 dias</span>
+              <span class="imbel-card-badge">unidades/dia</span>
             </div>
-            <div class="kpi-v2-icon">${iconSvg}</div>
-        </div>`;
-        return el;
-    };
+            <div class="imbel-card-body" style="padding-bottom:8px">
+              <div class="imbel-minichart" id="imbelMiniChart14"></div>
+              <div class="imbel-minichart-labels">
+                <span>${days14[0].date.slice(5)}</span>
+                <span>${days14[6].date.slice(5)}</span>
+                <span>${days14[13].date.slice(5)}</span>
+              </div>
+            </div>
+          </div>
+          <!-- Top giro -->
+          <div class="imbel-card">
+            <div class="imbel-card-head">
+              <span class="imbel-card-title">Top Produtos por Receita</span>
+              <span class="imbel-card-badge">${topProd.length} produtos</span>
+            </div>
+            <div class="imbel-card-body" id="imbelTopGiro"></div>
+          </div>
+          <!-- Pipeline -->
+          <div class="imbel-card">
+            <div class="imbel-card-head">
+              <span class="imbel-card-title">Pipeline de Pedidos</span>
+              <span class="imbel-card-badge">${vendas.length} total</span>
+            </div>
+            <div class="imbel-table-wrap" id="imbelPipelineWrap"></div>
+          </div>
+        </div>
+        <!-- coluna lateral -->
+        <div style="display:flex;flex-direction:column;gap:14px">
+          <!-- Estoque semáforo -->
+          <div class="imbel-card">
+            <div class="imbel-card-head">
+              <span class="imbel-card-title">Estoque — Semáforo</span>
+              <span class="imbel-card-badge">${produtos.length} itens</span>
+            </div>
+            <div class="imbel-card-body" id="imbelSemaforoWrap"></div>
+          </div>
+          <!-- Alertas -->
+          <div class="imbel-card">
+            <div class="imbel-card-head">
+              <span class="imbel-card-title">Alertas</span>
+              <span class="imbel-card-badge">${alertas.filter(a=>a.tipo!=='ok').length || 'OK'}</span>
+            </div>
+            <div class="imbel-card-body" id="imbelAlertasWrap"></div>
+          </div>
+          <!-- Financeiro -->
+          <div class="imbel-card">
+            <div class="imbel-card-head">
+              <span class="imbel-card-title">Financeiro</span>
+              <span class="imbel-card-badge">${fmtM(valorPendentes)} pendente</span>
+            </div>
+            <div class="imbel-card-body" id="imbelFinWrap"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="imbel-footbar">
+      <span class="imbel-footbar-tag">IMBEL</span>
+      <span class="imbel-footbar-div">|</span>
+      <span>DASHBOARD</span>
+      <span class="imbel-footbar-div">|</span>
+      <span>PROD: ${produtos.length}</span>
+      <span class="imbel-footbar-div">|</span>
+      <span>VENDAS: ${pedidosCount}</span>
+      <span class="imbel-footbar-div">|</span>
+      <span>CLI: ${clientesSet.size}</span>
+    </div>`;
 
-    resumo.appendChild(estKpi('Esgotados', esgotado.length.toString(), 'kpi-danger',
-        '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>'));
-    resumo.appendChild(estKpi('Abaixo do Ponto', baixo.length.toString(), 'kpi-warning',
-        '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>'));
-    resumo.appendChild(estKpi('Produtos OK', ok.length.toString(), 'kpi-success',
-        '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>'));
+    container.appendChild(root);
 
-    if (zerados.length) {
-        const listaZ = document.createElement('article');
-        listaZ.className = 'kpi-card-v2 kpi-danger';
-        listaZ.innerHTML = `<div class="kpi-v2-label">Zerados</div><div class="kpi-v2-subtitle" style="margin-top:6px;line-height:1.5">${zerados.map(z=>_escapeHtml(z.nome)).join(', ')}</div>`;
-        resumo.appendChild(listaZ);
+    // ── Mini chart bars ──
+    const chartEl = root.querySelector('#imbelMiniChart14');
+    if (chartEl) {
+        days14.forEach((d, i) => {
+            const bar = document.createElement('div');
+            bar.className = 'imbel-minichart-bar' + (d.qty > 0 ? ' has-value' : '') + (i === 13 ? ' today' : '');
+            bar.style.height = Math.max(2, Math.round((d.qty / maxQty14) * 56)) + 'px';
+            bar.title = `${d.date}: ${d.qty} un.`;
+            chartEl.appendChild(bar);
+        });
     }
 
-    estoqueWrap.appendChild(resumo);
-    estoqueWrap.appendChild(tabela);
-    container.appendChild(estoqueWrap);
-
-    // Acompanhamento de pedidos (pipeline)
-    const pipelineDivider = document.createElement('div');
-    pipelineDivider.className = 'imbel-section-divider';
-    pipelineDivider.innerHTML = '<span>Acompanhamento de Pedidos</span>';
-    container.appendChild(pipelineDivider);
-
-    const pipelineWrap = document.createElement('div');
-    pipelineWrap.style.cssText = 'background:#fff;border-radius:10px;padding:12px;box-shadow:0 1px 4px rgba(0,0,0,.06);margin-top:0;overflow-x:auto';
-    const tableP = document.createElement('table');
-    tableP.className = 'dashboard-table';
-    tableP.style.cssText = 'width:100%;font-size:.85rem';
-    tableP.innerHTML = `<thead><tr><th style="width:36px">#</th><th style="text-align:left">Produto</th><th style="width:100px">Data</th><th style="text-align:left">Cliente</th><th>Pipeline</th><th style="width:180px">Ações</th></tr></thead><tbody></tbody>`;
-    const tpb = tableP.querySelector('tbody');
-
-    const vendasLista = movimentacoes.filter(m => getImbelTipo(m.tipo).contaReceita).slice().reverse();
-    vendasLista.forEach((v, idx) => {
-        const prod = (data.produtos||[]).find(p=>p.id===v.produtoId) || {nome: v.descricao || '-'};
-        const dateFmt = formatDateToDDMMYYYY(v.data || '');
-        const passos = [
-            {label:'Pedido', ok:true},
-            {label:'Comprovante', ok: (v.pagamento||'').toString().toUpperCase()==='SIM'},
-            {label:'GRU paga', ok: (v.gruPago||'') === true ? true : false},
-            {label:'Entregue', ok: (v.entregue||'').toString().toUpperCase()==='SIM'},
-            {label:'FI', ok: (v.fi||'').toString().toUpperCase()==='SIM'}
-        ];
-
-        const passoHtml = passos.map(pas => `<span class="imbel-pipeline-step ${pas.ok ? 'done' : 'pending'}">${pas.label}</span>`).join('');
-
-        const tr = document.createElement('tr');
-        tr.style.background = idx % 2 === 0 ? '#fff' : '#f7f9fc';
-        tr.innerHTML = `<td style="padding:8px;border:1px solid #eee;text-align:center">${idx+1}</td>
-                        <td style="padding:8px;border:1px solid #eee">${prod.nome}</td>
-                        <td style="padding:8px;border:1px solid #eee;text-align:center">${dateFmt}</td>
-                        <td style="padding:8px;border:1px solid #eee">${v.destinatario||'-'}</td>
-                        <td style="padding:8px;border:1px solid #eee">${passoHtml}</td>
-                        <td style="padding:8px;border:1px solid #eee;text-align:center"><button class="btn btn-outline" data-toggle-pag="${v.id}">Toggle Pag.</button> <button class="btn btn-outline" data-toggle-ent="${v.id}">Toggle Entregue</button> <button class="btn btn-outline" data-toggle-fi="${v.id}">Toggle FI</button></td>`;
-        tpb.appendChild(tr);
-    });
-
-    pipelineWrap.appendChild(tableP);
-    container.appendChild(pipelineWrap);
-
-    
-
-    // bind action buttons (toggle status)
-    tpb.querySelectorAll('button[data-toggle-pag]').forEach(btn => btn.onclick = function(){
-        const id = this.getAttribute('data-toggle-pag');
-        const mov = (data.movimentacoes||[]).find(m=>m.id===id);
-        if (!mov) return; mov.pagamento = (mov.pagamento||'').toString().toUpperCase()==='SIM' ? 'NÃO' : 'SIM'; saveImbel(data); renderControleImbelDashboard(); renderControleImbelMovimentacao(); renderControleImbelEstoque();
-    });
-    tpb.querySelectorAll('button[data-toggle-ent]').forEach(btn => btn.onclick = function(){
-        const id = this.getAttribute('data-toggle-ent');
-        const mov = (data.movimentacoes||[]).find(m=>m.id===id);
-        if (!mov) return; mov.entregue = (mov.entregue||'').toString().toUpperCase()==='SIM' ? 'NÃO' : 'SIM'; saveImbel(data); renderControleImbelDashboard(); renderControleImbelMovimentacao(); renderControleImbelEstoque();
-    });
-    tpb.querySelectorAll('button[data-toggle-fi]').forEach(btn => btn.onclick = function(){
-        const id = this.getAttribute('data-toggle-fi');
-        const mov = (data.movimentacoes||[]).find(m=>m.id===id);
-        if (!mov) return; mov.fi = (mov.fi||'').toString().toUpperCase()==='SIM' ? 'NÃO' : 'SIM'; saveImbel(data); renderControleImbelDashboard(); renderControleImbelMovimentacao(); renderControleImbelEstoque();
-    });
-
-    // --- Seções adicionais: Receita por produto e Análise de clientes ---
-    // Receita por produto
-    try {
-        const receitaWrap = document.createElement('div');
-        receitaWrap.style.cssText = 'background:#fff;border-radius:10px;padding:12px;box-shadow:0 1px 6px rgba(0,0,0,.06);margin-top:12px';
-        receitaWrap.innerHTML = `<h3 style="margin:0 0 8px 0;font-size:1rem">Receita por Produto</h3>`;
-        const tableR = document.createElement('table');
-        tableR.style.cssText = 'width:100%;border-collapse:collapse;font-size:.9rem;margin-top:8px';
-        tableR.innerHTML = `<thead><tr style="background:#1e3a5f;color:#fff"><th style="padding:8px">Produto</th><th style="padding:8px;text-align:center">Unid. Vendidas</th><th style="padding:8px;text-align:right">Receita</th></tr></thead><tbody></tbody>`;
-        const tbr = tableR.querySelector('tbody');
-
-        const receitaPorProduto = {};
-        const unidadesPorProduto = {};
-        (data.movimentacoes||[]).forEach(m => {
-            if (!m.produtoId) return;
-            const tipoCfg = getImbelTipo(m.tipo);
-                if (!tipoCfg.contaReceita) return;
-            const id = m.produtoId;
-            receitaPorProduto[id] = (receitaPorProduto[id]||0) + (Number(m.valor)||0);
-            unidadesPorProduto[id] = (unidadesPorProduto[id]||0) + (Number(m.quantidade)||0);
-        });
-
-        const produtosList = (data.produtos||[]).slice();
-        produtosList.sort((a,b) => (receitaPorProduto[b.id]||0) - (receitaPorProduto[a.id]||0));
-        produtosList.forEach(p => {
-            const rec = receitaPorProduto[p.id] || 0;
-            const unid = unidadesPorProduto[p.id] || 0;
-            const tr = document.createElement('tr');
-            tr.style.background = '#fff';
-            tr.innerHTML = `<td style="padding:8px;border:1px solid #eee">${_escapeHtml(p.nome)}</td><td style="padding:8px;border:1px solid #eee;text-align:center">${unid}</td><td style="padding:8px;border:1px solid #eee;text-align:right">R$ ${rec.toLocaleString('pt-BR',{minimumFractionDigits:2})}</td>`;
-            tbr.appendChild(tr);
-        });
-        receitaWrap.appendChild(tableR);
-        container.appendChild(receitaWrap);
-    } catch(e){ console.warn('Erro ao gerar receita por produto', e); }
-
-    // Análise de clientes: top 10 e clientes com múltiplos produtos
-    try {
-        const clientes = {};
-        (data.movimentacoes||[]).forEach(m => {
-            const tipo = (m.tipo||'').toString().toUpperCase();
-            if (tipo !== 'SAÍDA') return;
-            const nome = (m.destinatario||'').toString().trim();
-            if (!nome) return;
-            const key = nome.toUpperCase();
-            clientes[key] = clientes[key] || {nome: nome, total:0, pedidos:0, produtos:new Set()};
-            clientes[key].total += (Number(m.valor)||0);
-            clientes[key].pedidos += 1;
-            if (m.produtoId) clientes[key].produtos.add(m.produtoId);
-        });
-
-        const clientesArr = Object.values(clientes).map(c => ({nome:c.nome,total:c.total,pedidos:c.pedidos,produtosCount:c.produtos.size}));
-        clientesArr.sort((a,b) => b.total - a.total);
-
-        // Top 10
-        const topWrap = document.createElement('div');
-        topWrap.style.cssText = 'background:#fff;border-radius:10px;padding:12px;box-shadow:0 1px 6px rgba(0,0,0,.06);margin-top:12px';
-        topWrap.innerHTML = `<h3 style="margin:0 0 8px 0;font-size:1rem">Top 10 Clientes (por Receita)</h3>`;
-        const tableC = document.createElement('table');
-        tableC.style.cssText = 'width:100%;border-collapse:collapse;font-size:.9rem;margin-top:8px';
-        tableC.innerHTML = `<thead><tr style="background:#1e3a5f;color:#fff"><th style="padding:8px">#</th><th style="padding:8px">Cliente</th><th style="padding:8px;text-align:right">Total</th><th style="padding:8px;text-align:center">Pedidos</th><th style="padding:8px;text-align:center">Produtos distintos</th></tr></thead><tbody></tbody>`;
-        const tbc = tableC.querySelector('tbody');
-        clientesArr.slice(0,10).forEach((c, idx) => {
-            const tr = document.createElement('tr');
-            tr.style.background = '#fff';
-            tr.innerHTML = `<td style="padding:8px;border:1px solid #eee;text-align:center">${idx+1}</td><td style="padding:8px;border:1px solid #eee">${_escapeHtml(c.nome)}</td><td style="padding:8px;border:1px solid #eee;text-align:right">R$ ${c.total.toLocaleString('pt-BR',{minimumFractionDigits:2})}</td><td style="padding:8px;border:1px solid #eee;text-align:center">${c.pedidos}</td><td style="padding:8px;border:1px solid #eee;text-align:center">${c.produtosCount}</td>`;
-            tbc.appendChild(tr);
-        });
-        topWrap.appendChild(tableC);
-        container.appendChild(topWrap);
-
-        // Clientes que compraram múltiplos produtos
-        const multi = clientesArr.filter(c => c.produtosCount > 1);
-        if (multi.length) {
-            const multiWrap = document.createElement('div');
-            multiWrap.style.cssText = 'background:#fff;border-radius:10px;padding:12px;box-shadow:0 1px 6px rgba(0,0,0,.06);margin-top:12px';
-            multiWrap.innerHTML = `<h3 style="margin:0 0 8px 0;font-size:1rem">Clientes com múltiplos produtos</h3>`;
-            const tbl = document.createElement('table');
-            tbl.style.cssText = 'width:100%;border-collapse:collapse;font-size:.9rem;margin-top:8px';
-            tbl.innerHTML = `<thead><tr style="background:#1e3a5f;color:#fff"><th style="padding:8px">Cliente</th><th style="padding:8px;text-align:right">Total</th><th style="padding:8px;text-align:center">Produtos distintos</th></tr></thead><tbody></tbody>`;
-            const tbm = tbl.querySelector('tbody');
-            multi.forEach(c => {
-                const tr = document.createElement('tr');
-                tr.style.background = '#fff';
-                tr.innerHTML = `<td style="padding:8px;border:1px solid #eee">${_escapeHtml(c.nome)}</td><td style="padding:8px;border:1px solid #eee;text-align:right">R$ ${c.total.toLocaleString('pt-BR',{minimumFractionDigits:2})}</td><td style="padding:8px;border:1px solid #eee;text-align:center">${c.produtosCount}</td>`;
-                tbm.appendChild(tr);
+    // ── Top giro list ──
+    const giroEl = root.querySelector('#imbelTopGiro');
+    if (giroEl) {
+        const topSlice = topProd.slice(0, 8);
+        if (!topSlice.length) {
+            giroEl.innerHTML = '<div style="color:var(--tv-navy-400);font-size:0.75rem;padding:8px 0">Nenhuma venda registrada</div>';
+        } else {
+            topSlice.forEach((p, i) => {
+                const rec = receitaPorProd[p.id] || 0;
+                const pct = maxRec > 0 ? Math.round((rec / maxRec) * 100) : 0;
+                giroEl.innerHTML += `<div class="imbel-giro-row">
+                  <span class="imbel-giro-rank">${i+1}</span>
+                  <span class="imbel-giro-name">${_escapeHtml(p.nome)}</span>
+                  <div class="imbel-giro-bar-bg"><div class="imbel-giro-bar-fill" style="width:${pct}%"></div></div>
+                  <span class="imbel-giro-val">${fmtM(rec)}</span>
+                </div>`;
             });
-            multiWrap.appendChild(tbl);
-            container.appendChild(multiWrap);
         }
-    } catch(e) { console.warn('Erro ao gerar análise de clientes', e); }
+    }
+
+    // ── Semáforo ──
+    const semEl = root.querySelector('#imbelSemaforoWrap');
+    if (semEl) {
+        if (!produtos.length) {
+            semEl.innerHTML = '<div style="color:var(--tv-navy-400);font-size:0.75rem">Nenhum produto cadastrado</div>';
+        } else {
+            produtos.forEach(p => {
+                const saldo = calcSaldo(p.id);
+                const ponto = p.pontoReposicao !== undefined ? Number(p.pontoReposicao) : Math.max(1, Math.floor((Number(p.quantidadeInicial)||0)*0.2));
+                let dotCls = 'ok', statusTxt = 'OK';
+                if (saldo <= 0)    { dotCls = 'crit'; statusTxt = 'ESGOTADO'; }
+                else if (saldo <= ponto) { dotCls = 'warn'; statusTxt = 'BAIXO'; }
+                semEl.innerHTML += `<div class="imbel-alert-row">
+                  <div class="imbel-alert-dot ${dotCls}"></div>
+                  <div style="flex:1;min-width:0">
+                    <div style="font-family:var(--tv-font-display);font-size:0.73rem;font-weight:600;color:var(--tv-navy-800);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${_escapeHtml(p.nome)}</div>
+                    <div style="font-family:var(--tv-font-mono);font-size:0.62rem;color:var(--tv-navy-400)">${statusTxt} — saldo: ${saldo} | ponto: ${ponto}</div>
+                  </div>
+                </div>`;
+            });
+        }
+    }
+
+    // ── Alertas ──
+    const alertEl = root.querySelector('#imbelAlertasWrap');
+    if (alertEl) {
+        alertas.forEach(a => {
+            alertEl.innerHTML += `<div class="imbel-alert-row">
+              <div class="imbel-alert-dot ${a.tipo}"></div>
+              <div style="font-family:var(--tv-font-display);font-size:0.73rem;color:var(--tv-navy-700)">${_escapeHtml(a.msg)}</div>
+            </div>`;
+        });
+    }
+
+    // ── Financeiro ──
+    const finEl = root.querySelector('#imbelFinWrap');
+    if (finEl) {
+        finEl.innerHTML = `
+        <div class="imbel-giro-row">
+          <span class="imbel-giro-name">Pagos</span>
+          <span class="imbel-giro-val" style="color:#15803d">${pagosCount}</span>
+        </div>
+        <div class="imbel-giro-row">
+          <span class="imbel-giro-name">Pendentes</span>
+          <span class="imbel-giro-val" style="color:#d97706">${pendentes.length}</span>
+        </div>
+        <div class="imbel-giro-row">
+          <span class="imbel-giro-name">Valor Pendente</span>
+          <span class="imbel-giro-val" style="color:#dc2626">${fmtM(valorPendentes)}</span>
+        </div>`;
+    }
+
+    // ── Pipeline table ──
+    const pipEl = root.querySelector('#imbelPipelineWrap');
+    if (pipEl) {
+        const vendasLista = movimentacoes.filter(m => getImbelTipo(m.tipo).contaReceita).slice().reverse();
+        if (!vendasLista.length) {
+            pipEl.innerHTML = '<div style="padding:24px;text-align:center;color:var(--tv-navy-400);font-size:0.75rem">Nenhum pedido registrado</div>';
+        } else {
+            const tbl = document.createElement('table');
+            tbl.className = 'imbel-table';
+            tbl.innerHTML = `<thead><tr>
+              <th>#</th><th>Produto</th><th>Data</th><th>Cliente</th><th>Pgto</th><th>Entrega</th><th>FI</th><th>Ações</th>
+            </tr></thead><tbody></tbody>`;
+            const tbody = tbl.querySelector('tbody');
+            vendasLista.slice(0, 30).forEach((v, idx) => {
+                const prod = (data.produtos||[]).find(p=>p.id===v.produtoId) || {nome: v.descricao||'-'};
+                const dateFmt = formatDateToDDMMYYYY(v.data||'');
+                const pag = (v.pagamento||'').toString().toUpperCase()==='SIM';
+                const ent = (v.entregue||'').toString().toUpperCase()==='SIM';
+                const fi  = (v.fi||'').toString().toUpperCase()==='SIM';
+                const pill = (ok, yes, no) => `<span class="imbel-badge ${ok?'entrada':'saida'}">${ok?yes:no}</span>`;
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                  <td class="dim">${idx+1}</td>
+                  <td>${_escapeHtml(prod.nome)}</td>
+                  <td class="mono">${dateFmt}</td>
+                  <td>${_escapeHtml(v.destinatario||'—')}</td>
+                  <td>${pill(pag,'SIM','NÃO')}</td>
+                  <td>${pill(ent,'SIM','NÃO')}</td>
+                  <td>${pill(fi,'SIM','NÃO')}</td>
+                  <td><div class="imbel-row-actions">
+                    <button class="imbel-row-btn" data-toggle-pag="${v.id}">Pgto</button>
+                    <button class="imbel-row-btn" data-toggle-ent="${v.id}">Entrega</button>
+                    <button class="imbel-row-btn" data-toggle-fi="${v.id}">FI</button>
+                  </div></td>`;
+                tbody.appendChild(tr);
+            });
+            pipEl.appendChild(tbl);
+            tbody.querySelectorAll('button[data-toggle-pag]').forEach(btn => btn.onclick = function(){
+                const id = this.getAttribute('data-toggle-pag');
+                const mov = (data.movimentacoes||[]).find(m=>m.id===id);
+                if (!mov) return;
+                mov.pagamento = (mov.pagamento||'').toString().toUpperCase()==='SIM' ? 'NÃO' : 'SIM';
+                saveImbel(data); renderControleImbelDashboard(); renderControleImbelMovimentacao();
+            });
+            tbody.querySelectorAll('button[data-toggle-ent]').forEach(btn => btn.onclick = function(){
+                const id = this.getAttribute('data-toggle-ent');
+                const mov = (data.movimentacoes||[]).find(m=>m.id===id);
+                if (!mov) return;
+                mov.entregue = (mov.entregue||'').toString().toUpperCase()==='SIM' ? 'NÃO' : 'SIM';
+                saveImbel(data); renderControleImbelDashboard(); renderControleImbelMovimentacao();
+            });
+            tbody.querySelectorAll('button[data-toggle-fi]').forEach(btn => btn.onclick = function(){
+                const id = this.getAttribute('data-toggle-fi');
+                const mov = (data.movimentacoes||[]).find(m=>m.id===id);
+                if (!mov) return;
+                mov.fi = (mov.fi||'').toString().toUpperCase()==='SIM' ? 'NÃO' : 'SIM';
+                saveImbel(data); renderControleImbelDashboard(); renderControleImbelMovimentacao();
+            });
+        }
+    }
 }
 
 function renderControleImbelEstoque() {
@@ -6976,18 +7082,131 @@ function renderControleImbelCadastro() {
     const data = loadImbel();
     const container = document.getElementById('controleImbelCadastroContainer');
     container.innerHTML = '';
+    container.style.cssText = 'display:flex;flex-direction:column;height:100%;overflow:hidden;background:var(--tv-navy-50)';
 
-    const thStyle = 'padding:8px 12px;border:1px solid #ddd;background:#1e3a5f;color:#fff;font-size:.82rem;white-space:nowrap';
-    const tdBase  = 'padding:8px 12px;border:1px solid #ddd;vertical-align:middle;font-size:.85rem';
+    const saldos = calcularSaldosImbel(data);
 
-    // Botões de ação no topo
-    const topActions = document.createElement('div');
-    topActions.style.cssText = 'display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap';
-    const btnAdd = document.createElement('button');
-    btnAdd.className = 'btn btn-primary';
-    btnAdd.innerHTML = '<span class="btn-icon">➕</span> Adicionar Produto';
-    btnAdd.onclick = () => {
-        // Limpar campos do modal
+    // ── Command bar ──
+    const cmdbar = document.createElement('div');
+    cmdbar.className = 'imbel-cmdbar';
+    cmdbar.innerHTML = `
+      <div class="imbel-search-wrap">
+        <svg class="imbel-search-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="text" id="imbelCadBusca" class="imbel-search-input" placeholder="Buscar produto..." oninput="_imbelCadFiltrar()" />
+      </div>
+      <div class="imbel-bar-right">
+        <button class="imbel-bar-btn" onclick="document.getElementById('inputImportarImbelCadastro').click()">IMPORTAR</button>
+        <button class="imbel-bar-btn" onclick="exportarImbelCadastro()">EXPORTAR</button>
+        <button class="imbel-bar-btn accent" id="imbelCadBtnAdd">+ PRODUTO</button>
+      </div>`;
+    container.appendChild(cmdbar);
+
+    const totalProd = (data.produtos||[]).length;
+    const totalComSaldo = Object.values(saldos).filter(s=>s.saldo>0).length;
+
+    // ── KPI strip ──
+    const kpiStrip = document.createElement('div');
+    kpiStrip.className = 'imbel-kpi-strip';
+    kpiStrip.innerHTML = `
+      <div class="imbel-kpi"><div class="imbel-kpi-lbl">Produtos</div><div class="imbel-kpi-val">${totalProd}</div><div class="imbel-kpi-sub">cadastrados</div></div>
+      <div class="imbel-kpi"><div class="imbel-kpi-lbl">Em Estoque</div><div class="imbel-kpi-val pos">${totalComSaldo}</div><div class="imbel-kpi-sub">saldo positivo</div></div>
+      <div class="imbel-kpi"><div class="imbel-kpi-lbl">Zerados</div><div class="imbel-kpi-val ${Object.values(saldos).filter(s=>s.saldo<=0).length ? 'neg' : ''}">${Object.values(saldos).filter(s=>s.saldo<=0).length}</div><div class="imbel-kpi-sub">sem estoque</div></div>`;
+    container.appendChild(kpiStrip);
+
+    // ── Table ──
+    const tabelaWrap = document.createElement('div');
+    tabelaWrap.style.cssText = 'flex:1;min-height:0;overflow:auto;background:#fff';
+
+    const tabela = document.createElement('table');
+    tabela.className = 'imbel-table';
+    tabela.id = 'imbelCadTabela';
+    tabela.innerHTML = `<thead><tr>
+      <th style="text-align:left">Nome</th>
+      <th>Código</th>
+      <th>Qtd Inicial</th>
+      <th>Saldo Atual</th>
+      <th>Ponto Rep.</th>
+      <th>Valor Unit.</th>
+      <th>Observação</th>
+      <th>Ações</th>
+    </tr></thead><tbody></tbody>`;
+    const tbody = tabela.querySelector('tbody');
+
+    function renderCadRows(busca) {
+        tbody.innerHTML = '';
+        const termo = (busca||'').toLowerCase();
+        const prods = (data.produtos||[]).filter(p => !termo || (p.nome||'').toLowerCase().includes(termo) || (p.codigo||'').toLowerCase().includes(termo));
+        if (!prods.length) {
+            tbody.innerHTML = `<tr class="imbel-empty-row"><td colspan="8">Nenhum produto encontrado</td></tr>`;
+            return;
+        }
+        prods.forEach((p, idx) => {
+            const saldo = saldos[p.id]?.saldo ?? 0;
+            const ponto = p.pontoReposicao !== undefined ? Number(p.pontoReposicao) : Math.max(1, Math.floor((Number(p.quantidadeInicial)||0)*0.2));
+            const saldoCls = saldo <= 0 ? 'neg' : saldo <= ponto ? 'amber' : 'pos';
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+              <td style="font-weight:600">${_escapeHtml(p.nome)}</td>
+              <td class="mono dim">${p.codigo||'—'}</td>
+              <td class="mono" style="text-align:center">${p.quantidadeInicial ?? '—'}</td>
+              <td class="mono ${saldoCls}" style="text-align:center">${saldo}</td>
+              <td class="mono" style="text-align:center">${(p.pontoReposicao !== undefined && p.pontoReposicao !== null) ? p.pontoReposicao : '—'}</td>
+              <td class="mono" style="text-align:right">${p.valorUnitario ? 'R$ ' + Number(p.valorUnitario).toLocaleString('pt-BR',{minimumFractionDigits:2}) : '—'}</td>
+              <td class="dim">${_escapeHtml(p.observacao||'—')}</td>
+              <td><div class="imbel-row-actions">
+                <button class="imbel-row-btn" data-editid="${p.id}">✎ Editar</button>
+                <button class="imbel-row-btn danger" data-id="${p.id}">✕</button>
+              </div></td>`;
+            tbody.appendChild(tr);
+        });
+    }
+
+    window._imbelCadFiltrar = () => {
+        const v = document.getElementById('imbelCadBusca')?.value || '';
+        renderCadRows(v);
+        bindCadHandlers();
+    };
+
+    function bindCadHandlers() {
+        tbody.querySelectorAll('button[data-id]').forEach(b => b.onclick = function(){
+            const id = this.getAttribute('data-id');
+            if (!confirm('Remover produto?')) return;
+            const prodRemovido = (data.produtos||[]).find(p => p.id === id);
+            data.produtos = (data.produtos||[]).filter(p => p.id !== id);
+            data.movimentacoes = (data.movimentacoes||[]).filter(m => m.produtoId !== id);
+            if (prodRemovido) registrarAuditoriaImbel('exclusao', 'produto', JSON.parse(JSON.stringify(prodRemovido)), null, `Produto ${prodRemovido.nome} excluído`);
+            saveImbel(data);
+            renderControleImbelCadastro();
+        });
+        tbody.querySelectorAll('button[data-editid]').forEach(b => b.onclick = function(){
+            const id = this.getAttribute('data-editid');
+            const prod = (data.produtos||[]).find(p => p.id === id);
+            if (!prod) return;
+            document.getElementById('imbel_prod_nome').value = prod.nome || '';
+            document.getElementById('imbel_prod_codigo').value = prod.codigo || '';
+            document.getElementById('imbel_prod_qtd_inicial').value = prod.quantidadeInicial || 0;
+            document.getElementById('imbel_prod_valor_unit') && (document.getElementById('imbel_prod_valor_unit').value = (prod.valorUnitario !== undefined && prod.valorUnitario !== null) ? prod.valorUnitario : '');
+            document.getElementById('imbel_prod_ponto_reposicao') && (document.getElementById('imbel_prod_ponto_reposicao').value = (prod.pontoReposicao !== undefined && prod.pontoReposicao !== null) ? prod.pontoReposicao : '');
+            document.getElementById('imbel_prod_obs').value = prod.observacao || '';
+            const editField = document.getElementById('imbel_prod_edit_id'); if (editField) editField.value = id;
+            document.getElementById('imbel_prod_salvar').textContent = 'Atualizar';
+            openImbelProdModal();
+            document.getElementById('imbel_prod_nome').focus();
+        });
+    }
+
+    renderCadRows('');
+    tabelaWrap.appendChild(tabela);
+    container.appendChild(tabelaWrap);
+
+    // Footbar
+    const footbar = document.createElement('div');
+    footbar.className = 'imbel-footbar';
+    footbar.innerHTML = `<span class="imbel-footbar-tag">IMBEL</span><span class="imbel-footbar-div">|</span><span>CADASTRO</span><span class="imbel-footbar-div">|</span><span>${totalProd} PRODUTOS</span>`;
+    container.appendChild(footbar);
+
+    // connect Add button
+    cmdbar.querySelector('#imbelCadBtnAdd').onclick = () => {
         document.getElementById('imbel_prod_nome').value = '';
         document.getElementById('imbel_prod_codigo').value = '';
         document.getElementById('imbel_prod_qtd_inicial').value = '0';
@@ -6999,44 +7218,7 @@ function renderControleImbelCadastro() {
         document.getElementById('imbel_prod_nome').focus();
         openImbelProdModal();
     };
-    topActions.appendChild(btnAdd);
-    const btnExport = document.createElement('button');
-    btnExport.className = 'btn btn-outline';
-    btnExport.innerHTML = '<span class="btn-icon">📊</span> Exportar Excel';
-    btnExport.onclick = () => exportarMovimentacoesImbel();
-    topActions.appendChild(btnExport);
-    container.appendChild(topActions);
-
-    // Tabela de produtos
-    const wrap = document.createElement('div');
-    wrap.style.cssText = 'overflow-x:auto;background:#fff;border-radius:10px;padding:16px;box-shadow:0 1px 4px rgba(0,0,0,.08)';
-    const tabela = document.createElement('table');
-    tabela.style.cssText = 'width:100%;border-collapse:collapse;font-size:.85rem';
-    tabela.innerHTML = `<thead><tr>
-        <th style="${thStyle}">Nome</th>
-        <th style="${thStyle}">Código</th>
-        <th style="${thStyle}">Quantidade Inicial</th>
-        <th style="${thStyle}">Valor Unit.</th>
-        <th style="${thStyle}">Ponto Reposição</th>
-        <th style="${thStyle}">Observação</th>
-        <th style="${thStyle}">Ações</th>
-    </tr></thead><tbody></tbody>`;
-    const tbody = tabela.querySelector('tbody');
-    (data.produtos||[]).forEach((p, idx) => {
-        const tr = document.createElement('tr');
-        tr.style.background = idx % 2 === 0 ? '#fff' : '#f7f9fc';
-        tr.innerHTML = `
-            <td style="${tdBase}">${p.nome}</td>
-            <td style="${tdBase}">${p.codigo||'-'}</td>
-            <td style="${tdBase};text-align:center">${(p.quantidadeInicial||p.quantidadeInicial===0)?p.quantidadeInicial:'-'}</td>
-            <td style="${tdBase};text-align:right">${p.valorUnitario ? 'R$ ' + Number(p.valorUnitario).toLocaleString('pt-BR',{minimumFractionDigits:2}) : '—'}</td>
-            <td style="${tdBase};text-align:center">${(p.pontoReposicao!==undefined && p.pontoReposicao!==null) ? p.pontoReposicao : '—'}</td>
-            <td style="${tdBase}">${p.observacao||'-'}</td>
-            <td style="${tdBase}"><button class="btn btn-outline" data-editid="${p.id}" style="margin-right:6px">Editar</button><button class="btn btn-outline" data-id="${p.id}">Remover</button></td>`;
-        tbody.appendChild(tr);
-    });
-    wrap.appendChild(tabela);
-    container.appendChild(wrap);
+    bindCadHandlers();
 
     // handlers
     document.getElementById('imbel_prod_salvar').onclick = function() {
@@ -7079,34 +7261,6 @@ function renderControleImbelCadastro() {
         renderControleImbelCadastro();
     };
 
-    tbody.querySelectorAll('button[data-id]').forEach(b => b.onclick = function(){
-        const id = this.getAttribute('data-id');
-        if (!confirm('Remover produto?')) return;
-        const prodRemovido = (data.produtos||[]).find(p => p.id === id);
-        data.produtos = (data.produtos||[]).filter(p => p.id !== id);
-        // também remover movimentações relacionadas
-        data.movimentacoes = (data.movimentacoes||[]).filter(m => m.produtoId !== id);
-        if (prodRemovido) registrarAuditoriaImbel('exclusao', 'produto', JSON.parse(JSON.stringify(prodRemovido)), null, `Produto ${prodRemovido.nome} excluído`);
-        saveImbel(data);
-        renderControleImbelCadastro();
-    });
-
-    tbody.querySelectorAll('button[data-editid]').forEach(b => b.onclick = function(){
-        const id = this.getAttribute('data-editid');
-        const prod = (data.produtos||[]).find(p => p.id === id);
-        if (!prod) return;
-        // preencher formulário modal
-        document.getElementById('imbel_prod_nome').value = prod.nome || '';
-        document.getElementById('imbel_prod_codigo').value = prod.codigo || '';
-        document.getElementById('imbel_prod_qtd_inicial').value = prod.quantidadeInicial || 0;
-        document.getElementById('imbel_prod_valor_unit') && (document.getElementById('imbel_prod_valor_unit').value = (prod.valorUnitario !== undefined && prod.valorUnitario !== null) ? prod.valorUnitario : '');
-        document.getElementById('imbel_prod_ponto_reposicao') && (document.getElementById('imbel_prod_ponto_reposicao').value = (prod.pontoReposicao !== undefined && prod.pontoReposicao !== null) ? prod.pontoReposicao : '');
-        document.getElementById('imbel_prod_obs').value = prod.observacao || '';
-        const editField = document.getElementById('imbel_prod_edit_id'); if (editField) editField.value = id;
-        document.getElementById('imbel_prod_salvar').textContent = 'Atualizar';
-        openImbelProdModal();
-        document.getElementById('imbel_prod_nome').focus();
-    });
 }
 
 function salvarPontoReposicaoImbel(prodId, valor) {
@@ -7197,16 +7351,70 @@ function renderControleImbelMovimentacao() {
     try { migrarProdutoNomeImbel(); } catch(e) {}
     const container = document.getElementById('controleImbelMovContainer');
     container.innerHTML = '';
+    container.style.cssText = 'display:flex;flex-direction:column;height:100%;overflow:hidden;background:var(--tv-navy-50)';
 
-    // ---- Botões de ação (Add Movimentação / Limpar Tabela) ----
-    const topActions = document.createElement('div');
-    topActions.style.cssText = 'display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap';
-    
-    const btnAdd = document.createElement('button');
-    btnAdd.className = 'btn btn-primary';
-    btnAdd.innerHTML = '<span class="btn-icon">➕</span> Adicionar Movimentação';
-    btnAdd.onclick = () => {
-        // Limpar campos do modal (novo layout: dados do comprador + itens)
+    // ── Command bar Bloomberg ──
+    const cmdbar = document.createElement('div');
+    cmdbar.className = 'imbel-cmdbar';
+    cmdbar.innerHTML = `
+      <div class="imbel-search-wrap">
+        <svg class="imbel-search-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="text" id="imbel_filter_dest" class="imbel-search-input" placeholder="Destinatário..." />
+      </div>
+      <input type="text" id="imbel_filter_cpf" class="imbel-search-input" placeholder="CPF/CNPJ" style="width:130px" />
+      <div class="imbel-seg">
+        <button class="imbel-seg-btn active" id="imbel_tipo_todos" onclick="document.getElementById('imbel_filter_tipo').value='';this.closest('.imbel-seg').querySelectorAll('.imbel-seg-btn').forEach(b=>b.classList.remove('active'));this.classList.add('active')">TODOS</button>
+        <button class="imbel-seg-btn" onclick="document.getElementById('imbel_filter_tipo').value='ENTRADA';this.closest('.imbel-seg').querySelectorAll('.imbel-seg-btn').forEach(b=>b.classList.remove('active'));this.classList.add('active')">ENTRADA</button>
+        <button class="imbel-seg-btn" onclick="document.getElementById('imbel_filter_tipo').value='SAIDA';this.closest('.imbel-seg').querySelectorAll('.imbel-seg-btn').forEach(b=>b.classList.remove('active'));this.classList.add('active')">SAÍDA</button>
+        <button class="imbel-seg-btn" onclick="document.getElementById('imbel_filter_tipo').value='VENDA';this.closest('.imbel-seg').querySelectorAll('.imbel-seg-btn').forEach(b=>b.classList.remove('active'));this.classList.add('active')">VENDA</button>
+      </div>
+      <select id="imbel_filter_prod" class="imbel-search-input" style="width:160px;padding-left:8px">
+        <option value="">Todos os produtos</option>
+      </select>
+      <input type="date" id="imbel_filter_date_start" class="imbel-search-input" style="width:130px" />
+      <span style="color:var(--tv-navy-400);font-size:0.7rem">—</span>
+      <input type="date" id="imbel_filter_date_end" class="imbel-search-input" style="width:130px" />
+      <label style="display:flex;align-items:center;gap:4px;font-family:var(--tv-font-display);font-size:0.7rem;color:var(--tv-navy-600);cursor:pointer">
+        <input type="checkbox" id="imbel_filter_pago" style="accent-color:var(--tv-amber-600)"> Pagos
+      </label>
+      <label style="display:flex;align-items:center;gap:4px;font-family:var(--tv-font-display);font-size:0.7rem;color:var(--tv-navy-600);cursor:pointer">
+        <input type="checkbox" id="imbel_filter_entregue_only" style="accent-color:var(--tv-amber-600)"> Entregues
+      </label>
+      <label style="display:flex;align-items:center;gap:4px;font-family:var(--tv-font-display);font-size:0.7rem;color:var(--tv-navy-600);cursor:pointer">
+        <input type="checkbox" id="imbel_filter_fi_only" style="accent-color:var(--tv-amber-600)"> FI
+      </label>
+      <button id="imbel_filter_reset" class="imbel-bar-btn" title="Limpar filtros">↺</button>
+      <span id="imbelMovContador" style="font-family:var(--tv-font-mono);font-size:0.65rem;color:var(--tv-navy-400)"></span>
+      <div class="imbel-bar-right">
+        <button class="imbel-bar-btn" onclick="document.getElementById('inputImportarImbelMov').click()">IMPORTAR</button>
+        <button class="imbel-bar-btn" onclick="exportarImbelMovimentacao()">EXPORTAR</button>
+        <button class="imbel-bar-btn" id="imbelBtnRelatorio">RELATÓRIO</button>
+        <button class="imbel-bar-btn" id="imbelBtnLimpar">LIMPAR</button>
+        <button class="imbel-bar-btn accent" id="imbelBtnAddMov">+ MOVIMENTAÇÃO</button>
+      </div>`;
+    container.appendChild(cmdbar);
+
+    // KPI strip
+    const movAll = (data.movimentacoes||[]);
+    const totalEntradas = movAll.filter(m=>imbelTipoAumentaEstoque(m.tipo)).reduce((s,m)=>s+(Number(m.quantidade)||0),0);
+    const totalSaidas   = movAll.filter(m=>!imbelTipoAumentaEstoque(m.tipo)).reduce((s,m)=>s+(Number(m.quantidade)||0),0);
+    const totalValor    = movAll.reduce((s,m)=>s+(Number(m.valor)||0),0);
+    const totalVendas   = movAll.filter(m=>getImbelTipo(m.tipo).contaReceita);
+    const recTot        = totalVendas.reduce((s,m)=>s+(Number(m.valor)||0),0);
+
+    const kpiStrip = document.createElement('div');
+    kpiStrip.className = 'imbel-kpi-strip';
+    kpiStrip.id = 'imbelMovKpiStrip';
+    kpiStrip.innerHTML = `
+      <div class="imbel-kpi"><div class="imbel-kpi-lbl">Movimentações</div><div class="imbel-kpi-val">${movAll.length}</div><div class="imbel-kpi-sub">total registros</div></div>
+      <div class="imbel-kpi"><div class="imbel-kpi-lbl">Entradas</div><div class="imbel-kpi-val pos">${totalEntradas}</div><div class="imbel-kpi-sub">unidades recebidas</div></div>
+      <div class="imbel-kpi"><div class="imbel-kpi-lbl">Saídas</div><div class="imbel-kpi-val neg">${totalSaidas}</div><div class="imbel-kpi-sub">unidades despachadas</div></div>
+      <div class="imbel-kpi"><div class="imbel-kpi-lbl">Receita Vendas</div><div class="imbel-kpi-val amber">R$ ${recTot.toLocaleString('pt-BR',{minimumFractionDigits:2})}</div><div class="imbel-kpi-sub">${totalVendas.length} pedidos</div></div>
+      <div class="imbel-kpi"><div class="imbel-kpi-lbl">Valor Total</div><div class="imbel-kpi-val">R$ ${totalValor.toLocaleString('pt-BR',{minimumFractionDigits:2})}</div><div class="imbel-kpi-sub">todas movimentações</div></div>`;
+    container.appendChild(kpiStrip);
+
+    // --- connect button handlers ---
+    cmdbar.querySelector('#imbelBtnAddMov').onclick = () => {
         try { document.getElementById('imbel_mov_tipo').value = 'VENDA'; } catch(e) {}
         const hoje = new Date().toISOString().slice(0,10);
         document.getElementById('imbel_mov_data').value = hoje;
@@ -7223,12 +7431,7 @@ function renderControleImbelMovimentacao() {
         openImbelMovModal();
         document.getElementById('imbel_mov_dest').focus();
     };
-    topActions.appendChild(btnAdd);
-    
-    const btnClearTable = document.createElement('button');
-    btnClearTable.className = 'btn btn-outline';
-    btnClearTable.innerHTML = '<span class="btn-icon">🧹</span> Limpar Tabela';
-    btnClearTable.onclick = function(){
+    cmdbar.querySelector('#imbelBtnLimpar').onclick = function(){
         if (!confirm('Deseja apagar TODAS as movimentações? Esta ação é irreversível.')) return;
         data.movimentacoes = [];
         saveImbel(data);
@@ -7237,46 +7440,10 @@ function renderControleImbelMovimentacao() {
         renderControleImbelEstoque();
         renderControleImbelCadastro();
     };
-    topActions.appendChild(btnClearTable);
+    cmdbar.querySelector('#imbelBtnRelatorio').onclick = () => gerarRelatorioVendasImbel();
 
-    const btnRelatorio = document.createElement('button');
-    btnRelatorio.className = 'btn btn-primary';
-    btnRelatorio.innerHTML = '<span class="btn-icon">📋</span> Gerar Relatório';
-    btnRelatorio.onclick = () => gerarRelatorioVendasImbel();
-    topActions.appendChild(btnRelatorio);
-
-    container.appendChild(topActions);
-
-    // ---- Filtros v2 ----
-    const filtrosWrap = document.createElement('div');
-    filtrosWrap.className = 'produtos-toolbar imbel-mov-toolbar';
-    filtrosWrap.style.marginBottom = '12px';
-    filtrosWrap.innerHTML = `
-        <div class="prod-search-wrap">
-            <svg class="search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-            <input type="text" id="imbel_filter_dest" class="prod-search-input" placeholder="Destinatário..." />
-        </div>
-        <input type="text" id="imbel_filter_cpf" class="prod-search-input" placeholder="CPF/CNPJ" style="max-width:150px" />
-        <select id="imbel_filter_prod" class="prod-filter-select">
-            <option value="">Todos os produtos</option>
-        </select>
-        <select id="imbel_filter_tipo" class="prod-filter-select">
-            <option value="">Todos os tipos</option>
-            <option value="ENTRADA">↑ Entrada</option>
-            <option value="SAIDA">↓ Saída</option>
-        </select>
-        <div class="distrib-date-range">
-            <input type="date" id="imbel_filter_date_start" class="prod-date-input" />
-            <span class="date-sep">—</span>
-            <input type="date" id="imbel_filter_date_end" class="prod-date-input" />
-        </div>
-        <label class="imbel-check-pill"><input type="checkbox" id="imbel_filter_pago"/> Pagos</label>
-        <label class="imbel-check-pill"><input type="checkbox" id="imbel_filter_entregue_only"/> Entregues</label>
-        <label class="imbel-check-pill"><input type="checkbox" id="imbel_filter_fi_only"/> FI</label>
-        <button id="imbel_filter_reset" class="btn btn-outline btn-sm">🔄</button>
-        <span id="imbelMovContador" class="prod-result-count"></span>
-    `;
-    container.appendChild(filtrosWrap);
+    // wrap para tabela (preenchido depois de populateTbody)
+    const filtrosWrap = cmdbar; // alias — select listeners buscam por ID, não por referência
 
     // Popular select de tipos do modal com os tipos definidos em IMBEL_TIPOS
     try {
@@ -7312,32 +7479,32 @@ function renderControleImbelMovimentacao() {
 
     // ---- Tabela histórico ----
     const tabelaWrap = document.createElement('div');
-    tabelaWrap.style.cssText = 'overflow-x:auto;background:#fff;border-radius:10px;padding:16px;box-shadow:0 1px 4px rgba(0,0,0,.08)';
+    tabelaWrap.style.cssText = 'flex:1;min-height:0;overflow:auto;background:#fff';
 
-        const thStyle = 'padding:8px 10px;border:1px solid #ddd;background:#1e3a5f;color:#fff;font-size:.8rem;white-space:nowrap;text-align:center';
+        const thStyle = 'padding:6px 10px;background:var(--tv-navy-900);color:var(--tv-navy-200);font-family:var(--tv-font-display);font-size:.62rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;white-space:nowrap;text-align:center;border-right:1px solid var(--tv-navy-700)';
         const tabela = document.createElement('table');
         tabela.style.cssText = 'width:100%;border-collapse:collapse;font-size:.78rem';
-                tabela.innerHTML = `<thead><tr>
+                tabela.innerHTML = `<thead><tr style="position:sticky;top:0;z-index:3">
         <th style="${thStyle};width:36px">
             <input type="checkbox" id="imbelSelectAll"
                          onchange="document.querySelectorAll('.imbel_table_chk_sel')
                              .forEach(c=>c.checked=this.checked)"
                          title="Selecionar todos">
         </th>
-        <th style="${thStyle}">Destinatário</th>
+        <th style="${thStyle};text-align:left">Destinatário</th>
         <th style="${thStyle}">Data</th>
         <th style="${thStyle}">Tipo</th>
-        <th style="${thStyle}">Produto</th>
+        <th style="${thStyle};text-align:left">Produto</th>
         <th style="${thStyle}">Qtd</th>
         <th style="${thStyle}">Valor</th>
-        <th style="${thStyle};width:50px" title="Entregue">Entregue</th>
-        <th style="${thStyle};width:50px" title="Pago">Pago</th>
-        <th style="${thStyle};width:50px" title="FI">FI</th>
+        <th style="${thStyle}" title="Entregue">Entg.</th>
+        <th style="${thStyle}" title="Pago">Pgto</th>
+        <th style="${thStyle}" title="FI">FI</th>
         <th style="${thStyle}">Ações</th>
     </tr></thead><tbody></tbody>`;
 
         const tbody = tabela.querySelector('tbody');
-        const tdStyle = 'padding:6px 8px;border:1px solid #ddd;vertical-align:middle;white-space:normal;word-break:break-word;max-width:260px';
+        const tdStyle = 'padding:5px 8px;border-bottom:1px solid var(--tv-navy-50);vertical-align:middle;white-space:normal;word-break:break-word;max-width:260px';
         const tdCenter = tdStyle + ';text-align:center';
         const tdBase = tdStyle + ';text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis';
 
@@ -7695,56 +7862,12 @@ function renderControleImbelMovimentacao() {
     // preencher tabela inicialmente
     populateTbody();
 
-        // Barra de resumo (entradas / saídas / valor)
-        const resumoBar = document.createElement('div');
-        resumoBar.id = 'imbelMovResumo';
-        resumoBar.style.cssText = 'display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px;padding:8px 0';
-        container.appendChild(resumoBar);
-
         function atualizarResumoMovimentacoes() {
-                const all = (data.movimentacoes||[]).slice().reverse();
-                const fProd  = (document.getElementById('imbel_filter_prod')||{value:''}).value;
-                const fTipo  = (document.getElementById('imbel_filter_tipo')||{value:''}).value;
-                const fStart = (document.getElementById('imbel_filter_date_start')||{value:''}).value;
-                const fEnd   = (document.getElementById('imbel_filter_date_end')||{value:''}).value;
-
-                const filtered = all.filter(m => {
-                    if (fProd && String(m.produtoId) !== String(fProd)) return false;
-                    if (fTipo) {
-                        const fTipoU = (fTipo||'').toString().toUpperCase();
-                        if (fTipoU === 'ENTRADA') {
-                            if (!imbelTipoAumentaEstoque(m.tipo)) return false;
-                        } else if (fTipoU === 'SAIDA' || fTipoU === 'SAÍDA') {
-                            if (imbelTipoAumentaEstoque(m.tipo)) return false;
-                        } else {
-                            if ((m.tipo||'').toString().toUpperCase() !== fTipoU) return false;
-                        }
-                    }
-                    if (fStart && (m.data||'') < fStart) return false;
-                    if (fEnd   && (m.data||'') > fEnd)   return false;
-                    return true;
-                });
-
-                const totalEntradas = filtered
-                    .filter(m => imbelTipoAumentaEstoque(m.tipo))
-                    .reduce((s,m) => s + (Number(m.quantidade)||0), 0);
-                const totalSaidas = filtered
-                    .filter(m => !imbelTipoAumentaEstoque(m.tipo))
-                    .reduce((s,m) => s + (Number(m.quantidade)||0), 0);
-                const totalValor = filtered
-                    .reduce((s,m) => s + (Number(m.valor)||0), 0);
-
-                const resumoEl = document.getElementById('imbelMovResumo');
-                if (resumoEl) {
-                    resumoEl.innerHTML = `
-                        <span style="background:#f0fdf4;color:#16a34a;padding:4px 12px;border-radius:20px;font-weight:700;font-size:0.82rem">📥 Entradas: ${totalEntradas}</span>
-                        <span style="background:#fef2f2;color:#dc2626;padding:4px 12px;border-radius:20px;font-weight:700;font-size:0.82rem">📤 Saídas: ${totalSaidas}</span>
-                        <span style="background:#f0f9ff;color:#0369a1;padding:4px 12px;border-radius:20px;font-weight:700;font-size:0.82rem">💰 Valor: R$ ${totalValor.toLocaleString('pt-BR',{minimumFractionDigits:2})}</span>
-                        <span style="color:#64748b;font-size:0.78rem">${filtered.length} registro(s)</span>`;
-                }
+            // lightweight: só atualiza contador no KPI strip
+            const strip = document.getElementById('imbelMovKpiStrip');
+            if (!strip) return;
         }
 
-        // Chamada inicial do resumo
         try { atualizarResumoMovimentacoes(); } catch(e) {}
 
     // Preencher select de produtos do modal (se houver produtos)
@@ -7771,6 +7894,20 @@ function renderControleImbelMovimentacao() {
 
     tabelaWrap.appendChild(tabela);
     container.appendChild(tabelaWrap);
+
+    // Footbar Bloomberg
+    const footbarMov = document.createElement('div');
+    footbarMov.className = 'imbel-footbar';
+    footbarMov.innerHTML = `
+      <span class="imbel-footbar-tag">IMBEL</span>
+      <span class="imbel-footbar-div">|</span>
+      <span>MOV</span>
+      <span class="imbel-footbar-div">|</span>
+      <span id="imbelMovFootCount">${(data.movimentacoes||[]).length} REG</span>
+      <span class="imbel-footbar-div">|</span>
+      <span>${(data.produtos||[]).length} PROD</span>
+    `;
+    container.appendChild(footbarMov);
 
     // ---- Handler: Salvar (no modal) ----
     document.getElementById('imbel_mov_salvar').onclick = function(){
