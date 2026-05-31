@@ -6378,11 +6378,11 @@ table.tv-table thead tr.tv-thead-region th.tv-th-fixed {
     left: 0;
     z-index: 4;
 }
-table.tv-table thead tr.tv-thead-region th.tv-region-N  { background: #0a1828; color: #7dd3fc; border-bottom: 2px solid #7dd3fc44; }
-table.tv-table thead tr.tv-thead-region th.tv-region-NE { background: #0a1820; color: #86efac; border-bottom: 2px solid #86efac44; }
-table.tv-table thead tr.tv-thead-region th.tv-region-CO { background: #0f1820; color: #fde68a; border-bottom: 2px solid #fde68a44; }
-table.tv-table thead tr.tv-thead-region th.tv-region-SE { background: #0d1428; color: #c4b5fd; border-bottom: 2px solid #c4b5fd44; }
-table.tv-table thead tr.tv-thead-region th.tv-region-S  { background: #0a1420; color: #fca5a5; border-bottom: 2px solid #fca5a544; }
+table.tv-table thead tr.tv-thead-region th.tv-region-N  { background: #7dd3fc; color: #fff !important; border-bottom: 2px solid rgba(0,0,0,0.15); }
+table.tv-table thead tr.tv-thead-region th.tv-region-NE { background: #86efac; color: #fff !important; border-bottom: 2px solid rgba(0,0,0,0.15); }
+table.tv-table thead tr.tv-thead-region th.tv-region-CO { background: #fde68a; color: #fff !important; border-bottom: 2px solid rgba(0,0,0,0.15); }
+table.tv-table thead tr.tv-thead-region th.tv-region-SE { background: #c4b5fd; color: #fff !important; border-bottom: 2px solid rgba(0,0,0,0.15); }
+table.tv-table thead tr.tv-thead-region th.tv-region-S  { background: #fca5a5; color: #fff !important; border-bottom: 2px solid rgba(0,0,0,0.15); }
 
 /* Cabeçalho — linha de colunas (linha 2) */
 table.tv-table thead tr.tv-thead-cols th {
@@ -6419,12 +6419,12 @@ table.tv-table thead tr.tv-thead-cols th .tv-sort-caret {
 table.tv-table thead tr.tv-thead-cols th.sort-active .tv-sort-caret { opacity: 1; color: var(--tv-amber-500); }
 table.tv-table thead tr.tv-thead-cols th.sort-desc .tv-sort-caret { transform: rotate(180deg); }
 
-/* Células UF na linha 2 — cor da respectiva região */
-table.tv-table thead tr.tv-thead-cols th.tv-uf-N  { background: #0a1828; color: #7dd3fc !important; }
-table.tv-table thead tr.tv-thead-cols th.tv-uf-NE { background: #0a1820; color: #86efac !important; }
-table.tv-table thead tr.tv-thead-cols th.tv-uf-CO { background: #0f1820; color: #fde68a !important; }
-table.tv-table thead tr.tv-thead-cols th.tv-uf-SE { background: #0d1428; color: #c4b5fd !important; }
-table.tv-table thead tr.tv-thead-cols th.tv-uf-S  { background: #0a1420; color: #fca5a5 !important; }
+/* Células UF na linha 2 — fundo da cor da região, texto branco */
+table.tv-table thead tr.tv-thead-cols th.tv-uf-N  { background: #7dd3fc; color: #fff !important; }
+table.tv-table thead tr.tv-thead-cols th.tv-uf-NE { background: #86efac; color: #fff !important; }
+table.tv-table thead tr.tv-thead-cols th.tv-uf-CO { background: #fde68a; color: #fff !important; }
+table.tv-table thead tr.tv-thead-cols th.tv-uf-SE { background: #c4b5fd; color: #fff !important; }
+table.tv-table thead tr.tv-thead-cols th.tv-uf-S  { background: #fca5a5; color: #fff !important; }
 
 /* Linha de agrupamento NCM */
 table.tv-table tbody tr.tv-ncm-group-row td {
