@@ -12167,7 +12167,7 @@ table.imbel-table tbody tr:hover .imbel-row-actions { opacity: 1; }
 .est-kpi-delta b { color: var(--tv-navy-200); }
 
 /* Tabela wrap */
-.est-v2-table-wrap { flex: 1; overflow: auto; min-height: 0; background: #fff; }
+.est-v2-table-wrap { flex: 1; overflow: auto; min-height: 0; background: #fff; position: relative; }
 
 /* Tabela principal */
 table.est-v2-table {
@@ -12241,7 +12241,7 @@ table.est-v2-table thead tr.est-hdr-group th.est-consol-grp {
 /* Header linha 2 (sub: DIST/VENDA/SALDO) */
 table.est-v2-table thead tr.est-hdr-sub th {
     position: sticky; top: 28px; z-index: 4;
-    background: var(--tv-navy-900); color: var(--tv-navy-200);
+    background: var(--tv-navy-900); color: #fff;
     font-family: var(--tv-font-display); font-size: 0.62rem; font-weight: 700;
     letter-spacing: 0.08em; text-transform: uppercase;
     height: 24px; padding: 0 10px; text-align: right; white-space: nowrap;
@@ -12253,6 +12253,13 @@ table.est-v2-table thead tr.est-hdr-sub th:hover { background: var(--tv-navy-800
 table.est-v2-table thead tr.est-hdr-sub th.sort-active { color: var(--tv-amber-400); }
 table.est-v2-table thead tr.est-hdr-sub th.est-grp-alt-hdr { background: #122a40; }
 table.est-v2-table thead tr.est-hdr-sub th.est-consol-sub { background: #14181f; color: var(--tv-amber-300); }
+/* Célula fantasma da col. PRODUTOS na linha 2 — deve ficar invisível */
+table.est-v2-table thead tr.est-hdr-sub th.est-prod-hdr {
+    background: var(--tv-navy-950);
+    border-right: 2px solid var(--tv-amber-500);
+    border-bottom: 2px solid var(--tv-amber-500);
+    cursor: default;
+}
 
 /* Divisores de grupo */
 table.est-v2-table thead tr.est-hdr-sub th.est-grp-end { border-right: 3px solid var(--tv-amber-500) !important; }
@@ -12270,6 +12277,7 @@ table.est-v2-table tbody td {
 }
 table.est-v2-table tbody tr:hover td { background: var(--tv-navy-50) !important; }
 table.est-v2-table tbody tr:hover td.est-prod-cell { background: var(--tv-navy-50) !important; }
+table.est-v2-table tbody { position: relative; z-index: 0; }
 
 table.est-v2-table tbody td.est-grp-alt { background: rgba(15,36,56,0.045); }
 table.est-v2-table tbody td.est-grp-alt.est-saldo-neg { background: rgba(220,38,38,0.06); }
@@ -12302,7 +12310,7 @@ table.est-v2-table tbody tr.est-destaque:hover td { background: rgba(184,101,31,
 
 /* Rodapé de totais */
 table.est-v2-table tfoot td {
-    position: sticky; bottom: 0; z-index: 3;
+    position: sticky; bottom: 0; z-index: 5;
     background: var(--tv-navy-900); color: #fff;
     height: 36px; padding: 0 10px;
     border-right: 1px solid var(--tv-navy-700);
