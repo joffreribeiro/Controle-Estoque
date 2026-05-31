@@ -17564,10 +17564,10 @@ function renderizarTabelaPrecoVenda() {
         // Linha 2 — colunas
         let thead2 = `<tr class="tv-thead-cols">
             ${thFixed('ncm', 'NCM', '110px')}
-            <th style="min-width:90px;cursor:default;color:var(--tv-navy-200)">Grupo</th>
+            <th style="min-width:90px;cursor:default">Grupo</th>
             <th onclick="window._tvSetSort('pn')" class="${sc==='pn'?'sort-active':''}" style="min-width:110px;cursor:pointer">PN<span class="tv-sort-caret">▲</span></th>
-            <th style="min-width:160px;cursor:default;color:var(--tv-navy-200)">Nome Fábrica</th>
-            <th style="min-width:70px;cursor:default;color:var(--tv-navy-200)">Comp.</th>
+            <th style="min-width:160px;cursor:default">Nome Fábrica</th>
+            <th style="min-width:70px;cursor:default">Comp.</th>
             <th onclick="window._tvSetSort('nome')" class="${sc==='nome'?'sort-active':''}" style="min-width:160px;cursor:pointer">Nome<span class="tv-sort-caret">▲</span></th>
             ${thSort('ci', 'CI', 'tv-ci-cell')}`;
         gruposRegiao.forEach(gr => {
