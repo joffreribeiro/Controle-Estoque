@@ -6378,17 +6378,17 @@ table.tv-table thead tr.tv-thead-region th.tv-th-fixed {
     left: 0;
     z-index: 4;
 }
-table.tv-table thead tr.tv-thead-region th.tv-region-N  { background: var(--tv-navy-900); color: #7dd3fc; }
-table.tv-table thead tr.tv-thead-region th.tv-region-NE { background: var(--tv-navy-900); color: #86efac; }
-table.tv-table thead tr.tv-thead-region th.tv-region-CO { background: var(--tv-navy-900); color: #fde68a; }
-table.tv-table thead tr.tv-thead-region th.tv-region-SE { background: var(--tv-navy-900); color: #c4b5fd; }
-table.tv-table thead tr.tv-thead-region th.tv-region-S  { background: var(--tv-navy-900); color: #fca5a5; }
+table.tv-table thead tr.tv-thead-region th.tv-region-N  { background: #0a1828; color: #7dd3fc; border-bottom: 2px solid #7dd3fc44; }
+table.tv-table thead tr.tv-thead-region th.tv-region-NE { background: #0a1820; color: #86efac; border-bottom: 2px solid #86efac44; }
+table.tv-table thead tr.tv-thead-region th.tv-region-CO { background: #0f1820; color: #fde68a; border-bottom: 2px solid #fde68a44; }
+table.tv-table thead tr.tv-thead-region th.tv-region-SE { background: #0d1428; color: #c4b5fd; border-bottom: 2px solid #c4b5fd44; }
+table.tv-table thead tr.tv-thead-region th.tv-region-S  { background: #0a1420; color: #fca5a5; border-bottom: 2px solid #fca5a544; }
 
 /* Cabeçalho — linha de colunas (linha 2) */
 table.tv-table thead tr.tv-thead-cols th {
     padding: 6px 8px;
     background: var(--tv-navy-900);
-    color: var(--tv-navy-200);
+    color: #fff;
     font-family: var(--tv-font-display);
     font-size: 0.68rem;
     font-weight: 600;

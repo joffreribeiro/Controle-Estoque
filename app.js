@@ -17264,13 +17264,20 @@ function renderizarTabelaPrecoVenda() {
         const pvMax = vals.length ? Math.max(...vals) : 0;
         const pvRange = pvMax - pvMin;
 
-        const pnCell = `<span style="font-family:var(--tv-font-mono)">${_escapeHtml(pn)}</span>${temPecas ? `<span id="${idExpandTV}"></span>` : ''}`;
+        const grupo = (categoriaPorProduto && categoriaPorProduto[prod.nome]) || prod.categoria || '';
+        const comp  = prod.componente && prod.componente.trim() !== '' && prod.componente.trim() !== '-' ? prod.componente.trim() : '—';
+        const grupoBadge = grupo
+            ? `<span style="font-size:0.65rem;font-weight:700;letter-spacing:0.04em;text-transform:uppercase;background:var(--tv-navy-100);color:var(--tv-navy-600);padding:1px 5px;border-radius:2px">${_escapeHtml(grupo)}</span>`
+            : '<span style="color:#cbd5e1">—</span>';
+        const pnCell = `<span style="font-family:var(--tv-font-mono);font-size:0.72rem">${_escapeHtml(pn)}</span>${temPecas ? `<span id="${idExpandTV}"></span>` : ''}`;
 
         let row = `<tr class="tv-data-row${isPeca?' tv-peca-row':''}" style="background:${bg}"${isPeca ? ` data-tv-peca-filha="${_escapeHtml((prod.componente||'').trim())}" style="display:none;background:#fafbfd"` : ''}>
             <td class="tv-td-fixed" style="background:${isPeca?'#fafbfd':bg}">${_escapeHtml(ncm)}</td>
+            <td style="padding:0 8px">${grupoBadge}</td>
             <td style="padding:0 8px">${pnCell}</td>
-            <td style="padding:0 8px;color:#64748b;max-width:160px;overflow:hidden;text-overflow:ellipsis" title="${_escapeHtml(prod.nome)}">${isPeca?'↳ ':''}<span style="font-weight:${isPeca?'400':'600'};color:${isPeca?'#64748b':'var(--tv-navy-900)'}">${_escapeHtml(prod.nome)}</span></td>
-            <td style="padding:0 8px;color:#64748b;font-size:0.72rem;max-width:130px;overflow:hidden;text-overflow:ellipsis">${_escapeHtml(nomeFab)}</td>
+            <td style="padding:0 8px;color:#94a3b8;font-size:0.72rem;max-width:160px;overflow:hidden;text-overflow:ellipsis" title="${_escapeHtml(nomeFab)}">${_escapeHtml(nomeFab)}</td>
+            <td style="padding:0 8px;color:#94a3b8;font-size:0.72rem;text-align:center">${_escapeHtml(isPeca ? comp : '—')}</td>
+            <td style="padding:0 8px;max-width:180px;overflow:hidden;text-overflow:ellipsis" title="${_escapeHtml(prod.nome)}">${isPeca?'<span style="color:#94a3b8">↳ </span>':''}<span style="font-weight:${isPeca?'400':'600'};color:${isPeca?'#64748b':'var(--tv-navy-900)'}">${_escapeHtml(prod.nome)}</span></td>
             <td class="tv-ci-cell">${ciStr}</td>`;
 
         ufs.forEach(uf => {
@@ -17545,10 +17552,10 @@ function renderizarTabelaPrecoVenda() {
             return `<th class="tv-th-fixed${isActive?' sort-active':''}${sd==='desc'&&isActive?' sort-desc':''}" onclick="window._tvSetSort('${col}')" style="min-width:${minW}">${label}<span class="tv-sort-caret">▲</span></th>`;
         }
 
-        // Linha 1 — região
-        let thead1 = `<tr class="tv-thead-region">
-            <th class="tv-th-fixed" style="background:var(--tv-navy-950)" colspan="5"></th>`;
+        // Linha 1 — região (7 colunas fixas: NCM, GRUPO, PN, NOME FÁBRICA, COMP., NOME, CI)
         const _tvRegiaoNome = { N:'Norte', NE:'Nordeste', CO:'Centro-Oeste', SE:'Sudeste', S:'Sul' };
+        let thead1 = `<tr class="tv-thead-region">
+            <th class="tv-th-fixed" style="background:var(--tv-navy-950)" colspan="7"></th>`;
         gruposRegiao.forEach(gr => {
             thead1 += `<th class="tv-region-${gr.regiao}" colspan="${gr.ufs.length}">${_tvRegiaoNome[gr.regiao] || gr.regiao}</th>`;
         });
@@ -17557,9 +17564,11 @@ function renderizarTabelaPrecoVenda() {
         // Linha 2 — colunas
         let thead2 = `<tr class="tv-thead-cols">
             ${thFixed('ncm', 'NCM', '110px')}
-            <th onclick="window._tvSetSort('pn')" class="${sc==='pn'?'sort-active':''}" style="min-width:100px;cursor:pointer">PN<span class="tv-sort-caret">▲</span></th>
-            <th onclick="window._tvSetSort('nome')" class="${sc==='nome'?'sort-active':''}" style="min-width:150px;cursor:pointer">Nome<span class="tv-sort-caret">▲</span></th>
-            <th style="min-width:130px;cursor:default;color:var(--tv-navy-200)">Fábrica</th>
+            <th style="min-width:90px;cursor:default;color:var(--tv-navy-200)">Grupo</th>
+            <th onclick="window._tvSetSort('pn')" class="${sc==='pn'?'sort-active':''}" style="min-width:110px;cursor:pointer">PN<span class="tv-sort-caret">▲</span></th>
+            <th style="min-width:160px;cursor:default;color:var(--tv-navy-200)">Nome Fábrica</th>
+            <th style="min-width:70px;cursor:default;color:var(--tv-navy-200)">Comp.</th>
+            <th onclick="window._tvSetSort('nome')" class="${sc==='nome'?'sort-active':''}" style="min-width:160px;cursor:pointer">Nome<span class="tv-sort-caret">▲</span></th>
             ${thSort('ci', 'CI', 'tv-ci-cell')}`;
         gruposRegiao.forEach(gr => {
             gr.ufs.forEach(uf => {
