@@ -11955,8 +11955,8 @@ table.imbel-table tbody tr:hover .imbel-row-actions { opacity: 1; }
 .est-subnav {
     display: flex;
     align-items: center;
-    background: var(--tv-navy-950);
-    border-bottom: 1px solid var(--tv-navy-700);
+    background: #fff;
+    border-bottom: 1px solid #e2e8f0;
     padding: 0 16px;
     flex-shrink: 0;
 }
@@ -11971,24 +11971,24 @@ table.imbel-table tbody tr:hover .imbel-row-actions { opacity: 1; }
     font-weight: 600;
     letter-spacing: 0.06em;
     text-transform: uppercase;
-    color: var(--tv-navy-300);
+    color: #64748b;
     background: none;
     border: none;
     border-bottom: 2px solid transparent;
     cursor: pointer;
     transition: color .12s, border-color .12s;
 }
-.est-subnav-tab:hover { color: var(--tv-navy-100); }
-.est-subnav-tab.active { color: var(--tv-amber-400); border-bottom-color: var(--tv-amber-500); }
+.est-subnav-tab:hover { color: var(--tv-navy-800); }
+.est-subnav-tab.active { color: var(--tv-amber-600); border-bottom-color: var(--tv-amber-500); }
 .est-subnav-right {
     margin-left: auto;
     font-family: var(--tv-font-display);
     font-size: 0.68rem;
-    color: var(--tv-navy-400);
+    color: #94a3b8;
     letter-spacing: 0.04em;
     text-transform: uppercase;
 }
-.est-subnav-right b { color: var(--tv-navy-200); font-weight: 600; }
+.est-subnav-right b { color: #475569; font-weight: 600; }
 
 /* Command bar */
 .est-cmdbar {
@@ -11996,8 +11996,8 @@ table.imbel-table tbody tr:hover .imbel-row-actions { opacity: 1; }
     align-items: center;
     gap: 8px;
     padding: 5px 16px;
-    background: var(--tv-navy-950);
-    border-bottom: 1px solid var(--tv-navy-800);
+    background: #fff;
+    border-bottom: 1px solid #e2e8f0;
     flex-shrink: 0;
     flex-wrap: wrap;
 }
@@ -12005,8 +12005,8 @@ table.imbel-table tbody tr:hover .imbel-row-actions { opacity: 1; }
     display: flex;
     align-items: center;
     gap: 6px;
-    background: var(--tv-navy-800);
-    border: 1px solid var(--tv-navy-700);
+    background: #f8fafc;
+    border: 1px solid #cbd5e1;
     border-radius: 4px;
     padding: 0 10px;
     height: 30px;
@@ -12016,29 +12016,29 @@ table.imbel-table tbody tr:hover .imbel-row-actions { opacity: 1; }
     background: none;
     border: none;
     outline: none;
-    color: var(--tv-navy-100);
+    color: #1e293b;
     font-family: var(--tv-font-sans);
     font-size: 0.78rem;
     width: 100%;
 }
-.est-search-box input::placeholder { color: var(--tv-navy-400); }
-.est-search-icon { color: var(--tv-navy-400); }
-.est-cmdbar-sep { width: 1px; height: 20px; background: var(--tv-navy-700); margin: 0 4px; }
+.est-search-box input::placeholder { color: #94a3b8; }
+.est-search-icon { color: #94a3b8; }
+.est-cmdbar-sep { width: 1px; height: 20px; background: #e2e8f0; margin: 0 4px; }
 .est-cmdbar-label {
     font-family: var(--tv-font-display);
     font-size: 0.62rem;
     font-weight: 600;
     letter-spacing: 0.08em;
     text-transform: uppercase;
-    color: var(--tv-navy-400);
+    color: #64748b;
 }
 .est-cmdbar select {
     height: 28px;
     padding: 0 8px;
-    background: var(--tv-navy-800);
-    border: 1px solid var(--tv-navy-700);
+    background: #f8fafc;
+    border: 1px solid #cbd5e1;
     border-radius: 3px;
-    color: var(--tv-navy-100);
+    color: #1e293b;
     font-size: 0.75rem;
     outline: none;
     cursor: pointer;
@@ -12048,7 +12048,7 @@ table.imbel-table tbody tr:hover .imbel-row-actions { opacity: 1; }
     align-items: center;
     gap: 5px;
     font-size: 0.75rem;
-    color: var(--tv-navy-200);
+    color: #475569;
     cursor: pointer;
     user-select: none;
 }
@@ -12059,10 +12059,10 @@ table.imbel-table tbody tr:hover .imbel-row-actions { opacity: 1; }
     gap: 5px;
     height: 28px;
     padding: 0 12px;
-    background: var(--tv-navy-800);
-    border: 1px solid var(--tv-navy-600);
+    background: #f1f5f9;
+    border: 1px solid #cbd5e1;
     border-radius: 3px;
-    color: var(--tv-navy-200);
+    color: #475569;
     font-family: var(--tv-font-display);
     font-size: 0.7rem;
     font-weight: 600;
@@ -12070,21 +12070,21 @@ table.imbel-table tbody tr:hover .imbel-row-actions { opacity: 1; }
     cursor: pointer;
     transition: background .12s, color .12s;
 }
-.est-bar-btn:hover { background: var(--tv-navy-700); color: #fff; }
+.est-bar-btn:hover { background: #e2e8f0; color: #1e293b; }
 .est-bar-btn.accent { background: var(--tv-amber-600); border-color: var(--tv-amber-500); color: #fff; }
 .est-bar-btn.accent:hover { background: var(--tv-amber-500); }
 .est-bar-btn.icon-only { padding: 0 9px; }
-.est-density-seg { display: flex; border: 1px solid var(--tv-navy-700); border-radius: 3px; overflow: hidden; }
+.est-density-seg { display: flex; border: 1px solid #cbd5e1; border-radius: 3px; overflow: hidden; }
 .est-density-btn {
     height: 28px; padding: 0 9px;
-    background: var(--tv-navy-800); border: none;
-    border-right: 1px solid var(--tv-navy-700);
-    color: var(--tv-navy-400); font-size: 0.75rem; cursor: pointer;
+    background: #f1f5f9; border: none;
+    border-right: 1px solid #cbd5e1;
+    color: #64748b; font-size: 0.75rem; cursor: pointer;
     transition: background .1s, color .1s;
 }
 .est-density-btn:last-child { border-right: none; }
-.est-density-btn:hover { background: var(--tv-navy-700); color: var(--tv-navy-100); }
-.est-density-btn.active { background: var(--tv-navy-600); color: var(--tv-amber-400); }
+.est-density-btn:hover { background: #e2e8f0; color: #1e293b; }
+.est-density-btn.active { background: #e2e8f0; color: var(--tv-amber-600); }
 
 /* Rep toggle bar */
 .est-repbar {
@@ -12093,8 +12093,8 @@ table.imbel-table tbody tr:hover .imbel-row-actions { opacity: 1; }
     gap: 6px;
     flex-wrap: wrap;
     padding: 5px 16px;
-    background: var(--tv-navy-900);
-    border-bottom: 1px solid var(--tv-navy-700);
+    background: #fff;
+    border-bottom: 1px solid #e2e8f0;
     flex-shrink: 0;
 }
 .est-repbar-lbl {
@@ -12103,7 +12103,7 @@ table.imbel-table tbody tr:hover .imbel-row-actions { opacity: 1; }
     font-weight: 700;
     letter-spacing: 0.08em;
     text-transform: uppercase;
-    color: var(--tv-navy-400);
+    color: #94a3b8;
     margin-right: 4px;
 }
 .est-rep-pill {
@@ -12131,13 +12131,13 @@ table.imbel-table tbody tr:hover .imbel-row-actions { opacity: 1; }
     border-left: 1px solid currentColor;
     margin-left: 2px;
 }
-.est-repbar-info { margin-left: auto; font-family: var(--tv-font-mono); font-size: 0.68rem; color: var(--tv-navy-400); }
+.est-repbar-info { margin-left: auto; font-family: var(--tv-font-mono); font-size: 0.68rem; color: #94a3b8; }
 
-/* KPI strip */
+/* KPI strip — primeira linha escura (início da área de dados Bloomberg) */
 .est-kpi-strip {
     display: flex;
     align-items: stretch;
-    background: var(--tv-navy-900);
+    background: var(--tv-navy-950);
     border-bottom: 2px solid var(--tv-amber-600);
     flex-shrink: 0;
 }
@@ -12251,7 +12251,7 @@ table.est-v2-table thead tr.est-hdr-sub th {
 }
 table.est-v2-table thead tr.est-hdr-sub th:hover { background: var(--tv-navy-800); color: #fff; }
 table.est-v2-table thead tr.est-hdr-sub th.sort-active { color: var(--tv-amber-400); }
-table.est-v2-table thead tr.est-hdr-sub th.est-grp-alt-hdr { background: #122a40; }
+table.est-v2-table thead tr.est-hdr-sub th.est-grp-alt-hdr { background: #122a40; color: #fff; }
 table.est-v2-table thead tr.est-hdr-sub th.est-consol-sub { background: #14181f; color: var(--tv-amber-300); }
 /* Célula fantasma da col. PRODUTOS na linha 2 — deve ficar invisível */
 table.est-v2-table thead tr.est-hdr-sub th.est-prod-hdr {
@@ -12309,8 +12309,9 @@ table.est-v2-table tbody tr.est-destaque .est-prod-nm { color: var(--tv-copper);
 table.est-v2-table tbody tr.est-destaque:hover td { background: rgba(184,101,31,0.08) !important; }
 
 /* Rodapé de totais */
+table.est-v2-table tfoot { position: relative; z-index: 3; }
 table.est-v2-table tfoot td {
-    position: sticky; bottom: 0; z-index: 5;
+    position: sticky; bottom: 0; z-index: 3;
     background: var(--tv-navy-900); color: #fff;
     height: 36px; padding: 0 10px;
     border-right: 1px solid var(--tv-navy-700);
