@@ -11935,3 +11935,395 @@ table.imbel-table tbody tr:hover .imbel-row-actions { opacity: 1; }
     padding: 0 !important;
     max-width: none;
 }
+
+/* ============================================================
+   TABELA DE ESTOQUE — INVENTÁRIO CONSOLIDADO Bloomberg v2
+   mai/2026
+   ============================================================ */
+
+/* Layout da aba */
+#tab-estoque .content-area.est-v2 {
+    display: flex !important;
+    flex-direction: column !important;
+    height: calc(100vh - 62px) !important;
+    padding: 0 !important;
+    max-width: none !important;
+    overflow: hidden !important;
+}
+
+/* Subnav da aba estoque */
+.est-subnav {
+    display: flex;
+    align-items: center;
+    background: var(--tv-navy-950);
+    border-bottom: 1px solid var(--tv-navy-700);
+    padding: 0 16px;
+    flex-shrink: 0;
+}
+.est-subnav-tab {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 38px;
+    padding: 0 16px;
+    font-family: var(--tv-font-display);
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--tv-navy-300);
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    cursor: pointer;
+    transition: color .12s, border-color .12s;
+}
+.est-subnav-tab:hover { color: var(--tv-navy-100); }
+.est-subnav-tab.active { color: var(--tv-amber-400); border-bottom-color: var(--tv-amber-500); }
+.est-subnav-right {
+    margin-left: auto;
+    font-family: var(--tv-font-display);
+    font-size: 0.68rem;
+    color: var(--tv-navy-400);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+.est-subnav-right b { color: var(--tv-navy-200); font-weight: 600; }
+
+/* Command bar */
+.est-cmdbar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 5px 16px;
+    background: var(--tv-navy-950);
+    border-bottom: 1px solid var(--tv-navy-800);
+    flex-shrink: 0;
+    flex-wrap: wrap;
+}
+.est-search-box {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--tv-navy-800);
+    border: 1px solid var(--tv-navy-700);
+    border-radius: 4px;
+    padding: 0 10px;
+    height: 30px;
+    min-width: 220px;
+}
+.est-search-box input {
+    background: none;
+    border: none;
+    outline: none;
+    color: var(--tv-navy-100);
+    font-family: var(--tv-font-sans);
+    font-size: 0.78rem;
+    width: 100%;
+}
+.est-search-box input::placeholder { color: var(--tv-navy-400); }
+.est-search-icon { color: var(--tv-navy-400); }
+.est-cmdbar-sep { width: 1px; height: 20px; background: var(--tv-navy-700); margin: 0 4px; }
+.est-cmdbar-label {
+    font-family: var(--tv-font-display);
+    font-size: 0.62rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--tv-navy-400);
+}
+.est-cmdbar select {
+    height: 28px;
+    padding: 0 8px;
+    background: var(--tv-navy-800);
+    border: 1px solid var(--tv-navy-700);
+    border-radius: 3px;
+    color: var(--tv-navy-100);
+    font-size: 0.75rem;
+    outline: none;
+    cursor: pointer;
+}
+.est-cmdbar-check {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 0.75rem;
+    color: var(--tv-navy-200);
+    cursor: pointer;
+    user-select: none;
+}
+.est-cmdbar-check input { accent-color: var(--tv-amber-500); }
+.est-bar-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    height: 28px;
+    padding: 0 12px;
+    background: var(--tv-navy-800);
+    border: 1px solid var(--tv-navy-600);
+    border-radius: 3px;
+    color: var(--tv-navy-200);
+    font-family: var(--tv-font-display);
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    cursor: pointer;
+    transition: background .12s, color .12s;
+}
+.est-bar-btn:hover { background: var(--tv-navy-700); color: #fff; }
+.est-bar-btn.accent { background: var(--tv-amber-600); border-color: var(--tv-amber-500); color: #fff; }
+.est-bar-btn.accent:hover { background: var(--tv-amber-500); }
+.est-bar-btn.icon-only { padding: 0 9px; }
+.est-density-seg { display: flex; border: 1px solid var(--tv-navy-700); border-radius: 3px; overflow: hidden; }
+.est-density-btn {
+    height: 28px; padding: 0 9px;
+    background: var(--tv-navy-800); border: none;
+    border-right: 1px solid var(--tv-navy-700);
+    color: var(--tv-navy-400); font-size: 0.75rem; cursor: pointer;
+    transition: background .1s, color .1s;
+}
+.est-density-btn:last-child { border-right: none; }
+.est-density-btn:hover { background: var(--tv-navy-700); color: var(--tv-navy-100); }
+.est-density-btn.active { background: var(--tv-navy-600); color: var(--tv-amber-400); }
+
+/* Rep toggle bar */
+.est-repbar {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+    padding: 5px 16px;
+    background: var(--tv-navy-900);
+    border-bottom: 1px solid var(--tv-navy-700);
+    flex-shrink: 0;
+}
+.est-repbar-lbl {
+    font-family: var(--tv-font-display);
+    font-size: 0.62rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--tv-navy-400);
+    margin-right: 4px;
+}
+.est-rep-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 24px;
+    padding: 0 10px;
+    border-radius: 12px;
+    border: 1px solid;
+    font-family: var(--tv-font-display);
+    font-size: 0.7rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: opacity .12s;
+    user-select: none;
+}
+.est-rep-pill.off { opacity: 0.35; filter: grayscale(1); }
+.est-rep-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+.est-rep-cnt {
+    font-family: var(--tv-font-mono);
+    font-size: 0.62rem;
+    opacity: 0.7;
+    padding-left: 5px;
+    border-left: 1px solid currentColor;
+    margin-left: 2px;
+}
+.est-repbar-info { margin-left: auto; font-family: var(--tv-font-mono); font-size: 0.68rem; color: var(--tv-navy-400); }
+
+/* KPI strip */
+.est-kpi-strip {
+    display: flex;
+    align-items: stretch;
+    background: var(--tv-navy-900);
+    border-bottom: 2px solid var(--tv-amber-600);
+    flex-shrink: 0;
+}
+.est-kpi { flex: 1; padding: 7px 14px; border-right: 1px solid var(--tv-navy-700); min-width: 0; }
+.est-kpi:last-child { border-right: none; }
+.est-kpi-lbl {
+    font-family: var(--tv-font-display);
+    font-size: 0.6rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--tv-navy-400);
+    margin-bottom: 1px;
+}
+.est-kpi-val {
+    font-family: var(--tv-font-mono);
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--tv-navy-100);
+    line-height: 1.2;
+}
+.est-kpi-val .unit { font-size: 0.62rem; font-weight: 500; color: var(--tv-navy-400); margin-left: 2px; }
+.est-kpi-val.amber { color: var(--tv-amber-400); }
+.est-kpi-val.pos   { color: #4ade80; }
+.est-kpi-val.neg   { color: #f87171; }
+.est-kpi-delta { font-size: 0.65rem; color: var(--tv-navy-400); margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.est-kpi-delta b { color: var(--tv-navy-200); }
+
+/* Tabela wrap */
+.est-v2-table-wrap { flex: 1; overflow: auto; min-height: 0; background: #fff; }
+
+/* Tabela principal */
+table.est-v2-table {
+    border-collapse: separate;
+    border-spacing: 0;
+    width: max-content;
+    min-width: 100%;
+    font-size: 12px;
+}
+
+/* Coluna PRODUTOS congelada */
+table.est-v2-table thead th.est-prod-hdr {
+    position: sticky; left: 0; top: 0; z-index: 7;
+    background: var(--tv-navy-950); color: #fff;
+    font-family: var(--tv-font-display); font-size: 0.72rem; font-weight: 700;
+    letter-spacing: 0.08em; text-transform: uppercase; text-align: left;
+    padding: 0 14px; min-width: 240px;
+    border-right: 2px solid var(--tv-amber-500);
+    border-bottom: 2px solid var(--tv-amber-500);
+    vertical-align: middle; cursor: pointer;
+}
+table.est-v2-table tbody td.est-prod-cell {
+    position: sticky; left: 0; z-index: 2;
+    background: #fff; min-width: 240px; max-width: 270px;
+    border-right: 2px solid var(--tv-navy-200);
+    box-shadow: 3px 0 6px -2px rgba(10,24,40,0.07);
+    vertical-align: middle; padding: 6px 12px;
+    border-bottom: 1px solid var(--tv-navy-100);
+}
+table.est-v2-table tfoot td.est-prod-cell {
+    position: sticky; left: 0; z-index: 4;
+    background: var(--tv-navy-950);
+    border-right: 2px solid var(--tv-amber-500);
+    padding: 0 12px; text-align: left;
+}
+.est-prod-nm {
+    font-weight: 600; font-size: 0.82rem; color: var(--tv-navy-900);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 235px;
+    cursor: pointer;
+}
+.est-prod-nm:hover { color: var(--tv-amber-600); }
+.est-prod-meta { display: flex; align-items: center; gap: 6px; margin-top: 2px; }
+.est-prod-cat {
+    font-family: var(--tv-font-display); font-size: 0.6rem; font-weight: 700;
+    letter-spacing: 0.04em; text-transform: uppercase;
+    color: var(--tv-navy-600); background: var(--tv-navy-50);
+    padding: 1px 5px; border-radius: 2px;
+}
+.est-prod-ncm { font-family: var(--tv-font-mono); font-size: 0.62rem; color: var(--tv-navy-400); }
+
+/* Header de rep linha 1 (grupo) */
+table.est-v2-table thead tr.est-hdr-group th {
+    position: sticky; top: 0; z-index: 5;
+    height: 28px; color: #fff;
+    font-family: var(--tv-font-display); font-size: 0.68rem; font-weight: 700;
+    letter-spacing: 0.12em; text-align: center; text-transform: uppercase;
+    border-right: 2px solid rgba(255,255,255,0.1);
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+    vertical-align: middle; white-space: nowrap;
+}
+table.est-v2-table thead tr.est-hdr-group th.est-consol-grp {
+    background: linear-gradient(180deg, #0a0e14, #2a2010 80%);
+    color: var(--tv-amber-400); border-right: none;
+}
+.est-rep-dot-hdr {
+    display: inline-block; width: 6px; height: 6px; border-radius: 50%;
+    margin-right: 5px; vertical-align: middle;
+    box-shadow: 0 0 0 2px rgba(255,255,255,0.25);
+}
+
+/* Header linha 2 (sub: DIST/VENDA/SALDO) */
+table.est-v2-table thead tr.est-hdr-sub th {
+    position: sticky; top: 28px; z-index: 4;
+    background: var(--tv-navy-900); color: var(--tv-navy-200);
+    font-family: var(--tv-font-display); font-size: 0.62rem; font-weight: 700;
+    letter-spacing: 0.08em; text-transform: uppercase;
+    height: 24px; padding: 0 10px; text-align: right; white-space: nowrap;
+    border-right: 1px solid var(--tv-navy-700);
+    border-bottom: 2px solid var(--tv-amber-500);
+    cursor: pointer; user-select: none;
+}
+table.est-v2-table thead tr.est-hdr-sub th:hover { background: var(--tv-navy-800); color: #fff; }
+table.est-v2-table thead tr.est-hdr-sub th.sort-active { color: var(--tv-amber-400); }
+table.est-v2-table thead tr.est-hdr-sub th.est-grp-alt-hdr { background: #122a40; }
+table.est-v2-table thead tr.est-hdr-sub th.est-consol-sub { background: #14181f; color: var(--tv-amber-300); }
+
+/* Divisores de grupo */
+table.est-v2-table thead tr.est-hdr-sub th.est-grp-end { border-right: 3px solid var(--tv-amber-500) !important; }
+table.est-v2-table tbody td.est-grp-end { border-right: 3px solid var(--tv-navy-300) !important; }
+table.est-v2-table tfoot td.est-grp-end { border-right: 3px solid var(--tv-amber-500) !important; }
+
+/* Células do corpo */
+table.est-v2-table tbody td {
+    height: 40px; padding: 0 10px;
+    border-bottom: 1px solid var(--tv-navy-100);
+    border-right: 1px solid var(--tv-navy-100);
+    vertical-align: middle; white-space: nowrap;
+    font-family: var(--tv-font-mono); font-variant-numeric: tabular-nums;
+    text-align: right; font-size: 0.78rem; color: var(--tv-navy-700);
+}
+table.est-v2-table tbody tr:hover td { background: var(--tv-navy-50) !important; }
+table.est-v2-table tbody tr:hover td.est-prod-cell { background: var(--tv-navy-50) !important; }
+
+table.est-v2-table tbody td.est-grp-alt { background: rgba(15,36,56,0.045); }
+table.est-v2-table tbody td.est-grp-alt.est-saldo-neg { background: rgba(220,38,38,0.06); }
+table.est-v2-table tbody tr:hover td.est-grp-alt { background: rgba(15,36,56,0.08) !important; }
+
+table.est-v2-table tbody td.est-consol-cell { background: rgba(229,161,40,0.05); font-weight: 600; }
+table.est-v2-table tbody tr:hover td.est-consol-cell { background: rgba(229,161,40,0.1) !important; }
+table.est-v2-table tbody td.est-total { font-weight: 700; color: var(--tv-navy-900); font-size: 0.82rem; }
+
+table.est-v2-table tbody td.est-saldo-pos { color: #15803d; font-weight: 700; }
+table.est-v2-table tbody td.est-saldo-neg { color: #dc2626; background: rgba(220,38,38,0.05); font-weight: 700; }
+table.est-v2-table tbody td.est-saldo-zero { color: #cbd5e1; }
+table.est-v2-table tbody td.est-consol-cell.est-saldo-pos { color: #15803d; background: rgba(22,163,74,0.07); }
+table.est-v2-table tbody td.est-consol-cell.est-saldo-neg { background: rgba(220,38,38,0.08); }
+
+table.est-v2-table .est-venda-link {
+    color: var(--tv-navy-600); font-weight: 600;
+    text-decoration: underline; text-decoration-color: var(--tv-navy-300);
+    text-underline-offset: 2px; cursor: pointer;
+}
+table.est-v2-table .est-venda-link:hover { color: var(--tv-amber-700); text-decoration-color: var(--tv-amber-500); }
+table.est-v2-table td.est-cell-zero { color: #e2e8f0; }
+
+table.est-v2-table tbody tr.est-destaque td.est-prod-cell {
+    box-shadow: inset 3px 0 0 var(--tv-copper), 3px 0 6px -2px rgba(10,24,40,0.07);
+}
+table.est-v2-table tbody tr.est-destaque td { background: rgba(184,101,31,0.04); }
+table.est-v2-table tbody tr.est-destaque .est-prod-nm { color: var(--tv-copper); }
+table.est-v2-table tbody tr.est-destaque:hover td { background: rgba(184,101,31,0.08) !important; }
+
+/* Rodapé de totais */
+table.est-v2-table tfoot td {
+    position: sticky; bottom: 0; z-index: 3;
+    background: var(--tv-navy-900); color: #fff;
+    height: 36px; padding: 0 10px;
+    border-right: 1px solid var(--tv-navy-700);
+    border-top: 2px solid var(--tv-amber-500);
+    font-family: var(--tv-font-mono); font-variant-numeric: tabular-nums;
+    text-align: right; font-size: 0.78rem; font-weight: 600; white-space: nowrap;
+}
+table.est-v2-table tfoot td.est-grp-alt-foot { background: #112236; }
+table.est-v2-table tfoot td.est-consol-cell { background: #2a2010; color: var(--tv-amber-300); }
+table.est-v2-table tfoot td.est-saldo-pos { color: #4ade80; }
+table.est-v2-table tfoot td.est-saldo-neg { color: #f87171; }
+.est-foot-lbl { font-family: var(--tv-font-display); font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--tv-amber-400); }
+.est-foot-sub { font-family: var(--tv-font-mono); font-size: 0.62rem; color: var(--tv-navy-400); }
+
+/* Densidades */
+#tab-estoque.est-density-compact table.est-v2-table tbody td { height: 26px; font-size: 11px; }
+#tab-estoque.est-density-compact table.est-v2-table tbody td.est-prod-cell { padding: 2px 10px; }
+#tab-estoque.est-density-cozy   table.est-v2-table tbody td { height: 50px; }
+#tab-estoque.est-density-cozy   table.est-v2-table tbody td.est-prod-cell { padding: 8px 12px; }
+
+/* Sort caret */
+.est-sort-caret { display: inline-block; margin-left: 3px; font-size: 0.6rem; opacity: 0.4; vertical-align: middle; transition: transform .12s; }
+.sort-active .est-sort-caret { opacity: 1; color: var(--tv-amber-400); }
+.sort-desc .est-sort-caret { transform: rotate(180deg); }

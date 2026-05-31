@@ -3145,245 +3145,410 @@ function abrirVendasPorProduto(produtoId, representante) {
     } catch (e) { console.warn('abrirVendasPorProduto erro', e); }
 }
 
+// ── Configuração de representadas (cores Bloomberg) ──
+const _EST_REPS_CFG = [
+    { id: 'ISA',   nome: 'ISA',   tipo: 'dist',  cor: '#7c3aed', corBg: 'rgba(124,58,237,0.12)', corHdr: 'linear-gradient(180deg,#3b1f72,#4c1d95)' },
+    { id: 'KOLTE', nome: 'KOLTE', tipo: 'dist',  cor: '#2563eb', corBg: 'rgba(37,99,235,0.12)',  corHdr: 'linear-gradient(180deg,#1e3a8a,#1d4ed8)' },
+    { id: 'ADES',  nome: 'ADES',  tipo: 'dist',  cor: '#ea580c', corBg: 'rgba(234,88,12,0.12)',  corHdr: 'linear-gradient(180deg,#7c2d12,#c2410c)' },
+    { id: 'FL',    nome: 'FL',    tipo: 'dist',  cor: '#9333ea', corBg: 'rgba(147,51,234,0.12)', corHdr: 'linear-gradient(180deg,#581c87,#7e22ce)' },
+    { id: 'LC',    nome: 'LC',    tipo: 'dist',  cor: '#16a34a', corBg: 'rgba(22,163,74,0.12)',  corHdr: 'linear-gradient(180deg,#14532d,#15803d)' },
+    { id: 'IMBEL', nome: 'IMBEL', tipo: 'house', cor: '#b8651f', corBg: 'rgba(184,101,31,0.12)', corHdr: 'linear-gradient(180deg,#431407,#9a3412)' },
+];
+
+// Estado persistente da UI da tabela de estoque
+let _estState = {
+    hiddenReps: new Set(),
+    sortCol: null,
+    sortDir: 'desc',
+};
+
+function _estVisibleReps() {
+    return getInventoryRepsOrder()
+        .map(id => _EST_REPS_CFG.find(r => r.id === id) || { id, nome: id, tipo: 'dist', cor: '#666', corBg: '#eee', corHdr: '#333' })
+        .filter(r => !_estState.hiddenReps.has(r.id));
+}
+
+function _estToggleRep(id) {
+    if (_estState.hiddenReps.has(id)) _estState.hiddenReps.delete(id);
+    else _estState.hiddenReps.add(id);
+    renderizarTabela();
+}
+window._estToggleRep = _estToggleRep;
+
+function _estSetDensity(d) {
+    const tab = document.getElementById('tab-estoque');
+    if (!tab) return;
+    tab.classList.remove('est-density-compact', 'est-density-normal', 'est-density-cozy');
+    tab.classList.add('est-density-' + d);
+    tab.querySelectorAll('.est-density-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.getAttribute('onclick') && btn.getAttribute('onclick').includes(d));
+    });
+}
+window._estSetDensity = _estSetDensity;
+
+function _estSetSort(col) {
+    if (_estState.sortCol === col) {
+        _estState.sortDir = _estState.sortDir === 'asc' ? 'desc' : 'asc';
+    } else {
+        _estState.sortCol = col;
+        _estState.sortDir = 'desc';
+    }
+    renderizarTabela();
+}
+window._estSetSort = _estSetSort;
+
+function _estFmtN(n) {
+    if (n == null || n === 0) return '—';
+    return n.toLocaleString('pt-BR');
+}
+
+function _estRenderRepBar(produtosVisiveis) {
+    const bar = document.getElementById('estRepbar');
+    if (!bar) return;
+    const allReps = getInventoryRepsOrder()
+        .map(id => _EST_REPS_CFG.find(r => r.id === id) || { id, nome: id, cor: '#666', corBg: '#eee' });
+
+    // Calcular vendas por rep para o badge
+    const vendasPorRep = {};
+    allReps.forEach(r => { vendasPorRep[r.id] = 0; });
+    (estoque.registroVendas || []).forEach(v => {
+        if (v.cancelado) return;
+        const rep = (v.representante || '').toUpperCase();
+        if (vendasPorRep[rep] !== undefined) {
+            if (Array.isArray(v.items)) v.items.forEach(it => { vendasPorRep[rep] += Number(it.quantidade) || 0; });
+            else vendasPorRep[rep] += Number(v.quantidade) || 0;
+        }
+    });
+
+    const visCount = allReps.length - _estState.hiddenReps.size;
+    let html = '<span class="est-repbar-lbl">Representadas:</span>';
+    allReps.forEach(r => {
+        const off = _estState.hiddenReps.has(r.id);
+        const style = off ? 'border-color:#334155;color:#64748b' : `border-color:${r.cor};color:${r.cor};background:${r.corBg}`;
+        html += `<button class="est-rep-pill${off ? ' off' : ''}" style="${style}" onclick="window._estToggleRep('${r.id}')">
+            <span class="est-rep-dot" style="background:${off ? '#475569' : r.cor}"></span>
+            ${r.nome}
+            <span class="est-rep-cnt">${_estFmtN(vendasPorRep[r.id])} vd</span>
+        </button>`;
+    });
+    html += `<span class="est-repbar-info">${visCount} de ${allReps.length} visíveis</span>`;
+    bar.innerHTML = html;
+}
+
+function _estRenderKPIs(produtosVisiveis, totais, repsVisiveis) {
+    const strip = document.getElementById('estKpiStrip');
+    if (!strip) return;
+
+    const totalDisp = totais.GERAL.disp;
+    const totalVenda = totais.GERAL.venda;
+    const totalSaldo = totais.GERAL.saldo;
+    const countProd = produtosVisiveis.length;
+    const totalProd = (estoque.produtos || []).filter(p => p.exibirNoEstoque === true).length;
+
+    const negativos = produtosVisiveis.filter(p => {
+        const m = obterMetricasImbelProduto(p);
+        return m.consolidadoSaldo < 0;
+    }).length;
+    const zerados = produtosVisiveis.filter(p => {
+        const m = obterMetricasImbelProduto(p);
+        return m.consolidadoSaldo === 0;
+    }).length;
+
+    // Top rep por venda
+    let topRepNome = '—', topRepVd = 0;
+    repsVisiveis.forEach(r => {
+        const vd = totais[r.id] ? totais[r.id].venda : 0;
+        if (vd > topRepVd) { topRepVd = vd; topRepNome = r.nome; }
+    });
+
+    // Valor em saldo (CI × saldo consolidado)
+    let valorSaldo = 0;
+    produtosVisiveis.forEach(p => {
+        const ci = Number(precificacao[p.nome]?.ci ?? p.ci ?? 0);
+        const m = obterMetricasImbelProduto(p);
+        valorSaldo += ci * Math.max(0, m.consolidadoSaldo);
+    });
+
+    const saldoCls = totalSaldo < 0 ? 'neg' : totalSaldo > 0 ? 'pos' : '';
+    const alertCls = (negativos > 0 || zerados > 0) ? 'neg' : '';
+
+    strip.innerHTML = `
+        <div class="est-kpi">
+            <div class="est-kpi-lbl">Produtos no inventário</div>
+            <div class="est-kpi-val amber">${countProd}<span class="unit"> SKU</span></div>
+            <div class="est-kpi-delta">${countProd === totalProd ? 'catálogo completo' : 'de ' + totalProd}</div>
+        </div>
+        <div class="est-kpi">
+            <div class="est-kpi-lbl">Estoque consolidado</div>
+            <div class="est-kpi-val ${saldoCls}">${_estFmtN(totalSaldo)}<span class="unit"> un</span></div>
+            <div class="est-kpi-delta">dist ${_estFmtN(totalDisp)} · vendas ${_estFmtN(totalVenda)}</div>
+        </div>
+        <div class="est-kpi">
+            <div class="est-kpi-lbl">Vendas totais</div>
+            <div class="est-kpi-val pos">${_estFmtN(totalVenda)}<span class="unit"> un</span></div>
+            <div class="est-kpi-delta">top: <b>${topRepNome}</b> (${_estFmtN(topRepVd)})</div>
+        </div>
+        <div class="est-kpi">
+            <div class="est-kpi-lbl">Valor em saldo (CI)</div>
+            <div class="est-kpi-val amber" style="color:var(--tv-copper)">R$ ${_estFmtN(Math.round(valorSaldo / 1000))}<span class="unit"> mil</span></div>
+            <div class="est-kpi-delta">saldo × preço unit</div>
+        </div>
+        <div class="est-kpi">
+            <div class="est-kpi-lbl">Alertas</div>
+            <div class="est-kpi-val ${alertCls}">${negativos + zerados}</div>
+            <div class="est-kpi-delta">${negativos} c/ saldo negativo · ${zerados} zerados</div>
+        </div>`;
+
+    // Atualizar KPIs do Dashboard também
+    try {
+        let totalVendidasGlobal = 0;
+        if (Array.isArray(estoque.registroVendas) && estoque.registroVendas.length > 0) {
+            totalVendidasGlobal = estoque.registroVendas.reduce((sum, v) => {
+                if (Array.isArray(v.items)) return sum + v.items.reduce((s, i) => s + (Number(i.quantidade) || 0), 0);
+                return sum + (Number(v.quantidade) || 0);
+            }, 0);
+        }
+        const kpiTV = document.getElementById('kpiTotalVendido');
+        const kpiSZ = document.getElementById('kpiSaldoZero');
+        if (kpiTV) kpiTV.textContent = `${totalVendidasGlobal.toLocaleString('pt-BR')} un.`;
+        if (kpiSZ) kpiSZ.textContent = `${(negativos + zerados).toLocaleString('pt-BR')} produtos`;
+    } catch (e) {}
+}
+
 function renderizarTabela() {
     const tbody = document.getElementById('corpoTabela');
     if (!tbody) return;
-    tbody.innerHTML = '';
-    const totais = { GERAL: { disp: 0, venda: 0, saldo: 0 } };
+
     const repsOrder = getInventoryRepsOrder();
+    const repsVisiveis = _estVisibleReps();
+    const totais = { GERAL: { disp: 0, venda: 0, saldo: 0 } };
     repsOrder.forEach(rep => { totais[rep] = { disp: 0, venda: 0, saldo: 0 }; });
 
-    // Ordem de exibição: apenas produtos marcados para exibir no estoque
-    const produtosOrdenados = [...estoque.produtos]
-        .filter(p => p.exibirNoEstoque === true)
-        .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
-    let countConsolidadoZeradoOuNegativo = 0;
+    // Produtos filtrados e ordenados
+    let produtosOrdenados = [...(estoque.produtos || [])]
+        .filter(p => p.exibirNoEstoque === true);
 
+    if (_estState.sortCol) {
+        produtosOrdenados.sort((a, b) => {
+            let vA, vB;
+            if (_estState.sortCol === 'nome') { vA = a.nome; vB = b.nome; }
+            else if (_estState.sortCol === 'total') { vA = obterMetricasImbelProduto(a).consolidadoDisp; vB = obterMetricasImbelProduto(b).consolidadoDisp; }
+            else if (_estState.sortCol === 'venda') { vA = obterMetricasImbelProduto(a).consolidadoVenda; vB = obterMetricasImbelProduto(b).consolidadoVenda; }
+            else if (_estState.sortCol === 'saldo') { vA = obterMetricasImbelProduto(a).consolidadoSaldo; vB = obterMetricasImbelProduto(b).consolidadoSaldo; }
+            else { vA = 0; vB = 0; }
+            const cmp = typeof vA === 'string' ? vA.localeCompare(vB, 'pt-BR') : vA - vB;
+            return _estState.sortDir === 'asc' ? cmp : -cmp;
+        });
+    } else {
+        produtosOrdenados.sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
+    }
+
+    // ── Renderizar header ──
+    const thead = document.getElementById('estThead');
+    if (thead) {
+        const sc = _estState.sortCol, sd = _estState.sortDir;
+        function thSort(col, label, extra = '') {
+            const isActive = sc === col;
+            return `<th class="${extra}${isActive ? ' sort-active' : ''}${isActive && sd === 'desc' ? ' sort-desc' : ''}" onclick="window._estSetSort('${col}')" style="cursor:pointer">${label}<span class="est-sort-caret">▲</span></th>`;
+        }
+
+        // Linha 1 — grupos de rep
+        let hdr1 = `<tr class="est-hdr-group">
+            ${thSort('nome', 'PRODUTOS', 'est-prod-hdr')}`;
+        repsVisiveis.forEach((r, ri) => {
+            hdr1 += `<th colspan="3" style="background:${r.corHdr}">
+                <span class="est-rep-dot-hdr" style="background:${r.cor}"></span>${r.nome}
+            </th>`;
+        });
+        hdr1 += `<th colspan="3" class="est-consol-grp">▪ CONSOLIDADO</th></tr>`;
+
+        // Linha 2 — sub-headers DIST/VENDA/SALDO
+        let hdr2 = `<tr class="est-hdr-sub"><th class="est-prod-hdr" style="top:28px"></th>`;
+        repsVisiveis.forEach((r, ri) => {
+            const alt = ri % 2 === 1 ? ' est-grp-alt-hdr' : '';
+            const distLbl = r.tipo === 'house' ? 'ESTOQUE' : 'DIST';
+            hdr2 += `<th class="${alt}">${distLbl}</th>`;
+            hdr2 += `<th class="${alt}">VENDA</th>`;
+            hdr2 += `<th class="est-grp-end${alt}">SALDO</th>`;
+        });
+        hdr2 += `${thSort('total', 'TOTAL', 'est-consol-sub')}`;
+        hdr2 += `${thSort('venda', 'VENDA', 'est-consol-sub')}`;
+        hdr2 += `${thSort('saldo', 'SALDO', 'est-consol-sub')}`;
+        hdr2 += `</tr>`;
+
+        thead.innerHTML = hdr1 + hdr2;
+    }
+
+    // ── Renderizar corpo ──
+    let rows = '';
     produtosOrdenados.forEach(produto => {
-        const tr = document.createElement('tr');
-        tr.dataset.id = produto.id;
-        let produtoHtml = produto.nome;
-        // Incluir observações internas junto ao nome (exibidas em pequena linha)
-        const obs = produto.observacoes ? String(produto.observacoes).trim() : '';
-        const obsHtml = obs
-            ? `<div style="font-size:0.72rem;color:#94a3b8;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:200px" title="${_escapeHtml(obs)}">📝 ${_escapeHtml(obs)}</div>`
-            : '';
-        // Produto HTML com escape para evitar XSS
-        produtoHtml = `${_escapeHtml(String(produto.nome || ''))}${obsHtml}`;
-        const metricaImbel = obterMetricasImbelProduto(produto);
-
         const produtoId = produto.id;
+        const metricaImbel = obterMetricasImbelProduto(produto);
+        const obs = produto.observacoes ? String(produto.observacoes).trim() : '';
+        const categoria = (categoriaPorProduto && categoriaPorProduto[produto.nome]) || produto.categoria || '';
+        const ncm = produto.ncm || '';
+
         const estoqueTotal = Number(
             (produto.estoqueConsolidado ?? produto.estoqueTotal ?? produto.estoque ?? produto.qtdTotal ?? produto.estoqueInicial) || 0
-        ); // fonte de verdade (compatível com vários nomes)
+        );
 
-        // === STEP 2: distribuições por representante (agregar do registro)
+        // Distribuições
         const distPorRep = {};
         (estoque.registroDistribuicao || []).forEach(d => {
             try {
-                if (Number(d.produtoId) === Number(produtoId) || (d.produtoNome && d.produtoNome === produto.nome)) {
-                    const r = (d.representante || '').toString().toUpperCase();
+                if (Number(d.produtoId) === Number(produtoId) || d.produtoNome === produto.nome) {
+                    const r = (d.representante || '').toUpperCase();
                     distPorRep[r] = (distPorRep[r] || 0) + (Number(d.quantidade) || 0);
                 }
             } catch (e) {}
         });
-        const totalDistribuido = Object.values(distPorRep).reduce((s, v) => s + v, 0);
 
-        // === STEP 3: devoluções por representante (origem da devolução)
+        // Devoluções
         const devPorRep = {};
-        let totalDevolvidoParaImbel = 0;
         (estoque.registroDevolucoes || []).forEach(d => {
             try {
-                if (Number(d.produtoId) === Number(produtoId) || (d.produtoNome && d.produtoNome === produto.nome)) {
-                    const origem = (d.origem || d.representante || '').toString().toUpperCase();
-                    const destino = (d.destino || '').toString().toUpperCase();
+                if (Number(d.produtoId) === Number(produtoId) || d.produtoNome === produto.nome) {
+                    const origem = (d.origem || d.representante || '').toUpperCase();
                     devPorRep[origem] = (devPorRep[origem] || 0) + (Number(d.quantidade) || 0);
-                    if (destino === 'IMBEL') totalDevolvidoParaImbel += (Number(d.quantidade) || 0);
                 }
             } catch (e) {}
         });
-        const totalDevolvido = Object.values(devPorRep).reduce((s, v) => s + v, 0);
 
-        // === STEP 4: vendas por representante - sempre recalcular do registroVendas
+        // Vendas
         const vendasPorRep = {};
         (estoque.registroVendas || []).forEach(v => {
             try {
                 if (v.cancelado) return;
-                const rep = (v.representante || '').toString().toUpperCase();
+                const rep = (v.representante || '').toUpperCase();
                 if (Array.isArray(v.items) && v.items.length) {
                     v.items.forEach(it => {
-                        if (Number(it.produtoId) === Number(produtoId) || (it.produtoNome === produto.nome)) {
+                        if (Number(it.produtoId) === Number(produtoId) || it.produtoNome === produto.nome)
                             vendasPorRep[rep] = (vendasPorRep[rep] || 0) + (Number(it.quantidade) || 0);
-                        }
                     });
-                } else {
-                    if (Number(v.produtoId) === Number(produtoId) || (v.produtoNome === produto.nome)) {
-                        vendasPorRep[rep] = (vendasPorRep[rep] || 0) + (Number(v.quantidade) || 0);
-                    }
+                } else if (Number(v.produtoId) === Number(produtoId) || v.produtoNome === produto.nome) {
+                    vendasPorRep[rep] = (vendasPorRep[rep] || 0) + (Number(v.quantidade) || 0);
                 }
             } catch (e) {}
         });
 
-        // total vendas do produto (em todos os reps)
-        const totalVendasProduto = Object.values(vendasPorRep).reduce((s, v) => s + v, 0);
+        // Célula produto
+        const catBadge = categoria ? `<span class="est-prod-cat">${_escapeHtml(categoria)}</span>` : '';
+        const ncmBadge = ncm ? `<span class="est-prod-ncm">${_escapeHtml(ncm)}</span>` : '';
+        const obsHtml = obs ? `<span title="${_escapeHtml(obs)}" style="font-size:0.68rem;color:#94a3b8;margin-left:4px">📝</span>` : '';
+        const destaqueClass = produto.destaque ? ' est-destaque' : '';
 
-        // === STEP 5: montar colunas por representante na ordem configurada (ISA, KOLTE, ADES, FL, LC, IMBEL)
-        repsOrder.forEach(rep => {
-            const repKey = (rep || '').toString().toUpperCase();
-            const repCls = repClassName(repKey);
+        let row = `<tr data-id="${produtoId}" data-nome="${_escapeHtml(produto.nome)}" data-cat="${_escapeHtml(categoria)}" data-ncm="${_escapeHtml(ncm)}"${destaqueClass ? ` class="${destaqueClass.trim()}"` : ''}>
+            <td class="est-prod-cell">
+                <div class="est-prod-nm" onclick="abrirModalEditarProduto(${produtoId})" title="${_escapeHtml(produto.nome)}">${_escapeHtml(produto.nome)}${obsHtml}</div>
+                <div class="est-prod-meta">${catBadge}${ncmBadge}</div>
+            </td>`;
+
+        // Colunas por rep visível
+        repsVisiveis.forEach((r, ri) => {
+            const repKey = r.id;
+            const alt = ri % 2 === 1 ? ' est-grp-alt' : '';
             let disp = 0, venda = 0, saldo = 0;
+
             if (repKey === 'IMBEL') {
-                // IMBEL centralizado para evitar divergência entre abas
                 disp = metricaImbel.imbelDisp;
                 venda = metricaImbel.imbelVenda;
                 saldo = metricaImbel.imbelSaldo;
             } else {
                 const dist = distPorRep[repKey] || 0;
                 const dev = devPorRep[repKey] || 0;
-                disp = dist - dev; // enviado ao rep menos o que ele devolveu
+                disp = dist - dev;
                 venda = vendasPorRep[repKey] || 0;
                 saldo = disp - venda;
             }
 
-            // Determinar se há movimento para este rep (usado para mostrar '-')
-            const repTeveMovimento = (Number(distPorRep[repKey] || 0) !== 0) || (Number(devPorRep[repKey] || 0) !== 0) || (Number(vendasPorRep[repKey] || 0) !== 0);
+            const teveMov = !!(distPorRep[repKey] || devPorRep[repKey] || vendasPorRep[repKey]);
+            const showDisp = repKey === 'IMBEL' ? (estoqueTotal > 0) : teveMov;
+            const showVenda = teveMov || (repKey === 'IMBEL' && (vendasPorRep['IMBEL'] || 0) > 0);
+            const showSaldo = showDisp || showVenda;
 
-            // Formatação de células e classes conforme regras
-            const dispText = (repKey === 'IMBEL' && estoqueTotal === 0) ? '-' : (repTeveMovimento || repKey === 'IMBEL' ? formatarNumero(disp) : '-');
-            const vendaText = repTeveMovimento || (repKey === 'IMBEL' && (vendasPorRep['IMBEL']||0) > 0) ? formatarNumero(venda) : '-';
-            let saldoText = '-';
-            if (repKey === 'IMBEL' && estoqueTotal === 0) {
-                saldoText = '-';
-            } else if (!repTeveMovimento && repKey !== 'IMBEL') {
-                saldoText = '-';
-            } else {
-                saldoText = formatarNumero(saldo);
-            }
+            const dispTxt = showDisp ? _estFmtN(disp) : '—';
+            const vendaTxt = showVenda && venda > 0
+                ? `<a class="est-venda-link" href="#" onclick="abrirVendasPorProduto(${produtoId},'${_escapeJsString(repKey)}');return false">${_estFmtN(venda)}</a>`
+                : (showVenda ? _estFmtN(venda) : '—');
+            const saldoCls = !showSaldo ? ' est-cell-zero' : saldo > 0 ? ' est-saldo-pos' : saldo < 0 ? ' est-saldo-neg' : ' est-saldo-zero';
 
-            const vendaClass = (Number(venda) > 0) ? 'cell-venda' : 'cell-zero';
-            // saldo sempre usa 'cell-saldo' e adiciona modificadores
-            let saldoClass = 'cell-saldo';
-            if (Number(saldo) > 0) saldoClass += ' saldo-positivo';
-            else if (Number(saldo) === 0) {
-                const dispVal = Number(disp) || 0;
-                saldoClass += (dispVal > 0) ? ' negativo' : ' saldo-zero';
-            } else { // negativo
-                saldoClass += ' negativo';
-            }
+            row += `<td class="${alt}">${disp !== 0 ? _estFmtN(disp) : '<span class="est-cell-zero">—</span>'}</td>`;
+            row += `<td class="${alt}">${vendaTxt}</td>`;
+            row += `<td class="est-grp-end${alt}${saldoCls}">${showSaldo ? _estFmtN(saldo) : '—'}</td>`;
 
-            // tornar o número de vendas clicável para abrir a aba de vendas filtrada
-            let vendaInner = vendaText;
-            try {
-                if (Number(venda) > 0) {
-                    const repEsc = _escapeJsString(repKey);
-                    vendaInner = `<a href="#" onclick="abrirVendasPorProduto(${produtoId}, '${repEsc}'); return false;" style="color:inherit;text-decoration:underline">${formatarNumero(venda)}</a>`;
-                }
-            } catch (e) {}
-
-            tr.innerHTML += `
-                <td class="cell-disp numeric-cell ${(!isFinite(disp) || disp === 0) ? 'cell-zero' : ''} ${repCls}">${dispText}</td>
-                <td class="cell-venda numeric-cell ${venda === 0 ? 'cell-zero' : ''} ${vendaClass} ${repCls}">${vendaInner}</td>
-                <td class="cell-saldo numeric-cell ${saldoClass} ${saldo === 0 ? 'cell-zero' : ''} ${repCls}">${saldoText}</td>
-            `;
-
-            // Atualizar totais por rep
-            totais[repKey].disp += Number(disp) || 0;
+            // Acumular totais (sempre, independente de visibilidade)
+            totais[repKey].disp  += Number(disp)  || 0;
             totais[repKey].venda += Number(venda) || 0;
             totais[repKey].saldo += Number(saldo) || 0;
         });
 
-        // === STEP 7: CONSOLIDADO (sempre exibir número)
-        const consolidadoDisp = metricaImbel.consolidadoDisp;
-        const consolidadoVenda = metricaImbel.consolidadoVenda;
-        const consolidadoSaldo = metricaImbel.consolidadoSaldo;
+        // Acumular totais de reps ocultos também
+        repsOrder.forEach(repKey => {
+            if (repsVisiveis.find(r => r.id === repKey)) return;
+            let disp = 0, venda = 0, saldo = 0;
+            if (repKey === 'IMBEL') {
+                disp = metricaImbel.imbelDisp; venda = metricaImbel.imbelVenda; saldo = metricaImbel.imbelSaldo;
+            } else {
+                const dist = distPorRep[repKey] || 0;
+                const dev = devPorRep[repKey] || 0;
+                disp = dist - dev; venda = vendasPorRep[repKey] || 0; saldo = disp - venda;
+            }
+            totais[repKey].disp  += Number(disp)  || 0;
+            totais[repKey].venda += Number(venda) || 0;
+            totais[repKey].saldo += Number(saldo) || 0;
+        });
 
-        tr.innerHTML = `<td class="produto-nome col-produto" title="${_escapeHtml(String(produto.nome || ''))}" onclick="abrirModalEditarProduto(${produtoId})" style="cursor:pointer">${produtoHtml}</td>` + tr.innerHTML;
-        // armazenar observações no dataset para buscas e mostrar tooltip ao passar o mouse sobre a linha
-        try { tr.dataset.observacoes = obs; } catch (e) {}
-        tr.title = obs ? `📝 ${obs}` : (tr.title || '');
+        // Consolidado
+        const cDisp  = metricaImbel.consolidadoDisp;
+        const cVenda = metricaImbel.consolidadoVenda;
+        const cSaldo = metricaImbel.consolidadoSaldo;
+        const cSaldoCls = cSaldo > 0 ? ' est-saldo-pos' : cSaldo < 0 ? ' est-saldo-neg' : ' est-saldo-zero';
+        const cVendaInner = cVenda > 0
+            ? `<a class="est-venda-link" href="#" onclick="abrirVendasPorProduto(${produtoId},'');return false">${_estFmtN(cVenda)}</a>`
+            : _estFmtN(cVenda);
 
-        const saldoGeralClass = consolidadoSaldo > 0 ? 'saldo-positivo' : 'negativo';
-        tr.innerHTML += `
-            <td class="geral-disp numeric-cell">${formatarNumero(consolidadoDisp)}</td>
-            <td class="geral-venda numeric-cell ${consolidadoVenda > 0 ? 'venda-positiva' : ''}">${formatarNumero(consolidadoVenda)}</td>
-            <td class="geral-saldo numeric-cell ${saldoGeralClass}">${formatarNumero(consolidadoSaldo)}</td>
-        `;
+        row += `<td class="est-consol-cell est-total">${_estFmtN(cDisp)}</td>`;
+        row += `<td class="est-consol-cell">${cVendaInner}</td>`;
+        row += `<td class="est-consol-cell${cSaldoCls}">${_estFmtN(cSaldo)}</td>`;
+        row += `</tr>`;
 
-        // Marcar linha quando o saldo consolidado for exatamente zero
-        if (Number(consolidadoSaldo) === 0) {
-            tr.classList.add('row-saldo-zero');
-        } else {
-            tr.classList.remove('row-saldo-zero');
-        }
+        totais.GERAL.disp  += cDisp;
+        totais.GERAL.venda += cVenda;
+        totais.GERAL.saldo += cSaldo;
 
-        // Flag produto com consolidado zerado ou negativo (para KPI)
-        if (consolidadoSaldo <= 0) countConsolidadoZeradoOuNegativo += 1;
-
-        // Atualizar totais gerais
-        totais.GERAL.disp += consolidadoDisp;
-        totais.GERAL.venda += consolidadoVenda;
-        totais.GERAL.saldo += consolidadoSaldo;
-
-        tbody.appendChild(tr);
+        rows += row;
     });
 
-    // Linha de totais
-    const trTotal = document.createElement('tr');
-    trTotal.className = 'total-row';
-    trTotal.innerHTML = `<td class="produto-nome col-produto"><strong>TOTAL GERAL</strong></td>`;
+    if (!rows) rows = `<tr><td colspan="99" style="padding:20px;text-align:center;color:#94a3b8;font-size:0.82rem">Nenhum produto para exibir.</td></tr>`;
+    tbody.innerHTML = rows;
 
-    repsOrder.forEach(rep => {
-        const repKey = (rep || '').toString().toUpperCase();
-        const saldoRep = totais[repKey].saldo;
-        const saldoRepClass = saldoRep > 0 ? 'saldo-positivo' : 'negativo';
-        const repCls = repClassName(repKey);
-        trTotal.innerHTML += `
-            <td class="cell-disp numeric-cell ${repCls}"><strong>${formatarNumero(totais[repKey].disp)}</strong></td>
-            <td class="cell-venda numeric-cell ${totais[repKey].venda > 0 ? 'venda-positiva' : ''} ${repCls}"><strong>${formatarNumero(totais[repKey].venda)}</strong></td>
-            <td class="cell-saldo numeric-cell ${saldoRepClass} ${repCls}"><strong>${formatarNumero(totais[repKey].saldo)}</strong></td>
-        `;
-    });
-
-    const saldoGeralTotalClass = totais.GERAL.saldo > 0 ? 'saldo-positivo' : 'negativo';
-    trTotal.innerHTML += `
-        <td class="geral-disp numeric-cell"><strong>${formatarNumero(totais.GERAL.disp)}</strong></td>
-        <td class="geral-venda numeric-cell"><strong>${formatarNumero(totais.GERAL.venda)}</strong></td>
-        <td class="geral-saldo numeric-cell ${saldoGeralTotalClass}"><strong>${formatarNumero(totais.GERAL.saldo)}</strong></td>
-    `;
-
+    // ── Rodapé de totais ──
     const tfoot = document.getElementById('rodapeTabela');
     if (tfoot) {
-        tfoot.innerHTML = '';
-        tfoot.appendChild(trTotal);
-    } else {
-        tbody.appendChild(trTotal);
+        let foot = `<tr><td class="est-prod-cell">
+            <div class="est-foot-lbl">TOTAIS</div>
+            <div class="est-foot-sub">${produtosOrdenados.length} produtos</div>
+        </td>`;
+        repsVisiveis.forEach((r, ri) => {
+            const alt = ri % 2 === 1 ? ' est-grp-alt-foot' : '';
+            const t = totais[r.id];
+            const sCls = t.saldo > 0 ? ' est-saldo-pos' : t.saldo < 0 ? ' est-saldo-neg' : '';
+            foot += `<td class="${alt}">${_estFmtN(t.disp)}</td>`;
+            foot += `<td class="${alt}">${_estFmtN(t.venda)}</td>`;
+            foot += `<td class="est-grp-end${alt}${sCls}">${_estFmtN(t.saldo)}</td>`;
+        });
+        const gCls = totais.GERAL.saldo > 0 ? ' est-saldo-pos' : totais.GERAL.saldo < 0 ? ' est-saldo-neg' : '';
+        foot += `<td class="est-consol-cell">${_estFmtN(totais.GERAL.disp)}</td>`;
+        foot += `<td class="est-consol-cell">${_estFmtN(totais.GERAL.venda)}</td>`;
+        foot += `<td class="est-consol-cell${gCls}">${_estFmtN(totais.GERAL.saldo)}</td>`;
+        foot += `</tr>`;
+        tfoot.innerHTML = foot;
     }
-    // KPIs da aba estoque (agora renderizados no Dashboard)
-    const dashContainer = document.getElementById('tab-dashboard');
-    const kpiTotalVendidoEl = (dashContainer && dashContainer.querySelector)
-        ? (dashContainer.querySelector('#kpiTotalVendido') || document.getElementById('kpiTotalVendido'))
-        : document.getElementById('kpiTotalVendido');
-    const kpiSaldoZeroEl = (dashContainer && dashContainer.querySelector)
-        ? (dashContainer.querySelector('#kpiSaldoZero') || document.getElementById('kpiSaldoZero'))
-        : document.getElementById('kpiSaldoZero');
-    // Calcular total vendido com fallback: prefer registroVendas, se vazio usar produto.vendas agregado
-    let totalUnidadesVendidas = 0;
-    if (Array.isArray(estoque.registroVendas) && estoque.registroVendas.length > 0) {
-        totalUnidadesVendidas = estoque.registroVendas.reduce((sum, v) => {
-            if (Array.isArray(v.items)) return sum + v.items.reduce((s, i) => s + (Number(i.quantidade) || 0), 0);
-            return sum + (Number(v.quantidade) || 0);
-        }, 0);
-    } else {
-        totalUnidadesVendidas = (estoque.produtos || []).reduce((sumP, p) => {
-            if (p.vendas && typeof p.vendas === 'object') return sumP + Object.values(p.vendas).reduce((s, vv) => s + (Number(vv) || 0), 0);
-            return sumP;
-        }, 0);
-    }
-    if (kpiTotalVendidoEl) kpiTotalVendidoEl.textContent = `${totalUnidadesVendidas.toLocaleString('pt-BR')} un.`;
-    if (kpiSaldoZeroEl) kpiSaldoZeroEl.textContent = `${countConsolidadoZeradoOuNegativo.toLocaleString('pt-BR')} produtos`;
 
-    // Ajustar posição sticky da segunda linha do header
-    ajustarStickyHeader();
+    // ── Renderizar RepBar e KPIs ──
+    try { _estRenderRepBar(produtosOrdenados); } catch (e) {}
+    try { _estRenderKPIs(produtosOrdenados, totais, repsVisiveis); } catch (e) {}
+
     try { renderizarCadastroProdutos(); } catch (e) {}
 }
 
@@ -13493,14 +13658,27 @@ document.addEventListener('DOMContentLoaded', inicializar);
 function filtrarTabelaEstoque(termo) {
     const tbody = document.getElementById('corpoTabela');
     if (!tbody) return;
-    const rows = tbody.querySelectorAll('tr:not(.total-row)');
+    const rows = tbody.querySelectorAll('tr[data-id]');
     const termoLower = (termo || '').toLowerCase().trim();
+    const catFiltro = (document.getElementById('estFiltroCategoria')?.value || '').toLowerCase();
+    const mostrarZeros = document.getElementById('estMostrarZerados')?.checked !== false;
 
     rows.forEach(row => {
-        const nome = (row.querySelector('.produto-nome')?.textContent || '').toLowerCase();
-        const obs = (row.dataset.observacoes || '').toLowerCase();
-        const match = (!termoLower) || nome.includes(termoLower) || obs.includes(termoLower);
-        row.style.display = match ? '' : 'none';
+        const nome = (row.dataset.nome || '').toLowerCase();
+        const cat  = (row.dataset.cat  || '').toLowerCase();
+        const ncm  = (row.dataset.ncm  || '').toLowerCase();
+
+        const passaBusca = !termoLower || nome.includes(termoLower) || ncm.includes(termoLower) || cat.includes(termoLower);
+        const passaCat   = !catFiltro  || cat.includes(catFiltro);
+
+        // Para filtro zerados: verificar saldo consolidado na célula
+        let passaZero = true;
+        if (!mostrarZeros) {
+            const saldoCell = row.querySelector('td.est-consol-cell.est-saldo-zero');
+            passaZero = !saldoCell;
+        }
+
+        row.style.display = (passaBusca && passaCat && passaZero) ? '' : 'none';
     });
 }
 
