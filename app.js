@@ -18341,11 +18341,11 @@ function _renderizarPainelParametrosTabelaVenda() {
     return `<div id="tvPainelParams" style="background:#fff;border:1px solid var(--tv-navy-100);border-radius:3px;margin-bottom:10px;overflow:hidden;box-shadow:var(--tv-shadow-sm)">
         <div onclick="var b=document.getElementById('tvPainelParamsBody');var ic=document.getElementById('tvPainelIc');b.style.display=b.style.display==='none'?'block':'none';ic.textContent=b.style.display==='none'?'▶':'▼'"
             style="padding:9px 16px;cursor:pointer;display:flex;align-items:center;gap:10px;background:var(--tv-navy-900);user-select:none">
-            <span id="tvPainelIc" style="font-size:0.68rem;color:var(--tv-amber-400)">▼</span>
+            <span id="tvPainelIc" style="font-size:0.68rem;color:var(--tv-amber-400)">▶</span>
             <span style="font-family:var(--tv-font-display);font-weight:700;color:var(--tv-amber-400);font-size:0.78rem;text-transform:uppercase;letter-spacing:0.8px">Parâmetros de Cálculo</span>
             <span style="font-size:0.72rem;color:var(--tv-navy-200);margin-left:4px">Taxa e ROI por NCM · por produto sobrepõe</span>
         </div>
-        <div id="tvPainelParamsBody">
+        <div id="tvPainelParamsBody" style="display:none">
             ${secaoAtiva}
             ${secaoForm}
             ${secaoHist}
