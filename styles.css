@@ -6378,11 +6378,11 @@ table.tv-table thead tr.tv-thead-region th.tv-th-fixed {
     left: 0;
     z-index: 4;
 }
-table.tv-table thead tr.tv-thead-region th.tv-region-N  { background: linear-gradient(180deg, var(--tv-navy-900) 0%, #0d2a1a 100%); }
-table.tv-table thead tr.tv-thead-region th.tv-region-NE { background: linear-gradient(180deg, var(--tv-navy-900) 0%, #1a2a0d 100%); }
-table.tv-table thead tr.tv-thead-region th.tv-region-CO { background: linear-gradient(180deg, var(--tv-navy-900) 0%, #1a1a0d 100%); }
-table.tv-table thead tr.tv-thead-region th.tv-region-SE { background: linear-gradient(180deg, var(--tv-navy-900) 0%, #0d1a2a 100%); }
-table.tv-table thead tr.tv-thead-region th.tv-region-S  { background: linear-gradient(180deg, var(--tv-navy-900) 0%, #1a0d2a 100%); }
+table.tv-table thead tr.tv-thead-region th.tv-region-N  { background: var(--tv-navy-900); color: #7dd3fc; }
+table.tv-table thead tr.tv-thead-region th.tv-region-NE { background: var(--tv-navy-900); color: #86efac; }
+table.tv-table thead tr.tv-thead-region th.tv-region-CO { background: var(--tv-navy-900); color: #fde68a; }
+table.tv-table thead tr.tv-thead-region th.tv-region-SE { background: var(--tv-navy-900); color: #c4b5fd; }
+table.tv-table thead tr.tv-thead-region th.tv-region-S  { background: var(--tv-navy-900); color: #fca5a5; }
 
 /* Cabeçalho — linha de colunas (linha 2) */
 table.tv-table thead tr.tv-thead-cols th {
@@ -6421,16 +6421,21 @@ table.tv-table thead tr.tv-thead-cols th.sort-desc .tv-sort-caret { transform: r
 
 /* Linha de agrupamento NCM */
 table.tv-table tbody tr.tv-ncm-group-row td {
-    padding: 5px 10px;
+    padding: 6px 12px;
     background: var(--tv-navy-50);
-    font-family: var(--tv-font-display);
-    font-size: 0.7rem;
+    font-family: var(--tv-font-mono);
+    font-size: 0.72rem;
     font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    color: var(--tv-navy-700);
-    border-top: 1px solid var(--tv-navy-100);
+    letter-spacing: 0.3px;
+    color: var(--tv-navy-600);
+    border-top: 2px solid var(--tv-navy-200);
     border-bottom: 1px solid var(--tv-navy-100);
+}
+table.tv-table tbody tr.tv-ncm-group-row td strong {
+    font-family: var(--tv-font-display);
+    font-size: 0.68rem;
+    color: var(--tv-navy-500);
+    letter-spacing: 0.6px;
 }
 
 /* Linhas de dados */

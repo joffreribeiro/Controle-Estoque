@@ -17031,8 +17031,8 @@ function renderizarTabelaPrecoVenda() {
 
             if (ncmAtual !== lastNCM) {
                 const ncmProdos = ordem.filter(c => grupos[c][0].ncm === ncmAtual);
-                const grupoNome = principal.categoria || '';
-                rows += `<tr class="tv-ncm-group-row"><td colspan="99">${_escapeHtml(ncmAtual)}${grupoNome ? ' · ' + _escapeHtml(grupoNome) : ''} <span style="opacity:0.55;font-weight:400">· ${ncmProdos.length} produto${ncmProdos.length>1?'s':''}</span></td></tr>`;
+                const grupoNome = (categoriaPorProduto && categoriaPorProduto[principal.nome]) || principal.categoria || '';
+                rows += `<tr class="tv-ncm-group-row"><td colspan="99">${_escapeHtml(ncmAtual)}${grupoNome ? ' · <strong>' + _escapeHtml(grupoNome.toUpperCase()) + '</strong>' : ''} <span style="opacity:0.55;font-weight:400">${ncmProdos.length} produto${ncmProdos.length>1?'s':''}</span></td></tr>`;
                 lastNCM = ncmAtual;
             }
 
@@ -17370,8 +17370,9 @@ function renderizarTabelaPrecoVenda() {
         // Linha 1 — região
         let thead1 = `<tr class="tv-thead-region">
             <th class="tv-th-fixed" style="background:var(--tv-navy-950)" colspan="5"></th>`;
+        const _tvRegiaoNome = { N:'Norte', NE:'Nordeste', CO:'Centro-Oeste', SE:'Sudeste', S:'Sul' };
         gruposRegiao.forEach(gr => {
-            thead1 += `<th class="tv-region-${gr.regiao}" colspan="${gr.ufs.length}">${gr.regiao}</th>`;
+            thead1 += `<th class="tv-region-${gr.regiao}" colspan="${gr.ufs.length}">${_tvRegiaoNome[gr.regiao] || gr.regiao}</th>`;
         });
         thead1 += `</tr>`;
 
@@ -17400,8 +17401,8 @@ function renderizarTabelaPrecoVenda() {
         const ncmAtual = principal.ncm || '—';
         if (ncmAtual !== lastNCM2) {
             const ncmProds2 = ordemFinal.filter(c => grupos[c][0].ncm === ncmAtual);
-            const grupoNome2 = principal.categoria || '';
-            tbodyRows += `<tr class="tv-ncm-group-row"><td colspan="99">${_escapeHtml(ncmAtual)}${grupoNome2 ? ' · ' + _escapeHtml(grupoNome2) : ''} <span style="opacity:0.55;font-weight:400">· ${ncmProds2.length} produto${ncmProds2.length>1?'s':''}</span></td></tr>`;
+            const grupoNome2 = (categoriaPorProduto && categoriaPorProduto[principal.nome]) || principal.categoria || '';
+            tbodyRows += `<tr class="tv-ncm-group-row"><td colspan="99">${_escapeHtml(ncmAtual)}${grupoNome2 ? ' · <strong>' + _escapeHtml(grupoNome2.toUpperCase()) + '</strong>' : ''} <span style="opacity:0.55;font-weight:400">${ncmProds2.length} produto${ncmProds2.length>1?'s':''}</span></td></tr>`;
             lastNCM2 = ncmAtual;
         }
         const bg = rowIdx2 % 2 === 0 ? '#fff' : '#fafbfd';
