@@ -17271,7 +17271,7 @@ function renderizarTabelaPrecoVenda() {
             : '<span style="color:#cbd5e1">—</span>';
         const pnCell = `<span style="font-family:var(--tv-font-mono);font-size:0.72rem">${_escapeHtml(pn)}</span>${temPecas ? `<span id="${idExpandTV}"></span>` : ''}`;
 
-        let row = `<tr class="tv-data-row${isPeca?' tv-peca-row':''}" style="background:${bg}"${isPeca ? ` data-tv-peca-filha="${_escapeHtml((prod.componente||'').trim())}" style="display:none;background:#fafbfd"` : ''}>
+        let row = `<tr class="tv-data-row${isPeca?' tv-peca-row':''}" style="${isPeca?'display:none;background:#fafbfd':'background:'+bg}"${isPeca ? ` data-tv-peca-filha="${_escapeHtml((prod.componente||'').trim())}"` : ''}>
             <td class="tv-td-fixed" style="background:${isPeca?'#fafbfd':bg}">${_escapeHtml(ncm)}</td>
             <td style="padding:0 8px">${grupoBadge}</td>
             <td style="padding:0 8px">${pnCell}</td>
