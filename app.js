@@ -17240,7 +17240,7 @@ function renderizarTabelaPrecoVenda() {
 
     function _tvRenderLinhaHTML(prod, isPeca, bg, tp, ufs, wTaxa, wROI, wOvr) {
         const ci = Number(precificacao[prod.nome]?.ci ?? prod.ci ?? 0);
-        const ciStr = ci > 0 ? 'R$ ' + _fmtMoeda(ci) : '—';
+        const ciStr = ci > 0 ? _fmtMoeda(ci) : '—';
         const pn = prod.pn || '—';
         const nomeFab = prod.nomeFabrica || '—';
         const ncm = prod.ncm || '—';
@@ -17291,7 +17291,7 @@ function renderizarTabelaPrecoVenda() {
                 }
                 const nomeEsc = _escapeJsString(prod.nome);
                 const tipoEsc = _escapeJsString(tp);
-                row += `<td class="tv-num ${heatClass}" style="cursor:pointer;padding:0 7px" onclick="abrirDetalhePrecoVenda('${nomeEsc}','${uf}','${tipoEsc}')">R$${_fmtMoeda(preco)}</td>`;
+                row += `<td class="tv-num ${heatClass}" style="cursor:pointer;padding:0 7px" onclick="abrirDetalhePrecoVenda('${nomeEsc}','${uf}','${tipoEsc}')">${_fmtMoeda(preco)}</td>`;
             } else {
                 row += `<td class="tv-num" style="padding:0 7px;color:#e2e8f0">—</td>`;
             }
