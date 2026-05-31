@@ -6419,6 +6419,13 @@ table.tv-table thead tr.tv-thead-cols th .tv-sort-caret {
 table.tv-table thead tr.tv-thead-cols th.sort-active .tv-sort-caret { opacity: 1; color: var(--tv-amber-500); }
 table.tv-table thead tr.tv-thead-cols th.sort-desc .tv-sort-caret { transform: rotate(180deg); }
 
+/* Células UF na linha 2 — cor da respectiva região */
+table.tv-table thead tr.tv-thead-cols th.tv-uf-N  { background: #0a1828; color: #7dd3fc !important; }
+table.tv-table thead tr.tv-thead-cols th.tv-uf-NE { background: #0a1820; color: #86efac !important; }
+table.tv-table thead tr.tv-thead-cols th.tv-uf-CO { background: #0f1820; color: #fde68a !important; }
+table.tv-table thead tr.tv-thead-cols th.tv-uf-SE { background: #0d1428; color: #c4b5fd !important; }
+table.tv-table thead tr.tv-thead-cols th.tv-uf-S  { background: #0a1420; color: #fca5a5 !important; }
+
 /* Linha de agrupamento NCM */
 table.tv-table tbody tr.tv-ncm-group-row td {
     padding: 6px 12px;

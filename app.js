@@ -17572,7 +17572,7 @@ function renderizarTabelaPrecoVenda() {
             ${thSort('ci', 'CI', 'tv-ci-cell')}`;
         gruposRegiao.forEach(gr => {
             gr.ufs.forEach(uf => {
-                thead2 += thSort(uf, uf);
+                thead2 += thSort(uf, uf, `tv-uf-col tv-uf-${gr.regiao}`);
             });
         });
         thead2 += `</tr>`;
