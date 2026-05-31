@@ -12222,7 +12222,8 @@ table.est-v2-table tfoot td.est-prod-cell {
 /* Header de rep linha 1 (grupo) */
 table.est-v2-table thead tr.est-hdr-group th {
     position: sticky; top: 0; z-index: 5;
-    height: 28px; color: #fff;
+    height: 28px; color: #fff !important;
+    background: var(--tv-navy-900);
     font-family: var(--tv-font-display); font-size: 0.68rem; font-weight: 700;
     letter-spacing: 0.12em; text-align: center; text-transform: uppercase;
     border-right: 2px solid rgba(255,255,255,0.1);
@@ -12230,8 +12231,8 @@ table.est-v2-table thead tr.est-hdr-group th {
     vertical-align: middle; white-space: nowrap;
 }
 table.est-v2-table thead tr.est-hdr-group th.est-consol-grp {
-    background: linear-gradient(180deg, #0a0e14, #2a2010 80%);
-    color: var(--tv-amber-400); border-right: none;
+    background: linear-gradient(180deg, #0a0e14, #2a2010 80%) !important;
+    color: var(--tv-amber-400) !important; border-right: none;
 }
 .est-rep-dot-hdr {
     display: inline-block; width: 6px; height: 6px; border-radius: 50%;
@@ -12278,7 +12279,7 @@ table.est-v2-table tbody td {
 }
 table.est-v2-table tbody tr:hover td { background: var(--tv-navy-50) !important; }
 table.est-v2-table tbody tr:hover td.est-prod-cell { background: var(--tv-navy-50) !important; }
-table.est-v2-table tbody { position: relative; z-index: 0; isolation: isolate; }
+table.est-v2-table tbody { position: relative; z-index: 0; }
 
 table.est-v2-table tbody td.est-grp-alt { background: rgba(15,36,56,0.045); }
 table.est-v2-table tbody td.est-grp-alt.est-saldo-neg { background: rgba(220,38,38,0.06); }
@@ -12310,20 +12311,20 @@ table.est-v2-table tbody tr.est-destaque .est-prod-nm { color: var(--tv-copper);
 table.est-v2-table tbody tr.est-destaque:hover td { background: rgba(184,101,31,0.08) !important; }
 
 /* Rodapé de totais */
-table.est-v2-table tfoot { position: relative; z-index: 2; }
+table.est-v2-table tfoot { position: relative; z-index: 4; }
 table.est-v2-table tfoot td {
-    position: sticky; bottom: 0; z-index: 2;
-    background: var(--tv-navy-900); color: #fff;
+    position: sticky; bottom: 0; z-index: 4;
+    background: var(--tv-navy-900) !important; color: #fff !important;
     height: 36px; padding: 0 10px;
     border-right: 1px solid var(--tv-navy-700);
     border-top: 2px solid var(--tv-amber-500);
     font-family: var(--tv-font-mono); font-variant-numeric: tabular-nums;
     text-align: right; font-size: 0.78rem; font-weight: 600; white-space: nowrap;
 }
-table.est-v2-table tfoot td.est-grp-alt-foot { background: #112236; }
-table.est-v2-table tfoot td.est-consol-cell { background: #2a2010; color: var(--tv-amber-300); }
-table.est-v2-table tfoot td.est-saldo-pos { color: #4ade80; }
-table.est-v2-table tfoot td.est-saldo-neg { color: #f87171; }
+table.est-v2-table tfoot td.est-grp-alt-foot { background: #112236 !important; }
+table.est-v2-table tfoot td.est-consol-cell { background: #2a2010 !important; color: var(--tv-amber-300) !important; }
+table.est-v2-table tfoot td.est-saldo-pos { color: #4ade80 !important; }
+table.est-v2-table tfoot td.est-saldo-neg { color: #f87171 !important; }
 .est-foot-lbl { font-family: var(--tv-font-display); font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--tv-amber-400); }
 .est-foot-sub { font-family: var(--tv-font-mono); font-size: 0.62rem; color: var(--tv-navy-400); }
 
