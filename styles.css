@@ -12133,15 +12133,16 @@ table.imbel-table tbody tr:hover .imbel-row-actions { opacity: 1; }
 }
 .est-repbar-info { margin-left: auto; font-family: var(--tv-font-mono); font-size: 0.68rem; color: #94a3b8; }
 
-/* KPI strip — primeira linha escura (início da área de dados Bloomberg) */
+/* KPI strip */
 .est-kpi-strip {
     display: flex;
     align-items: stretch;
-    background: var(--tv-navy-950);
+    background: #fff;
+    border-top: 1px solid #e2e8f0;
     border-bottom: 2px solid var(--tv-amber-600);
     flex-shrink: 0;
 }
-.est-kpi { flex: 1; padding: 7px 14px; border-right: 1px solid var(--tv-navy-700); min-width: 0; }
+.est-kpi { flex: 1; padding: 7px 14px; border-right: 1px solid #e2e8f0; min-width: 0; }
 .est-kpi:last-child { border-right: none; }
 .est-kpi-lbl {
     font-family: var(--tv-font-display);
@@ -12149,22 +12150,22 @@ table.imbel-table tbody tr:hover .imbel-row-actions { opacity: 1; }
     font-weight: 600;
     letter-spacing: 0.08em;
     text-transform: uppercase;
-    color: var(--tv-navy-400);
+    color: #94a3b8;
     margin-bottom: 1px;
 }
 .est-kpi-val {
     font-family: var(--tv-font-mono);
     font-size: 1.1rem;
     font-weight: 700;
-    color: var(--tv-navy-100);
+    color: #1e293b;
     line-height: 1.2;
 }
-.est-kpi-val .unit { font-size: 0.62rem; font-weight: 500; color: var(--tv-navy-400); margin-left: 2px; }
-.est-kpi-val.amber { color: var(--tv-amber-400); }
-.est-kpi-val.pos   { color: #4ade80; }
-.est-kpi-val.neg   { color: #f87171; }
-.est-kpi-delta { font-size: 0.65rem; color: var(--tv-navy-400); margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.est-kpi-delta b { color: var(--tv-navy-200); }
+.est-kpi-val .unit { font-size: 0.62rem; font-weight: 500; color: #94a3b8; margin-left: 2px; }
+.est-kpi-val.amber { color: var(--tv-amber-600); }
+.est-kpi-val.pos   { color: #15803d; }
+.est-kpi-val.neg   { color: #dc2626; }
+.est-kpi-delta { font-size: 0.65rem; color: #94a3b8; margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.est-kpi-delta b { color: #475569; }
 
 /* Tabela wrap */
 .est-v2-table-wrap { flex: 1; overflow: auto; min-height: 0; background: #fff; position: relative; }
@@ -12241,7 +12242,7 @@ table.est-v2-table thead tr.est-hdr-group th.est-consol-grp {
 /* Header linha 2 (sub: DIST/VENDA/SALDO) */
 table.est-v2-table thead tr.est-hdr-sub th {
     position: sticky; top: 28px; z-index: 4;
-    background: var(--tv-navy-900); color: #fff;
+    background: var(--tv-navy-900); color: #fff !important;
     font-family: var(--tv-font-display); font-size: 0.62rem; font-weight: 700;
     letter-spacing: 0.08em; text-transform: uppercase;
     height: 24px; padding: 0 10px; text-align: right; white-space: nowrap;
@@ -12249,10 +12250,10 @@ table.est-v2-table thead tr.est-hdr-sub th {
     border-bottom: 2px solid var(--tv-amber-500);
     cursor: pointer; user-select: none;
 }
-table.est-v2-table thead tr.est-hdr-sub th:hover { background: var(--tv-navy-800); color: #fff; }
-table.est-v2-table thead tr.est-hdr-sub th.sort-active { color: var(--tv-amber-400); }
-table.est-v2-table thead tr.est-hdr-sub th.est-grp-alt-hdr { background: #122a40; color: #fff; }
-table.est-v2-table thead tr.est-hdr-sub th.est-consol-sub { background: #14181f; color: var(--tv-amber-300); }
+table.est-v2-table thead tr.est-hdr-sub th:hover { background: var(--tv-navy-800); color: #fff !important; }
+table.est-v2-table thead tr.est-hdr-sub th.sort-active { color: var(--tv-amber-400) !important; }
+table.est-v2-table thead tr.est-hdr-sub th.est-grp-alt-hdr { background: #122a40; color: #fff !important; }
+table.est-v2-table thead tr.est-hdr-sub th.est-consol-sub { background: #14181f; color: var(--tv-amber-300) !important; }
 /* Célula fantasma da col. PRODUTOS na linha 2 — deve ficar invisível */
 table.est-v2-table thead tr.est-hdr-sub th.est-prod-hdr {
     background: var(--tv-navy-950);
@@ -12277,7 +12278,7 @@ table.est-v2-table tbody td {
 }
 table.est-v2-table tbody tr:hover td { background: var(--tv-navy-50) !important; }
 table.est-v2-table tbody tr:hover td.est-prod-cell { background: var(--tv-navy-50) !important; }
-table.est-v2-table tbody { position: relative; z-index: 0; }
+table.est-v2-table tbody { position: relative; z-index: 0; isolation: isolate; }
 
 table.est-v2-table tbody td.est-grp-alt { background: rgba(15,36,56,0.045); }
 table.est-v2-table tbody td.est-grp-alt.est-saldo-neg { background: rgba(220,38,38,0.06); }
@@ -12309,9 +12310,9 @@ table.est-v2-table tbody tr.est-destaque .est-prod-nm { color: var(--tv-copper);
 table.est-v2-table tbody tr.est-destaque:hover td { background: rgba(184,101,31,0.08) !important; }
 
 /* Rodapé de totais */
-table.est-v2-table tfoot { position: relative; z-index: 3; }
+table.est-v2-table tfoot { position: relative; z-index: 2; }
 table.est-v2-table tfoot td {
-    position: sticky; bottom: 0; z-index: 3;
+    position: sticky; bottom: 0; z-index: 2;
     background: var(--tv-navy-900); color: #fff;
     height: 36px; padding: 0 10px;
     border-right: 1px solid var(--tv-navy-700);
