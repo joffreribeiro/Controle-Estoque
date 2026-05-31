@@ -3549,6 +3549,14 @@ function renderizarTabela() {
     try { _estRenderRepBar(produtosOrdenados); } catch (e) {}
     try { _estRenderKPIs(produtosOrdenados, totais, repsVisiveis); } catch (e) {}
 
+    // Aplicar densidade padrão (compacto) se ainda não definida
+    const tabEstoque = document.getElementById('tab-estoque');
+    if (tabEstoque && !tabEstoque.classList.contains('est-density-compact') &&
+        !tabEstoque.classList.contains('est-density-normal') &&
+        !tabEstoque.classList.contains('est-density-cozy')) {
+        tabEstoque.classList.add('est-density-compact');
+    }
+
     try { renderizarCadastroProdutos(); } catch (e) {}
 }
 
@@ -16950,7 +16958,7 @@ function renderizarTabelaPrecoVenda() {
     container._tvState = tvState;
     tvState.tipoPessoa    = tvState.tipoPessoa    || tipoPessoaAtual;
     tvState.viewMode      = tvState.viewMode      || 'tabela';   // 'tabela' | 'mapa'
-    tvState.density       = tvState.density       || 'normal';   // 'compact'|'normal'|'cozy'
+    tvState.density       = tvState.density       || 'compact';  // 'compact'|'normal'|'cozy'
     tvState.busca         = tvState.busca         || '';
     tvState.filtroNCMs    = tvState.filtroNCMs    || [];
     tvState.filtroRegioes = tvState.filtroRegioes || [];
