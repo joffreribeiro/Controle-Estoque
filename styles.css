@@ -6361,8 +6361,17 @@ table.tv-table {
 }
 
 /* Cabeçalho — linha de região (linha 1) */
+/* O tr precisa de z-index maior que o tr da linha 2 para que as células de região fiquem acima */
+table.tv-table thead tr.tv-thead-region {
+    position: relative;
+    z-index: 20;
+}
+table.tv-table thead tr.tv-thead-cols {
+    position: relative;
+    z-index: 10;
+}
 table.tv-table thead tr.tv-thead-region th {
-    position: sticky; top: 0; z-index: 5;
+    position: sticky; top: 0; z-index: 6;
     padding: 5px 8px;
     font-family: var(--tv-font-display);
     font-size: 0.68rem;
@@ -6372,12 +6381,13 @@ table.tv-table thead tr.tv-thead-region th {
     color: var(--tv-amber-400);
     text-align: center;
     border-bottom: 0;
+    background: var(--tv-navy-950);
 }
 table.tv-table thead tr.tv-thead-region th.tv-th-fixed {
     background: var(--tv-navy-950);
     position: sticky;
     left: 0; top: 0;
-    z-index: 7;
+    z-index: 9;
 }
 table.tv-table thead tr.tv-thead-region th.tv-region-N  { background: #7dd3fc; color: #fff !important; border-bottom: 2px solid rgba(0,0,0,0.15); }
 table.tv-table thead tr.tv-thead-region th.tv-region-NE { background: #86efac; color: #fff !important; border-bottom: 2px solid rgba(0,0,0,0.15); }
@@ -6387,10 +6397,10 @@ table.tv-table thead tr.tv-thead-region th.tv-region-S  { background: #fca5a5; c
 
 /* Cabeçalho — linha de colunas (linha 2) */
 table.tv-table thead tr.tv-thead-cols th {
-    position: sticky; top: 28px; z-index: 3;
+    position: sticky; top: 28px; z-index: 4;
     padding: 6px 8px;
     background: var(--tv-navy-900);
-    color: #fff;
+    color: #fff !important;
     font-family: var(--tv-font-display);
     font-size: 0.68rem;
     font-weight: 600;
@@ -6402,13 +6412,20 @@ table.tv-table thead tr.tv-thead-cols th {
     white-space: nowrap;
     transition: background 0.12s, color 0.12s;
 }
-table.tv-table thead tr.tv-thead-cols th:hover { background: var(--tv-navy-800); color: #fff; }
-table.tv-table thead tr.tv-thead-cols th.sort-active { color: var(--tv-amber-400); }
+table.tv-table thead tr.tv-thead-cols th:hover { background: var(--tv-navy-800); color: #fff !important; }
+table.tv-table thead tr.tv-thead-cols th.sort-active { color: var(--tv-amber-400) !important; }
+/* NCM — única coluna sticky left+top na linha 2 */
 table.tv-table thead tr.tv-thead-cols th.tv-th-fixed {
     position: sticky;
     left: 0; top: 28px;
-    z-index: 5;
-    background: var(--tv-navy-950);
+    z-index: 6;
+    background: var(--tv-navy-950) !important;
+    color: #fff !important;
+}
+/* Colunas fixas sem left: Grupo, PN, Nome Fábrica, Comp., Nome, CI — fundo escuro, sem sticky left */
+table.tv-table thead tr.tv-thead-cols th.tv-col-fixed {
+    background: var(--tv-navy-900) !important;
+    color: #fff !important;
 }
 table.tv-table thead tr.tv-thead-cols th .tv-sort-caret {
     display: inline-block;
@@ -6422,11 +6439,11 @@ table.tv-table thead tr.tv-thead-cols th.sort-active .tv-sort-caret { opacity: 1
 table.tv-table thead tr.tv-thead-cols th.sort-desc .tv-sort-caret { transform: rotate(180deg); }
 
 /* Células UF na linha 2 — fundo da cor da região, texto branco */
-table.tv-table thead tr.tv-thead-cols th.tv-uf-N  { background: #7dd3fc; color: #fff !important; }
-table.tv-table thead tr.tv-thead-cols th.tv-uf-NE { background: #86efac; color: #fff !important; }
-table.tv-table thead tr.tv-thead-cols th.tv-uf-CO { background: #fde68a; color: #fff !important; }
-table.tv-table thead tr.tv-thead-cols th.tv-uf-SE { background: #c4b5fd; color: #fff !important; }
-table.tv-table thead tr.tv-thead-cols th.tv-uf-S  { background: #fca5a5; color: #fff !important; }
+table.tv-table thead tr.tv-thead-cols th.tv-uf-N  { background: #7dd3fc !important; color: #fff !important; }
+table.tv-table thead tr.tv-thead-cols th.tv-uf-NE { background: #86efac !important; color: #fff !important; }
+table.tv-table thead tr.tv-thead-cols th.tv-uf-CO { background: #fde68a !important; color: #fff !important; }
+table.tv-table thead tr.tv-thead-cols th.tv-uf-SE { background: #c4b5fd !important; color: #fff !important; }
+table.tv-table thead tr.tv-thead-cols th.tv-uf-S  { background: #fca5a5 !important; color: #fff !important; }
 
 /* Linha de agrupamento NCM */
 table.tv-table tbody tr.tv-ncm-group-row td {
