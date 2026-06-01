@@ -3040,9 +3040,6 @@ function trocarAba(aba) {
         document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
         target.classList.add('active');
 
-        // Mostrar/ocultar barra de ações
-        const acoesEstoque = document.getElementById('acoesEstoque');
-        if (acoesEstoque) acoesEstoque.style.display = (aba === 'estoque') ? 'flex' : 'none';
 
         if (aba === 'dashboard') {
             try { renderizarDashboard(); } catch (e) { console.error('dashboard:', e); if (window.__showRuntimeErrorOverlay) window.__showRuntimeErrorOverlay(e); }
