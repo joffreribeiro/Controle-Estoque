@@ -12329,6 +12329,9 @@ table.est-v2-table tfoot td.est-prod-cell {
 .est-prod-ncm { font-family: var(--tv-font-mono); font-size: 0.62rem; color: var(--tv-navy-400); }
 
 /* Header de rep linha 1 (grupo) */
+table.est-v2-table thead tr.est-hdr-group {
+    background: var(--tv-navy-900);
+}
 table.est-v2-table thead tr.est-hdr-group th {
     position: sticky; top: 0; z-index: 5;
     height: 28px; color: #fff !important;
@@ -12336,7 +12339,7 @@ table.est-v2-table thead tr.est-hdr-group th {
     font-family: var(--tv-font-display); font-size: 0.68rem; font-weight: 700;
     letter-spacing: 0.12em; text-align: center; text-transform: uppercase;
     border-right: 2px solid rgba(255,255,255,0.1);
-    border-bottom: 1px solid rgba(255,255,255,0.1);
+    border-bottom: 0;
     vertical-align: middle; white-space: nowrap;
 }
 table.est-v2-table thead tr.est-hdr-group th.est-consol-grp {
@@ -12363,7 +12366,7 @@ table.est-v2-table thead tr.est-hdr-sub th {
 table.est-v2-table thead tr.est-hdr-sub th:hover { background: var(--tv-navy-800); color: #fff !important; }
 table.est-v2-table thead tr.est-hdr-sub th.sort-active { color: var(--tv-amber-400) !important; }
 table.est-v2-table thead tr.est-hdr-sub th.est-grp-alt-hdr { background: #122a40; color: #fff !important; }
-table.est-v2-table thead tr.est-hdr-sub th.est-consol-sub { background: #14181f; color: var(--tv-amber-300) !important; }
+table.est-v2-table thead tr.est-hdr-sub th.est-consol-sub { background: #14181f; color: #fff !important; }
 /* Célula fantasma da col. PRODUTOS na linha 2 — deve ficar invisível */
 table.est-v2-table thead tr.est-hdr-sub th.est-prod-hdr {
     background: var(--tv-navy-950);
