@@ -6360,18 +6360,22 @@ table.tv-table {
     background: #fff;
 }
 
-/* Cabeçalho — linha de região (linha 1) */
-/* O tr precisa de z-index maior que o tr da linha 2 para que as células de região fiquem acima */
-table.tv-table thead tr.tv-thead-region {
-    position: relative;
-    z-index: 20;
-}
-table.tv-table thead tr.tv-thead-cols {
-    position: relative;
-    z-index: 10;
-}
+/* ── Tabela de Venda: cabeçalho ──────────────────────────────────────────── */
+/*
+ * Hierarquia de z-index (sticky cells):
+ *   Linha 1 fixa (left+top) : z-index 30  ← canto superior esquerdo
+ *   Linha 1 não-fixa (top)  : z-index 20  ← regiões coloridas
+ *   Linha 2 fixa (left+top) : z-index 15  ← NCM/Grupo/PN/... congeladas
+ *   Linha 2 não-fixa (top)  : z-index 10  ← UFs coloridas
+ *   Dados fixos (left)      : z-index  2
+ *   Dados normais           : z-index  0
+ */
+
+/* Linha 1 — regiões */
 table.tv-table thead tr.tv-thead-region th {
-    position: sticky; top: 0; z-index: 6;
+    position: sticky;
+    top: 0;
+    z-index: 20;
     padding: 5px 8px;
     font-family: var(--tv-font-display);
     font-size: 0.68rem;
@@ -6383,11 +6387,12 @@ table.tv-table thead tr.tv-thead-region th {
     border-bottom: 0;
     background: var(--tv-navy-950);
 }
+/* Célula vazia da linha 1 (cobre as 7 colunas fixas) — sticky left+top */
 table.tv-table thead tr.tv-thead-region th.tv-th-fixed {
-    background: var(--tv-navy-950);
     position: sticky;
     left: 0; top: 0;
-    z-index: 9;
+    z-index: 30;
+    background: var(--tv-navy-950);
 }
 table.tv-table thead tr.tv-thead-region th.tv-region-N  { background: #7dd3fc; color: #fff !important; border-bottom: 2px solid rgba(0,0,0,0.15); }
 table.tv-table thead tr.tv-thead-region th.tv-region-NE { background: #86efac; color: #fff !important; border-bottom: 2px solid rgba(0,0,0,0.15); }
@@ -6395,9 +6400,11 @@ table.tv-table thead tr.tv-thead-region th.tv-region-CO { background: #fde68a; c
 table.tv-table thead tr.tv-thead-region th.tv-region-SE { background: #c4b5fd; color: #fff !important; border-bottom: 2px solid rgba(0,0,0,0.15); }
 table.tv-table thead tr.tv-thead-region th.tv-region-S  { background: #fca5a5; color: #fff !important; border-bottom: 2px solid rgba(0,0,0,0.15); }
 
-/* Cabeçalho — linha de colunas (linha 2) */
+/* Linha 2 — colunas UF (não fixas) */
 table.tv-table thead tr.tv-thead-cols th {
-    position: sticky; top: 28px; z-index: 4;
+    position: sticky;
+    top: 28px;
+    z-index: 10;
     padding: 6px 8px;
     background: var(--tv-navy-900);
     color: #fff !important;
@@ -6414,29 +6421,42 @@ table.tv-table thead tr.tv-thead-cols th {
 }
 table.tv-table thead tr.tv-thead-cols th:hover { background: var(--tv-navy-800); color: #fff !important; }
 table.tv-table thead tr.tv-thead-cols th.sort-active { color: var(--tv-amber-400) !important; }
-/* NCM — única coluna sticky left+top na linha 2 */
-table.tv-table thead tr.tv-thead-cols th.tv-th-fixed {
-    position: sticky;
-    left: 0; top: 28px;
-    z-index: 6;
-    background: var(--tv-navy-950) !important;
-    color: #fff !important;
-}
-/* Colunas fixas da linha 2 com sticky left */
+
+/* Linha 2 — colunas fixas (sticky left+top): NCM, Grupo, PN, Nome Fábrica, Comp., Nome, CI */
+table.tv-table thead tr.tv-thead-cols th.tv-th-fixed,
 table.tv-table thead tr.tv-thead-cols th.tv-col-fixed {
     position: sticky;
     top: 28px;
-    z-index: 4;
+    z-index: 15;
     background: var(--tv-navy-900) !important;
     color: #fff !important;
 }
-/* Offsets left de cada coluna fixa no cabeçalho linha 2 */
-table.tv-table thead tr.tv-thead-cols th.tv-col-grupo    { left: 110px; }
-table.tv-table thead tr.tv-thead-cols th.tv-col-pn       { left: 200px; }
-table.tv-table thead tr.tv-thead-cols th.tv-col-nomefab  { left: 310px; }
-table.tv-table thead tr.tv-thead-cols th.tv-col-comp     { left: 470px; }
-table.tv-table thead tr.tv-thead-cols th.tv-col-nome     { left: 540px; }
-table.tv-table thead tr.tv-thead-cols th.tv-col-ci       { left: 700px; }
+table.tv-table thead tr.tv-thead-cols th.tv-th-fixed {
+    background: var(--tv-navy-950) !important;
+}
+
+/* left de cada coluna fixa — linha 2 e células de dados */
+table.tv-table th.tv-th-fixed,
+table.tv-table td.tv-td-fixed   { left: 0; }
+
+table.tv-table th.tv-col-grupo,
+table.tv-table td.tv-td-grupo   { left: 110px; }
+
+table.tv-table th.tv-col-pn,
+table.tv-table td.tv-td-pn      { left: 200px; }
+
+table.tv-table th.tv-col-nomefab,
+table.tv-table td.tv-td-nomefab { left: 310px; }
+
+table.tv-table th.tv-col-comp,
+table.tv-table td.tv-td-comp    { left: 470px; }
+
+table.tv-table th.tv-col-nome,
+table.tv-table td.tv-td-nome    { left: 540px; }
+
+table.tv-table th.tv-col-ci,
+table.tv-table td.tv-td-ci      { left: 700px; }
+
 table.tv-table thead tr.tv-thead-cols th .tv-sort-caret {
     display: inline-block;
     margin-left: 3px;
@@ -6481,6 +6501,13 @@ table.tv-table tbody tr.tv-data-row {
     transition: background 0.08s;
 }
 table.tv-table tbody tr.tv-data-row:hover { background: var(--tv-navy-50) !important; }
+table.tv-table tbody tr.tv-data-row:hover td.tv-td-fixed,
+table.tv-table tbody tr.tv-data-row:hover td.tv-td-grupo,
+table.tv-table tbody tr.tv-data-row:hover td.tv-td-pn,
+table.tv-table tbody tr.tv-data-row:hover td.tv-td-nomefab,
+table.tv-table tbody tr.tv-data-row:hover td.tv-td-comp,
+table.tv-table tbody tr.tv-data-row:hover td.tv-td-nome,
+table.tv-table tbody tr.tv-data-row:hover td.tv-td-ci { background: var(--tv-navy-50) !important; }
 table.tv-table tbody tr.tv-data-row td {
     padding: 0 8px;
     height: var(--tv-row-h);
@@ -6488,17 +6515,21 @@ table.tv-table tbody tr.tv-data-row td {
     vertical-align: middle;
 }
 
-/* Célula fixa (NCM) */
+/* NCM — coluna fixa à esquerda */
 table.tv-table tbody tr.tv-data-row td.tv-td-fixed {
     position: sticky;
-    left: 0;
     z-index: 2;
     font-family: var(--tv-font-mono);
     font-size: 0.72rem;
     border-right: 1px solid var(--tv-navy-100);
 }
 /* Demais colunas fixas (Grupo, PN, Nome Fábrica, Comp., Nome, CI) */
-table.tv-table tbody tr.tv-data-row td.tv-td-sticky {
+table.tv-table tbody tr.tv-data-row td.tv-td-grupo,
+table.tv-table tbody tr.tv-data-row td.tv-td-pn,
+table.tv-table tbody tr.tv-data-row td.tv-td-nomefab,
+table.tv-table tbody tr.tv-data-row td.tv-td-comp,
+table.tv-table tbody tr.tv-data-row td.tv-td-nome,
+table.tv-table tbody tr.tv-data-row td.tv-td-ci {
     position: sticky;
     z-index: 1;
 }

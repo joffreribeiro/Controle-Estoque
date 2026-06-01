@@ -17313,12 +17313,12 @@ function renderizarTabelaPrecoVenda() {
         const _rowBg = isPeca ? '#fafbfd' : bg;
         let row = `<tr class="tv-data-row${isPeca?' tv-peca-row':''}" style="${isPeca?'display:none;background:#fafbfd':'background:'+bg}"${isPeca ? ` data-tv-peca-filha="${_escapeHtml((prod.componente||'').trim())}"` : ''}>
             <td class="tv-td-fixed" style="background:${_rowBg}">${_escapeHtml(ncm)}</td>
-            <td class="tv-td-sticky" style="left:110px;background:${_rowBg};padding:0 8px">${grupoBadge}</td>
-            <td class="tv-td-sticky" style="left:200px;background:${_rowBg};padding:0 8px">${pnCell}</td>
-            <td class="tv-td-sticky" style="left:310px;background:${_rowBg};padding:0 8px;color:#94a3b8;font-size:0.72rem;max-width:160px;overflow:hidden;text-overflow:ellipsis" title="${_escapeHtml(nomeFab)}">${_escapeHtml(nomeFab)}</td>
-            <td class="tv-td-sticky" style="left:470px;background:${_rowBg};padding:0 8px;color:#94a3b8;font-size:0.72rem;text-align:center">${_escapeHtml(isPeca ? comp : '—')}</td>
-            <td class="tv-td-sticky" style="left:540px;background:${_rowBg};padding:0 8px;max-width:180px;overflow:hidden;text-overflow:ellipsis" title="${_escapeHtml(prod.nome)}">${isPeca?'<span style="color:#94a3b8">↳ </span>':''}<span style="font-weight:${isPeca?'400':'600'};color:${isPeca?'#64748b':'var(--tv-navy-900)'}">${_escapeHtml(prod.nome)}</span></td>
-            <td class="tv-ci-cell tv-td-sticky" style="left:700px;background:${_rowBg}">${ciStr}</td>`;
+            <td class="tv-td-grupo" style="background:${_rowBg};padding:0 8px">${grupoBadge}</td>
+            <td class="tv-td-pn" style="background:${_rowBg};padding:0 8px">${pnCell}</td>
+            <td class="tv-td-nomefab" style="background:${_rowBg};padding:0 8px;color:#94a3b8;font-size:0.72rem;max-width:160px;overflow:hidden;text-overflow:ellipsis" title="${_escapeHtml(nomeFab)}">${_escapeHtml(nomeFab)}</td>
+            <td class="tv-td-comp" style="background:${_rowBg};padding:0 8px;color:#94a3b8;font-size:0.72rem;text-align:center">${_escapeHtml(isPeca ? comp : '—')}</td>
+            <td class="tv-td-nome" style="background:${_rowBg};padding:0 8px;max-width:180px;overflow:hidden;text-overflow:ellipsis" title="${_escapeHtml(prod.nome)}">${isPeca?'<span style="color:#94a3b8">↳ </span>':''}<span style="font-weight:${isPeca?'400':'600'};color:${isPeca?'#64748b':'var(--tv-navy-900)'}">${_escapeHtml(prod.nome)}</span></td>
+            <td class="tv-ci-cell tv-td-ci" style="background:${_rowBg}">${ciStr}</td>`;
 
         ufs.forEach(uf => {
             const preco = precos[uf];
