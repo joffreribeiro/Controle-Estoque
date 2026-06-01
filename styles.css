@@ -12370,6 +12370,10 @@ table.est-v2-table thead tr.est-hdr-sub th:hover { background: var(--tv-navy-800
 table.est-v2-table thead tr.est-hdr-sub th.sort-active { color: var(--tv-amber-400) !important; }
 table.est-v2-table thead tr.est-hdr-sub th.est-grp-alt-hdr { background: #122a40; color: #fff !important; }
 table.est-v2-table thead tr.est-hdr-sub th.est-consol-sub { background: #14181f; color: #fff !important; }
+/* Forçar branco em TODAS as células do thead — sobrescreve qualquer herança */
+table.est-v2-table thead th { color: #fff !important; }
+table.est-v2-table thead tr.est-hdr-group th { color: #fff !important; }
+table.est-v2-table thead tr.est-hdr-sub th { color: #fff !important; }
 /* Célula fantasma da col. PRODUTOS na linha 2 — deve ficar invisível */
 table.est-v2-table thead tr.est-hdr-sub th.est-prod-hdr {
     background: var(--tv-navy-950);
