@@ -6,7 +6,7 @@
     <title>Controle de Estoque | Material Bélico</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600;700&family=IBM+Plex+Sans+Condensed:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="styles.css?v=20260601-07">
+    <link rel="stylesheet" href="styles.css?v=20260601-08">
     <link id="favicon" rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='48' fill='%230b1723'/%3E%3Crect x='30' y='70' width='40' height='12' rx='1' fill='%23d4af37'/%3E%3Crect x='20' y='55' width='15' height='12' rx='1' fill='%23f6c84c'/%3E%3Crect x='42' y='55' width='15' height='12' rx='1' fill='%23f6c84c'/%3E%3Crect x='65' y='55' width='15' height='12' rx='1' fill='%23f6c84c'/%3E%3Crect x='30' y='40' width='15' height='12' rx='1' fill='%23ffd700'/%3E%3Crect x='55' y='40' width='15' height='12' rx='1' fill='%23ffd700'/%3E%3Crect x='25' y='28' width='12' height='9' rx='1' fill='%23f6c84c'/%3E%3Crect x='44' y='28' width='12' height='9' rx='1' fill='%23f6c84c'/%3E%3Crect x='63' y='28' width='12' height='9' rx='1' fill='%23f6c84c'/%3E%3C/svg%3E">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -63,33 +63,66 @@
             <nav class="sidebar-nav" aria-label="Navegação principal">
                 <div class="nav-group">
                     <div class="nav-group-label">Principal</div>
-                    <button class="nav-item active" data-tab="estoque" onclick="trocarAba('estoque')"><span>📦</span><span class="nav-text">Estoque</span></button>
-                    <button class="nav-item" data-tab="dashboard" onclick="trocarAba('dashboard')"><span>📊</span><span class="nav-text">Dashboard</span></button>
+                    <button class="nav-item active" data-tab="estoque" onclick="trocarAba('estoque')">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+                        <span class="nav-text">Estoque</span>
+                    </button>
+                    <button class="nav-item" data-tab="dashboard" onclick="trocarAba('dashboard')">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+                        <span class="nav-text">Dashboard</span>
+                    </button>
                 </div>
 
                 <div class="nav-group">
                     <div class="nav-group-label">Cadastros</div>
-                    <button class="nav-item" data-tab="cadastro-produtos" onclick="trocarAba('cadastro-produtos')"><span>🧾</span><span class="nav-text">Produtos</span></button>
-                    <button class="nav-item" data-tab="clientes" onclick="trocarAba('clientes')"><span>👥</span><span class="nav-text">Clientes</span></button>
-                    <button class="nav-item" data-tab="distribuicao" onclick="trocarAba('distribuicao')"><span>🚚</span><span class="nav-text">Distribuição</span></button>
+                    <button class="nav-item" data-tab="cadastro-produtos" onclick="trocarAba('cadastro-produtos')">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
+                        <span class="nav-text">Produtos</span>
+                    </button>
+                    <button class="nav-item" data-tab="clientes" onclick="trocarAba('clientes')">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                        <span class="nav-text">Clientes</span>
+                    </button>
+                    <button class="nav-item" data-tab="distribuicao" onclick="trocarAba('distribuicao')">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+                        <span class="nav-text">Distribuição</span>
+                    </button>
                 </div>
 
                 <div class="nav-group">
                     <div class="nav-group-label">Comercial</div>
-                    <button class="nav-item" data-tab="precificacao" onclick="trocarAba('precificacao')"><span>💰</span><span class="nav-text">Precificação</span></button>
-                    <button class="nav-item" data-tab="propostas" onclick="trocarAba('propostas')"><span>📋</span><span class="nav-text">Propostas</span></button>
-                    <button class="nav-item" data-tab="vendas" onclick="trocarAba('vendas')"><span>📝</span><span class="nav-text">Vendas / Envio</span></button>
+                    <button class="nav-item" data-tab="precificacao" onclick="trocarAba('precificacao')">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                        <span class="nav-text">Precificação</span>
+                    </button>
+                    <button class="nav-item" data-tab="propostas" onclick="trocarAba('propostas')">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+                        <span class="nav-text">Propostas</span>
+                    </button>
+                    <button class="nav-item" data-tab="vendas" onclick="trocarAba('vendas')">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+                        <span class="nav-text">Vendas / Envio</span>
+                    </button>
                 </div>
 
                 <div class="nav-group">
                     <div class="nav-group-label">Controle</div>
-                    <button class="nav-item" data-tab="controleimbel" onclick="trocarAba('controleimbel')"><span>🔪</span><span class="nav-text">IMBEL</span></button>
+                    <button class="nav-item" data-tab="controleimbel" onclick="trocarAba('controleimbel')">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                        <span class="nav-text">IMBEL</span>
+                    </button>
                 </div>
 
                 <div class="nav-group">
                     <div class="nav-group-label">Análise</div>
-                    <button class="nav-item" data-tab="relatorios" onclick="trocarAba('relatorios')"><span>📑</span><span class="nav-text">Relatórios</span></button>
-                    <button class="nav-item" data-tab="configuracoes" onclick="trocarAba('configuracoes')"><span>⚙️</span><span class="nav-text">Configurações</span></button>
+                    <button class="nav-item" data-tab="relatorios" onclick="trocarAba('relatorios')">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+                        <span class="nav-text">Relatórios</span>
+                    </button>
+                    <button class="nav-item" data-tab="configuracoes" onclick="trocarAba('configuracoes')">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+                        <span class="nav-text">Configurações</span>
+                    </button>
                 </div>
             </nav>
 
@@ -324,9 +357,9 @@
 
                 <!-- COMMAND BAR -->
                 <div class="est-cmdbar">
-                    <div class="est-search-box">
-                        <span class="est-search-icon">🔍</span>
-                        <input type="text" id="filtroEstoqueBusca"
+                    <div class="prod-search-wrap">
+                        <svg class="search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                        <input type="text" id="filtroEstoqueBusca" class="prod-search-input"
                                placeholder="Filtrar nome, NCM, categoria…"
                                oninput="filtrarTabelaEstoque(this.value)"
                                autocomplete="off">
@@ -1625,23 +1658,22 @@
                 <div class="section-header">
                     <h2 class="section-title">Dashboard</h2>
                     <div class="header-actions">
-                        <select id="dashboardRangePreset" onchange="atualizarFiltroDashboardPeriodo()">
-                            <option value="7">Últimos 7 dias</option>
-                            <option value="30" selected>Últimos 30 dias</option>
-                            <option value="90">Últimos 90 dias</option>
-                            <option value="custom">Personalizado</option>
-                        </select>
-                                                <select id="filtroDashboardPeriodo" 
-                                                                onchange="atualizarFiltroDashboardPeriodo()"
-                                                                style="padding:7px 12px;border:1px solid #e2e8f0;
-                                                                             border-radius:8px;font-size:0.875rem; margin-left:8px">
-                                                    <option value="todos">Todo o período</option>
-                                                    <option value="mes">Este mês</option>
-                                                    <option value="trimestre">Este trimestre</option>
-                                                    <option value="ano">Este ano</option>
-                                                </select>
-                        <input type="date" id="dashboardDateStart" onchange="renderizarDashboard()" style="display:none">
-                        <input type="date" id="dashboardDateEnd" onchange="renderizarDashboard()" style="display:none">
+                        <div class="filters-bar" style="background:transparent;border:none;padding:0;gap:6px">
+                            <select id="dashboardRangePreset" onchange="atualizarFiltroDashboardPeriodo()">
+                                <option value="7">Últimos 7 dias</option>
+                                <option value="30" selected>Últimos 30 dias</option>
+                                <option value="90">Últimos 90 dias</option>
+                                <option value="custom">Personalizado</option>
+                            </select>
+                            <select id="filtroDashboardPeriodo" onchange="atualizarFiltroDashboardPeriodo()">
+                                <option value="todos">Todo o período</option>
+                                <option value="mes">Este mês</option>
+                                <option value="trimestre">Este trimestre</option>
+                                <option value="ano">Este ano</option>
+                            </select>
+                            <input type="date" id="dashboardDateStart" onchange="renderizarDashboard()" style="display:none">
+                            <input type="date" id="dashboardDateEnd" onchange="renderizarDashboard()" style="display:none">
+                        </div>
                         <button class="btn btn-outline btn-sm" onclick="imprimirRelatorioAba('dashboard')">
                             <span class="btn-icon">🖨️</span>
                             Imprimir
@@ -1861,31 +1893,28 @@
                     <h2 class="section-title">Relatórios</h2>
 
                     <!-- Linha 1: Filtros -->
-                    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;width:100%">
-                        <div style="display:flex;align-items:center;gap:6px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:6px 12px;flex-wrap:wrap;gap:8px">
-                            <span style="font-size:0.75rem;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:.05em">Filtros</span>
-                            <div style="width:1px;height:20px;background:#e2e8f0"></div>
-                            <label style="font-size:0.82rem;color:#374151;white-space:nowrap">Representante:</label>
-                            <select id="filtroRelatoriosRep" onchange="prepararRelatorioInventario(); _atualizarIndicadorFiltros()" style="font-size:0.82rem;padding:4px 8px;border:1px solid #d1d5db;border-radius:6px"></select>
-                            <label style="font-size:0.82rem;color:#374151;white-space:nowrap">Produto:</label>
-                            <select id="filtroRelatoriosProduto" onchange="prepararRelatorioInventario(); _atualizarIndicadorFiltros()" style="font-size:0.82rem;padding:4px 8px;border:1px solid #d1d5db;border-radius:6px">
-                                <option value="">Todos</option>
-                            </select>
-                            <label style="font-size:0.82rem;color:#374151;white-space:nowrap">De:</label>
-                            <input type="date" id="filtroRelatoriosDataInicio" onchange="visualizarRelatorioSelecionado(); _atualizarIndicadorFiltros()" style="font-size:0.82rem;padding:4px 8px;border:1px solid #d1d5db;border-radius:6px" />
-                            <label style="font-size:0.82rem;color:#374151;white-space:nowrap">Até:</label>
-                            <input type="date" id="filtroRelatoriosDataFim" onchange="visualizarRelatorioSelecionado(); _atualizarIndicadorFiltros()" style="font-size:0.82rem;padding:4px 8px;border:1px solid #d1d5db;border-radius:6px" />
-                            <label style="font-size:0.82rem;color:#374151;white-space:nowrap">Tipo:</label>
-                            <select id="filtroRelatoriosTipo" onchange="visualizarRelatorioSelecionado(); _atualizarIndicadorFiltros()" style="font-size:0.82rem;padding:4px 8px;border:1px solid #d1d5db;border-radius:6px">
-                                <option value="inventario">Inventário</option>
-                                <option value="comissoes">Comissões</option>
-                                <option value="distribuicao">Distribuição</option>
-                            </select>
-                            <button onclick="_limparFiltrosRelatorio()" id="btnLimparFiltrosRelatorio" title="Limpar todos os filtros"
-                                style="font-size:0.78rem;padding:4px 10px;border:1px solid #fca5a5;border-radius:6px;background:#fff;color:#dc2626;cursor:pointer;display:none;white-space:nowrap">
-                                ✕ Limpar filtros
-                            </button>
-                        </div>
+                    <div class="filters-bar">
+                        <span class="filters-bar-label">Filtros</span>
+                        <div class="filters-bar-sep"></div>
+                        <label>Representante:</label>
+                        <select id="filtroRelatoriosRep" onchange="prepararRelatorioInventario(); _atualizarIndicadorFiltros()"></select>
+                        <label>Produto:</label>
+                        <select id="filtroRelatoriosProduto" onchange="prepararRelatorioInventario(); _atualizarIndicadorFiltros()">
+                            <option value="">Todos</option>
+                        </select>
+                        <label>De:</label>
+                        <input type="date" id="filtroRelatoriosDataInicio" onchange="visualizarRelatorioSelecionado(); _atualizarIndicadorFiltros()" />
+                        <label>Até:</label>
+                        <input type="date" id="filtroRelatoriosDataFim" onchange="visualizarRelatorioSelecionado(); _atualizarIndicadorFiltros()" />
+                        <label>Tipo:</label>
+                        <select id="filtroRelatoriosTipo" onchange="visualizarRelatorioSelecionado(); _atualizarIndicadorFiltros()">
+                            <option value="inventario">Inventário</option>
+                            <option value="comissoes">Comissões</option>
+                            <option value="distribuicao">Distribuição</option>
+                        </select>
+                        <button class="btn-clear-filters" onclick="_limparFiltrosRelatorio()" id="btnLimparFiltrosRelatorio" title="Limpar todos os filtros" style="display:none">
+                            ✕ Limpar filtros
+                        </button>
                     </div>
 
                     <!-- Linha 2: Ações agrupadas -->
@@ -2268,52 +2297,52 @@
                     .cfg-page-header {
                         display: flex; align-items: center; justify-content: space-between;
                         margin-bottom: 28px; padding-bottom: 20px;
-                        border-bottom: 2px solid #1e3a5f;
+                        border-bottom: 2px solid var(--tv-navy-800);
                     }
                     .cfg-page-title {
                         display: flex; align-items: center; gap: 14px;
                     }
                     .cfg-page-title-icon {
-                        width: 44px; height: 44px; background: #1e3a5f; border-radius: 10px;
+                        width: 44px; height: 44px; background: var(--tv-navy-800); border-radius: 10px;
                         display: flex; align-items: center; justify-content: center;
-                        color: #c9a227; font-size: 1.3rem; flex-shrink: 0;
-                        box-shadow: 0 2px 8px rgba(30,58,95,0.25);
+                        color: var(--tv-amber-400); font-size: 1.3rem; flex-shrink: 0;
+                        box-shadow: 0 2px 8px rgba(15,30,49,0.25);
                     }
                     .cfg-page-title h2 {
-                        font-size: 1.35rem; font-weight: 800; color: #0f1e31;
+                        font-size: 1.35rem; font-weight: 800; color: var(--text-1);
                         margin: 0; letter-spacing: -0.3px;
                     }
                     .cfg-page-title p {
-                        font-size: 0.78rem; color: #64748b; margin: 2px 0 0;
+                        font-size: 0.78rem; color: var(--text-3); margin: 2px 0 0;
                         letter-spacing: 0.3px; text-transform: uppercase;
                     }
 
                     .cfg-section-label {
                         font-size: 0.67rem; font-weight: 800; letter-spacing: 1.4px;
-                        text-transform: uppercase; color: #94a3b8;
+                        text-transform: uppercase; color: var(--text-muted);
                         margin: 28px 0 12px; padding-left: 4px;
                         display: flex; align-items: center; gap: 8px;
                     }
                     .cfg-section-label::after {
-                        content: ''; flex: 1; height: 1px; background: #e2e8f0;
+                        content: ''; flex: 1; height: 1px; background: var(--border);
                     }
 
                     .cfg-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
                     .cfg-grid-full { grid-column: 1 / -1; }
 
                     .cfg-panel {
-                        background: #fff; border-radius: 12px;
-                        border: 1px solid #e8edf3;
-                        box-shadow: 0 1px 4px rgba(15,30,49,0.06);
+                        background: var(--surface); border-radius: var(--radius-card);
+                        border: 1px solid var(--border);
+                        box-shadow: var(--shadow-card);
                         overflow: hidden;
                         transition: box-shadow 0.18s ease;
                     }
-                    .cfg-panel:hover { box-shadow: 0 4px 16px rgba(15,30,49,0.10); }
+                    .cfg-panel:hover { box-shadow: var(--shadow-card-hover); }
 
                     .cfg-panel-head {
                         display: flex; align-items: center; gap: 12px;
                         padding: 16px 20px 14px;
-                        border-bottom: 1px solid #f1f5f9;
+                        border-bottom: 1px solid var(--border);
                     }
                     .cfg-panel-head-icon {
                         width: 34px; height: 34px; border-radius: 8px;
@@ -2328,10 +2357,10 @@
                     .cfg-panel-head-icon.violet{ background: #ede9fe; }
 
                     .cfg-panel-head-title {
-                        font-size: 0.88rem; font-weight: 700; color: #1e293b; margin: 0;
+                        font-size: 0.88rem; font-weight: 700; color: var(--text-1); margin: 0;
                     }
                     .cfg-panel-head-sub {
-                        font-size: 0.72rem; color: #94a3b8; margin: 1px 0 0;
+                        font-size: 0.72rem; color: var(--text-muted); margin: 1px 0 0;
                     }
 
                     .cfg-panel-body { padding: 18px 20px; }
@@ -2340,7 +2369,7 @@
 
                     .cfg-btn {
                         display: inline-flex; align-items: center; gap: 7px;
-                        padding: 8px 16px; border-radius: 8px; font-size: 0.82rem;
+                        padding: 8px 16px; border-radius: var(--radius-control); font-size: 0.82rem;
                         font-weight: 600; cursor: pointer; border: none;
                         transition: all 0.15s ease; white-space: nowrap;
                         text-decoration: none;
@@ -2348,15 +2377,15 @@
                     .cfg-btn svg { width: 15px; height: 15px; flex-shrink: 0; }
 
                     .cfg-btn-primary {
-                        background: #1e3a5f; color: #fff;
+                        background: var(--tv-navy-800); color: #fff;
                     }
-                    .cfg-btn-primary:hover { background: #162d4a; transform: translateY(-1px); box-shadow: 0 3px 10px rgba(30,58,95,0.3); }
+                    .cfg-btn-primary:hover { background: var(--tv-navy-900); transform: translateY(-1px); box-shadow: 0 3px 10px rgba(30,58,95,0.3); }
 
                     .cfg-btn-outline {
-                        background: #f8fafc; color: #374151;
-                        border: 1px solid #e2e8f0;
+                        background: var(--bg-app); color: var(--text-2);
+                        border: 1px solid var(--border);
                     }
-                    .cfg-btn-outline:hover { background: #f1f5f9; border-color: #cbd5e1; transform: translateY(-1px); }
+                    .cfg-btn-outline:hover { background: var(--border); border-color: var(--border-strong); transform: translateY(-1px); }
 
                     .cfg-btn-green {
                         background: #16a34a; color: #fff;
@@ -2382,20 +2411,20 @@
                     .cfg-field:last-child { margin-bottom: 0; }
                     .cfg-field label {
                         display: block; font-size: 0.75rem; font-weight: 600;
-                        color: #64748b; margin-bottom: 5px; text-transform: uppercase; letter-spacing: 0.4px;
+                        color: var(--text-3); margin-bottom: 5px; text-transform: uppercase; letter-spacing: 0.4px;
                     }
                     .cfg-field input, .cfg-field select {
                         width: 100%; padding: 9px 12px;
-                        border: 1px solid #e2e8f0; border-radius: 8px;
-                        font-size: 0.88rem; color: #1e293b;
-                        background: #f8fafc;
+                        border: 1px solid var(--border); border-radius: var(--radius-control);
+                        font-size: 0.88rem; color: var(--text-1);
+                        background: var(--bg-app);
                         transition: border-color 0.15s, box-shadow 0.15s;
                         box-sizing: border-box;
                     }
                     .cfg-field input:focus, .cfg-field select:focus {
-                        outline: none; border-color: #1e3a5f;
+                        outline: none; border-color: var(--tv-navy-800);
                         box-shadow: 0 0 0 3px rgba(30,58,95,0.10);
-                        background: #fff;
+                        background: var(--surface);
                     }
 
                     .cfg-field-grid { display: grid; gap: 12px; }
@@ -2405,9 +2434,9 @@
 
                     .cfg-contrato-preview {
                         display: inline-flex; align-items: center; gap: 8px;
-                        background: #0f1e31; color: #c9a227;
-                        padding: 10px 18px; border-radius: 8px;
-                        font-weight: 800; font-size: 1.1rem; font-family: monospace;
+                        background: var(--tv-navy-950); color: var(--tv-amber-400);
+                        padding: 10px 18px; border-radius: var(--radius-control);
+                        font-weight: 800; font-size: 1.1rem; font-family: var(--tv-font-mono, monospace);
                         letter-spacing: 1px; box-shadow: 0 2px 8px rgba(15,30,49,0.2);
                     }
 
@@ -2416,34 +2445,34 @@
                     }
                     .cfg-toggle {
                         display: flex; align-items: center; gap: 10px;
-                        font-size: 0.85rem; color: #374151; font-weight: 500; cursor: pointer;
+                        font-size: 0.85rem; color: var(--text-2); font-weight: 500; cursor: pointer;
                     }
                     .cfg-toggle input[type=checkbox] {
                         width: 16px; height: 16px; cursor: pointer;
-                        accent-color: #1e3a5f;
+                        accent-color: var(--tv-navy-800);
                     }
 
                     .cfg-danger-panel {
                         background: #fff5f5; border: 1px solid #fecaca;
-                        border-radius: 12px; overflow: hidden;
+                        border-radius: var(--radius-card); overflow: hidden;
                     }
                     .cfg-danger-panel .cfg-panel-head { border-bottom-color: #fecaca; background: #fff5f5; }
 
                     .cfg-rep-tag {
                         display: inline-flex; align-items: center; gap: 6px;
-                        background: #f1f5f9; border: 1px solid #e2e8f0;
+                        background: var(--bg-app); border: 1px solid var(--border);
                         border-radius: 20px; padding: 5px 12px 5px 10px;
-                        font-size: 0.8rem; font-weight: 600; color: #374151;
+                        font-size: 0.8rem; font-weight: 600; color: var(--text-2);
                     }
                     .cfg-rep-tag button {
                         background: none; border: none; cursor: pointer;
-                        color: #94a3b8; font-size: 1rem; line-height: 1;
+                        color: var(--text-muted); font-size: 1rem; line-height: 1;
                         padding: 0; transition: color 0.15s;
                     }
                     .cfg-rep-tag button:hover { color: #dc2626; }
 
                     .cfg-hint {
-                        font-size: 0.75rem; color: #94a3b8; margin-top: 10px;
+                        font-size: 0.75rem; color: var(--text-muted); margin-top: 10px;
                         display: flex; align-items: flex-start; gap: 5px;
                     }
                 </style>

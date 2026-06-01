@@ -107,6 +107,59 @@
     --filters-bar-bg: #f6f8fa;
 }
 
+/* ----------------------------------------
+   .filters-bar — barra de filtros unificada
+   ---------------------------------------- */
+.filters-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    width: 100%;
+    background: var(--filters-bar-bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-control);
+    padding: 6px 12px;
+}
+.filters-bar-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--text-3);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    white-space: nowrap;
+}
+.filters-bar-sep {
+    width: 1px;
+    height: 20px;
+    background: var(--border);
+    flex-shrink: 0;
+}
+.filters-bar label {
+    font-size: 0.82rem;
+    color: var(--text-2);
+    white-space: nowrap;
+}
+.filters-bar select,
+.filters-bar input[type="date"] {
+    font-size: 0.82rem;
+    padding: 4px 8px;
+    border: 1px solid var(--border-strong);
+    border-radius: 6px;
+    background: var(--surface);
+    color: var(--text-1);
+}
+.filters-bar .btn-clear-filters {
+    font-size: 0.78rem;
+    padding: 4px 10px;
+    border: 1px solid #fca5a5;
+    border-radius: 6px;
+    background: var(--surface);
+    color: #dc2626;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
 /* ========================================
    Sidebar (fixed left)
    ======================================== */
@@ -1352,6 +1405,7 @@ table {
 
 .dashboard-table {
     font-size: 0.85rem;
+    font-variant-numeric: tabular-nums;
 }
 
 /* Garantir cabeçalho escuro e legível para tabelas de dashboard (Distribuição, Vendas, Controle de Envio) */
@@ -4156,17 +4210,13 @@ th.sortable.sort-desc .sort-icon::after { content: ' ▼'; opacity: 1; }
         padding: 8px 4px;
     }
 
-    .sidebar .nav-item > span:first-child {
-        font-size: 0;
-        width: 8px;
-        height: 8px;
-        border-radius: 50%;
-        background: #8b949e;
-        display: inline-block;
+    .sidebar .nav-item > svg:first-child {
+        flex-shrink: 0;
+        opacity: 0.65;
     }
 
-    .sidebar .nav-item.active > span:first-child {
-        background: var(--accent-color);
+    .sidebar .nav-item.active > svg:first-child {
+        opacity: 1;
     }
 
     body.sidebar-expanded .sidebar {
@@ -4733,33 +4783,33 @@ th.sortable.sort-desc .sort-icon::after { content: ' ▼'; opacity: 1; }
 
 /* ── 1. SECTION HEADER — mais impacto visual ── */
 .section-header {
-    background: var(--bg-white);
-    border-radius: var(--radius-md);
-    padding: 14px 20px !important;
-    margin-bottom: 16px !important;
-    border: 1px solid var(--border-color);
-    box-shadow: var(--shadow-xs);
+    background: var(--surface);
+    border-radius: var(--radius-card);
+    padding: 14px 20px;
+    margin-bottom: 16px;
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow-card);
     gap: 12px;
 }
 
 .section-header .section-title,
 .section-title {
-    font-size: 1.05rem !important;
-    font-weight: 700 !important;
-    color: var(--primary-color) !important;
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: var(--text-1);
     letter-spacing: -0.01em;
 }
 
 .section-header .section-title::before,
 .section-title::before {
-    width: 3px !important;
-    height: 18px !important;
-    background: linear-gradient(180deg, var(--accent-color), var(--accent-hover)) !important;
-    border-radius: 2px !important;
+    width: 3px;
+    height: 18px;
+    background: linear-gradient(180deg, var(--accent-color), var(--accent-hover));
+    border-radius: 2px;
 }
 
 .header-actions {
-    gap: 8px !important;
+    gap: 8px;
     flex-wrap: wrap;
 }
 
@@ -6384,6 +6434,7 @@ table.tv-table {
     white-space: nowrap;
     width: 100%;
     background: #fff;
+    font-variant-numeric: tabular-nums;
 }
 
 /* ── Tabela de Venda: cabeçalho ──────────────────────────────────────────── */
@@ -12105,28 +12156,6 @@ table.imbel-table tbody tr:hover .imbel-row-actions { opacity: 1; }
     flex-shrink: 0;
     flex-wrap: wrap;
 }
-.est-search-box {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    background: #f8fafc;
-    border: 1px solid #cbd5e1;
-    border-radius: 4px;
-    padding: 0 10px;
-    height: 30px;
-    min-width: 220px;
-}
-.est-search-box input {
-    background: none;
-    border: none;
-    outline: none;
-    color: #1e293b;
-    font-family: var(--tv-font-sans);
-    font-size: 0.78rem;
-    width: 100%;
-}
-.est-search-box input::placeholder { color: #94a3b8; }
-.est-search-icon { color: #94a3b8; }
 .est-cmdbar-sep { width: 1px; height: 20px; background: #e2e8f0; margin: 0 4px; }
 .est-cmdbar-label {
     font-family: var(--tv-font-display);
@@ -12281,6 +12310,7 @@ table.est-v2-table {
     width: max-content;
     min-width: 100%;
     font-size: 12px;
+    font-variant-numeric: tabular-nums;
 }
 table.est-v2-table thead {
     background: var(--tv-navy-900);
