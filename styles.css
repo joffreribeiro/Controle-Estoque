@@ -3919,31 +3919,7 @@ th.sortable.sort-desc .sort-icon::after { content: ' ▼'; opacity: 1; }
     color: #57606a;
 }
 
-/* Inventory table visual refactor */
-#tabelaEstoque thead tr:first-child th {
-    background: #0d1117 !important;
-    font-size: 10px;
-    text-transform: uppercase;
-    letter-spacing: 0.8px;
-    color: #8b949e !important;
-}
-
-#tabelaEstoque thead tr:first-child th.header-rep.kolte { color: #79c0ff !important; }
-#tabelaEstoque thead tr:first-child th.header-rep.isa { color: #7ee787 !important; }
-#tabelaEstoque thead tr:first-child th.header-rep.lc { color: #58a6ff !important; }
-#tabelaEstoque thead tr:first-child th.header-rep.ades { color: #ffa657 !important; }
-#tabelaEstoque thead tr:first-child th.header-rep.fl { color: #d2a8ff !important; }
-#tabelaEstoque thead tr:first-child th.header-rep.imbel { color: #ff7b72 !important; }
-#tabelaEstoque thead tr:first-child th.header-geral { color: var(--accent-bright) !important; }
-
-#tabelaEstoque thead tr:nth-child(2) th {
-    background: #161b22 !important;
-    font-size: 9px;
-    font-weight: 400;
-    color: #6e7681 !important;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-}
+/* Inventory table visual refactor — regras antigas removidas, substituídas pelo sistema est-v2 */
 
 #tabelaEstoque td.numeric-cell {
     font-family: var(--font-mono);
