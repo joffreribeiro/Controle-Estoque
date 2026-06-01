@@ -12287,6 +12287,9 @@ table.est-v2-table {
     min-width: 100%;
     font-size: 12px;
 }
+table.est-v2-table thead {
+    background: var(--tv-navy-900);
+}
 
 /* Coluna PRODUTOS congelada */
 table.est-v2-table thead th.est-prod-hdr {
@@ -12296,7 +12299,7 @@ table.est-v2-table thead th.est-prod-hdr {
     letter-spacing: 0.08em; text-transform: uppercase; text-align: left;
     padding: 0 14px; min-width: 240px;
     border-right: 2px solid var(--tv-amber-500);
-    border-bottom: 2px solid var(--tv-amber-500);
+    border-bottom: 0;
     vertical-align: middle; cursor: pointer;
 }
 table.est-v2-table tbody td.est-prod-cell {

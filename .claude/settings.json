@@ -30,7 +30,10 @@
       "Bash(node -e \"const fs=require\\('fs'\\); const code=fs.readFileSync\\('e:/MEUS DOCUMENTOS/OneDrive/Documentos/Sistemas/Estoque/Controle-Estoque/app.js','utf8'\\); try { new Function\\(code\\); console.log\\('SYNTAX OK'\\); } catch\\(e\\) { console.error\\('SYNTAX ERROR:', e.message\\); }\")",
       "Bash(start index.html)",
       "Bash(python -c ' *)",
-      "PowerShell($lines = Get-Content \"e:\\\\MEUS DOCUMENTOS\\\\OneDrive\\\\Documentos\\\\Sistemas\\\\Estoque\\\\Controle-Estoque\\\\app.js\" -Encoding UTF8; $lines[6595..6605] | ForEach-Object { [PSCustomObject]@{Line=$_} } | Format-List)"
+      "PowerShell($lines = Get-Content \"e:\\\\MEUS DOCUMENTOS\\\\OneDrive\\\\Documentos\\\\Sistemas\\\\Estoque\\\\Controle-Estoque\\\\app.js\" -Encoding UTF8; $lines[6595..6605] | ForEach-Object { [PSCustomObject]@{Line=$_} } | Format-List)",
+      "Bash(Select-String -Path \"e:\\\\MEUS DOCUMENTOS\\\\OneDrive\\\\Documentos\\\\Sistemas\\\\Estoque\\\\Controle-Estoque\\\\app.js\" -Pattern \"function renderizarTabela|renderizarTabela\\\\s*=\")",
+      "Bash(Select-Object LineNumber, Line)",
+      "Bash(python3 -c ' *)"
     ],
     "additionalDirectories": [
       "\\tmp"
