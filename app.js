@@ -17275,6 +17275,28 @@ function renderizarTabelaPrecoVenda() {
 
         // Atualizar footbar
         _tvRenderFootbar(ordem.length, ufs.length, tp, st);
+
+        // Corrigir offsets das colunas sticky após re-render parcial
+        requestAnimationFrame(() => {
+            const tbl = document.getElementById('tabelaPrecoVendaGrid');
+            if (!tbl) return;
+            const headerRow2 = tbl.querySelector('thead tr.tv-thead-cols');
+            if (!headerRow2) return;
+            const thCols = headerRow2.querySelectorAll('th');
+            const stickyClasses = ['tv-th-fixed','tv-col-grupo','tv-col-pn','tv-col-nomefab','tv-col-comp','tv-col-nome','tv-col-ci'];
+            const tdClasses     = ['tv-td-fixed', 'tv-td-grupo','tv-td-pn', 'tv-td-nomefab', 'tv-td-comp', 'tv-td-nome','tv-td-ci'];
+            const offsets = {};
+            thCols.forEach(th => {
+                for (const cls of stickyClasses) {
+                    if (th.classList.contains(cls)) { offsets[cls] = th.offsetLeft + 'px'; break; }
+                }
+            });
+            stickyClasses.forEach((cls, i) => {
+                const left = offsets[cls];
+                if (!left) return;
+                tbl.querySelectorAll(`th.${cls}, td.${tdClasses[i]}`).forEach(el => { el.style.left = left; });
+            });
+        });
     }
 
     function _tvRenderLinhaHTML(prod, isPeca, bg, tp, ufs, wTaxa, wROI, wOvr) {
@@ -17790,6 +17812,35 @@ function renderizarTabelaPrecoVenda() {
 
     // Footbar
     _tvRenderFootbar(ordemFinal.length, ufsFiltradas.length, tipoPessoa, tvState);
+
+    // Corrigir offsets das colunas sticky após renderização (usa larguras reais do DOM)
+    requestAnimationFrame(() => {
+        const tbl = document.getElementById('tabelaPrecoVendaGrid');
+        if (!tbl) return;
+        const headerRow2 = tbl.querySelector('thead tr.tv-thead-cols');
+        if (!headerRow2) return;
+        // Ler offsetLeft real de cada th fixo na linha 2
+        const thCols = headerRow2.querySelectorAll('th');
+        const stickyClasses = ['tv-th-fixed','tv-col-grupo','tv-col-pn','tv-col-nomefab','tv-col-comp','tv-col-nome','tv-col-ci'];
+        const tdClasses     = ['tv-td-fixed', 'tv-td-grupo','tv-td-pn', 'tv-td-nomefab', 'tv-td-comp', 'tv-td-nome','tv-td-ci'];
+        const offsets = {};
+        thCols.forEach(th => {
+            for (const cls of stickyClasses) {
+                if (th.classList.contains(cls)) {
+                    offsets[cls] = th.offsetLeft + 'px';
+                    break;
+                }
+            }
+        });
+        // Aplicar left correto nos th e td de cada coluna
+        stickyClasses.forEach((cls, i) => {
+            const left = offsets[cls];
+            if (!left) return;
+            tbl.querySelectorAll(`th.${cls}, td.${tdClasses[i]}`).forEach(el => {
+                el.style.left = left;
+            });
+        });
+    });
 
     // Tooltip do mapa
     window._tvMapTooltip = function(evt, uf, pvStr) {
