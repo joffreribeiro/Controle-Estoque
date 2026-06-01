@@ -6,7 +6,7 @@
     <title>Controle de Estoque | Material Bélico</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600;700&family=IBM+Plex+Sans+Condensed:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="styles.css?v=20260601-06">
+    <link rel="stylesheet" href="styles.css?v=20260601-07">
     <link id="favicon" rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='48' fill='%230b1723'/%3E%3Crect x='30' y='70' width='40' height='12' rx='1' fill='%23d4af37'/%3E%3Crect x='20' y='55' width='15' height='12' rx='1' fill='%23f6c84c'/%3E%3Crect x='42' y='55' width='15' height='12' rx='1' fill='%23f6c84c'/%3E%3Crect x='65' y='55' width='15' height='12' rx='1' fill='%23f6c84c'/%3E%3Crect x='30' y='40' width='15' height='12' rx='1' fill='%23ffd700'/%3E%3Crect x='55' y='40' width='15' height='12' rx='1' fill='%23ffd700'/%3E%3Crect x='25' y='28' width='12' height='9' rx='1' fill='%23f6c84c'/%3E%3Crect x='44' y='28' width='12' height='9' rx='1' fill='%23f6c84c'/%3E%3Crect x='63' y='28' width='12' height='9' rx='1' fill='%23f6c84c'/%3E%3C/svg%3E">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -1649,48 +1649,104 @@
                     </div>
                 </div>
                 <div class="kpi-grid estoque-kpis" id="estoqueKpis">
-                    <article class="kpi-card kpi-accent" data-icon="💰">
-                        <div class="kpi-label">Faturamento</div>
-                        <div class="kpi-value" id="valorTotalVendas">R$ 0,00</div>
-                        <div class="kpi-subtitle">Receita total</div>
+                    <article class="kpi-card-v2 kpi-accent-v2">
+                        <div class="kpi-v2-top">
+                            <div class="kpi-v2-body">
+                                <div class="kpi-v2-label">Faturamento</div>
+                                <div class="kpi-v2-value" id="valorTotalVendas">R$ 0,00</div>
+                                <div class="kpi-v2-subtitle">Receita total</div>
+                            </div>
+                            <div class="kpi-v2-icon">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                            </div>
+                        </div>
                     </article>
-                    <article class="kpi-card kpi-success" data-icon="💸">
-                        <div class="kpi-label">Comissões</div>
-                        <div class="kpi-value" id="totalComissoes">R$ 0,00</div>
-                        <div class="kpi-subtitle">Comissão acumulada</div>
+                    <article class="kpi-card-v2 kpi-success">
+                        <div class="kpi-v2-top">
+                            <div class="kpi-v2-body">
+                                <div class="kpi-v2-label">Comissões</div>
+                                <div class="kpi-v2-value" id="totalComissoes">R$ 0,00</div>
+                                <div class="kpi-v2-subtitle">Comissão acumulada</div>
+                            </div>
+                            <div class="kpi-v2-icon">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 12V22H4V12"/><path d="M22 7H2v5h20V7z"/><path d="M12 22V7"/><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"/><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"/></svg>
+                            </div>
+                        </div>
                     </article>
-                    <article class="kpi-card kpi-info" data-icon="📦">
-                        <div class="kpi-label">Total Vendido</div>
-                        <div class="kpi-value" id="kpiTotalVendido">0 un.</div>
-                        <div class="kpi-subtitle">Unidades vendidas</div>
+                    <article class="kpi-card-v2 kpi-info">
+                        <div class="kpi-v2-top">
+                            <div class="kpi-v2-body">
+                                <div class="kpi-v2-label">Total Vendido</div>
+                                <div class="kpi-v2-value" id="kpiTotalVendido">0 un.</div>
+                                <div class="kpi-v2-subtitle">Unidades vendidas</div>
+                            </div>
+                            <div class="kpi-v2-icon">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+                            </div>
+                        </div>
                     </article>
-                    <article class="kpi-card kpi-danger" data-icon="⚠️">
-                        <div class="kpi-label">Saldo Zero</div>
-                        <div class="kpi-value" id="kpiSaldoZero">0 produtos</div>
-                        <div class="kpi-subtitle">Produtos a repor</div>
+                    <article class="kpi-card-v2 kpi-danger">
+                        <div class="kpi-v2-top">
+                            <div class="kpi-v2-body">
+                                <div class="kpi-v2-label">Saldo Zero</div>
+                                <div class="kpi-v2-value" id="kpiSaldoZero">0 produtos</div>
+                                <div class="kpi-v2-subtitle">Produtos a repor</div>
+                            </div>
+                            <div class="kpi-v2-icon">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                            </div>
+                        </div>
                     </article>
                 </div>
                 <div id="dashboardAlertas" style="margin-bottom:16px"></div>
                 <div class="kpi-grid dashboard-kpis">
-                    <article class="kpi-card kpi-accent" data-icon="📦">
-                        <div class="kpi-label">Total de Unidades Vendidas</div>
-                        <div class="kpi-value" id="dashTotalUnidades">0</div>
-                        <div class="kpi-subtitle">No período selecionado</div>
+                    <article class="kpi-card-v2 kpi-info">
+                        <div class="kpi-v2-top">
+                            <div class="kpi-v2-body">
+                                <div class="kpi-v2-label">Total de Unidades Vendidas</div>
+                                <div class="kpi-v2-value" id="dashTotalUnidades">0</div>
+                                <div class="kpi-v2-subtitle">No período selecionado</div>
+                            </div>
+                            <div class="kpi-v2-icon">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+                            </div>
+                        </div>
                     </article>
-                    <article class="kpi-card kpi-success" data-icon="💰">
-                        <div class="kpi-label">Faturamento Total</div>
-                        <div class="kpi-value" id="dashTotalFaturamento">R$ 0,00</div>
-                        <div class="kpi-subtitle">Receita consolidada</div>
+                    <article class="kpi-card-v2 kpi-accent-v2">
+                        <div class="kpi-v2-top">
+                            <div class="kpi-v2-body">
+                                <div class="kpi-v2-label">Faturamento Total</div>
+                                <div class="kpi-v2-value" id="dashTotalFaturamento">R$ 0,00</div>
+                                <div class="kpi-v2-subtitle">Receita consolidada</div>
+                            </div>
+                            <div class="kpi-v2-icon">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                            </div>
+                        </div>
                     </article>
-                    <article class="kpi-card kpi-info" data-icon="🏆">
-                        <div class="kpi-label">Melhor Representante</div>
-                        <div class="kpi-value" id="dashMelhorRep">-</div>
-                        <div class="kpi-subtitle">Maior faturamento (R$)</div>
+                    <article class="kpi-card-v2 kpi-success">
+                        <div class="kpi-v2-top">
+                            <div class="kpi-v2-body">
+                                <div class="kpi-v2-label">Melhor Representante</div>
+                                <div class="kpi-v2-value" id="dashMelhorRep">-</div>
+                                <div class="kpi-v2-subtitle">Maior faturamento (R$)</div>
+                            </div>
+                            <div class="kpi-v2-icon">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+                            </div>
+                        </div>
                     </article>
-                    <article class="kpi-card kpi-danger" data-icon="📈">
-                        <div class="kpi-label">Produto Mais Vendido</div>
-                        <div class="kpi-value" id="dashProdutoTop">-</div>
-                        <div class="kpi-subtitle">Maior saída em unidades</div>
+                    <article class="kpi-card-v2 kpi-danger">
+                        <div class="kpi-v2-top">
+                            <div class="kpi-v2-body">
+                                <div class="kpi-v2-label">Produto Mais Vendido</div>
+                                <div class="kpi-v2-value" id="dashProdutoTop">-</div>
+                                <div class="kpi-v2-subtitle">Maior saída em unidades</div>
+                            </div>
+                            <div class="kpi-v2-icon">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>
+                            </div>
+                        </div>
                     </article>
                 </div>
 
@@ -1904,26 +1960,54 @@
                     </div>
 
                     <!-- Summary KPIs -->
-                    <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:12px; padding:16px">
-                        <article class="kpi-card kpi-accent">
-                            <div class="kpi-label">Faturamento</div>
-                            <div class="kpi-value" id="rentFaturamento">R$ 0</div>
-                            <div class="kpi-subtitle">Receita total</div>
+                    <div class="kpi-grid" style="padding:16px">
+                        <article class="kpi-card-v2 kpi-accent-v2">
+                            <div class="kpi-v2-top">
+                                <div class="kpi-v2-body">
+                                    <div class="kpi-v2-label">Faturamento</div>
+                                    <div class="kpi-v2-value" id="rentFaturamento">R$ 0</div>
+                                    <div class="kpi-v2-subtitle">Receita total</div>
+                                </div>
+                                <div class="kpi-v2-icon">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                                </div>
+                            </div>
                         </article>
-                        <article class="kpi-card kpi-info">
-                            <div class="kpi-label">Custo Total</div>
-                            <div class="kpi-value" id="rentCusto">R$ 0</div>
-                            <div class="kpi-subtitle">Baseado na precificação</div>
+                        <article class="kpi-card-v2 kpi-info">
+                            <div class="kpi-v2-top">
+                                <div class="kpi-v2-body">
+                                    <div class="kpi-v2-label">Custo Total</div>
+                                    <div class="kpi-v2-value" id="rentCusto">R$ 0</div>
+                                    <div class="kpi-v2-subtitle">Baseado na precificação</div>
+                                </div>
+                                <div class="kpi-v2-icon">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
+                                </div>
+                            </div>
                         </article>
-                        <article class="kpi-card kpi-success">
-                            <div class="kpi-label">Lucro Bruto</div>
-                            <div class="kpi-value" id="rentLucro">R$ 0</div>
-                            <div class="kpi-subtitle">Faturamento − Custo</div>
+                        <article class="kpi-card-v2 kpi-success">
+                            <div class="kpi-v2-top">
+                                <div class="kpi-v2-body">
+                                    <div class="kpi-v2-label">Lucro Bruto</div>
+                                    <div class="kpi-v2-value" id="rentLucro">R$ 0</div>
+                                    <div class="kpi-v2-subtitle">Faturamento − Custo</div>
+                                </div>
+                                <div class="kpi-v2-icon">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>
+                                </div>
+                            </div>
                         </article>
-                        <article class="kpi-card" style="border-left:3px solid #8b5cf6">
-                            <div class="kpi-label">Margem Média</div>
-                            <div class="kpi-value" id="rentMargem">0%</div>
-                            <div class="kpi-subtitle">Sobre o faturamento</div>
+                        <article class="kpi-card-v2 kpi-warning">
+                            <div class="kpi-v2-top">
+                                <div class="kpi-v2-body">
+                                    <div class="kpi-v2-label">Margem Média</div>
+                                    <div class="kpi-v2-value" id="rentMargem">0%</div>
+                                    <div class="kpi-v2-subtitle">Sobre o faturamento</div>
+                                </div>
+                                <div class="kpi-v2-icon">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="19" y1="5" x2="5" y2="19"/><circle cx="6.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/></svg>
+                                </div>
+                            </div>
                         </article>
                     </div>
 

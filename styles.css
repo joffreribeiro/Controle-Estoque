@@ -90,6 +90,21 @@
     --sidebar-width: 224px;
     --sidebar-collapsed-width: 58px;
     --header-height: 62px;
+
+    /* ── Tokens globais v2 (padronização visual) ── */
+    --bg-app: #f6f8fa;
+    --surface: #ffffff;
+    --border: #e2e8f0;
+    --border-strong: #cbd5e1;
+    --text-1: #0f1e31;
+    --text-2: #374151;
+    --text-3: #64748b;
+    --text-muted: #94a3b8;
+    --radius-card: 10px;
+    --radius-control: 8px;
+    --shadow-card: 0 1px 4px rgba(15,30,49,0.06);
+    --shadow-card-hover: 0 4px 16px rgba(15,30,49,0.10);
+    --filters-bar-bg: #f6f8fa;
 }
 
 /* ========================================
