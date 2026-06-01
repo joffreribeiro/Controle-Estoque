@@ -3353,7 +3353,7 @@ function renderizarTabela() {
         let hdr1 = `<tr class="est-hdr-group">
             ${thSort('nome', 'PRODUTOS', 'est-prod-hdr')}`;
         repsVisiveis.forEach((r, ri) => {
-            hdr1 += `<th colspan="3" style="background:${r.corHdr}">
+            hdr1 += `<th colspan="3" style="background:${r.corHdr};color:#fff;border-bottom:0">
                 <span class="est-rep-dot-hdr" style="background:${r.cor}"></span>${r.nome}
             </th>`;
         });
@@ -3364,9 +3364,9 @@ function renderizarTabela() {
         repsVisiveis.forEach((r, ri) => {
             const alt = ri % 2 === 1 ? ' est-grp-alt-hdr' : '';
             const distLbl = r.tipo === 'house' ? 'ESTOQUE' : 'DIST';
-            hdr2 += `<th class="${alt}">${distLbl}</th>`;
-            hdr2 += `<th class="${alt}">VENDA</th>`;
-            hdr2 += `<th class="est-grp-end${alt}">SALDO</th>`;
+            hdr2 += `<th class="${alt}" style="background:${r.corHdr};color:#fff">${distLbl}</th>`;
+            hdr2 += `<th class="${alt}" style="background:${r.corHdr};color:#fff">VENDA</th>`;
+            hdr2 += `<th class="est-grp-end${alt}" style="background:${r.corHdr};color:#fff">SALDO</th>`;
         });
         hdr2 += `${thSort('total', 'TOTAL', 'est-consol-sub')}`;
         hdr2 += `${thSort('venda', 'VENDA', 'est-consol-sub')}`;
