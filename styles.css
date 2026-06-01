@@ -6362,7 +6362,7 @@ table.tv-table {
 
 /* Cabeçalho — linha de região (linha 1) */
 table.tv-table thead tr.tv-thead-region th {
-    position: sticky; top: 0; z-index: 3;
+    position: sticky; top: 0; z-index: 5;
     padding: 5px 8px;
     font-family: var(--tv-font-display);
     font-size: 0.68rem;
@@ -6377,7 +6377,7 @@ table.tv-table thead tr.tv-thead-region th.tv-th-fixed {
     background: var(--tv-navy-950);
     position: sticky;
     left: 0; top: 0;
-    z-index: 5;
+    z-index: 7;
 }
 table.tv-table thead tr.tv-thead-region th.tv-region-N  { background: #7dd3fc; color: #fff !important; border-bottom: 2px solid rgba(0,0,0,0.15); }
 table.tv-table thead tr.tv-thead-region th.tv-region-NE { background: #86efac; color: #fff !important; border-bottom: 2px solid rgba(0,0,0,0.15); }
@@ -6387,7 +6387,7 @@ table.tv-table thead tr.tv-thead-region th.tv-region-S  { background: #fca5a5; c
 
 /* Cabeçalho — linha de colunas (linha 2) */
 table.tv-table thead tr.tv-thead-cols th {
-    position: sticky; top: 28px; z-index: 4;
+    position: sticky; top: 28px; z-index: 3;
     padding: 6px 8px;
     background: var(--tv-navy-900);
     color: #fff;
@@ -6407,7 +6407,7 @@ table.tv-table thead tr.tv-thead-cols th.sort-active { color: var(--tv-amber-400
 table.tv-table thead tr.tv-thead-cols th.tv-th-fixed {
     position: sticky;
     left: 0; top: 28px;
-    z-index: 6;
+    z-index: 5;
     background: var(--tv-navy-950);
 }
 table.tv-table thead tr.tv-thead-cols th .tv-sort-caret {
