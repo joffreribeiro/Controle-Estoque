@@ -6425,6 +6425,7 @@ table.tv-table thead tr.tv-thead-cols th {
     text-transform: uppercase;
     letter-spacing: 0.8px;
     border-bottom: 2px solid var(--tv-navy-700);
+    border-right: 1px solid var(--tv-navy-700);
     cursor: pointer;
     user-select: none;
     white-space: nowrap;
@@ -6523,6 +6524,7 @@ table.tv-table tbody tr.tv-data-row td {
     padding: 0 8px;
     height: var(--tv-row-h);
     border-bottom: 1px solid #f1f5f9;
+    border-right: 1px solid #f1f5f9;
     vertical-align: middle;
 }
 
@@ -6532,17 +6534,22 @@ table.tv-table tbody tr.tv-data-row td.tv-td-fixed {
     z-index: 2;
     font-family: var(--tv-font-mono);
     font-size: 0.72rem;
-    border-right: 1px solid var(--tv-navy-100);
+    border-right: 1px solid var(--tv-navy-200);
 }
 /* Demais colunas fixas (Grupo, PN, Nome Fábrica, Comp., Nome, CI) */
 table.tv-table tbody tr.tv-data-row td.tv-td-grupo,
 table.tv-table tbody tr.tv-data-row td.tv-td-pn,
 table.tv-table tbody tr.tv-data-row td.tv-td-nomefab,
 table.tv-table tbody tr.tv-data-row td.tv-td-comp,
-table.tv-table tbody tr.tv-data-row td.tv-td-nome,
+table.tv-table tbody tr.tv-data-row td.tv-td-nome {
+    position: sticky;
+    z-index: 1;
+    border-right: 1px solid var(--tv-navy-200);
+}
 table.tv-table tbody tr.tv-data-row td.tv-td-ci {
     position: sticky;
     z-index: 1;
+    border-right: 2px solid var(--tv-navy-300);
 }
 
 /* Células numéricas */
