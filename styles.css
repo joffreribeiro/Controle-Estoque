@@ -6451,23 +6451,20 @@ table.tv-table thead tr.tv-thead-cols th.tv-th-fixed {
 table.tv-table th.tv-th-fixed,
 table.tv-table td.tv-td-fixed   { left: 0; }
 
-table.tv-table th.tv-col-grupo,
-table.tv-table td.tv-td-grupo   { left: 110px; }
-
 table.tv-table th.tv-col-pn,
-table.tv-table td.tv-td-pn      { left: 200px; }
+table.tv-table td.tv-td-pn      { left: 110px; }
 
 table.tv-table th.tv-col-nomefab,
-table.tv-table td.tv-td-nomefab { left: 310px; }
+table.tv-table td.tv-td-nomefab { left: 220px; }
 
 table.tv-table th.tv-col-comp,
-table.tv-table td.tv-td-comp    { left: 470px; }
+table.tv-table td.tv-td-comp    { left: 380px; }
 
 table.tv-table th.tv-col-nome,
-table.tv-table td.tv-td-nome    { left: 540px; }
+table.tv-table td.tv-td-nome    { left: 450px; }
 
 table.tv-table th.tv-col-ci,
-table.tv-table td.tv-td-ci      { left: 700px; }
+table.tv-table td.tv-td-ci      { left: 610px; }
 
 table.tv-table thead tr.tv-thead-cols th .tv-sort-caret {
     display: inline-block;

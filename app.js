@@ -17334,14 +17334,14 @@ function renderizarTabelaPrecoVenda() {
         const pnCell = `<span style="font-family:var(--tv-font-mono);font-size:0.72rem">${_escapeHtml(pn)}</span>${temPecas ? `<span id="${idExpandTV}"></span>` : ''}`;
 
         const _rowBg = isPeca ? '#fafbfd' : bg;
+        const _bdr = '1px solid #e2e8f0';
         let row = `<tr class="tv-data-row${isPeca?' tv-peca-row':''}" style="${isPeca?'display:none;background:#fafbfd':'background:'+bg}"${isPeca ? ` data-tv-peca-filha="${_escapeHtml((prod.componente||'').trim())}"` : ''}>
-            <td class="tv-td-fixed" style="background:${_rowBg}">${_escapeHtml(ncm)}</td>
-            <td class="tv-td-grupo" style="background:${_rowBg};padding:0 8px">${grupoBadge}</td>
-            <td class="tv-td-pn" style="background:${_rowBg};padding:0 8px">${pnCell}</td>
-            <td class="tv-td-nomefab" style="background:${_rowBg};padding:0 8px;color:#94a3b8;font-size:0.72rem;max-width:160px;overflow:hidden;text-overflow:ellipsis" title="${_escapeHtml(nomeFab)}">${_escapeHtml(nomeFab)}</td>
-            <td class="tv-td-comp" style="background:${_rowBg};padding:0 8px;color:#94a3b8;font-size:0.72rem;text-align:center">${_escapeHtml(isPeca ? comp : '—')}</td>
-            <td class="tv-td-nome" style="background:${_rowBg};padding:0 8px;max-width:180px;overflow:hidden;text-overflow:ellipsis" title="${_escapeHtml(prod.nome)}">${isPeca?'<span style="color:#94a3b8">↳ </span>':''}<span style="font-weight:${isPeca?'400':'600'};color:${isPeca?'#64748b':'var(--tv-navy-900)'}">${_escapeHtml(prod.nome)}</span></td>
-            <td class="tv-ci-cell tv-td-ci" style="background:${_rowBg}">${ciStr}</td>`;
+            <td class="tv-td-fixed" style="background:${_rowBg};border-right:${_bdr}">${_escapeHtml(ncm)}</td>
+            <td class="tv-td-pn" style="background:${_rowBg};padding:0 8px;border-right:${_bdr}">${pnCell}</td>
+            <td class="tv-td-nomefab" style="background:${_rowBg};padding:0 8px;color:#94a3b8;font-size:0.72rem;max-width:160px;overflow:hidden;text-overflow:ellipsis;border-right:${_bdr}" title="${_escapeHtml(nomeFab)}">${_escapeHtml(nomeFab)}</td>
+            <td class="tv-td-comp" style="background:${_rowBg};padding:0 8px;color:#94a3b8;font-size:0.72rem;text-align:center;border-right:${_bdr}">${_escapeHtml(isPeca ? comp : '—')}</td>
+            <td class="tv-td-nome" style="background:${_rowBg};padding:0 8px;max-width:180px;overflow:hidden;text-overflow:ellipsis;border-right:${_bdr}" title="${_escapeHtml(prod.nome)}">${isPeca?'<span style="color:#94a3b8">↳ </span>':''}<span style="font-weight:${isPeca?'400':'600'};color:${isPeca?'#64748b':'var(--tv-navy-900)'}">${_escapeHtml(prod.nome)}</span></td>
+            <td class="tv-ci-cell tv-td-ci" style="background:${_rowBg};border-right:2px solid #cbd5e1">${ciStr}</td>`;
 
         ufs.forEach(uf => {
             const preco = precos[uf];
@@ -17615,10 +17615,10 @@ function renderizarTabelaPrecoVenda() {
             return `<th class="tv-th-fixed${isActive?' sort-active':''}${sd==='desc'&&isActive?' sort-desc':''}" onclick="window._tvSetSort('${col}')" style="min-width:${minW}">${label}<span class="tv-sort-caret">▲</span></th>`;
         }
 
-        // Linha 1 — região (7 colunas fixas: NCM, GRUPO, PN, NOME FÁBRICA, COMP., NOME, CI)
+        // Linha 1 — região (6 colunas fixas: NCM, PN, NOME FÁBRICA, COMP., NOME, CI)
         const _tvRegiaoNome = { N:'Norte', NE:'Nordeste', CO:'Centro-Oeste', SE:'Sudeste', S:'Sul' };
         let thead1 = `<tr class="tv-thead-region">
-            <th class="tv-th-fixed" style="background:var(--tv-navy-950)" colspan="7"></th>`;
+            <th class="tv-th-fixed" style="background:var(--tv-navy-950)" colspan="6"></th>`;
         gruposRegiao.forEach(gr => {
             thead1 += `<th class="tv-region-${gr.regiao}" colspan="${gr.ufs.length}">${_tvRegiaoNome[gr.regiao] || gr.regiao}</th>`;
         });
@@ -17627,7 +17627,6 @@ function renderizarTabelaPrecoVenda() {
         // Linha 2 — colunas
         let thead2 = `<tr class="tv-thead-cols">
             ${thFixed('ncm', 'NCM', '110px')}
-            <th class="tv-col-fixed tv-col-grupo" style="min-width:90px;cursor:default">Grupo</th>
             <th class="tv-col-fixed tv-col-pn${sc==='pn'?' sort-active':''}" onclick="window._tvSetSort('pn')" style="min-width:110px;cursor:pointer">PN<span class="tv-sort-caret">▲</span></th>
             <th class="tv-col-fixed tv-col-nomefab" style="min-width:160px;cursor:default">Nome Fábrica</th>
             <th class="tv-col-fixed tv-col-comp" style="min-width:70px;cursor:default">Comp.</th>
