@@ -6422,11 +6422,21 @@ table.tv-table thead tr.tv-thead-cols th.tv-th-fixed {
     background: var(--tv-navy-950) !important;
     color: #fff !important;
 }
-/* Colunas fixas sem left: Grupo, PN, Nome Fábrica, Comp., Nome, CI — fundo escuro, sem sticky left */
+/* Colunas fixas da linha 2 com sticky left */
 table.tv-table thead tr.tv-thead-cols th.tv-col-fixed {
+    position: sticky;
+    top: 28px;
+    z-index: 4;
     background: var(--tv-navy-900) !important;
     color: #fff !important;
 }
+/* Offsets left de cada coluna fixa no cabeçalho linha 2 */
+table.tv-table thead tr.tv-thead-cols th.tv-col-grupo    { left: 110px; }
+table.tv-table thead tr.tv-thead-cols th.tv-col-pn       { left: 200px; }
+table.tv-table thead tr.tv-thead-cols th.tv-col-nomefab  { left: 310px; }
+table.tv-table thead tr.tv-thead-cols th.tv-col-comp     { left: 470px; }
+table.tv-table thead tr.tv-thead-cols th.tv-col-nome     { left: 540px; }
+table.tv-table thead tr.tv-thead-cols th.tv-col-ci       { left: 700px; }
 table.tv-table thead tr.tv-thead-cols th .tv-sort-caret {
     display: inline-block;
     margin-left: 3px;
@@ -6448,6 +6458,7 @@ table.tv-table thead tr.tv-thead-cols th.tv-uf-S  { background: #fca5a5 !importa
 /* Linha de agrupamento NCM */
 table.tv-table tbody tr.tv-ncm-group-row td {
     padding: 6px 12px;
+    text-align: left;
     background: var(--tv-navy-50);
     font-family: var(--tv-font-mono);
     font-size: 0.72rem;
@@ -6481,10 +6492,15 @@ table.tv-table tbody tr.tv-data-row td {
 table.tv-table tbody tr.tv-data-row td.tv-td-fixed {
     position: sticky;
     left: 0;
-    z-index: 1;
+    z-index: 2;
     font-family: var(--tv-font-mono);
     font-size: 0.72rem;
     border-right: 1px solid var(--tv-navy-100);
+}
+/* Demais colunas fixas (Grupo, PN, Nome Fábrica, Comp., Nome, CI) */
+table.tv-table tbody tr.tv-data-row td.tv-td-sticky {
+    position: sticky;
+    z-index: 1;
 }
 
 /* Células numéricas */

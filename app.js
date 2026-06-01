@@ -17039,24 +17039,39 @@ function renderizarTabelaPrecoVenda() {
 
     // ── Ordenação ──
     let ordemFinal = [...ordemGrupos].filter(chave => _prodPassaFiltro(grupos[chave][0]));
-    if (tvState.sortCol) {
+    if (tvState.sortCol && tvState.sortCol !== 'ncm') {
+        // Ordenar dentro de cada grupo NCM, preservando a ordem dos NCMs
+        const _ncmOrder = [];
+        const _ncmMap = {};
+        ordemFinal.forEach(chave => {
+            const ncm = grupos[chave][0].ncm || '—';
+            if (!_ncmMap[ncm]) { _ncmMap[ncm] = []; _ncmOrder.push(ncm); }
+            _ncmMap[ncm].push(chave);
+        });
+        _ncmOrder.forEach(ncm => {
+            _ncmMap[ncm].sort((a, b) => {
+                const pA = grupos[a][0], pB = grupos[b][0];
+                let vA, vB;
+                if (tvState.sortCol === 'nome') { vA = pA.nome||''; vB = pB.nome||''; }
+                else if (tvState.sortCol === 'pn') { vA = pA.pn||''; vB = pB.pn||''; }
+                else if (tvState.sortCol === 'ci') {
+                    vA = Number(precificacao[pA.nome]?.ci ?? pA.ci ?? 0);
+                    vB = Number(precificacao[pB.nome]?.ci ?? pB.ci ?? 0);
+                } else {
+                    let rA = 0, rB = 0;
+                    try { const res = calcularPreco(pA.nome, tvState.sortCol, tipoPessoa, tvState.wiTaxa, tvState.wiROI); rA = res ? res.precoFinal : 0; } catch(e) {}
+                    try { const res = calcularPreco(pB.nome, tvState.sortCol, tipoPessoa, tvState.wiTaxa, tvState.wiROI); rB = res ? res.precoFinal : 0; } catch(e) {}
+                    vA = rA; vB = rB;
+                }
+                const cmp = typeof vA === 'number' ? vA - vB : String(vA).localeCompare(String(vB), 'pt-BR');
+                return tvState.sortDir === 'asc' ? cmp : -cmp;
+            });
+        });
+        ordemFinal = _ncmOrder.flatMap(ncm => _ncmMap[ncm]);
+    } else if (tvState.sortCol === 'ncm') {
         ordemFinal.sort((a, b) => {
-            const pA = grupos[a][0], pB = grupos[b][0];
-            let vA, vB;
-            if (tvState.sortCol === 'ncm')  { vA = pA.ncm||''; vB = pB.ncm||''; }
-            else if (tvState.sortCol === 'nome') { vA = pA.nome||''; vB = pB.nome||''; }
-            else if (tvState.sortCol === 'pn')   { vA = pA.pn||''; vB = pB.pn||''; }
-            else if (tvState.sortCol === 'ci')   {
-                vA = Number(precificacao[pA.nome]?.ci ?? pA.ci ?? 0);
-                vB = Number(precificacao[pB.nome]?.ci ?? pB.ci ?? 0);
-            } else {
-                // ordenar por UF
-                let rA, rB;
-                try { const res = calcularPreco(pA.nome, tvState.sortCol, tipoPessoa, tvState.wiTaxa, tvState.wiROI); rA = res ? res.precoFinal : 0; } catch(e) { rA = 0; }
-                try { const res = calcularPreco(pB.nome, tvState.sortCol, tipoPessoa, tvState.wiTaxa, tvState.wiROI); rB = res ? res.precoFinal : 0; } catch(e) { rB = 0; }
-                vA = rA; vB = rB;
-            }
-            const cmp = typeof vA === 'number' ? vA - vB : String(vA).localeCompare(String(vB), 'pt-BR');
+            const vA = grupos[a][0].ncm||'', vB = grupos[b][0].ncm||'';
+            const cmp = String(vA).localeCompare(String(vB), 'pt-BR');
             return tvState.sortDir === 'asc' ? cmp : -cmp;
         });
     }
@@ -17187,21 +17202,37 @@ function renderizarTabelaPrecoVenda() {
         }
 
         let ordem = [...ordemGrupos].filter(chave => passaFiltro(grupos[chave][0]));
-        if (st.sortCol) {
+        if (st.sortCol && st.sortCol !== 'ncm') {
+            // Ordenar dentro de cada grupo NCM, preservando a ordem dos NCMs
+            const ncmOrder = [];
+            const ncmMap = {};
+            ordem.forEach(chave => {
+                const ncm = grupos[chave][0].ncm || '—';
+                if (!ncmMap[ncm]) { ncmMap[ncm] = []; ncmOrder.push(ncm); }
+                ncmMap[ncm].push(chave);
+            });
+            ncmOrder.forEach(ncm => {
+                ncmMap[ncm].sort((a, b) => {
+                    const pA = grupos[a][0], pB = grupos[b][0];
+                    let vA, vB;
+                    if (st.sortCol === 'nome') { vA = pA.nome||''; vB = pB.nome||''; }
+                    else if (st.sortCol === 'pn') { vA = pA.pn||''; vB = pB.pn||''; }
+                    else if (st.sortCol === 'ci') { vA = Number(precificacao[pA.nome]?.ci ?? pA.ci ?? 0); vB = Number(precificacao[pB.nome]?.ci ?? pB.ci ?? 0); }
+                    else {
+                        let rA = 0, rB = 0;
+                        try { const res = calcularPreco(pA.nome, st.sortCol, tp, wTaxa, wROI); rA = res?.precoFinal || 0; } catch(e){}
+                        try { const res = calcularPreco(pB.nome, st.sortCol, tp, wTaxa, wROI); rB = res?.precoFinal || 0; } catch(e){}
+                        vA = rA; vB = rB;
+                    }
+                    const cmp = typeof vA === 'number' ? vA - vB : String(vA).localeCompare(String(vB), 'pt-BR');
+                    return st.sortDir === 'asc' ? cmp : -cmp;
+                });
+            });
+            ordem = ncmOrder.flatMap(ncm => ncmMap[ncm]);
+        } else if (st.sortCol === 'ncm') {
             ordem.sort((a, b) => {
-                const pA = grupos[a][0], pB = grupos[b][0];
-                let vA, vB;
-                if (st.sortCol === 'ncm')  { vA = pA.ncm||''; vB = pB.ncm||''; }
-                else if (st.sortCol === 'nome') { vA = pA.nome||''; vB = pB.nome||''; }
-                else if (st.sortCol === 'pn')   { vA = pA.pn||''; vB = pB.pn||''; }
-                else if (st.sortCol === 'ci')   { vA = Number(precificacao[pA.nome]?.ci ?? pA.ci ?? 0); vB = Number(precificacao[pB.nome]?.ci ?? pB.ci ?? 0); }
-                else {
-                    let rA = 0, rB = 0;
-                    try { const res = calcularPreco(pA.nome, st.sortCol, tp, wTaxa, wROI); rA = res?.precoFinal || 0; } catch(e){}
-                    try { const res = calcularPreco(pB.nome, st.sortCol, tp, wTaxa, wROI); rB = res?.precoFinal || 0; } catch(e){}
-                    vA = rA; vB = rB;
-                }
-                const cmp = typeof vA === 'number' ? vA - vB : String(vA).localeCompare(String(vB), 'pt-BR');
+                const vA = grupos[a][0].ncm||'', vB = grupos[b][0].ncm||'';
+                const cmp = String(vA).localeCompare(String(vB), 'pt-BR');
                 return st.sortDir === 'asc' ? cmp : -cmp;
             });
         }
@@ -17279,14 +17310,15 @@ function renderizarTabelaPrecoVenda() {
             : '<span style="color:#cbd5e1">—</span>';
         const pnCell = `<span style="font-family:var(--tv-font-mono);font-size:0.72rem">${_escapeHtml(pn)}</span>${temPecas ? `<span id="${idExpandTV}"></span>` : ''}`;
 
+        const _rowBg = isPeca ? '#fafbfd' : bg;
         let row = `<tr class="tv-data-row${isPeca?' tv-peca-row':''}" style="${isPeca?'display:none;background:#fafbfd':'background:'+bg}"${isPeca ? ` data-tv-peca-filha="${_escapeHtml((prod.componente||'').trim())}"` : ''}>
-            <td class="tv-td-fixed" style="background:${isPeca?'#fafbfd':bg}">${_escapeHtml(ncm)}</td>
-            <td style="padding:0 8px">${grupoBadge}</td>
-            <td style="padding:0 8px">${pnCell}</td>
-            <td style="padding:0 8px;color:#94a3b8;font-size:0.72rem;max-width:160px;overflow:hidden;text-overflow:ellipsis" title="${_escapeHtml(nomeFab)}">${_escapeHtml(nomeFab)}</td>
-            <td style="padding:0 8px;color:#94a3b8;font-size:0.72rem;text-align:center">${_escapeHtml(isPeca ? comp : '—')}</td>
-            <td style="padding:0 8px;max-width:180px;overflow:hidden;text-overflow:ellipsis" title="${_escapeHtml(prod.nome)}">${isPeca?'<span style="color:#94a3b8">↳ </span>':''}<span style="font-weight:${isPeca?'400':'600'};color:${isPeca?'#64748b':'var(--tv-navy-900)'}">${_escapeHtml(prod.nome)}</span></td>
-            <td class="tv-ci-cell">${ciStr}</td>`;
+            <td class="tv-td-fixed" style="background:${_rowBg}">${_escapeHtml(ncm)}</td>
+            <td class="tv-td-sticky" style="left:110px;background:${_rowBg};padding:0 8px">${grupoBadge}</td>
+            <td class="tv-td-sticky" style="left:200px;background:${_rowBg};padding:0 8px">${pnCell}</td>
+            <td class="tv-td-sticky" style="left:310px;background:${_rowBg};padding:0 8px;color:#94a3b8;font-size:0.72rem;max-width:160px;overflow:hidden;text-overflow:ellipsis" title="${_escapeHtml(nomeFab)}">${_escapeHtml(nomeFab)}</td>
+            <td class="tv-td-sticky" style="left:470px;background:${_rowBg};padding:0 8px;color:#94a3b8;font-size:0.72rem;text-align:center">${_escapeHtml(isPeca ? comp : '—')}</td>
+            <td class="tv-td-sticky" style="left:540px;background:${_rowBg};padding:0 8px;max-width:180px;overflow:hidden;text-overflow:ellipsis" title="${_escapeHtml(prod.nome)}">${isPeca?'<span style="color:#94a3b8">↳ </span>':''}<span style="font-weight:${isPeca?'400':'600'};color:${isPeca?'#64748b':'var(--tv-navy-900)'}">${_escapeHtml(prod.nome)}</span></td>
+            <td class="tv-ci-cell tv-td-sticky" style="left:700px;background:${_rowBg}">${ciStr}</td>`;
 
         ufs.forEach(uf => {
             const preco = precos[uf];
@@ -17572,12 +17604,12 @@ function renderizarTabelaPrecoVenda() {
         // Linha 2 — colunas
         let thead2 = `<tr class="tv-thead-cols">
             ${thFixed('ncm', 'NCM', '110px')}
-            <th class="tv-col-fixed" style="min-width:90px;cursor:default">Grupo</th>
-            <th class="tv-col-fixed${sc==='pn'?' sort-active':''}" onclick="window._tvSetSort('pn')" style="min-width:110px;cursor:pointer">PN<span class="tv-sort-caret">▲</span></th>
-            <th class="tv-col-fixed" style="min-width:160px;cursor:default">Nome Fábrica</th>
-            <th class="tv-col-fixed" style="min-width:70px;cursor:default">Comp.</th>
-            <th class="tv-col-fixed${sc==='nome'?' sort-active':''}" onclick="window._tvSetSort('nome')" style="min-width:160px;cursor:pointer">Nome<span class="tv-sort-caret">▲</span></th>
-            ${thSort('ci', 'CI', 'tv-ci-cell tv-col-fixed')}`;
+            <th class="tv-col-fixed tv-col-grupo" style="min-width:90px;cursor:default">Grupo</th>
+            <th class="tv-col-fixed tv-col-pn${sc==='pn'?' sort-active':''}" onclick="window._tvSetSort('pn')" style="min-width:110px;cursor:pointer">PN<span class="tv-sort-caret">▲</span></th>
+            <th class="tv-col-fixed tv-col-nomefab" style="min-width:160px;cursor:default">Nome Fábrica</th>
+            <th class="tv-col-fixed tv-col-comp" style="min-width:70px;cursor:default">Comp.</th>
+            <th class="tv-col-fixed tv-col-nome${sc==='nome'?' sort-active':''}" onclick="window._tvSetSort('nome')" style="min-width:160px;cursor:pointer">Nome<span class="tv-sort-caret">▲</span></th>
+            ${thSort('ci', 'CI', 'tv-ci-cell tv-col-fixed tv-col-ci')}`;
         gruposRegiao.forEach(gr => {
             gr.ufs.forEach(uf => {
                 thead2 += thSort(uf, uf, `tv-uf-col tv-uf-${gr.regiao}`);
