@@ -17035,42 +17035,44 @@ function renderizarTabelaPrecoVenda() {
     const temWI = tvState.wiTaxa !== null || tvState.wiROI !== null;
 
     // ── Ordenação ──
-    let ordemFinal = [...ordemGrupos].filter(chave => _prodPassaFiltro(grupos[chave][0]));
-    if (tvState.sortCol && tvState.sortCol !== 'ncm') {
-        // Ordenar dentro de cada grupo NCM, preservando a ordem dos NCMs
+    // Sempre agrupa por NCM primeiro (mantendo ordem de primeira aparição do NCM),
+    // depois ordena dentro de cada grupo conforme sortCol.
+    {
+        const _filtered = [...ordemGrupos].filter(chave => _prodPassaFiltro(grupos[chave][0]));
         const _ncmOrder = [];
         const _ncmMap = {};
-        ordemFinal.forEach(chave => {
+        _filtered.forEach(chave => {
             const ncm = grupos[chave][0].ncm || '—';
             if (!_ncmMap[ncm]) { _ncmMap[ncm] = []; _ncmOrder.push(ncm); }
             _ncmMap[ncm].push(chave);
         });
-        _ncmOrder.forEach(ncm => {
-            _ncmMap[ncm].sort((a, b) => {
-                const pA = grupos[a][0], pB = grupos[b][0];
-                let vA, vB;
-                if (tvState.sortCol === 'nome') { vA = pA.nome||''; vB = pB.nome||''; }
-                else if (tvState.sortCol === 'pn') { vA = pA.pn||''; vB = pB.pn||''; }
-                else if (tvState.sortCol === 'ci') {
-                    vA = Number(precificacao[pA.nome]?.ci ?? pA.ci ?? 0);
-                    vB = Number(precificacao[pB.nome]?.ci ?? pB.ci ?? 0);
-                } else {
-                    let rA = 0, rB = 0;
-                    try { const res = calcularPreco(pA.nome, tvState.sortCol, tipoPessoa, tvState.wiTaxa, tvState.wiROI); rA = res ? res.precoFinal : 0; } catch(e) {}
-                    try { const res = calcularPreco(pB.nome, tvState.sortCol, tipoPessoa, tvState.wiTaxa, tvState.wiROI); rB = res ? res.precoFinal : 0; } catch(e) {}
-                    vA = rA; vB = rB;
-                }
-                const cmp = typeof vA === 'number' ? vA - vB : String(vA).localeCompare(String(vB), 'pt-BR');
+        if (tvState.sortCol === 'ncm') {
+            _ncmOrder.sort((a, b) => {
+                const cmp = String(a).localeCompare(String(b), 'pt-BR');
                 return tvState.sortDir === 'asc' ? cmp : -cmp;
             });
-        });
+        } else if (tvState.sortCol) {
+            _ncmOrder.forEach(ncm => {
+                _ncmMap[ncm].sort((a, b) => {
+                    const pA = grupos[a][0], pB = grupos[b][0];
+                    let vA, vB;
+                    if (tvState.sortCol === 'nome') { vA = pA.nome||''; vB = pB.nome||''; }
+                    else if (tvState.sortCol === 'pn') { vA = pA.pn||''; vB = pB.pn||''; }
+                    else if (tvState.sortCol === 'ci') {
+                        vA = Number(precificacao[pA.nome]?.ci ?? pA.ci ?? 0);
+                        vB = Number(precificacao[pB.nome]?.ci ?? pB.ci ?? 0);
+                    } else {
+                        let rA = 0, rB = 0;
+                        try { const res = calcularPreco(pA.nome, tvState.sortCol, tipoPessoa, tvState.wiTaxa, tvState.wiROI); rA = res ? res.precoFinal : 0; } catch(e) {}
+                        try { const res = calcularPreco(pB.nome, tvState.sortCol, tipoPessoa, tvState.wiTaxa, tvState.wiROI); rB = res ? res.precoFinal : 0; } catch(e) {}
+                        vA = rA; vB = rB;
+                    }
+                    const cmp = typeof vA === 'number' ? vA - vB : String(vA).localeCompare(String(vB), 'pt-BR');
+                    return tvState.sortDir === 'asc' ? cmp : -cmp;
+                });
+            });
+        }
         ordemFinal = _ncmOrder.flatMap(ncm => _ncmMap[ncm]);
-    } else if (tvState.sortCol === 'ncm') {
-        ordemFinal.sort((a, b) => {
-            const vA = grupos[a][0].ncm||'', vB = grupos[b][0].ncm||'';
-            const cmp = String(vA).localeCompare(String(vB), 'pt-BR');
-            return tvState.sortDir === 'asc' ? cmp : -cmp;
-        });
     }
 
     // ── Callbacks de interação (expostos em window para uso inline) ──
@@ -17198,40 +17200,42 @@ function renderizarTabelaPrecoVenda() {
             return true;
         }
 
-        let ordem = [...ordemGrupos].filter(chave => passaFiltro(grupos[chave][0]));
-        if (st.sortCol && st.sortCol !== 'ncm') {
-            // Ordenar dentro de cada grupo NCM, preservando a ordem dos NCMs
+        // Sempre agrupa por NCM antes de qualquer sort
+        let ordem;
+        {
+            const _f = [...ordemGrupos].filter(chave => passaFiltro(grupos[chave][0]));
             const ncmOrder = [];
             const ncmMap = {};
-            ordem.forEach(chave => {
+            _f.forEach(chave => {
                 const ncm = grupos[chave][0].ncm || '—';
                 if (!ncmMap[ncm]) { ncmMap[ncm] = []; ncmOrder.push(ncm); }
                 ncmMap[ncm].push(chave);
             });
-            ncmOrder.forEach(ncm => {
-                ncmMap[ncm].sort((a, b) => {
-                    const pA = grupos[a][0], pB = grupos[b][0];
-                    let vA, vB;
-                    if (st.sortCol === 'nome') { vA = pA.nome||''; vB = pB.nome||''; }
-                    else if (st.sortCol === 'pn') { vA = pA.pn||''; vB = pB.pn||''; }
-                    else if (st.sortCol === 'ci') { vA = Number(precificacao[pA.nome]?.ci ?? pA.ci ?? 0); vB = Number(precificacao[pB.nome]?.ci ?? pB.ci ?? 0); }
-                    else {
-                        let rA = 0, rB = 0;
-                        try { const res = calcularPreco(pA.nome, st.sortCol, tp, wTaxa, wROI); rA = res?.precoFinal || 0; } catch(e){}
-                        try { const res = calcularPreco(pB.nome, st.sortCol, tp, wTaxa, wROI); rB = res?.precoFinal || 0; } catch(e){}
-                        vA = rA; vB = rB;
-                    }
-                    const cmp = typeof vA === 'number' ? vA - vB : String(vA).localeCompare(String(vB), 'pt-BR');
+            if (st.sortCol === 'ncm') {
+                ncmOrder.sort((a, b) => {
+                    const cmp = String(a).localeCompare(String(b), 'pt-BR');
                     return st.sortDir === 'asc' ? cmp : -cmp;
                 });
-            });
+            } else if (st.sortCol) {
+                ncmOrder.forEach(ncm => {
+                    ncmMap[ncm].sort((a, b) => {
+                        const pA = grupos[a][0], pB = grupos[b][0];
+                        let vA, vB;
+                        if (st.sortCol === 'nome') { vA = pA.nome||''; vB = pB.nome||''; }
+                        else if (st.sortCol === 'pn') { vA = pA.pn||''; vB = pB.pn||''; }
+                        else if (st.sortCol === 'ci') { vA = Number(precificacao[pA.nome]?.ci ?? pA.ci ?? 0); vB = Number(precificacao[pB.nome]?.ci ?? pB.ci ?? 0); }
+                        else {
+                            let rA = 0, rB = 0;
+                            try { const res = calcularPreco(pA.nome, st.sortCol, tp, wTaxa, wROI); rA = res?.precoFinal || 0; } catch(e){}
+                            try { const res = calcularPreco(pB.nome, st.sortCol, tp, wTaxa, wROI); rB = res?.precoFinal || 0; } catch(e){}
+                            vA = rA; vB = rB;
+                        }
+                        const cmp = typeof vA === 'number' ? vA - vB : String(vA).localeCompare(String(vB), 'pt-BR');
+                        return st.sortDir === 'asc' ? cmp : -cmp;
+                    });
+                });
+            }
             ordem = ncmOrder.flatMap(ncm => ncmMap[ncm]);
-        } else if (st.sortCol === 'ncm') {
-            ordem.sort((a, b) => {
-                const vA = grupos[a][0].ncm||'', vB = grupos[b][0].ncm||'';
-                const cmp = String(vA).localeCompare(String(vB), 'pt-BR');
-                return st.sortDir === 'asc' ? cmp : -cmp;
-            });
         }
 
         // Agrupar por NCM para linhas de cabeçalho
