@@ -8069,7 +8069,7 @@ function renderControleImbelMovimentacao() {
             ${first.cpfCnpj ? `<div style="font-family:var(--tv-font-mono);font-size:0.62rem;color:#94a3b8;font-weight:400;margin-top:1px">${first.cpfCnpj}</div>` : ''}
         </td>
         <td style="${tdCenter};font-family:var(--tv-font-mono);font-size:0.75rem;font-weight:700;color:#15803d">${fmt(totalVal)}</td>
-        <td style="${tdCenter};font-size:0.72rem;color:#64748b;font-style:italic;text-align:left">${obsVal || '<span style="color:#cbd5e1">—</span>'}</td>
+        <td style="${tdCenter};font-size:0.72rem;color:#64748b;font-style:italic;text-align:left;white-space:normal;overflow:visible;word-break:break-word;overflow-wrap:break-word;max-width:180px">${obsVal || '<span style="color:#cbd5e1">—</span>'}</td>
         <td style="${tdCenter}">
             <input type="checkbox" class="imbel_table_chk_pag"
                 data-ids="${itens.map(m=>m.id).join(',')}"
