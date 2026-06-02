@@ -33,7 +33,8 @@
       "PowerShell($lines = Get-Content \"e:\\\\MEUS DOCUMENTOS\\\\OneDrive\\\\Documentos\\\\Sistemas\\\\Estoque\\\\Controle-Estoque\\\\app.js\" -Encoding UTF8; $lines[6595..6605] | ForEach-Object { [PSCustomObject]@{Line=$_} } | Format-List)",
       "Bash(Select-String -Path \"e:\\\\MEUS DOCUMENTOS\\\\OneDrive\\\\Documentos\\\\Sistemas\\\\Estoque\\\\Controle-Estoque\\\\app.js\" -Pattern \"function renderizarTabela|renderizarTabela\\\\s*=\")",
       "Bash(Select-Object LineNumber, Line)",
-      "Bash(python3 -c ' *)"
+      "Bash(python3 -c ' *)",
+      "Bash(copy app.js app2.js)"
     ],
     "additionalDirectories": [
       "\\tmp"
