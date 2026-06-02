@@ -7615,11 +7615,11 @@ function renderControleImbelMovimentacao() {
     const cmdbar = document.createElement('div');
     cmdbar.className = 'imbel-cmdbar';
     cmdbar.innerHTML = `
-      <div class="imbel-search-wrap">
-        <svg class="imbel-search-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-        <input type="text" id="imbel_filter_dest" class="imbel-search-input" placeholder="Destinatário..." />
+      <div class="search">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="text" id="imbel_filter_dest" placeholder="Destinatário..." style="min-width:160px" />
       </div>
-      <select id="imbel_filter_prod" class="imbel-search-input" style="width:170px;padding-left:8px">
+      <select id="imbel_filter_prod" style="height:32px;padding:0 8px;border:1px solid #e2e8f0;border-radius:5px;font-size:12px;min-width:160px">
         <option value="">Todos os produtos</option>
       </select>
       <input type="hidden" id="imbel_filter_tipo" value="${movState.tipo}" />
@@ -7629,14 +7629,14 @@ function renderControleImbelMovimentacao() {
       <input type="hidden" id="imbel_filter_pago" />
       <input type="hidden" id="imbel_filter_entregue_only" />
       <input type="hidden" id="imbel_filter_fi_only" />
-      <button id="imbel_filter_reset" class="imbel-bar-btn" title="Limpar filtros">↺ Reset</button>
-      <span id="imbelMovContador" style="font-family:var(--tv-font-mono);font-size:0.65rem;color:var(--tv-navy-400)"></span>
-      <div class="imbel-bar-right">
-        <button class="imbel-bar-btn" onclick="document.getElementById('inputImportarImbelMov').click()">IMPORTAR</button>
-        <button class="imbel-bar-btn" onclick="exportarImbelMovimentacao()">EXPORTAR</button>
-        <button class="imbel-bar-btn" id="imbelBtnRelatorio">RELATÓRIO</button>
-        <button class="imbel-bar-btn" id="imbelBtnLimpar">LIMPAR</button>
-        <button class="imbel-bar-btn accent" id="imbelBtnAddMov">+ MOVIMENTAÇÃO</button>
+      <button id="imbel_filter_reset" class="btn" title="Limpar filtros" style="height:30px;padding:0 10px;font-size:11px;border:1px solid #e2e8f0;border-radius:5px;background:#fff;cursor:pointer">↺ Reset</button>
+      <span id="imbelMovContador" style="font-family:var(--tv-font-mono);font-size:0.65rem;color:#94a3b8"></span>
+      <div class="actions">
+        <button class="btn" onclick="document.getElementById('inputImportarImbelMov').click()">Importar Excel</button>
+        <button class="btn" onclick="exportarImbelMovimentacao()">Exportar</button>
+        <button class="btn" id="imbelBtnRelatorio">Relatório</button>
+        <button class="btn" id="imbelBtnLimpar">Limpar</button>
+        <button class="btn accent" id="imbelBtnAddMov">+ Movimentação</button>
       </div>`;
 
     // 2. TYPE BAR (chips de período + tipo)
@@ -7778,33 +7778,29 @@ function renderControleImbelMovimentacao() {
     const tabelaWrap = document.createElement('div');
     tabelaWrap.className = 'imbel-body';
 
-        const thStyle = 'padding:6px 10px;background:var(--tv-navy-900);color:var(--tv-navy-200);font-family:var(--tv-font-display);font-size:.62rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;white-space:nowrap;text-align:center;border-right:1px solid var(--tv-navy-700)';
+        const thStyle = 'padding:6px 10px;background:var(--tv-navy-900);color:#e2e8f0;font-family:var(--tv-font-display);font-size:.62rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;white-space:nowrap;text-align:center;border-right:1px solid rgba(255,255,255,0.08)';
         const tabela = document.createElement('table');
-        tabela.style.cssText = 'width:100%;border-collapse:collapse;font-size:.78rem';
-                tabela.innerHTML = `<thead><tr style="position:sticky;top:0;z-index:3">
-        <th style="${thStyle};width:36px">
-            <input type="checkbox" id="imbelSelectAll"
-                         onchange="document.querySelectorAll('.imbel_table_chk_sel')
-                             .forEach(c=>c.checked=this.checked)"
-                         title="Selecionar todos">
-        </th>
-        <th style="${thStyle};text-align:left;min-width:80px">ID</th>
-        <th style="${thStyle};text-align:left">Destinatário</th>
-        <th style="${thStyle}">Data / Hora</th>
-        <th style="${thStyle}">Tipo</th>
-        <th style="${thStyle};text-align:left">Produto</th>
-        <th style="${thStyle}">Qtd</th>
-        <th style="${thStyle}">Valor</th>
-        <th style="${thStyle}" title="Entregue">Entg.</th>
-        <th style="${thStyle}" title="Pago">Pgto</th>
-        <th style="${thStyle}" title="FI">FI</th>
-        <th style="${thStyle}">Ações</th>
+        tabela.style.cssText = 'width:max-content;min-width:100%;border-collapse:collapse;font-size:.78rem';
+        tabela.innerHTML = `<thead><tr style="position:sticky;top:0;z-index:3">
+        <th style="${thStyle};text-align:left;min-width:90px">ID</th>
+        <th style="${thStyle};min-width:110px">Data / Hora</th>
+        <th style="${thStyle};min-width:130px">Tipo</th>
+        <th style="${thStyle};text-align:left;min-width:200px">Produto</th>
+        <th style="${thStyle};min-width:70px">Qtd</th>
+        <th style="${thStyle};min-width:90px">Saldo Após</th>
+        <th style="${thStyle};min-width:90px">NF</th>
+        <th style="${thStyle};text-align:left;min-width:180px">Cliente</th>
+        <th style="${thStyle};min-width:80px">Usuário</th>
+        <th style="${thStyle};min-width:110px">Valor</th>
+        <th style="${thStyle};text-align:left;min-width:180px">Observação</th>
+        <th style="${thStyle};min-width:70px">Ações</th>
     </tr></thead><tbody></tbody>`;
 
         const tbody = tabela.querySelector('tbody');
-        const tdStyle = 'padding:5px 8px;border-bottom:1px solid var(--tv-navy-50);vertical-align:middle;white-space:normal;word-break:break-word;max-width:260px';
-        const tdCenter = tdStyle + ';text-align:center';
-        const tdBase = tdStyle + ';text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis';
+        const tdBorder = 'border-right:1px solid #f1f5f9;border-bottom:1px solid #f1f5f9;vertical-align:middle';
+        const tdStyle  = `padding:5px 10px;${tdBorder}`;
+        const tdCenter = `${tdStyle};text-align:center`;
+        const tdBase   = `${tdStyle};text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:220px`;
 
         // função para popular tbody com filtros (agrupa por destinatário+data ou groupId)
         function populateTbody() {
@@ -7860,6 +7856,33 @@ function renderControleImbelMovimentacao() {
 
             const fmt = v => 'R$ ' + Number(v||0).toLocaleString('pt-BR',
                 {minimumFractionDigits:2});
+            const fmtQtd = v => Number(v||0).toLocaleString('pt-BR');
+
+            // calcular saldos correntes por produto (percorre do mais antigo para o mais novo)
+            const _saldosAtual = calcularSaldosImbel(data);
+            // mapear saldo após cada grupo (ordem reversa = mais recente primeiro)
+            // construir mapa produto→saldo caminhando de trás para frente na lista de grupos
+            const _allGrupos = [...groups.entries()];
+            const _saldoAposGrupo = new Map();
+            // começar do final (mais antigo) e acumular
+            const _saldoTmp = {};
+            (data.produtos||[]).forEach(p => { _saldoTmp[p.id] = _saldosAtual[p.id]?.saldo ?? 0; });
+            // percorrer do mais antigo para o mais recente para calcular saldo após cada grupo
+            [..._allGrupos].reverse().forEach(([gk, itens]) => {
+                const allSub = itens.flatMap(m =>
+                    (m.items && m.items.length) ? m.items : [{ produtoId: m.produtoId, quantidade: m.quantidade }]
+                );
+                const prodId = allSub[0]?.produtoId;
+                const isEnt = imbelTipoAumentaEstoque(itens[0].tipo);
+                const totalQtd = allSub.reduce((s,it) => s + (Number(it.quantidade)||0), 0);
+                const delta = isEnt ? totalQtd : -totalQtd;
+                // saldo após esta operação (caminhando do mais antigo: saldo antes + delta)
+                const saldoAntes = (_saldoTmp[prodId] ?? 0) - delta;
+                const saldoApos = _saldoTmp[prodId] ?? 0;
+                _saldoAposGrupo.set(gk, saldoApos);
+                _saldoTmp[prodId] = saldoAntes;
+            });
+
             let globalIdx = 0;
 
             groups.forEach((itens, key) => {
@@ -7868,6 +7891,7 @@ function renderControleImbelMovimentacao() {
                 const dataFmt = first.data
                     ? new Date(first.data + 'T12:00:00').toLocaleDateString('pt-BR')
                     : '—';
+                const saldoAposGrp = _saldoAposGrupo.get(key) ?? 0;
 
                 // Coletar sub-itens internos (m.items) de todas as movimentações do grupo
                 const allSubItems = itens.flatMap(m =>
@@ -7958,30 +7982,35 @@ function renderControleImbelMovimentacao() {
                                 const movId = (first.id || '').toString();
                                 const idShort = movId.length > 8 ? movId.slice(0,8) : movId;
 
+                                // NF: pegar do primeiro item ou primeiro sub-item
+                                const nfVal = first.nf || first.notaFiscal || allSubItems[0]?.nf || '';
+                                // Usuário: pegar do registro
+                                const usuarioVal = first.usuario || first.quem || '';
+                                // Observação
+                                const obsVal = first.observacoes || first.obs || first.observacao || '';
+                                // Saldo após
+                                const saldoAposColor = saldoAposGrp <= 0 ? '#dc2626' : saldoAposGrp <= 5 ? '#d97706' : '#374151';
+
                                 trGroup.innerHTML = `
-        <td style="${tdCenter};width:36px" onclick="event.stopPropagation()">
-            <input type="checkbox" class="imbel_table_chk_sel"
-                         data-ids="${itens.map(m=>m.id).join(',')}"
-                         style="width:15px;height:15px;cursor:pointer">
+        <td style="${tdStyle};white-space:nowrap">
+            <span style="font-family:var(--tv-font-mono);font-size:0.68rem;font-weight:700;color:var(--tv-navy-700);background:var(--tv-navy-100);padding:1px 6px;border-radius:3px;letter-spacing:.03em" title="${first.id||''}">${idShort}</span>
         </td>
-        <td style="${tdStyle};white-space:nowrap" onclick="event.stopPropagation()">
-            <span style="font-family:var(--tv-font-mono);font-size:0.68rem;font-weight:700;color:var(--tv-navy-700);background:var(--tv-navy-100);padding:1px 6px;border-radius:2px;letter-spacing:.04em" title="${first.id||''}">${idShort}</span>
-        </td>
-        <td style="${tdStyle};font-weight:600;color:#1e293b">
-            ${first.destinatario || '<span style="color:#94a3b8">—</span>'}
-            ${first.cpfCnpj ? `<div style="font-family:var(--tv-font-mono);font-size:0.62rem;color:#94a3b8;font-weight:400;margin-top:1px">${first.cpfCnpj}</div>` : ''}
-        </td>
-        <td style="${tdCenter};white-space:nowrap;font-family:var(--tv-font-mono);font-size:0.72rem;color:var(--tv-navy-600)">
-            <div>${dataFmt}</div>
-            ${first.hora ? `<div style="font-size:0.62rem;color:var(--tv-navy-400)">${first.hora}</div>` : ''}
+        <td style="${tdCenter};font-family:var(--tv-font-mono);font-size:0.72rem;color:#374151;white-space:nowrap">
+            <div style="font-weight:600">${dataFmt}</div>
+            ${first.hora ? `<div style="font-size:0.62rem;color:#94a3b8;margin-top:1px">${first.hora}</div>` : ''}
         </td>
         <td style="${tdCenter}">${tipoBadge}</td>
         ${produtoCell}
         ${qtdCell}
+        <td style="${tdCenter};font-family:var(--tv-font-mono);font-size:0.78rem;font-weight:600;color:${saldoAposColor}">${fmtQtd(saldoAposGrp)}</td>
+        <td style="${tdBase};font-family:var(--tv-font-mono);font-size:0.72rem;color:#64748b">${nfVal || '<span style="color:#cbd5e1">—</span>'}</td>
+        <td style="${tdBase};font-weight:500;color:#1e293b">
+            ${first.destinatario || '<span style="color:#94a3b8">—</span>'}
+            ${first.cpfCnpj ? `<div style="font-family:var(--tv-font-mono);font-size:0.62rem;color:#94a3b8;font-weight:400;margin-top:1px">${first.cpfCnpj}</div>` : ''}
+        </td>
+        <td style="${tdCenter};font-size:0.72rem;color:#64748b">${usuarioVal || '<span style="color:#cbd5e1">—</span>'}</td>
         <td style="${tdCenter};font-family:var(--tv-font-mono);font-size:0.75rem;font-weight:700;color:#15803d">${fmt(totalVal)}</td>
-        ${entCell}
-        ${pagCell}
-        ${fiCell}
+        <td style="${tdBase};font-size:0.72rem;color:#64748b;font-style:italic">${obsVal || '<span style="color:#cbd5e1">—</span>'}</td>
         <td style="${tdCenter}">
             <button class="imbel-row-btn" style="padding:2px 8px" data-editmov="${itens[0].id}" data-editid="${itens[0].id}" title="Editar">✎</button>
             <button class="imbel-row-btn danger" style="padding:2px 8px" data-delid="${itens[0].id}" title="Excluir">✕</button>
@@ -8015,12 +8044,18 @@ function renderControleImbelMovimentacao() {
                         trItem.innerHTML = `
                     <td style="${tdCenter}"></td>
                     <td style="${tdCenter}"></td>
-                    <td colspan="2" style="${tdBase};padding-left:32px;color:#64748b;font-size:0.8rem">└</td>
-                    <td></td>
-                    <td style="${tdBase};font-weight:500;color:#1e293b">${pNome}</td>
+                    <td style="${tdCenter}"></td>
+                    <td style="${tdBase};padding-left:28px;color:#1e293b;font-weight:500">
+                        <span style="color:#94a3b8;margin-right:6px">└</span>${pNome}
+                    </td>
                     <td style="${tdCenter};font-family:var(--tv-font-mono);font-size:.82rem;font-weight:700;color:${itQtdColor}">${itQtdSign}${it.quantidade||0}</td>
+                    <td style="${tdCenter}"></td>
+                    <td style="${tdCenter}"></td>
+                    <td style="${tdCenter}"></td>
+                    <td style="${tdCenter}"></td>
                     <td style="${tdCenter};font-weight:600;color:#16a34a">R$ ${Number(it.valor||0).toLocaleString('pt-BR',{minimumFractionDigits:2})}</td>
-                    <td colspan="4"></td>`;
+                    <td style="${tdCenter}"></td>
+                    <td style="${tdCenter}"></td>`;
                         tbody.appendChild(trItem);
                     });
                 }
@@ -8041,10 +8076,10 @@ function renderControleImbelMovimentacao() {
 
                 trDetail.innerHTML = `
             <td colspan="12"
-                    style="padding:10px 12px 10px 52px;background:#f8fafc;border-left:4px solid #1e3a5f;border-bottom:1px solid #e2e8f0;font-size:0.82rem">
+                    style="padding:8px 16px 8px 40px;background:#f8fafc;border-left:4px solid #1e3a5f;border-bottom:1px solid #e2e8f0;font-size:0.8rem">
                 ${campos.length
-                    ? campos.map(c => `<span style="margin-right:24px;color:#475569">${c}</span>`).join('')
-                    : '<span style="color:#94a3b8">Sem informações adicionais</span>'}
+                    ? campos.map(c => `<span style="margin-right:20px;color:#475569">${c}</span>`).join('')
+                    : '<span style="color:#94a3b8;font-style:italic">Sem informações adicionais</span>'}
             </td>`;
                 tbody.appendChild(trDetail);
             });
