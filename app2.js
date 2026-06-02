@@ -7419,15 +7419,6 @@ function renderControleImbelEstoque() {
             <div class="kpi-label">Esgotados${counts.out > 0 ? ' <span style="background:#fee2e2;color:#dc2626;font-size:0.6rem;padding:0 4px;border-radius:4px;font-weight:700">!</span>' : ''}</div>
             <div class="kpi-value ${counts.out > 0 ? 'neg' : ''}">${counts.out}</div>
             <div class="kpi-sub">saldo zero</div>
-          </div>
-          <div class="kpi">
-            <div class="kpi-label">Abaixo do Mín.${counts.crit > 0 ? ' <span style="background:#fef3c7;color:#d97706;font-size:0.6rem;padding:0 4px;border-radius:4px;font-weight:700">!</span>' : ''}</div>
-            <div class="kpi-value ${counts.crit > 0 ? 'accent' : ''}">${counts.crit}</div>
-            <div class="kpi-sub">requer reposição</div>
-          </div>
-          <div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;padding:0 4px;border-left:1px solid #e2e8f0;margin-left:4px">
-            <span style="font-family:var(--tv-font-display);font-size:0.6rem;font-weight:700;letter-spacing:.07em;color:#94a3b8;white-space:nowrap">SITUAÇÃO:</span>
-            ${statusBtns}
           </div>`;
     }
 
