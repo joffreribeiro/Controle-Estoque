@@ -7800,26 +7800,27 @@ function renderControleImbelMovimentacao() {
         const tabela = document.createElement('table');
         tabela.className = 'imbel-mov-grid';
         tabela.style.cssText = 'width:max-content;min-width:100%;font-size:.78rem;border-collapse:collapse';
+        tabela.style.cssText = 'width:100%;font-size:.78rem;border-collapse:collapse;table-layout:fixed';
         tabela.innerHTML = `<thead><tr style="position:sticky;top:0;z-index:3">
-        <th style="${thStyle};min-width:90px">ID</th>
-        <th style="${thStyle};min-width:110px">Data / Hora</th>
-        <th style="${thStyle};min-width:130px">Tipo</th>
-        <th style="${thStyle};min-width:200px">Produto</th>
-        <th style="${thStyle};min-width:70px">Qtd</th>
-        <th style="${thStyle};min-width:180px">Cliente</th>
-        <th style="${thStyle};min-width:110px">Valor</th>
-        <th style="${thStyle};min-width:180px">Observação</th>
-        <th style="${thStyle};min-width:60px" title="Pagamento">Pgto</th>
-        <th style="${thStyle};min-width:60px" title="Entregue">Entg.</th>
-        <th style="${thStyle};min-width:50px" title="Envio FI">FI</th>
-        <th style="${thStyle};min-width:70px">Ações</th>
+        <th style="${thStyle};width:90px">ID</th>
+        <th style="${thStyle};width:95px">Data / Hora</th>
+        <th style="${thStyle};width:120px">Tipo</th>
+        <th style="${thStyle};width:160px">Produto</th>
+        <th style="${thStyle};width:55px">Qtd</th>
+        <th style="${thStyle};width:180px">Cliente</th>
+        <th style="${thStyle};width:100px">Valor</th>
+        <th style="${thStyle};width:auto">Observação</th>
+        <th style="${thStyle};width:48px" title="Pagamento">Pgto</th>
+        <th style="${thStyle};width:48px" title="Entregue">Entg.</th>
+        <th style="${thStyle};width:40px" title="Envio FI">FI</th>
+        <th style="${thStyle};width:65px">Ações</th>
     </tr></thead><tbody></tbody>`;
 
         const tbody = tabela.querySelector('tbody');
         const B = 'border:1px solid #d1d5db;background:#fff';
-        const tdStyle  = `padding:5px 10px;vertical-align:middle;${B}`;
+        const tdStyle  = `padding:5px 8px;vertical-align:middle;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;${B}`;
         const tdCenter = `${tdStyle};text-align:center`;
-        const tdBase   = `${tdStyle};text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:220px`;
+        const tdBase   = `${tdStyle};text-align:left`;
         const tdFirst  = tdBase;
 
         // função para popular tbody com filtros (agrupa por destinatário+data ou groupId)
