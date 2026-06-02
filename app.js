@@ -5847,69 +5847,91 @@ function renderControleImbelAuditoria() {
     }
 
     container.innerHTML = '';
-    container.style.cssText = 'display:flex;flex-direction:column;height:100%;overflow:hidden;background:var(--tv-navy-50)';
+    container.className = 'imbel-subtab';
 
-    // ── Command bar ──
+    // 1. COMMAND BAR
     const cmdbar = document.createElement('div');
     cmdbar.className = 'imbel-cmdbar';
     cmdbar.innerHTML = `
-      <div class="imbel-search-wrap">
-        <svg class="imbel-search-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-        <input type="text" id="imbelAuditoriaBusca" class="imbel-search-input" placeholder="Buscar..." style="width:180px" oninput="renderControleImbelAuditoria()" />
+      <div class="search">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="text" id="imbelAuditoriaBusca" placeholder="Buscar..." style="width:180px" oninput="renderControleImbelAuditoria()" />
       </div>
-      <div class="imbel-seg">
-        <button class="imbel-seg-btn ${!state.filtroAcao?'active':''}" onclick="document.getElementById('imbelAuditoriaFiltroAcao').value='';renderControleImbelAuditoria()">TODAS</button>
-        <button class="imbel-seg-btn ${state.filtroAcao==='criacao'?'active':''}" onclick="document.getElementById('imbelAuditoriaFiltroAcao').value='criacao';renderControleImbelAuditoria()">CRIAÇÃO</button>
-        <button class="imbel-seg-btn ${state.filtroAcao==='edicao'?'active':''}" onclick="document.getElementById('imbelAuditoriaFiltroAcao').value='edicao';renderControleImbelAuditoria()">EDIÇÃO</button>
-        <button class="imbel-seg-btn ${state.filtroAcao==='exclusao'?'active':''}" onclick="document.getElementById('imbelAuditoriaFiltroAcao').value='exclusao';renderControleImbelAuditoria()">EXCLUSÃO</button>
+      <div class="seg">
+        <button class="${!state.filtroAcao?'active':''}" onclick="document.getElementById('imbelAuditoriaFiltroAcao').value='';renderControleImbelAuditoria()">Todas</button>
+        <button class="${state.filtroAcao==='criacao'?'active':''}" onclick="document.getElementById('imbelAuditoriaFiltroAcao').value='criacao';renderControleImbelAuditoria()">Criação</button>
+        <button class="${state.filtroAcao==='edicao'?'active':''}" onclick="document.getElementById('imbelAuditoriaFiltroAcao').value='edicao';renderControleImbelAuditoria()">Edição</button>
+        <button class="${state.filtroAcao==='exclusao'?'active':''}" onclick="document.getElementById('imbelAuditoriaFiltroAcao').value='exclusao';renderControleImbelAuditoria()">Exclusão</button>
       </div>
-      <select id="imbelAuditoriaFiltroEntidade" class="imbel-search-input" style="width:160px;padding-left:8px" onchange="renderControleImbelAuditoria()">
+      <select id="imbelAuditoriaFiltroEntidade" onchange="renderControleImbelAuditoria()">
         <option value="">Produtos e Movimentações</option>
         <option value="produto">Somente Produtos</option>
         <option value="movimentacao">Somente Movimentações</option>
       </select>
-      <!-- hidden inputs needed by existing code -->
       <input type="hidden" id="imbelAuditoriaFiltroAcao" value="" />
-      <div class="imbel-bar-right">
-        <button class="imbel-bar-btn" onclick="exportarAuditoriaImbel()">EXPORTAR</button>
+      <div class="actions">
+        <button class="btn" onclick="exportarAuditoriaImbel()">Exportar</button>
       </div>`;
     container.appendChild(cmdbar);
 
-    // KPI strip
+    // 2. TYPE BAR (pills de tipo de evento)
+    const typebar = document.createElement('div');
+    typebar.className = 'imbel-typebar';
+    typebar.innerHTML = `<span class="imbel-typebar-lbl">Tipo:</span>
+      <button class="imbel-pill on" style="background:#dcfce7;color:#16a34a;border-color:#16a34a40">Criação<span class="imbel-pill-cnt">${lista.filter(a=>a.acao==='criacao').length}</span></button>
+      <button class="imbel-pill" style="color:#92400e">Edição<span class="imbel-pill-cnt">${lista.filter(a=>a.acao==='edicao').length}</span></button>
+      <button class="imbel-pill" style="color:#dc2626">Exclusão<span class="imbel-pill-cnt">${lista.filter(a=>a.acao==='exclusao').length}</span></button>`;
+    container.appendChild(typebar);
+
+    // 3. KPI STRIP
     const criacoes  = lista.filter(a=>a.acao==='criacao').length;
     const edicoes   = lista.filter(a=>a.acao==='edicao').length;
     const exclusoes = lista.filter(a=>a.acao==='exclusao').length;
     const kpiStrip = document.createElement('div');
-    kpiStrip.className = 'imbel-kpi-strip';
+    kpiStrip.className = 'imbel-kpis';
     kpiStrip.innerHTML = `
-      <div class="imbel-kpi"><div class="imbel-kpi-lbl">Total Eventos</div><div class="imbel-kpi-val">${lista.length}</div><div class="imbel-kpi-sub">no log de auditoria</div></div>
-      <div class="imbel-kpi"><div class="imbel-kpi-lbl">Criações</div><div class="imbel-kpi-val pos">${criacoes}</div><div class="imbel-kpi-sub">produtos e movs</div></div>
-      <div class="imbel-kpi"><div class="imbel-kpi-lbl">Edições</div><div class="imbel-kpi-val amber">${edicoes}</div><div class="imbel-kpi-sub">alterações</div></div>
-      <div class="imbel-kpi"><div class="imbel-kpi-lbl">Exclusões</div><div class="imbel-kpi-val ${exclusoes?'neg':''}">${exclusoes}</div><div class="imbel-kpi-sub">remoções</div></div>`;
+      <div class="kpi"><div class="kpi-label">Total Eventos</div><div class="kpi-value">${lista.length}</div><div class="kpi-sub">no log de auditoria</div></div>
+      <div class="kpi"><div class="kpi-label">Criações</div><div class="kpi-value pos">${criacoes}</div><div class="kpi-sub">produtos e movs</div></div>
+      <div class="kpi"><div class="kpi-label">Edições</div><div class="kpi-value accent">${edicoes}</div><div class="kpi-sub">alterações</div></div>
+      <div class="kpi"><div class="kpi-label">Exclusões</div><div class="kpi-value ${exclusoes?'neg':''}">${exclusoes}</div><div class="kpi-sub">remoções</div></div>
+      <div class="kpi"><div class="kpi-label">Filtrados</div><div class="kpi-value" id="imbelAudKpiCount">${lista.length}</div><div class="kpi-sub">no filtro atual</div></div>`;
     container.appendChild(kpiStrip);
 
-    // ── Layout: timeline | detail ──
+    // 4. BODY — timeline | detail
+    const body = document.createElement('div');
+    body.className = 'imbel-body';
+    body.style.cssText = 'display:flex;overflow:hidden';
+
     const layout = document.createElement('div');
-    layout.className = 'imbel-aud-layout';
+    layout.className = 'imbel-audit-main';
+    layout.style.cssText = 'display:flex;flex:1;min-height:0;overflow:hidden';
 
     const listEl = document.createElement('div');
-    listEl.className = 'imbel-aud-list';
+    listEl.className = 'imbel-timeline';
     listEl.id = 'imbelAudList';
 
     const panelEl = document.createElement('div');
-    panelEl.className = 'imbel-aud-panel';
+    panelEl.className = 'imbel-detail';
     panelEl.id = 'imbelAudPanel';
-    panelEl.innerHTML = '<div class="imbel-aud-panel-empty">Selecione um evento para ver detalhes</div>';
+    panelEl.innerHTML = '<div style="padding:40px;text-align:center;color:#94a3b8;font-size:0.8rem">Selecione um evento para ver detalhes</div>';
 
     layout.appendChild(listEl);
     layout.appendChild(panelEl);
-    container.appendChild(layout);
+    body.appendChild(layout);
+    container.appendChild(body);
 
-    // Footbar
+    // 5. FOOTBAR
     const footbar = document.createElement('div');
     footbar.className = 'imbel-footbar';
     footbar.id = 'imbelAudFootbar';
-    footbar.innerHTML = `<span class="imbel-footbar-tag">IMBEL</span><span class="imbel-footbar-div">|</span><span>AUDITORIA</span><span class="imbel-footbar-div">|</span><span id="imbelAudCount">${lista.length} eventos</span>`;
+    footbar.innerHTML = `
+      <div class="seg"><span class="lbl">IMBEL</span><span class="val accent">AUDITORIA</span></div>
+      <div class="divider"></div>
+      <div class="seg"><span class="lbl">EVENTOS</span><span class="val" id="imbelAudCount">${lista.length}</span></div>
+      <div class="divider"></div>
+      <div class="seg"><span class="lbl">CRIAÇÕES</span><span class="val" style="color:#4ade80">${criacoes}</span></div>
+      <div class="divider"></div>
+      <div class="seg"><span class="lbl">EXCLUSÕES</span><span class="val ${exclusoes?'accent':''}">${exclusoes}</span></div>`;
     container.appendChild(footbar);
 
     _imbelAudRenderList(container, lista, state);
@@ -6212,7 +6234,7 @@ function renderControleImbelPrecos() {
     const container = document.getElementById('controleImbelPrecosContainer');
     if (!container) return;
     container.innerHTML = '';
-    container.style.cssText = 'display:flex;flex-direction:column;height:100%;overflow:hidden;background:var(--tv-navy-50)';
+    container.className = 'imbel-subtab';
 
     const byProduto = {};
     (data.precos || []).forEach(p => {
@@ -6232,28 +6254,30 @@ function renderControleImbelPrecos() {
     });
     const avgPreco = precoAtualList.length ? precoAtualList.reduce((s,v)=>s+v,0)/precoAtualList.length : 0;
 
-    // ── Command bar ──
+    // 1. COMMAND BAR
     const cmdbar = document.createElement('div');
     cmdbar.className = 'imbel-cmdbar';
     cmdbar.innerHTML = `
-      <span style="font-family:var(--tv-font-display);font-size:0.7rem;font-weight:700;color:var(--tv-navy-600)">TABELA DE PREÇOS — IMBEL SEDE</span>
-      <div class="imbel-bar-right">
-        <button class="imbel-bar-btn accent" onclick="abrirModalPrecoImbel()">+ NOVO PERÍODO</button>
+      <span class="filter-label">TABELA DE PREÇOS — IMBEL SEDE</span>
+      <div class="actions">
+        <button class="btn accent" onclick="abrirModalPrecoImbel()">+ Novo Período</button>
       </div>`;
     container.appendChild(cmdbar);
 
-    // ── KPI strip ──
+    // 3. KPI STRIP (sem typebar em Preços)
     const kpiStrip = document.createElement('div');
-    kpiStrip.className = 'imbel-kpi-strip';
+    kpiStrip.className = 'imbel-kpis';
     kpiStrip.innerHTML = `
-      <div class="imbel-kpi"><div class="imbel-kpi-lbl">Produtos c/ Preço</div><div class="imbel-kpi-val">${totalProdutos}</div><div class="imbel-kpi-sub">de ${(data.produtos||[]).length} cadastrados</div></div>
-      <div class="imbel-kpi"><div class="imbel-kpi-lbl">Registros</div><div class="imbel-kpi-val">${totalRegistros}</div><div class="imbel-kpi-sub">histórico de preços</div></div>
-      <div class="imbel-kpi"><div class="imbel-kpi-lbl">Preço Médio ${anoAtual}</div><div class="imbel-kpi-val amber">R$ ${avgPreco.toLocaleString('pt-BR',{minimumFractionDigits:2})}</div><div class="imbel-kpi-sub">ano vigente</div></div>`;
+      <div class="kpi"><div class="kpi-label">Produtos c/ Preço</div><div class="kpi-value">${totalProdutos}</div><div class="kpi-sub">de ${(data.produtos||[]).length} cadastrados</div></div>
+      <div class="kpi"><div class="kpi-label">Registros</div><div class="kpi-value">${totalRegistros}</div><div class="kpi-sub">histórico de preços</div></div>
+      <div class="kpi"><div class="kpi-label">Preço Médio ${anoAtual}</div><div class="kpi-value accent">R$ ${avgPreco.toLocaleString('pt-BR',{minimumFractionDigits:2})}</div><div class="kpi-sub">ano vigente</div></div>
+      <div class="kpi"><div class="kpi-label">Sem Preço</div><div class="kpi-value ${(data.produtos||[]).length-totalProdutos?'neg':''}">${(data.produtos||[]).length-totalProdutos}</div><div class="kpi-sub">produtos sem registro</div></div>
+      <div class="kpi"><div class="kpi-label">Ano Vigente</div><div class="kpi-value">${anoAtual}</div><div class="kpi-sub">período de referência</div></div>`;
     container.appendChild(kpiStrip);
 
-    // ── Cards grid ──
+    // 4. BODY
     const scrollArea = document.createElement('div');
-    scrollArea.className = 'imbel-scroll';
+    scrollArea.className = 'imbel-body';
 
     if (totalProdutos === 0) {
         scrollArea.innerHTML = `<div style="padding:40px;text-align:center;color:var(--tv-navy-400);font-family:var(--tv-font-display);font-size:0.8rem">
@@ -6292,17 +6316,17 @@ function renderControleImbelPrecos() {
     }
     container.appendChild(scrollArea);
 
-    // ── Footbar ──
+    // 5. FOOTBAR
     const footbar = document.createElement('div');
     footbar.className = 'imbel-footbar';
     footbar.innerHTML = `
-      <span class="imbel-footbar-tag">IMBEL</span>
-      <span class="imbel-footbar-div">|</span>
-      <span>PREÇOS</span>
-      <span class="imbel-footbar-div">|</span>
-      <span>${totalProdutos} PRODUTOS</span>
-      <span class="imbel-footbar-div">|</span>
-      <span>${totalRegistros} REG</span>`;
+      <div class="seg"><span class="lbl">IMBEL</span><span class="val accent">PREÇOS</span></div>
+      <div class="divider"></div>
+      <div class="seg"><span class="lbl">PRODUTOS</span><span class="val">${totalProdutos}</span></div>
+      <div class="divider"></div>
+      <div class="seg"><span class="lbl">REGISTROS</span><span class="val">${totalRegistros}</span></div>
+      <div class="divider"></div>
+      <div class="seg"><span class="lbl">ANO</span><span class="val accent">${anoAtual}</span></div>`;
     container.appendChild(footbar);
 
     // ── Modal salvar handler ──
@@ -6765,6 +6789,7 @@ function renderControleImbelDashboard() {
     const container = document.getElementById('controleImbelDashboardContainer');
     if (!container) return;
     container.innerHTML = '';
+    container.className = 'imbel-subtab';
 
     const fmtM = v => 'R$ ' + Number(v).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
 
@@ -6825,42 +6850,50 @@ function renderControleImbelDashboard() {
 
     // ── Build HTML ──
     const root = document.createElement('div');
-    root.className = 'imbel-root';
+    root.style.cssText = 'display:contents';
 
-    // KPI strip
+    // 1. COMMAND BAR (Dashboard não tem typebar)
     root.innerHTML = `
-    <div class="imbel-kpi-strip">
-      <div class="imbel-kpi">
-        <div class="imbel-kpi-lbl">Receita Total</div>
-        <div class="imbel-kpi-val big amber">${fmtM(receitaTotal)}</div>
-        <div class="imbel-kpi-sub">${pedidosCount} pedidos</div>
+    <div class="imbel-cmdbar">
+      <div style="display:flex;align-items:center;gap:8px">
+        <span class="imbel-dot-large"></span>
+        <span style="font-size:13px;font-weight:600;color:#0f1e31;letter-spacing:0.5px">IMBEL — DASHBOARD</span>
       </div>
-      <div class="imbel-kpi">
-        <div class="imbel-kpi-lbl">Unid. Vendidas</div>
-        <div class="imbel-kpi-val">${unidadesVendidas}</div>
-        <div class="imbel-kpi-sub">ticket médio ${fmtM(ticketMedio)}</div>
-      </div>
-      <div class="imbel-kpi">
-        <div class="imbel-kpi-lbl">Clientes Ativos</div>
-        <div class="imbel-kpi-val">${clientesSet.size}</div>
-        <div class="imbel-kpi-sub">destinatários únicos</div>
-      </div>
-      <div class="imbel-kpi">
-        <div class="imbel-kpi-lbl">Pagos</div>
-        <div class="imbel-kpi-val pos">${pagosCount}</div>
-        <div class="imbel-kpi-sub">${pedidosCount - pagosCount} pendente(s)</div>
-      </div>
-      <div class="imbel-kpi">
-        <div class="imbel-kpi-lbl">Estoque</div>
-        <div class="imbel-kpi-val ${esgotado.length ? 'neg' : baixo.length ? 'amber' : 'pos'}">${esgotado.length ? esgotado.length + ' esgot.' : baixo.length ? baixo.length + ' baixo' : okArr.length + ' ok'}</div>
-        <div class="imbel-kpi-sub">${produtos.length} produtos</div>
+      <div class="actions">
+        <button class="btn" onclick="renderControleImbelDashboard()">↺ Atualizar</button>
+        <button class="btn" onclick="gerarRelatorioVendasImbel && gerarRelatorioVendasImbel()">Relatório</button>
       </div>
     </div>
-    <div class="imbel-content">
+    <div class="imbel-kpis">
+      <div class="kpi">
+        <div class="kpi-label">Receita Total</div>
+        <div class="kpi-value accent">${fmtM(receitaTotal)}</div>
+        <div class="kpi-sub">${pedidosCount} pedidos</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-label">Unid. Vendidas</div>
+        <div class="kpi-value">${unidadesVendidas}</div>
+        <div class="kpi-sub">ticket médio ${fmtM(ticketMedio)}</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-label">Clientes Ativos</div>
+        <div class="kpi-value">${clientesSet.size}</div>
+        <div class="kpi-sub">destinatários únicos</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-label">Pagos</div>
+        <div class="kpi-value pos">${pagosCount}</div>
+        <div class="kpi-sub">${pedidosCount - pagosCount} pendente(s)</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-label">Estoque</div>
+        <div class="kpi-value ${esgotado.length ? 'neg' : baixo.length ? 'accent' : 'pos'}">${esgotado.length ? esgotado.length + ' esgot.' : baixo.length ? baixo.length + ' baixo' : okArr.length + ' ok'}</div>
+        <div class="kpi-sub">${produtos.length} produtos</div>
+      </div>
+    </div>
+    <div class="imbel-body">
       <div class="imbel-dash-grid">
-        <!-- coluna principal -->
         <div style="display:flex;flex-direction:column;gap:14px">
-          <!-- Mini chart -->
           <div class="imbel-card">
             <div class="imbel-card-head">
               <span class="imbel-card-title">Vendas — últimos 14 dias</span>
@@ -6875,7 +6908,6 @@ function renderControleImbelDashboard() {
               </div>
             </div>
           </div>
-          <!-- Top giro -->
           <div class="imbel-card">
             <div class="imbel-card-head">
               <span class="imbel-card-title">Top Produtos por Receita</span>
@@ -6883,7 +6915,6 @@ function renderControleImbelDashboard() {
             </div>
             <div class="imbel-card-body" id="imbelTopGiro"></div>
           </div>
-          <!-- Pipeline -->
           <div class="imbel-card">
             <div class="imbel-card-head">
               <span class="imbel-card-title">Pipeline de Pedidos</span>
@@ -6892,9 +6923,7 @@ function renderControleImbelDashboard() {
             <div class="imbel-table-wrap" id="imbelPipelineWrap"></div>
           </div>
         </div>
-        <!-- coluna lateral -->
         <div style="display:flex;flex-direction:column;gap:14px">
-          <!-- Estoque semáforo -->
           <div class="imbel-card">
             <div class="imbel-card-head">
               <span class="imbel-card-title">Estoque — Semáforo</span>
@@ -6902,7 +6931,6 @@ function renderControleImbelDashboard() {
             </div>
             <div class="imbel-card-body" id="imbelSemaforoWrap"></div>
           </div>
-          <!-- Alertas -->
           <div class="imbel-card">
             <div class="imbel-card-head">
               <span class="imbel-card-title">Alertas</span>
@@ -6910,7 +6938,6 @@ function renderControleImbelDashboard() {
             </div>
             <div class="imbel-card-body" id="imbelAlertasWrap"></div>
           </div>
-          <!-- Financeiro -->
           <div class="imbel-card">
             <div class="imbel-card-head">
               <span class="imbel-card-title">Financeiro</span>
@@ -6922,15 +6949,13 @@ function renderControleImbelDashboard() {
       </div>
     </div>
     <div class="imbel-footbar">
-      <span class="imbel-footbar-tag">IMBEL</span>
-      <span class="imbel-footbar-div">|</span>
-      <span>DASHBOARD</span>
-      <span class="imbel-footbar-div">|</span>
-      <span>PROD: ${produtos.length}</span>
-      <span class="imbel-footbar-div">|</span>
-      <span>VENDAS: ${pedidosCount}</span>
-      <span class="imbel-footbar-div">|</span>
-      <span>CLI: ${clientesSet.size}</span>
+      <div class="seg"><span class="lbl">IMBEL</span><span class="val accent">DASHBOARD</span></div>
+      <div class="divider"></div>
+      <div class="seg"><span class="lbl">PRODUTOS</span><span class="val">${produtos.length}</span></div>
+      <div class="divider"></div>
+      <div class="seg"><span class="lbl">VENDAS</span><span class="val">${pedidosCount}</span></div>
+      <div class="divider"></div>
+      <div class="seg"><span class="lbl">CLIENTES</span><span class="val">${clientesSet.size}</span></div>
     </div>`;
 
     container.appendChild(root);
@@ -7085,9 +7110,39 @@ function renderControleImbelEstoque() {
     const data = loadImbel();
     const container = document.getElementById('controleImbelEstoqueContainer');
     container.innerHTML = '';
+    container.className = 'imbel-subtab';
 
+    // 1. COMMAND BAR
+    const estCmdbar = document.createElement('div');
+    estCmdbar.className = 'imbel-cmdbar';
+    const _saldosPreview = calcularSaldosImbel(data);
+    const _prods = data.produtos||[];
+    const _esgotados = _prods.filter(p=>(_saldosPreview[p.id]?.saldo||0)<=0).length;
+    const _baixos = _prods.filter(p=>{const s=_saldosPreview[p.id]?.saldo||0;const pt=Number(p.pontoReposicao)||Math.max(1,Math.floor((Number(p.quantidadeInicial)||0)*.2));return s>0&&s<=pt;}).length;
+    estCmdbar.innerHTML = `
+      <span class="filter-label">INVENTÁRIO CONSOLIDADO — IMBEL</span>
+      <div class="actions">
+        <button class="btn" onclick="trocarSubAbaControleImbel('cadastro')">+ Cadastrar Produto</button>
+        <button class="btn" onclick="renderControleImbelEstoque()">↺ Atualizar</button>
+      </div>`;
+    container.appendChild(estCmdbar);
+
+    // 3. KPI STRIP (sem typebar em Estoque)
+    const estKpis = document.createElement('div');
+    estKpis.className = 'imbel-kpis';
+    const _totalSaldo = _prods.reduce((s,p)=>s+Math.max(0,_saldosPreview[p.id]?.saldo||0),0);
+    const _valTotal = _prods.reduce((s,p)=>s+Math.max(0,_saldosPreview[p.id]?.saldo||0)*(Number(p.valorUnitario)||0),0);
+    estKpis.innerHTML = `
+      <div class="kpi"><div class="kpi-label">Produtos</div><div class="kpi-value">${_prods.length}</div><div class="kpi-sub">cadastrados</div></div>
+      <div class="kpi"><div class="kpi-label">Estoque Total</div><div class="kpi-value accent">${_totalSaldo}</div><div class="kpi-sub">unidades</div></div>
+      <div class="kpi"><div class="kpi-label">Valor em Estoque</div><div class="kpi-value pos">R$ ${_valTotal.toLocaleString('pt-BR',{minimumFractionDigits:0})}</div><div class="kpi-sub">CI × saldo</div></div>
+      <div class="kpi"><div class="kpi-label">Esgotados</div><div class="kpi-value ${_esgotados?'neg':''}">${_esgotados}</div><div class="kpi-sub">saldo zero</div></div>
+      <div class="kpi"><div class="kpi-label">Abaixo do Mín</div><div class="kpi-value ${_baixos?'accent':''}">${_baixos}</div><div class="kpi-sub">ponto de reposição</div></div>`;
+    container.appendChild(estKpis);
+
+    // 4. BODY
     const wrap = document.createElement('div');
-    wrap.style.cssText = 'overflow-x:auto;background:#fff;border-radius:10px;padding:16px;box-shadow:0 1px 4px rgba(0,0,0,.08)';
+    wrap.className = 'imbel-body';
 
     const thStyle = 'padding:8px 12px;border:1px solid #ddd;background:#1e3a5f;color:#fff;font-size:.82rem;white-space:nowrap;text-align:center';
     const tabela = document.createElement('table');
@@ -7109,8 +7164,8 @@ function renderControleImbelEstoque() {
     const tdBase  = 'padding:8px 12px;border:1px solid #ddd;vertical-align:middle';
     const tdCenter = tdBase + ';text-align:center';
 
-    // Calcular saldos usando função central — única fonte de verdade
-    const saldosEstoque = calcularSaldosImbel(data);
+    // Usar os saldos já calculados no KPI strip
+    const saldosEstoque = _saldosPreview;
 
     const produtos = data.produtos || [];
 
@@ -7239,53 +7294,68 @@ function renderControleImbelEstoque() {
         editarProdutoPorId(id);
     });
 
-    // Atalho para cadastrar produto
-    const btnCad = document.createElement('button');
-    btnCad.className = 'btn btn-outline';
-    btnCad.style.marginTop = '10px';
-    btnCad.innerHTML = '<span class="btn-icon">➕</span> Cadastrar Produto';
-    btnCad.onclick = () => trocarSubAbaControleImbel('cadastro');
-    container.appendChild(btnCad);
+    // 5. FOOTBAR
+    const estFootbar = document.createElement('div');
+    estFootbar.className = 'imbel-footbar';
+    estFootbar.innerHTML = `
+      <div class="seg"><span class="lbl">IMBEL</span><span class="val accent">INVENTÁRIO</span></div>
+      <div class="divider"></div>
+      <div class="seg"><span class="lbl">PRODUTOS</span><span class="val">${(data.produtos||[]).length}</span></div>
+      <div class="divider"></div>
+      <div class="seg"><span class="lbl">ESGOTADOS</span><span class="val ${_esgotados?'accent':''}">${_esgotados}</span></div>
+      <div class="divider"></div>
+      <div class="seg"><span class="lbl">BAIXOS</span><span class="val ${_baixos?'accent':''}">${_baixos}</span></div>`;
+    container.appendChild(estFootbar);
 }
 
 function renderControleImbelCadastro() {
     const data = loadImbel();
     const container = document.getElementById('controleImbelCadastroContainer');
     container.innerHTML = '';
-    container.style.cssText = 'display:flex;flex-direction:column;height:100%;overflow:hidden;background:var(--tv-navy-50)';
+    container.className = 'imbel-subtab';
 
     const saldos = calcularSaldosImbel(data);
+    const totalProd = (data.produtos||[]).length;
+    const totalComSaldo = Object.values(saldos).filter(s=>s.saldo>0).length;
+    const totalZerados = Object.values(saldos).filter(s=>s.saldo<=0).length;
 
-    // ── Command bar ──
+    // 1. COMMAND BAR
     const cmdbar = document.createElement('div');
     cmdbar.className = 'imbel-cmdbar';
     cmdbar.innerHTML = `
-      <div class="imbel-search-wrap">
-        <svg class="imbel-search-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-        <input type="text" id="imbelCadBusca" class="imbel-search-input" placeholder="Buscar produto..." oninput="_imbelCadFiltrar()" />
+      <div class="search">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="text" id="imbelCadBusca" placeholder="Buscar produto..." oninput="_imbelCadFiltrar()" />
       </div>
-      <div class="imbel-bar-right">
-        <button class="imbel-bar-btn" onclick="document.getElementById('inputImportarImbelCadastro').click()">IMPORTAR</button>
-        <button class="imbel-bar-btn" onclick="exportarImbelCadastro()">EXPORTAR</button>
-        <button class="imbel-bar-btn accent" id="imbelCadBtnAdd">+ PRODUTO</button>
+      <div class="actions">
+        <button class="btn" onclick="document.getElementById('inputImportarImbelCadastro').click()">Importar</button>
+        <button class="btn" onclick="exportarImbelCadastro()">Exportar</button>
+        <button class="btn accent" id="imbelCadBtnAdd">+ Produto</button>
       </div>`;
     container.appendChild(cmdbar);
 
-    const totalProd = (data.produtos||[]).length;
-    const totalComSaldo = Object.values(saldos).filter(s=>s.saldo>0).length;
+    // 2. TYPE BAR
+    const typebar = document.createElement('div');
+    typebar.className = 'imbel-typebar';
+    typebar.innerHTML = `<span class="imbel-typebar-lbl">Estoque:</span>
+      <button class="imbel-pill on" style="background:#dcfce7;color:#16a34a;border-color:#16a34a40">Com saldo<span class="imbel-pill-cnt">${totalComSaldo}</span></button>
+      <button class="imbel-pill ${totalZerados?'':'empty'}">Zerados<span class="imbel-pill-cnt">${totalZerados}</span></button>`;
+    container.appendChild(typebar);
 
-    // ── KPI strip ──
+    // 3. KPI STRIP
     const kpiStrip = document.createElement('div');
-    kpiStrip.className = 'imbel-kpi-strip';
+    kpiStrip.className = 'imbel-kpis';
     kpiStrip.innerHTML = `
-      <div class="imbel-kpi"><div class="imbel-kpi-lbl">Produtos</div><div class="imbel-kpi-val">${totalProd}</div><div class="imbel-kpi-sub">cadastrados</div></div>
-      <div class="imbel-kpi"><div class="imbel-kpi-lbl">Em Estoque</div><div class="imbel-kpi-val pos">${totalComSaldo}</div><div class="imbel-kpi-sub">saldo positivo</div></div>
-      <div class="imbel-kpi"><div class="imbel-kpi-lbl">Zerados</div><div class="imbel-kpi-val ${Object.values(saldos).filter(s=>s.saldo<=0).length ? 'neg' : ''}">${Object.values(saldos).filter(s=>s.saldo<=0).length}</div><div class="imbel-kpi-sub">sem estoque</div></div>`;
+      <div class="kpi"><div class="kpi-label">Produtos</div><div class="kpi-value">${totalProd}</div><div class="kpi-sub">cadastrados</div></div>
+      <div class="kpi"><div class="kpi-label">Em Estoque</div><div class="kpi-value pos">${totalComSaldo}</div><div class="kpi-sub">saldo positivo</div></div>
+      <div class="kpi"><div class="kpi-label">Zerados</div><div class="kpi-value ${totalZerados?'neg':''}">${totalZerados}</div><div class="kpi-sub">sem estoque</div></div>
+      <div class="kpi"><div class="kpi-label">Valor Total</div><div class="kpi-value accent">${'R$ ' + (data.produtos||[]).reduce((s,p)=>{const sl=saldos[p.id]?.saldo||0; return s+sl*(Number(p.valorUnitario)||0);},0).toLocaleString('pt-BR',{minimumFractionDigits:0,maximumFractionDigits:0})}</div><div class="kpi-sub">em estoque (CI)</div></div>
+      <div class="kpi"><div class="kpi-label">Filtrados</div><div class="kpi-value" id="imbelCadKpiCount">${totalProd}</div><div class="kpi-sub">no filtro atual</div></div>`;
     container.appendChild(kpiStrip);
 
-    // ── Table ──
+    // 4. BODY
     const tabelaWrap = document.createElement('div');
-    tabelaWrap.style.cssText = 'flex:1;min-height:0;overflow:auto;background:#fff';
+    tabelaWrap.className = 'imbel-body';
 
     const tabela = document.createElement('table');
     tabela.className = 'imbel-table';
@@ -7369,10 +7439,17 @@ function renderControleImbelCadastro() {
     tabelaWrap.appendChild(tabela);
     container.appendChild(tabelaWrap);
 
-    // Footbar
+    // 5. FOOTBAR
     const footbar = document.createElement('div');
     footbar.className = 'imbel-footbar';
-    footbar.innerHTML = `<span class="imbel-footbar-tag">IMBEL</span><span class="imbel-footbar-div">|</span><span>CADASTRO</span><span class="imbel-footbar-div">|</span><span>${totalProd} PRODUTOS</span>`;
+    footbar.innerHTML = `
+      <div class="seg"><span class="lbl">IMBEL</span><span class="val accent">CADASTRO</span></div>
+      <div class="divider"></div>
+      <div class="seg"><span class="lbl">PRODUTOS</span><span class="val">${totalProd}</span></div>
+      <div class="divider"></div>
+      <div class="seg"><span class="lbl">EM ESTOQUE</span><span class="val" style="color:#4ade80">${totalComSaldo}</span></div>
+      <div class="divider"></div>
+      <div class="seg"><span class="lbl">ZERADOS</span><span class="val ${totalZerados?'accent':''}">${totalZerados}</span></div>`;
     container.appendChild(footbar);
 
     // connect Add button
@@ -7521,7 +7598,7 @@ function renderControleImbelMovimentacao() {
     try { migrarProdutoNomeImbel(); } catch(e) {}
     const container = document.getElementById('controleImbelMovContainer');
     container.innerHTML = '';
-    container.style.cssText = 'display:flex;flex-direction:column;height:100%;overflow:hidden;background:var(--tv-navy-50)';
+    container.className = 'imbel-subtab';
 
     // ── state dos filtros (período e tipo) ──
     if (!container._movState) container._movState = { periodo: '30d', tipo: '' };
@@ -7562,10 +7639,10 @@ function renderControleImbelMovimentacao() {
         <button class="imbel-bar-btn accent" id="imbelBtnAddMov">+ MOVIMENTAÇÃO</button>
       </div>`;
 
-    // ── Linha 2: chips de período + chips de tipo (estilo Bloomberg) ──
+    // 2. TYPE BAR (chips de período + tipo)
     const filterBar = document.createElement('div');
     filterBar.id = 'imbelFilterBar';
-    filterBar.style.cssText = 'display:flex;align-items:center;gap:8px;padding:5px 12px 5px;background:var(--tv-navy-50);border-bottom:1px solid var(--tv-navy-200);flex-wrap:wrap';
+    filterBar.className = 'imbel-typebar';
 
     const periodos = [
         { key:'7d',   label:'7d' },
@@ -7636,15 +7713,16 @@ function renderControleImbelMovimentacao() {
     const totalVendas   = movAll.filter(m=>getImbelTipo(m.tipo).contaReceita);
     const recTot        = totalVendas.reduce((s,m)=>s+(Number(m.valor)||0),0);
 
+    // 3. KPI STRIP
     const kpiStrip = document.createElement('div');
-    kpiStrip.className = 'imbel-kpi-strip';
+    kpiStrip.className = 'imbel-kpis';
     kpiStrip.id = 'imbelMovKpiStrip';
     kpiStrip.innerHTML = `
-      <div class="imbel-kpi"><div class="imbel-kpi-lbl">Movimentações</div><div class="imbel-kpi-val">${movAll.length}</div><div class="imbel-kpi-sub">total registros</div></div>
-      <div class="imbel-kpi"><div class="imbel-kpi-lbl">Entradas</div><div class="imbel-kpi-val pos">${totalEntradas}</div><div class="imbel-kpi-sub">unidades recebidas</div></div>
-      <div class="imbel-kpi"><div class="imbel-kpi-lbl">Saídas</div><div class="imbel-kpi-val neg">${totalSaidas}</div><div class="imbel-kpi-sub">unidades despachadas</div></div>
-      <div class="imbel-kpi"><div class="imbel-kpi-lbl">Receita Vendas</div><div class="imbel-kpi-val amber">R$ ${recTot.toLocaleString('pt-BR',{minimumFractionDigits:2})}</div><div class="imbel-kpi-sub">${totalVendas.length} pedidos</div></div>
-      <div class="imbel-kpi"><div class="imbel-kpi-lbl">Valor Total</div><div class="imbel-kpi-val">R$ ${totalValor.toLocaleString('pt-BR',{minimumFractionDigits:2})}</div><div class="imbel-kpi-sub">todas movimentações</div></div>`;
+      <div class="kpi"><div class="kpi-label">Movimentações</div><div class="kpi-value">${movAll.length}</div><div class="kpi-sub">total registros</div></div>
+      <div class="kpi"><div class="kpi-label">Entradas</div><div class="kpi-value pos">${totalEntradas}</div><div class="kpi-sub">unidades recebidas</div></div>
+      <div class="kpi"><div class="kpi-label">Saídas</div><div class="kpi-value neg">${totalSaidas}</div><div class="kpi-sub">unidades despachadas</div></div>
+      <div class="kpi"><div class="kpi-label">Receita Vendas</div><div class="kpi-value accent">R$ ${recTot.toLocaleString('pt-BR',{minimumFractionDigits:2})}</div><div class="kpi-sub">${totalVendas.length} pedidos</div></div>
+      <div class="kpi"><div class="kpi-label">Valor Total</div><div class="kpi-value">R$ ${totalValor.toLocaleString('pt-BR',{minimumFractionDigits:2})}</div><div class="kpi-sub">todas movimentações</div></div>`;
     container.appendChild(kpiStrip);
 
     // --- connect button handlers ---
@@ -7696,9 +7774,9 @@ function renderControleImbelMovimentacao() {
         });
     }
 
-    // ---- Tabela histórico ----
+    // 4. BODY
     const tabelaWrap = document.createElement('div');
-    tabelaWrap.style.cssText = 'flex:1;min-height:0;overflow:auto;background:#fff';
+    tabelaWrap.className = 'imbel-body';
 
         const thStyle = 'padding:6px 10px;background:var(--tv-navy-900);color:var(--tv-navy-200);font-family:var(--tv-font-display);font-size:.62rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;white-space:nowrap;text-align:center;border-right:1px solid var(--tv-navy-700)';
         const tabela = document.createElement('table');
@@ -8148,18 +8226,19 @@ function renderControleImbelMovimentacao() {
     tabelaWrap.appendChild(tabela);
     container.appendChild(tabelaWrap);
 
-    // Footbar Bloomberg
+    // 5. FOOTBAR
     const footbarMov = document.createElement('div');
     footbarMov.className = 'imbel-footbar';
     footbarMov.innerHTML = `
-      <span class="imbel-footbar-tag">IMBEL</span>
-      <span class="imbel-footbar-div">|</span>
-      <span>MOV</span>
-      <span class="imbel-footbar-div">|</span>
-      <span id="imbelMovFootCount">${(data.movimentacoes||[]).length} REG</span>
-      <span class="imbel-footbar-div">|</span>
-      <span>${(data.produtos||[]).length} PROD</span>
-    `;
+      <div class="seg"><span class="lbl">IMBEL</span><span class="val accent">MOVIMENTAÇÃO</span></div>
+      <div class="divider"></div>
+      <div class="seg"><span class="lbl">REGISTROS</span><span class="val" id="imbelMovFootCount">${(data.movimentacoes||[]).length}</span></div>
+      <div class="divider"></div>
+      <div class="seg"><span class="lbl">PRODUTOS</span><span class="val">${(data.produtos||[]).length}</span></div>
+      <div class="divider"></div>
+      <div class="seg"><span class="lbl">ENTRADAS</span><span class="val" style="color:#4ade80">${totalEntradas}</span></div>
+      <div class="divider"></div>
+      <div class="seg"><span class="lbl">SAÍDAS</span><span class="val" style="color:#f87171">${totalSaidas}</span></div>`;
     container.appendChild(footbarMov);
 
     // ---- Handler: Salvar (no modal) ----
