@@ -7678,7 +7678,7 @@ function renderControleImbelMovimentacao() {
     filterBar.insertAdjacentHTML('beforeend','<span style="font-family:var(--tv-font-display);font-size:0.62rem;font-weight:700;letter-spacing:.08em;color:var(--tv-navy-500)">TIPO:</span>');
     const tipoChips = [
         { key:'',                   label:'Todos',              cnt: movAll0.length,                    bg:'#e2e8f0',              clr:'#374151',   actBg:'#0f1e31',           actClr:'#fff'    },
-        { key:'VENDA',              label:'↗ Venda',            cnt: cntPorTipo['VENDA']||0,            bg:'#fef3c7',              clr:'#d97706',   actBg:'#d97706',           actClr:'#fff'    },
+        { key:'VENDA',              label:'↗ Venda',            cnt: cntPorTipo['VENDA']||0,            bg:'#fee2e2',              clr:'#dc2626',   actBg:'#dc2626',           actClr:'#fff'    },
         { key:'SAIDA_MARKETING',    label:'↗ Saída Promo',      cnt: cntPorTipo['SAIDA_MARKETING']||0,  bg:'#f3e8ff',              clr:'#7c3aed',   actBg:'#7c3aed',           actClr:'#fff'    },
         { key:'RECEBIMENTO_FABRICA',label:'+ Recebimento',      cnt: cntPorTipo['RECEBIMENTO_FABRICA']||0, bg:'#dcfce7',           clr:'#16a34a',   actBg:'#16a34a',           actClr:'#fff'    },
         { key:'RETORNO_MARKETING',  label:'↩ Retorno Promo',    cnt: cntPorTipo['RETORNO_MARKETING']||0,bg:'#e0f2fe',              clr:'#0284c7',   actBg:'#0284c7',           actClr:'#fff'    },
@@ -8020,7 +8020,7 @@ function renderControleImbelMovimentacao() {
                                                : isVenda       ? '↗ '
                                                :                 '↗ ';
                                 const tipoLabel = cfgSafe.label || first.tipo || '—';
-                                const tipoBadge = `<span style="display:inline-flex;align-items:center;gap:3px;background:${badgeBg};color:${badgeClr};font-family:var(--tv-font-display);font-size:0.65rem;font-weight:700;letter-spacing:.06em;padding:2px 8px;border-radius:3px;white-space:nowrap;border:1px solid ${badgeClr}44">${badgePfx}${tipoLabel}</span>`;
+                                const tipoBadge = `<span style="display:inline-flex;align-items:center;gap:3px;background:${badgeBg};color:${badgeClr};font-family:var(--tv-font-display);font-size:0.65rem;font-weight:700;letter-spacing:.06em;padding:2px 8px;border-radius:20px;white-space:nowrap;border:1px solid ${badgeClr}44">${badgePfx}${tipoLabel}</span>`;
 
                                 // ── quantidade colorida: + verde / - vermelho ──
                                 const qtdColor  = isEntrada ? '#15803d' : '#dc2626';
