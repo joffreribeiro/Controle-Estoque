@@ -150,6 +150,14 @@
   overflow: auto;
 }
 
+/* tabela de movimentação IMBEL — bordas de grid visíveis */
+.imbel-body table tbody tr:first-child td {
+  border-top: 1px solid #e2e8f0;
+}
+.imbel-body table tbody tr td {
+  background: inherit;
+}
+
 /* 5. footbar — SEMPRE, 28px */
 .imbel-footbar {
   height: 28px;

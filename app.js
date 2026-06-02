@@ -7780,7 +7780,7 @@ function renderControleImbelMovimentacao() {
 
         const thStyle = 'padding:6px 10px;background:var(--tv-navy-900);color:#e2e8f0;font-family:var(--tv-font-display);font-size:.62rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;white-space:nowrap;text-align:center;border-right:1px solid rgba(255,255,255,0.08)';
         const tabela = document.createElement('table');
-        tabela.style.cssText = 'width:max-content;min-width:100%;border-collapse:collapse;font-size:.78rem';
+        tabela.style.cssText = 'width:max-content;min-width:100%;border-collapse:separate;border-spacing:0;font-size:.78rem';
         tabela.innerHTML = `<thead><tr style="position:sticky;top:0;z-index:3">
         <th style="${thStyle};text-align:left;min-width:90px">ID</th>
         <th style="${thStyle};min-width:110px">Data / Hora</th>
@@ -7797,10 +7797,12 @@ function renderControleImbelMovimentacao() {
     </tr></thead><tbody></tbody>`;
 
         const tbody = tabela.querySelector('tbody');
-        const tdBorder = 'border-right:1px solid #f1f5f9;border-bottom:1px solid #f1f5f9;vertical-align:middle';
+        const tdBorder = 'border-right:1px solid #e2e8f0;border-bottom:1px solid #e2e8f0;vertical-align:middle';
         const tdStyle  = `padding:5px 10px;${tdBorder}`;
         const tdCenter = `${tdStyle};text-align:center`;
         const tdBase   = `${tdStyle};text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:220px`;
+        // primeira coluna de cada linha recebe border-left para fechar o grid
+        const tdFirst  = `${tdStyle};border-left:1px solid #e2e8f0`;
 
         // função para popular tbody com filtros (agrupa por destinatário+data ou groupId)
         function populateTbody() {
@@ -7991,8 +7993,11 @@ function renderControleImbelMovimentacao() {
                                 // Saldo após
                                 const saldoAposColor = saldoAposGrp <= 0 ? '#dc2626' : saldoAposGrp <= 5 ? '#d97706' : '#374151';
 
+                                const rowBg = isEven ? '#fff' : '#f8fafc';
+                                trGroup.style.background = rowBg;
+
                                 trGroup.innerHTML = `
-        <td style="${tdStyle};white-space:nowrap">
+        <td style="${tdFirst};white-space:nowrap;background:${rowBg}">
             <span style="font-family:var(--tv-font-mono);font-size:0.68rem;font-weight:700;color:var(--tv-navy-700);background:var(--tv-navy-100);padding:1px 6px;border-radius:3px;letter-spacing:.03em" title="${first.id||''}">${idShort}</span>
         </td>
         <td style="${tdCenter};font-family:var(--tv-font-mono);font-size:0.72rem;color:#374151;white-space:nowrap">
@@ -12740,7 +12745,8 @@ function exportarSistema() {
             categoriaPorProduto,
             impostosEditaveis: impostosEditaveis || {},
             icmsEditavelPJ: icmsEditavelPJ || {},
-            icmsEditavelPF: icmsEditavelPF || {}
+            icmsEditavelPF: icmsEditavelPF || {},
+            _imbelData: loadImbel()
         };
         const dataStr = JSON.stringify(payload, null, 2);
         const blob = new Blob([dataStr], { type: 'application/json' });
@@ -12755,7 +12761,7 @@ function exportarSistema() {
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
-        mostrarNotificacao('Exportação do sistema concluída!', 'success');
+        mostrarNotificacao('Exportação do sistema concluída! (inclui dados IMBEL)', 'success');
     } catch (error) {
         console.error('Erro ao exportar sistema:', error);
         mostrarNotificacao('Erro ao exportar o sistema.', 'error');
@@ -12812,6 +12818,13 @@ function importarSistema(event) {
             icmsEditavelPF = obj.icmsEditavelPF || {};
             try { inicializarImpostosEditaveis(); } catch (e) {}
             try { inicializarICMSEditavel(); } catch (e) {}
+
+            // Restaurar dados IMBEL se presentes no arquivo
+            try {
+                if (obj._imbelData && typeof obj._imbelData === 'object') {
+                    localStorage.setItem(IMBEL_KEY, JSON.stringify(obj._imbelData));
+                }
+            } catch (e) { console.warn('Não foi possível restaurar dados IMBEL:', e); }
 
             salvarDados();
 
