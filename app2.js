@@ -7232,8 +7232,6 @@ function renderControleImbelEstoque() {
         { key: 'entradas',    label: 'Entradas',       style: thNum   + ';min-width:80px',  sortKey: 'entradas' },
         { key: 'saidas',      label: 'Saídas',         style: thNum   + ';min-width:80px',  sortKey: 'saidas' },
         { key: 'saldo',       label: 'Saldo Atual',    style: thNum   + ';min-width:160px', sortKey: 'saldo' },
-        { key: 'min',         label: 'Ponto Reposição',style: thStyle + ';min-width:130px;text-align:center', sortKey: null },
-        { key: 'status',      label: 'Situação',       style: thStyle + ';min-width:100px', sortKey: 'status' },
         { key: 'valorUnit',   label: 'Valor Unit.',    style: thNum   + ';min-width:100px', sortKey: 'valorUnit' },
         { key: 'valorEstoque',label: 'Valor Estoque',  style: thNum   + ';min-width:120px', sortKey: 'valorEstoque' },
         { key: 'acoes',       label: 'Ações',          style: thStyle + ';min-width:70px;text-align:center', sortKey: null },
@@ -7319,40 +7317,14 @@ function renderControleImbelEstoque() {
             // Saldo atual (número + barra)
             const tdSd = document.createElement('td');
             tdSd.setAttribute('style', tdNum + ';min-width:160px');
-            const razao = r.min > 0 ? `<span style="font-size:0.65rem;color:#94a3b8;margin-left:6px">${(r.saldo/r.min).toFixed(1)}× mín</span>` : '';
             tdSd.innerHTML = `
               <div style="display:flex;align-items:baseline;justify-content:flex-end">
-                <span style="font-size:0.9rem;font-weight:700;color:${st.cor}">${fmtN(r.saldo)}</span>${razao}
+                <span style="font-size:0.9rem;font-weight:700;color:${st.cor}">${fmtN(r.saldo)}</span>
               </div>
-              <div style="position:relative;width:100%;height:5px;background:#e2e8f0;border-radius:3px;overflow:visible;margin-top:4px">
+              <div style="position:relative;width:100%;height:5px;background:#e2e8f0;border-radius:3px;overflow:hidden;margin-top:4px">
                 <div style="position:absolute;left:0;top:0;bottom:0;width:${pct}%;background:${st.bar};border-radius:3px"></div>
-                ${r.min > 0 ? `<div style="position:absolute;top:-2px;bottom:-2px;left:${minPct}%;width:2px;background:#0f1e31;opacity:.5;border-radius:1px" title="mínimo ${r.min}"></div>` : ''}
               </div>`;
             tr.appendChild(tdSd);
-
-            // Ponto de reposição (stepper)
-            const tdMin = document.createElement('td');
-            tdMin.setAttribute('style', tdCtr);
-            const stepperBorder = isDirty ? '1px solid #d97706' : '1px solid #e2e8f0';
-            const stepperShadow = isDirty ? '0 0 0 2px rgba(217,119,6,.15)' : 'none';
-            tdMin.innerHTML = `<div style="display:inline-flex;align-items:stretch;border:${stepperBorder};border-radius:4px;overflow:hidden;height:24px;box-shadow:${stepperShadow}">
-              <button onclick="imbelInvStepMin('${r.id}',-1)" style="width:22px;border:none;background:#f8fafc;color:#475569;font-size:13px;font-weight:700;cursor:pointer;display:grid;place-items:center;line-height:1">−</button>
-              <input type="number" value="${r.min}" min="0"
-                style="width:44px;border:none;border-left:1px solid #e2e8f0;border-right:1px solid #e2e8f0;text-align:center;font-family:var(--tv-font-mono);font-size:0.78rem;font-weight:600;color:#0f1e31;background:transparent;-moz-appearance:textfield"
-                data-minid="${r.id}"
-                onchange="imbelInvSetMin('${r.id}', this.value)"
-                oninput="imbelInvSetMin('${r.id}', this.value)" />
-              <button onclick="imbelInvStepMin('${r.id}',+1)" style="width:22px;border:none;background:#f8fafc;color:#475569;font-size:13px;font-weight:700;cursor:pointer;display:grid;place-items:center;line-height:1">+</button>
-            </div>`;
-            tr.appendChild(tdMin);
-
-            // Situação
-            const tdSt = document.createElement('td');
-            tdSt.setAttribute('style', tdBase);
-            tdSt.innerHTML = `<span style="display:inline-flex;align-items:center;gap:5px;font-size:0.72rem;font-weight:600;padding:3px 8px;border-radius:12px;color:${st.cor};background:${st.bg};white-space:nowrap">
-              <span style="width:6px;height:6px;border-radius:50%;background:${st.cor};flex-shrink:0"></span>${st.label}
-            </span>`;
-            tr.appendChild(tdSt);
 
             // Valor unit
             const tdVu = document.createElement('td');
@@ -7395,7 +7367,7 @@ function renderControleImbelEstoque() {
                 tfTd('<span style="color:#4ade80">+' + fmtN(totEn) + '</span>') +
                 tfTd('<span style="color:#f87171">−' + fmtN(totSa) + '</span>') +
                 tfTd('<span style="font-weight:800">' + fmtN(totSaldo) + '</span>') +
-                tfTd('', 'center') + tfTd('') + tfTd('') +
+                tfTd('') + tfTd('') +
                 tfTd('<span style="color:#d97706;font-weight:800">R$ ' + fmtN(totVe, 0) + '</span>') +
                 tfTd('', 'center');
             tfoot.appendChild(trF);
