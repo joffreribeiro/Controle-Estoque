@@ -7781,7 +7781,7 @@ function renderControleImbelMovimentacao() {
         const thStyle = 'padding:6px 10px;background:var(--tv-navy-900);color:#e2e8f0;font-family:var(--tv-font-display);font-size:.62rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;white-space:nowrap;text-align:center;border-right:1px solid rgba(255,255,255,0.08)';
         const tabela = document.createElement('table');
         tabela.className = 'imbel-mov-grid';
-        tabela.style.cssText = 'width:max-content;min-width:100%;border-collapse:separate;border-spacing:0;font-size:.78rem';
+        tabela.style.cssText = 'width:max-content;min-width:100%;font-size:.78rem';
         tabela.innerHTML = `<thead><tr style="position:sticky;top:0;z-index:3">
         <th style="${thStyle};text-align:left;min-width:90px">ID</th>
         <th style="${thStyle};min-width:110px">Data / Hora</th>
