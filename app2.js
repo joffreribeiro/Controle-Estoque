@@ -7819,7 +7819,7 @@ function renderControleImbelMovimentacao() {
     container.className = 'imbel-subtab';
 
     // ── state dos filtros (período e tipo) ──
-    if (!container._movState) container._movState = { periodo: '', tipo: '' };
+    if (!container._movState) container._movState = { periodo: '', tipo: '', dateFrom: '', dateTo: '' };
     const movState = container._movState;
 
     // calcular contagens por tipo específico
@@ -7879,15 +7879,64 @@ function renderControleImbelMovimentacao() {
         btn.style.cssText = `font-family:var(--tv-font-display);font-size:0.68rem;font-weight:700;letter-spacing:.04em;padding:3px 9px;border:none;border-radius:3px;cursor:pointer;transition:background .15s,color .15s;background:${movState.periodo===p.key?'var(--tv-navy-700)':'transparent'};color:${movState.periodo===p.key?'#fff':'var(--tv-navy-600)'}`;
         btn.onclick = function() {
             movState.periodo = p.key;
+            movState.dateFrom = ''; movState.dateTo = '';
             periodoWrap.querySelectorAll('button').forEach(b => {
                 b.style.background = b.dataset.periodo === p.key ? 'var(--tv-navy-700)' : 'transparent';
                 b.style.color      = b.dataset.periodo === p.key ? '#fff' : 'var(--tv-navy-600)';
             });
+            const df = document.getElementById('imbel_date_from');
+            const dt = document.getElementById('imbel_date_to');
+            const dc = document.getElementById('imbelDateClear');
+            if (df) df.value = '';
+            if (dt) dt.value = '';
+            if (dc) dc.style.display = 'none';
             populateTbody();
         };
         periodoWrap.appendChild(btn);
     });
     filterBar.appendChild(periodoWrap);
+
+    // ── filtro de data personalizada ──
+    const dateWrap = document.createElement('div');
+    dateWrap.style.cssText = 'display:flex;align-items:center;gap:4px;flex-shrink:0';
+    dateWrap.innerHTML = `
+      <span style="font-family:var(--tv-font-display);font-size:0.62rem;font-weight:700;letter-spacing:.08em;color:var(--tv-navy-500);white-space:nowrap">DE</span>
+      <input type="date" id="imbel_date_from"
+        style="height:26px;padding:0 6px;border:1px solid #e2e8f0;border-radius:4px;font-size:0.72rem;font-family:var(--tv-font-mono);color:#0f1e31;background:#fff;cursor:pointer"
+        value="${movState.dateFrom||''}" />
+      <span style="font-family:var(--tv-font-display);font-size:0.62rem;font-weight:700;letter-spacing:.08em;color:var(--tv-navy-500);white-space:nowrap">ATÉ</span>
+      <input type="date" id="imbel_date_to"
+        style="height:26px;padding:0 6px;border:1px solid #e2e8f0;border-radius:4px;font-size:0.72rem;font-family:var(--tv-font-mono);color:#0f1e31;background:#fff;cursor:pointer"
+        value="${movState.dateTo||''}" />
+      <button id="imbelDateClear" title="Limpar datas"
+        style="height:26px;padding:0 7px;border:1px solid #e2e8f0;border-radius:4px;font-size:0.72rem;background:#fff;color:#94a3b8;cursor:pointer;display:${(movState.dateFrom||movState.dateTo)?'inline-flex':'none'};align-items:center">✕</button>`;
+    filterBar.appendChild(dateWrap);
+
+    dateWrap.querySelector('#imbel_date_from').addEventListener('change', function() {
+        movState.dateFrom = this.value;
+        movState.periodo = '';  // desativa chip de período ao usar data manual
+        periodoWrap.querySelectorAll('button').forEach(b => {
+            b.style.background = 'transparent'; b.style.color = 'var(--tv-navy-600)';
+        });
+        dateWrap.querySelector('#imbelDateClear').style.display = (movState.dateFrom||movState.dateTo) ? 'inline-flex' : 'none';
+        populateTbody();
+    });
+    dateWrap.querySelector('#imbel_date_to').addEventListener('change', function() {
+        movState.dateTo = this.value;
+        movState.periodo = '';
+        periodoWrap.querySelectorAll('button').forEach(b => {
+            b.style.background = 'transparent'; b.style.color = 'var(--tv-navy-600)';
+        });
+        dateWrap.querySelector('#imbelDateClear').style.display = (movState.dateFrom||movState.dateTo) ? 'inline-flex' : 'none';
+        populateTbody();
+    });
+    dateWrap.querySelector('#imbelDateClear').addEventListener('click', function() {
+        movState.dateFrom = ''; movState.dateTo = '';
+        dateWrap.querySelector('#imbel_date_from').value = '';
+        dateWrap.querySelector('#imbel_date_to').value = '';
+        this.style.display = 'none';
+        populateTbody();
+    });
 
     // separador
     filterBar.insertAdjacentHTML('beforeend','<span style="color:var(--tv-navy-300);font-size:0.9rem">|</span>');
@@ -8055,9 +8104,12 @@ function renderControleImbelMovimentacao() {
             const fTipo  = movState.tipo || '';
             const fDest  = ((document.getElementById('imbel_filter_dest')||{}).value||'').trim().toUpperCase();
 
-            // filtro de período
+            // filtro de período / data
             let fStart = '', fEnd = '';
-            if (movState.periodo) {
+            if (movState.dateFrom || movState.dateTo) {
+                fStart = movState.dateFrom || '';
+                fEnd   = movState.dateTo   || '';
+            } else if (movState.periodo) {
                 const dias = movState.periodo === '7d' ? 7 : movState.periodo === '30d' ? 30 : 90;
                 const d = new Date(); d.setDate(d.getDate() - dias);
                 fStart = d.toISOString().slice(0,10);
