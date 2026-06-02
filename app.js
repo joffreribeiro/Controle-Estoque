@@ -7778,6 +7778,20 @@ function renderControleImbelMovimentacao() {
     const tabelaWrap = document.createElement('div');
     tabelaWrap.className = 'imbel-body';
 
+        // injetar <style> com máxima especificidade para garantir bordas independente de CSS externo
+        if (!document.getElementById('_imbelMovGridStyle')) {
+            const st = document.createElement('style');
+            st.id = '_imbelMovGridStyle';
+            st.textContent = `
+                table.imbel-mov-grid { border-collapse: collapse !important; }
+                table.imbel-mov-grid td { border: 1px solid #d1d5db !important; }
+                table.imbel-mov-grid tbody tr:nth-child(even) td { background: #f8fafc !important; }
+                table.imbel-mov-grid tbody tr:nth-child(odd)  td { background: #ffffff !important; }
+                table.imbel-mov-grid tbody tr:hover td { background: #eff6ff !important; }
+            `;
+            document.head.appendChild(st);
+        }
+
         const thStyle = 'padding:6px 10px;background:var(--tv-navy-900);color:#e2e8f0;font-family:var(--tv-font-display);font-size:.62rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;white-space:nowrap;text-align:center;border-right:1px solid rgba(255,255,255,0.08)';
         const tabela = document.createElement('table');
         tabela.className = 'imbel-mov-grid';
@@ -7798,11 +7812,10 @@ function renderControleImbelMovimentacao() {
     </tr></thead><tbody></tbody>`;
 
         const tbody = tabela.querySelector('tbody');
-        const _bdr = '1px solid #d1d5db';
-        const tdStyle  = `padding:5px 10px;vertical-align:middle;border-right:${_bdr};border-bottom:${_bdr}`;
+        const tdStyle  = 'padding:5px 10px;vertical-align:middle';
         const tdCenter = `${tdStyle};text-align:center`;
         const tdBase   = `${tdStyle};text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:220px`;
-        const tdFirst  = `${tdBase};border-left:${_bdr}`;
+        const tdFirst  = tdBase;
 
         // função para popular tbody com filtros (agrupa por destinatário+data ou groupId)
         function populateTbody() {
