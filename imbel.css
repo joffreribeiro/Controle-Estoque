@@ -150,12 +150,51 @@
   overflow: auto;
 }
 
-/* tabela de movimentação IMBEL — bordas de grid visíveis */
-.imbel-body table tbody tr:first-child td {
-  border-top: 1px solid #e2e8f0;
+/* =================================================================
+   TABELA DE MOVIMENTAÇÃO IMBEL — grid com bordas visíveis
+   ================================================================= */
+table.imbel-mov-grid {
+  border-collapse: separate !important;
+  border-spacing: 0 !important;
 }
-.imbel-body table tbody tr td {
-  background: inherit;
+
+/* todas as células: borda direita + borda inferior */
+table.imbel-mov-grid td,
+table.imbel-mov-grid th {
+  border-right: 1px solid #e2e8f0 !important;
+  border-bottom: 1px solid #e2e8f0 !important;
+}
+
+/* borda esquerda apenas na primeira coluna */
+table.imbel-mov-grid td:first-child,
+table.imbel-mov-grid th:first-child {
+  border-left: 1px solid #e2e8f0 !important;
+}
+
+/* borda superior apenas na primeira linha do tbody */
+table.imbel-mov-grid tbody tr:first-child td {
+  border-top: 1px solid #e2e8f0 !important;
+}
+
+/* thead: bordas do cabeçalho (cor diferente para destacar) */
+table.imbel-mov-grid thead th {
+  border-right-color: rgba(255,255,255,0.12) !important;
+  border-bottom: 2px solid rgba(255,255,255,0.15) !important;
+  border-top: none !important;
+}
+table.imbel-mov-grid thead th:first-child {
+  border-left: none !important;
+}
+
+/* linhas alternadas */
+table.imbel-mov-grid tbody tr:nth-child(even) td {
+  background-color: #f8fafc !important;
+}
+table.imbel-mov-grid tbody tr:nth-child(odd) td {
+  background-color: #ffffff !important;
+}
+table.imbel-mov-grid tbody tr:hover td {
+  background-color: #f0f4f9 !important;
 }
 
 /* 5. footbar — SEMPRE, 28px */
