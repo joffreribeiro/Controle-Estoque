@@ -7112,200 +7112,455 @@ function renderControleImbelEstoque() {
     container.innerHTML = '';
     container.className = 'imbel-subtab';
 
-    // 1. COMMAND BAR
-    const estCmdbar = document.createElement('div');
-    estCmdbar.className = 'imbel-cmdbar';
-    const _saldosPreview = calcularSaldosImbel(data);
-    const _prods = data.produtos||[];
-    const _esgotados = _prods.filter(p=>(_saldosPreview[p.id]?.saldo||0)<=0).length;
-    const _baixos = _prods.filter(p=>{const s=_saldosPreview[p.id]?.saldo||0;const pt=Number(p.pontoReposicao)||Math.max(1,Math.floor((Number(p.quantidadeInicial)||0)*.2));return s>0&&s<=pt;}).length;
-    estCmdbar.innerHTML = `
-      <span class="filter-label">INVENTÁRIO CONSOLIDADO — IMBEL</span>
+    const saldosAll = calcularSaldosImbel(data);
+    const todosProds = data.produtos || [];
+
+    // estado local de filtros e ponto de reposição editado
+    let _busca = '';
+    let _filterStatus = 'todos';
+    let _sortKey = 'nome';
+    let _sortDir = 'asc';
+    let _minEdits = {};  // { produtoId: number }
+
+    function _stockStatus(saldo, min) {
+        if (saldo <= 0) return 'out';
+        if (saldo <= min) return 'crit';
+        if (saldo <= Math.max(min * 1.5, min + 25)) return 'warn';
+        return 'ok';
+    }
+    const _statusCfg = {
+        out:  { label: 'Esgotado', cor: '#dc2626', bg: '#fee2e2', bar: '#dc2626' },
+        crit: { label: 'Crítico',  cor: '#b4520e', bg: 'rgba(184,101,31,.12)', bar: '#b45309' },
+        warn: { label: 'Atenção',  cor: '#d97706', bg: '#fef3c7', bar: '#d97706' },
+        ok:   { label: 'Saudável', cor: '#16a34a', bg: '#dcfce7', bar: '#16a34a' },
+    };
+
+    function _buildRows() {
+        return todosProds.map(p => {
+            const s = saldosAll[p.id] || { inicial: 0, entradas: 0, saidas: 0, saldo: 0 };
+            const saldo = s.inicial + s.entradas - s.saidas;
+            const min = _minEdits[p.id] != null ? _minEdits[p.id]
+                : (p.pontoReposicao !== undefined && p.pontoReposicao !== '' ? Number(p.pontoReposicao)
+                : Math.max(1, Math.floor((Number(p.quantidadeInicial) || 0) * 0.2)));
+            const valorUnit = Number(p.valorUnitario) || 0;
+            return {
+                id: p.id, nome: p.nome || '—', codigo: p.codigo || '',
+                qtdInicial: s.inicial, entradas: s.entradas, saidas: s.saidas,
+                saldo, min, valorUnit,
+                valorEstoque: valorUnit * Math.max(0, saldo),
+                status: _stockStatus(saldo, min),
+                obs: p.observacao || '',
+            };
+        });
+    }
+
+    function _filtrar(rows) {
+        let arr = rows;
+        if (_busca.trim()) {
+            const q = _busca.toLowerCase();
+            arr = arr.filter(r => (r.nome||'').toLowerCase().includes(q) || (r.codigo||'').toLowerCase().includes(q));
+        }
+        if (_filterStatus !== 'todos') arr = arr.filter(r => r.status === _filterStatus);
+        const dir = _sortDir === 'asc' ? 1 : -1;
+        arr = arr.slice().sort((a, b) => {
+            const va = a[_sortKey], vb = b[_sortKey];
+            if (typeof va === 'string') return va.localeCompare(vb) * dir;
+            return ((va ?? 0) - (vb ?? 0)) * dir;
+        });
+        return arr;
+    }
+
+    function _counts(rows) {
+        const c = { todos: rows.length, ok: 0, warn: 0, crit: 0, out: 0 };
+        rows.forEach(r => { c[r.status] = (c[r.status] || 0) + 1; });
+        return c;
+    }
+
+    const fmtN = (v, dec = 0) => Number(v).toLocaleString('pt-BR', { minimumFractionDigits: dec, maximumFractionDigits: dec });
+    const fmtR = v => v > 0 ? 'R$ ' + fmtN(v, 2) : '—';
+
+    // ── 1. COMMAND BAR ──
+    const cmdbar = document.createElement('div');
+    cmdbar.className = 'imbel-cmdbar';
+    cmdbar.innerHTML = `
+      <div class="search" style="max-width:280px">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="text" id="imbelInvBusca" placeholder="Buscar SKU, nome…" />
+      </div>
+      <div class="seg" id="imbelInvStatusSeg" style="flex-shrink:0"></div>
+      <div id="imbelInvEditsBadge" style="display:none;align-items:center;gap:6px">
+        <span id="imbelInvEditsLabel" style="font-family:var(--tv-font-mono);font-size:0.7rem;color:#d97706;font-weight:700"></span>
+        <button class="btn btn-sm" id="imbelInvBtnDescartar">Descartar</button>
+        <button class="btn btn-sm accent" id="imbelInvBtnSalvar">Salvar</button>
+      </div>
       <div class="actions">
-        <button class="btn" onclick="trocarSubAbaControleImbel('cadastro')">+ Cadastrar Produto</button>
         <button class="btn" onclick="renderControleImbelEstoque()">↺ Atualizar</button>
+        <button class="btn" onclick="exportarImbelEstoque()">↓ Exportar</button>
+        <button class="btn accent" onclick="trocarSubAbaControleImbel('cadastro')">+ Cadastrar</button>
       </div>`;
-    container.appendChild(estCmdbar);
+    container.appendChild(cmdbar);
 
-    // 3. KPI STRIP (sem typebar em Estoque)
-    const estKpis = document.createElement('div');
-    estKpis.className = 'imbel-kpis';
-    const _totalSaldo = _prods.reduce((s,p)=>s+Math.max(0,_saldosPreview[p.id]?.saldo||0),0);
-    const _valTotal = _prods.reduce((s,p)=>s+Math.max(0,_saldosPreview[p.id]?.saldo||0)*(Number(p.valorUnitario)||0),0);
-    estKpis.innerHTML = `
-      <div class="kpi"><div class="kpi-label">Produtos</div><div class="kpi-value">${_prods.length}</div><div class="kpi-sub">cadastrados</div></div>
-      <div class="kpi"><div class="kpi-label">Estoque Total</div><div class="kpi-value accent">${_totalSaldo}</div><div class="kpi-sub">unidades</div></div>
-      <div class="kpi"><div class="kpi-label">Valor em Estoque</div><div class="kpi-value pos">R$ ${_valTotal.toLocaleString('pt-BR',{minimumFractionDigits:0})}</div><div class="kpi-sub">CI × saldo</div></div>
-      <div class="kpi"><div class="kpi-label">Esgotados</div><div class="kpi-value ${_esgotados?'neg':''}">${_esgotados}</div><div class="kpi-sub">saldo zero</div></div>
-      <div class="kpi"><div class="kpi-label">Abaixo do Mín</div><div class="kpi-value ${_baixos?'accent':''}">${_baixos}</div><div class="kpi-sub">ponto de reposição</div></div>`;
-    container.appendChild(estKpis);
+    // ── 2. KPI STRIP ──
+    const kpiStrip = document.createElement('div');
+    kpiStrip.className = 'imbel-kpis';
+    kpiStrip.id = 'imbelInvKpis';
+    container.appendChild(kpiStrip);
 
-    // 4. BODY
+    // ── 3. BODY (tabela) ──
     const wrap = document.createElement('div');
     wrap.className = 'imbel-body';
-
-    const thStyle = 'padding:8px 12px;border:1px solid #ddd;background:#1e3a5f;color:#fff;font-size:.82rem;white-space:nowrap;text-align:center';
-    const tabela = document.createElement('table');
-    tabela.style.cssText = 'width:100%;border-collapse:collapse;font-size:.85rem';
-    tabela.innerHTML = `<thead><tr>
-        <th style="${thStyle}">#</th>
-        <th style="${thStyle};text-align:left">Produto</th>
-        <th style="${thStyle}">Qtd Inicial</th>
-        <th style="${thStyle}">Entradas</th>
-        <th style="${thStyle}">Saídas</th>
-        <th style="${thStyle}">Saldo Atual</th>
-        <th style="${thStyle}">Ponto Reposição</th>
-        <th style="${thStyle}">Valor Unit.</th>
-        <th style="${thStyle}">Valor em Estoque</th>
-        <th style="${thStyle}">Ações</th>
-    </tr></thead><tbody></tbody>`;
-
-    const tbody = tabela.querySelector('tbody');
-    const tdBase  = 'padding:8px 12px;border:1px solid #ddd;vertical-align:middle';
-    const tdCenter = tdBase + ';text-align:center';
-
-    // Usar os saldos já calculados no KPI strip
-    const saldosEstoque = _saldosPreview;
-
-    const produtos = data.produtos || [];
-
-    if (produtos.length === 0) {
-        const tr = document.createElement('tr');
-        tr.innerHTML = `<td colspan="6" style="${tdBase};text-align:center;color:#999;font-style:italic">Nenhum produto cadastrado. Cadastre na sub-aba "Cadastro de Produtos".</td>`;
-        tbody.appendChild(tr);
-    }
-
-    produtos.forEach((p, idx) => {
-        const s = saldosEstoque[p.id] || { inicial: 0, entradas: 0, saidas: 0, saidaByTipo: {} };
-        const entrada = s.entradas;
-        const saida   = s.saidas;
-        const saidaByTipo = s.saidaByTipo || {};
-        const saidaTiposOrdenados = Object.keys(IMBEL_TIPOS).filter(k => {
-            const t = IMBEL_TIPOS[k];
-            return t.categoria === 'saida' && saidaByTipo[k];
-        });
-        const saidaTooltipRows = saidaTiposOrdenados.map(k => {
-            const t = IMBEL_TIPOS[k];
-            return `${t.icon} ${t.label}: <b>${saidaByTipo[k]}</b>`;
-        }).join('<br>');
-        const saidaHasBreakdown = saidaTiposOrdenados.length > 1 ||
-            (saidaTiposOrdenados.length === 1 && saidaTiposOrdenados[0] !== 'VENDA');
-        const saidaCell = saidaHasBreakdown
-            ? `<span style="cursor:help;border-bottom:1px dashed #dc2626"
-                    title=""
-                    onmouseenter="mostrarTooltipSaida(event, this, \`${saidaTooltipRows}\`)"
-                    onmouseleave="ocultarTooltipSaida()"
-               >${saida} ℹ️</span>`
-            : `${saida}`;
-        const inicial = s.inicial;
-        const estoqueAtual = s.inicial + s.entradas - s.saidas;
-
-        const ponto = (p.pontoReposicao !== undefined && p.pontoReposicao !== '')
-            ? Number(p.pontoReposicao)
-            : Math.max(1, Math.floor((Number(p.quantidadeInicial)||0) * 0.2));
-
-        let saldoStatus, rowBg, saldoBadge;
-        if (estoqueAtual <= 0) {
-            saldoStatus = 'ESGOTADO';
-            rowBg = '#fff5f5';
-            saldoBadge = `<span style="display:inline-block;padding:2px 10px;border-radius:20px;background:#dc2626;color:#fff;font-size:0.75rem;font-weight:700">${estoqueAtual} 🔴</span>`;
-        } else if (estoqueAtual <= ponto) {
-            saldoStatus = 'BAIXO';
-            rowBg = '#fffbeb';
-            saldoBadge = `<span style="display:inline-block;padding:2px 10px;border-radius:20px;background:#d97706;color:#fff;font-size:0.75rem;font-weight:700">${estoqueAtual} 🟡</span>`;
-        } else {
-            saldoStatus = 'OK';
-            rowBg = idx % 2 === 0 ? '#fff' : '#f7f9fc';
-            saldoBadge = `<span style="display:inline-block;padding:2px 10px;border-radius:20px;background:#16a34a;color:#fff;font-size:0.75rem;font-weight:700">${estoqueAtual} 🟢</span>`;
-        }
-
-        const valorUnit = Number(p.valorUnitario) || 0;
-        const valorEstoque = valorUnit * Math.max(0, estoqueAtual);
-        const fmtR = v => v > 0
-            ? 'R$ ' + v.toLocaleString('pt-BR', {minimumFractionDigits:2})
-            : '—';
-
-        const tr = document.createElement('tr');
-        tr.style.background = rowBg;
-        tr.innerHTML = `
-            <td style="${tdCenter};font-weight:600">${idx + 1}</td>
-            <td style="${tdBase};font-weight:500">
-              ${p.nome}
-              ${p.codigo ? `<span style="color:#94a3b8;font-size:0.72rem;margin-left:4px">(${p.codigo})</span>` : ''}
-            </td>
-            <td style="${tdCenter}">${inicial}</td>
-            <td style="${tdCenter};color:#16a34a;font-weight:600">${entrada}</td>
-            <td style="${tdCenter};color:#dc2626;font-weight:600">${saidaCell}</td>
-            <td style="${tdCenter}">${saldoBadge}</td>
-            <td style="${tdCenter}">
-              <input type="number" min="0" step="1"
-                     value="${p.pontoReposicao !== undefined ? p.pontoReposicao : ponto}"
-                     onchange="salvarPontoReposicaoImbel('${p.id}', this.value)"
-                     style="width:70px;padding:4px 6px;border:1px solid #e2e8f0;border-radius:6px;text-align:center;font-size:0.85rem">
-            </td>
-            <td style="${tdCenter}">${fmtR(valorUnit)}</td>
-            <td style="${tdCenter};font-weight:600;color:${valorEstoque > 0 ? '#16a34a' : '#94a3b8'}">${fmtR(valorEstoque)}</td>
-            <td style="${tdCenter}">
-              <button class="btn btn-outline btn-sm" data-editprod="${p.id}">✎ Editar</button>
-            </td>`;
-        tbody.appendChild(tr);
-    });
-
-    // Totais: valor total em estoque
-    const totalValorEstoque = (data.produtos||[]).reduce((s, p) => {
-        const ps = saldosEstoque[p.id] || { saldo: 0 };
-        return s + Math.max(0, ps.saldo) * (Number(p.valorUnitario)||0);
-    }, 0);
-
-    const tfootRow = document.createElement('tr');
-    tfootRow.style.cssText = 'background:#1e3a5f;color:#fff;font-weight:700';
-    tfootRow.innerHTML = `
-        <td colspan="5" style="padding:10px 12px;text-align:left">Total (${produtos.length} produto(s))</td>
-        <td colspan="3" style="padding:10px 12px;text-align:center">Valor total em estoque:</td>
-        <td style="padding:10px 12px;text-align:center;color:#7ee787;font-size:1rem">R$ ${totalValorEstoque.toLocaleString('pt-BR',{minimumFractionDigits:2})}</td>
-        <td></td>`;
-    tabela.appendChild(document.createElement('tfoot')).appendChild(tfootRow);
-
-    // Linha de totais gerais
-    if (produtos.length > 0) {
-        const totalInicial = (produtos||[]).reduce((s,p)=>s + (Number(p.quantidadeInicial)||0),0);
-        const totalE = Object.values(saldosEstoque).reduce((a,b)=>a+b.entradas,0);
-        const totalS = Object.values(saldosEstoque).reduce((a,b)=>a+b.saidas,0);
-        const totalSaldo = totalInicial + totalE - totalS;
-        const tr = document.createElement('tr');
-        tr.style.cssText = 'background:#1e3a5f;color:#fff;font-weight:700';
-        tr.innerHTML = `
-            <td colspan="2" style="${tdBase};background:#1e3a5f;color:#fff;text-align:right">TOTAL GERAL</td>
-            <td style="${tdCenter};background:#1e3a5f;color:#fff">${totalInicial}</td>
-            <td style="${tdCenter};background:#1e3a5f;color:#fff">${totalE}</td>
-            <td style="${tdCenter};background:#1e3a5f;color:#fff">${totalS}</td>
-            <td style="${tdCenter};background:#1e3a5f;color:#fff">${totalSaldo}</td>
-        `;
-        tbody.appendChild(tr);
-    }
-
-    wrap.appendChild(tabela);
+    wrap.style.cssText = 'overflow:auto;flex:1;min-height:0';
     container.appendChild(wrap);
 
-    // Handler: editar produto a partir do Estoque
-    tbody.querySelectorAll('button[data-editprod]').forEach(btn => btn.onclick = function(){
-        const id = this.getAttribute('data-editprod');
-        if (!id) return;
-        editarProdutoPorId(id);
+    // ── 4. FOOTBAR ──
+    const footbar = document.createElement('div');
+    footbar.className = 'imbel-footbar';
+    footbar.id = 'imbelInvFootbar';
+    container.appendChild(footbar);
+
+    // ── Renderização da tabela ──
+    const thStyle = 'padding:6px 10px;background:#0f1e31;color:#e2e8f0;font-family:var(--tv-font-display);font-size:0.62rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;white-space:nowrap;border:1px solid #1e3a5f;cursor:pointer;user-select:none';
+    const thNum   = thStyle + ';text-align:right';
+    const tdBase  = 'padding:5px 10px;border:1px solid #e2e8f0;vertical-align:middle;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:0.78rem';
+    const tdNum   = tdBase + ';text-align:right;font-family:var(--tv-font-mono)';
+    const tdCtr   = tdBase + ';text-align:center';
+
+    const COLS = [
+        { key: '#',           label: '#',              style: thStyle + ';width:36px',  sortKey: null },
+        { key: 'nome',        label: 'Produto',        style: thStyle + ';min-width:180px', sortKey: 'nome' },
+        { key: 'qtdInicial',  label: 'Qtd Inicial',    style: thNum   + ';min-width:90px',  sortKey: 'qtdInicial' },
+        { key: 'entradas',    label: 'Entradas',       style: thNum   + ';min-width:80px',  sortKey: 'entradas' },
+        { key: 'saidas',      label: 'Saídas',         style: thNum   + ';min-width:80px',  sortKey: 'saidas' },
+        { key: 'saldo',       label: 'Saldo Atual',    style: thNum   + ';min-width:160px', sortKey: 'saldo' },
+        { key: 'min',         label: 'Ponto Reposição',style: thStyle + ';min-width:130px;text-align:center', sortKey: null },
+        { key: 'status',      label: 'Situação',       style: thStyle + ';min-width:100px', sortKey: 'status' },
+        { key: 'valorUnit',   label: 'Valor Unit.',    style: thNum   + ';min-width:100px', sortKey: 'valorUnit' },
+        { key: 'valorEstoque',label: 'Valor Estoque',  style: thNum   + ';min-width:120px', sortKey: 'valorEstoque' },
+        { key: 'acoes',       label: 'Ações',          style: thStyle + ';min-width:70px;text-align:center', sortKey: null },
+    ];
+
+    function buildTable(rows) {
+        wrap.innerHTML = '';
+        const tabela = document.createElement('table');
+        tabela.style.cssText = 'width:100%;border-collapse:collapse;table-layout:auto';
+
+        // thead
+        const thead = document.createElement('thead');
+        const trH = document.createElement('tr');
+        trH.style.cssText = 'position:sticky;top:0;z-index:3';
+        COLS.forEach(col => {
+            const th = document.createElement('th');
+            th.setAttribute('style', col.style);
+            const isActive = col.sortKey && _sortKey === col.sortKey;
+            const arrow = col.sortKey ? ` <span style="opacity:${isActive?1:.35}">${isActive ? (_sortDir === 'asc' ? '↑' : '↓') : '↕'}</span>` : '';
+            th.innerHTML = col.label + arrow;
+            if (col.sortKey) {
+                th.onclick = () => {
+                    if (_sortKey === col.sortKey) _sortDir = _sortDir === 'asc' ? 'desc' : 'asc';
+                    else { _sortKey = col.sortKey; _sortDir = col.sortKey === 'nome' ? 'asc' : 'desc'; }
+                    buildTable(_filtrar(_buildRows()));
+                };
+            }
+            trH.appendChild(th);
+        });
+        thead.appendChild(trH);
+        tabela.appendChild(thead);
+
+        // tbody
+        const tbody = document.createElement('tbody');
+        if (!rows.length) {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `<td colspan="${COLS.length}" style="${tdBase};text-align:center;color:#94a3b8;padding:32px">Nenhum produto corresponde ao filtro.</td>`;
+            tbody.appendChild(tr);
+        }
+        rows.forEach((r, i) => {
+            const st = _statusCfg[r.status];
+            const isDirty = _minEdits[r.id] != null;
+            const refMax = Math.max(r.min * 2, r.saldo, 1);
+            const pct = Math.max(2, Math.min(100, (r.saldo / refMax) * 100));
+            const minPct = Math.max(0, Math.min(100, (r.min / refMax) * 100));
+            const rowBg = isDirty ? 'rgba(217,119,6,.05)' : (i % 2 === 0 ? '#fff' : '#f8fafc');
+
+            const tr = document.createElement('tr');
+            tr.style.background = rowBg;
+            if (isDirty) tr.style.boxShadow = 'inset 3px 0 0 #d97706';
+
+            // # índice
+            const tdIdx = document.createElement('td');
+            tdIdx.setAttribute('style', tdCtr + ';color:#94a3b8;font-family:var(--tv-font-mono);font-size:0.72rem');
+            tdIdx.textContent = i + 1;
+            tr.appendChild(tdIdx);
+
+            // Produto
+            const tdNm = document.createElement('td');
+            tdNm.setAttribute('style', tdBase + ';font-weight:600;max-width:200px');
+            tdNm.innerHTML = `<div style="font-weight:600;font-size:0.8rem;color:#0f1e31;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${_escapeHtml(r.nome)}</div>
+              ${r.codigo ? `<div style="font-family:var(--tv-font-mono);font-size:0.68rem;color:#b4520e;background:rgba(184,101,31,.08);border-radius:2px;padding:0 4px;display:inline-block;margin-top:1px">${_escapeHtml(r.codigo)}</div>` : ''}`;
+            tr.appendChild(tdNm);
+
+            // Qtd inicial
+            const tdQi = document.createElement('td');
+            tdQi.setAttribute('style', tdNum + ';color:#64748b');
+            tdQi.textContent = fmtN(r.qtdInicial);
+            tr.appendChild(tdQi);
+
+            // Entradas
+            const tdEn = document.createElement('td');
+            tdEn.setAttribute('style', tdNum + ';color:#16a34a;font-weight:600');
+            tdEn.textContent = r.entradas ? '+' + fmtN(r.entradas) : '—';
+            tr.appendChild(tdEn);
+
+            // Saídas
+            const tdSa = document.createElement('td');
+            tdSa.setAttribute('style', tdNum + ';color:#dc2626;font-weight:600');
+            tdSa.textContent = r.saidas ? '−' + fmtN(r.saidas) : '—';
+            tr.appendChild(tdSa);
+
+            // Saldo atual (número + barra)
+            const tdSd = document.createElement('td');
+            tdSd.setAttribute('style', tdNum + ';min-width:160px');
+            const razao = r.min > 0 ? `<span style="font-size:0.65rem;color:#94a3b8;margin-left:6px">${(r.saldo/r.min).toFixed(1)}× mín</span>` : '';
+            tdSd.innerHTML = `
+              <div style="display:flex;align-items:baseline;justify-content:flex-end">
+                <span style="font-size:0.9rem;font-weight:700;color:${st.cor}">${fmtN(r.saldo)}</span>${razao}
+              </div>
+              <div style="position:relative;width:100%;height:5px;background:#e2e8f0;border-radius:3px;overflow:visible;margin-top:4px">
+                <div style="position:absolute;left:0;top:0;bottom:0;width:${pct}%;background:${st.bar};border-radius:3px"></div>
+                ${r.min > 0 ? `<div style="position:absolute;top:-2px;bottom:-2px;left:${minPct}%;width:2px;background:#0f1e31;opacity:.5;border-radius:1px" title="mínimo ${r.min}"></div>` : ''}
+              </div>`;
+            tr.appendChild(tdSd);
+
+            // Ponto de reposição (stepper)
+            const tdMin = document.createElement('td');
+            tdMin.setAttribute('style', tdCtr);
+            const stepperBorder = isDirty ? '1px solid #d97706' : '1px solid #e2e8f0';
+            const stepperShadow = isDirty ? '0 0 0 2px rgba(217,119,6,.15)' : 'none';
+            tdMin.innerHTML = `<div style="display:inline-flex;align-items:stretch;border:${stepperBorder};border-radius:4px;overflow:hidden;height:24px;box-shadow:${stepperShadow}">
+              <button onclick="imbelInvStepMin('${r.id}',-1)" style="width:22px;border:none;background:#f8fafc;color:#475569;font-size:13px;font-weight:700;cursor:pointer;display:grid;place-items:center;line-height:1">−</button>
+              <input type="number" value="${r.min}" min="0"
+                style="width:44px;border:none;border-left:1px solid #e2e8f0;border-right:1px solid #e2e8f0;text-align:center;font-family:var(--tv-font-mono);font-size:0.78rem;font-weight:600;color:#0f1e31;background:transparent;-moz-appearance:textfield"
+                data-minid="${r.id}"
+                onchange="imbelInvSetMin('${r.id}', this.value)"
+                oninput="imbelInvSetMin('${r.id}', this.value)" />
+              <button onclick="imbelInvStepMin('${r.id}',+1)" style="width:22px;border:none;background:#f8fafc;color:#475569;font-size:13px;font-weight:700;cursor:pointer;display:grid;place-items:center;line-height:1">+</button>
+            </div>`;
+            tr.appendChild(tdMin);
+
+            // Situação
+            const tdSt = document.createElement('td');
+            tdSt.setAttribute('style', tdBase);
+            tdSt.innerHTML = `<span style="display:inline-flex;align-items:center;gap:5px;font-size:0.72rem;font-weight:600;padding:3px 8px;border-radius:12px;color:${st.cor};background:${st.bg};white-space:nowrap">
+              <span style="width:6px;height:6px;border-radius:50%;background:${st.cor};flex-shrink:0"></span>${st.label}
+            </span>`;
+            tr.appendChild(tdSt);
+
+            // Valor unit
+            const tdVu = document.createElement('td');
+            tdVu.setAttribute('style', tdNum);
+            tdVu.textContent = fmtR(r.valorUnit);
+            tr.appendChild(tdVu);
+
+            // Valor estoque
+            const tdVe = document.createElement('td');
+            tdVe.setAttribute('style', tdNum + ';font-weight:700;color:#0f1e31');
+            tdVe.textContent = fmtR(r.valorEstoque);
+            tr.appendChild(tdVe);
+
+            // Ações
+            const tdAc = document.createElement('td');
+            tdAc.setAttribute('style', tdCtr);
+            tdAc.innerHTML = `<button class="btn btn-sm btn-outline" data-editprod="${r.id}" style="font-size:0.72rem;padding:2px 8px">✎ Editar</button>`;
+            tr.appendChild(tdAc);
+
+            tbody.appendChild(tr);
+        });
+        tabela.appendChild(tbody);
+
+        // tfoot total geral
+        if (rows.length > 0) {
+            const tfoot = document.createElement('tfoot');
+            const trF = document.createElement('tr');
+            trF.style.cssText = 'position:sticky;bottom:0;z-index:2';
+            const totSaldo = rows.reduce((s, r) => s + r.saldo, 0);
+            const totQi    = rows.reduce((s, r) => s + r.qtdInicial, 0);
+            const totEn    = rows.reduce((s, r) => s + r.entradas, 0);
+            const totSa    = rows.reduce((s, r) => s + r.saidas, 0);
+            const totVe    = rows.reduce((s, r) => s + r.valorEstoque, 0);
+            const tfTd = (txt, align = 'right') =>
+                `<td style="padding:8px 10px;background:#0f1e31;color:#fff;border-top:2px solid #d97706;font-family:var(--tv-font-mono);font-weight:700;font-size:0.78rem;text-align:${align}">${txt}</td>`;
+            trF.innerHTML =
+                tfTd('', 'center') +
+                `<td style="padding:8px 10px;background:#0f1e31;color:#fff;border-top:2px solid #d97706;font-family:var(--tv-font-display);font-weight:700;font-size:0.72rem;letter-spacing:.06em;text-transform:uppercase">TOTAL GERAL <span style="font-family:var(--tv-font-mono);font-weight:500;font-size:0.65rem;color:#94a3b8">${rows.length} SKU</span></td>` +
+                tfTd(fmtN(totQi)) +
+                tfTd('<span style="color:#4ade80">+' + fmtN(totEn) + '</span>') +
+                tfTd('<span style="color:#f87171">−' + fmtN(totSa) + '</span>') +
+                tfTd('<span style="font-weight:800">' + fmtN(totSaldo) + '</span>') +
+                tfTd('', 'center') + tfTd('') + tfTd('') +
+                tfTd('<span style="color:#d97706;font-weight:800">R$ ' + fmtN(totVe, 0) + '</span>') +
+                tfTd('', 'center');
+            tfoot.appendChild(trF);
+            tabela.appendChild(tfoot);
+        }
+
+        wrap.appendChild(tabela);
+
+        // handler editar produto
+        tbody.querySelectorAll('button[data-editprod]').forEach(btn => btn.onclick = function() {
+            editarProdutoPorId(this.getAttribute('data-editprod'));
+        });
+    }
+
+    function buildKpis(rows) {
+        const allRows = _buildRows();
+        const counts = _counts(allRows);
+        const totalValor = allRows.reduce((s, r) => s + r.valorEstoque, 0);
+        const totalSaldo = allRows.reduce((s, r) => s + r.saldo, 0);
+        const statusBtns = [
+            ['todos', 'Todos', null],
+            ['ok',   'Saudável', '#16a34a'],
+            ['warn', 'Atenção', '#d97706'],
+            ['crit', 'Crítico', '#b4520e'],
+            ['out',  'Esgotado', '#dc2626'],
+        ].map(([k, lbl, cor]) => {
+            const isAct = _filterStatus === k;
+            const style = `display:inline-flex;align-items:center;gap:4px;font-family:var(--tv-font-display);font-size:0.65rem;font-weight:700;letter-spacing:.04em;padding:3px 9px;border:1px solid ${isAct ? 'transparent' : (cor ? cor+'44' : '#cbd5e1')};border-radius:20px;cursor:pointer;background:${isAct ? (cor || '#0f1e31') : '#fff'};color:${isAct ? '#fff' : (cor || '#374151')}`;
+            return `<button style="${style}" onclick="imbelInvFiltrarStatus('${k}')">${lbl} <span style="font-size:0.6rem;opacity:.7;font-family:var(--tv-font-mono)">${counts[k]||0}</span></button>`;
+        }).join('');
+
+        kpiStrip.innerHTML = `
+          <div class="kpi">
+            <div class="kpi-label">Produtos</div>
+            <div class="kpi-value">${allRows.length}<span class="kpi-unit"> SKU</span></div>
+            <div class="kpi-sub">cadastrados</div>
+          </div>
+          <div class="kpi">
+            <div class="kpi-label">Estoque Total</div>
+            <div class="kpi-value">${fmtN(totalSaldo)}<span class="kpi-unit"> un</span></div>
+            <div class="kpi-sub">saldo consolidado</div>
+          </div>
+          <div class="kpi">
+            <div class="kpi-label">Valor em Estoque</div>
+            <div class="kpi-value accent">R$ ${fmtN(totalValor/1000, 1)}<span class="kpi-unit"> mil</span></div>
+            <div class="kpi-sub">CI × saldo</div>
+          </div>
+          <div class="kpi">
+            <div class="kpi-label">Esgotados${counts.out > 0 ? ' <span style="background:#fee2e2;color:#dc2626;font-size:0.6rem;padding:0 4px;border-radius:4px;font-weight:700">!</span>' : ''}</div>
+            <div class="kpi-value ${counts.out > 0 ? 'neg' : ''}">${counts.out}</div>
+            <div class="kpi-sub">saldo zero</div>
+          </div>
+          <div class="kpi">
+            <div class="kpi-label">Abaixo do Mín.${counts.crit > 0 ? ' <span style="background:#fef3c7;color:#d97706;font-size:0.6rem;padding:0 4px;border-radius:4px;font-weight:700">!</span>' : ''}</div>
+            <div class="kpi-value ${counts.crit > 0 ? 'accent' : ''}">${counts.crit}</div>
+            <div class="kpi-sub">requer reposição</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;padding:0 4px;border-left:1px solid #e2e8f0;margin-left:4px">
+            <span style="font-family:var(--tv-font-display);font-size:0.6rem;font-weight:700;letter-spacing:.07em;color:#94a3b8;white-space:nowrap">SITUAÇÃO:</span>
+            ${statusBtns}
+          </div>`;
+    }
+
+    function buildFootbar(rows) {
+        const allRows = _buildRows();
+        const nEdits = Object.keys(_minEdits).length;
+        const totSaldo = rows.reduce((s, r) => s + r.saldo, 0);
+        const totValor = rows.reduce((s, r) => s + r.valorEstoque, 0);
+        const alerts = rows.filter(r => r.status === 'out' || r.status === 'crit').length;
+        footbar.innerHTML = `
+          <div class="seg"><span class="lbl">IMBEL</span><span class="val accent">INVENTÁRIO</span></div>
+          <div class="divider"></div>
+          <div class="seg"><span class="lbl">SKU</span><span class="val">${rows.length}/${allRows.length}</span></div>
+          <div class="divider"></div>
+          <div class="seg"><span class="lbl">SALDO</span><span class="val">${fmtN(totSaldo)}</span></div>
+          <div class="divider"></div>
+          <div class="seg"><span class="lbl">VALOR</span><span class="val accent">R$ ${fmtN(totValor/1000, 0)}k</span></div>
+          <div class="divider"></div>
+          <div class="seg"><span class="lbl">ALERTAS</span><span class="val ${alerts > 0 ? 'accent' : ''}" style="${alerts > 0 ? 'color:#dc2626' : ''}">${alerts}</span></div>
+          ${nEdits > 0 ? `<div class="divider"></div><div class="seg"><span class="lbl">EDIÇÕES</span><span class="val" style="color:#d97706">${nEdits}</span></div>` : ''}`;
+    }
+
+    function _render() {
+        const allRows = _buildRows();
+        const rows = _filtrar(allRows);
+        buildKpis(rows);
+        buildTable(rows);
+        buildFootbar(rows);
+        // badge de edições
+        const nEdits = Object.keys(_minEdits).length;
+        const badge = document.getElementById('imbelInvEditsBadge');
+        const label = document.getElementById('imbelInvEditsLabel');
+        if (badge) { badge.style.display = nEdits > 0 ? 'inline-flex' : 'none'; }
+        if (label) { label.textContent = `${nEdits} reposição${nEdits !== 1 ? 'ões' : ''} pendente${nEdits !== 1 ? 's' : ''}`; }
+    }
+
+    // ── Funções globais para interações ──
+    window.imbelInvSetMin = function(id, val) {
+        const v = Math.max(0, parseInt(val) || 0);
+        _minEdits[id] = v;
+        _render();
+        // restaurar foco no input
+        setTimeout(() => {
+            const inp = wrap.querySelector(`input[data-minid="${id}"]`);
+            if (inp) { inp.value = v; inp.focus(); }
+        }, 0);
+    };
+    window.imbelInvStepMin = function(id, delta) {
+        const allRows = _buildRows();
+        const r = allRows.find(x => x.id === id);
+        if (!r) return;
+        const cur = _minEdits[id] != null ? _minEdits[id] : r.min;
+        _minEdits[id] = Math.max(0, cur + delta);
+        _render();
+    };
+    window.imbelInvFiltrarStatus = function(k) {
+        _filterStatus = k;
+        _render();
+    };
+
+    // botões descartar / salvar
+    cmdbar.querySelector('#imbelInvBtnDescartar')?.addEventListener('click', () => {
+        _minEdits = {};
+        _render();
+    });
+    cmdbar.querySelector('#imbelInvBtnSalvar')?.addEventListener('click', () => {
+        const data2 = loadImbel();
+        Object.entries(_minEdits).forEach(([id, val]) => {
+            const p = (data2.produtos || []).find(x => x.id === id);
+            if (p) p.pontoReposicao = val;
+        });
+        saveImbel(data2);
+        _minEdits = {};
+        mostrarNotificacao(`Pontos de reposição salvos.`, 'success');
+        _render();
     });
 
-    // 5. FOOTBAR
-    const estFootbar = document.createElement('div');
-    estFootbar.className = 'imbel-footbar';
-    estFootbar.innerHTML = `
-      <div class="seg"><span class="lbl">IMBEL</span><span class="val accent">INVENTÁRIO</span></div>
-      <div class="divider"></div>
-      <div class="seg"><span class="lbl">PRODUTOS</span><span class="val">${(data.produtos||[]).length}</span></div>
-      <div class="divider"></div>
-      <div class="seg"><span class="lbl">ESGOTADOS</span><span class="val ${_esgotados?'accent':''}">${_esgotados}</span></div>
-      <div class="divider"></div>
-      <div class="seg"><span class="lbl">BAIXOS</span><span class="val ${_baixos?'accent':''}">${_baixos}</span></div>`;
-    container.appendChild(estFootbar);
+    // busca
+    cmdbar.querySelector('#imbelInvBusca')?.addEventListener('input', function() {
+        _busca = this.value;
+        _render();
+    });
+
+    _render();
+}
+
+function exportarImbelEstoque() {
+    try {
+        const data = loadImbel();
+        const saldos = calcularSaldosImbel(data);
+        const sep = ';';
+        let csv = `CÓDIGO${sep}NOME${sep}QTD_INICIAL${sep}ENTRADAS${sep}SAÍDAS${sep}SALDO${sep}PONTO_REP${sep}VALOR_UNIT${sep}VALOR_ESTOQUE\n`;
+        (data.produtos || []).forEach(p => {
+            const s = saldos[p.id] || { inicial: 0, entradas: 0, saidas: 0 };
+            const saldo = s.inicial + s.entradas - s.saidas;
+            const min = p.pontoReposicao !== undefined && p.pontoReposicao !== '' ? Number(p.pontoReposicao) : Math.max(1, Math.floor((Number(p.quantidadeInicial)||0)*0.2));
+            const vu = Number(p.valorUnitario) || 0;
+            csv += [p.codigo||'', p.nome||'', s.inicial, s.entradas, s.saidas, saldo, min, vu.toFixed(2), (vu*Math.max(0,saldo)).toFixed(2)].join(sep) + '\n';
+        });
+        const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a'); a.href = url; a.download = 'imbel_inventario_' + new Date().toISOString().split('T')[0] + '.csv';
+        a.click(); URL.revokeObjectURL(url);
+        mostrarNotificacao('Inventário exportado!', 'success');
+    } catch(e) { mostrarNotificacao('Erro ao exportar.', 'error'); }
 }
 
 function renderControleImbelCadastro() {
