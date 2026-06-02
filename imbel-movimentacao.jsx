@@ -27,12 +27,13 @@ function ImbelMovimentacao() {
     if (search.trim()) {
       const q = search.toLowerCase();
       arr = arr.filter(m =>
-        m.id.toLowerCase().includes(q) ||
-        m.produtoId.toLowerCase().includes(q) ||
-        m.produtoNome.toLowerCase().includes(q) ||
+        (m.id || '').toLowerCase().includes(q) ||
+        (m.produtoId || '').toLowerCase().includes(q) ||
+        (m.produtoNome || '').toLowerCase().includes(q) ||
+        (m.destinatario || '').toLowerCase().includes(q) ||
+        (m.cpfCnpj || '').toLowerCase().includes(q) ||
         (m.nf || '').toLowerCase().includes(q) ||
-        (m.cliente || '').toLowerCase().includes(q) ||
-        m.usuario.toLowerCase().includes(q) ||
+        (m.usuario || '').toLowerCase().includes(q) ||
         (m.observacao || '').toLowerCase().includes(q)
       );
     }
@@ -46,9 +47,13 @@ function ImbelMovimentacao() {
     const saldos = {};
     IMBEL_PRODUTOS.forEach(p => { saldos[p.id] = p.estoqueGalpao; });
     return [...filtered].map(m => {
-      const saldoApos = saldos[m.produtoId];
-      const delta = m.tipo === 'entrada' ? m.quantidade : m.tipo === 'saida' ? -Math.abs(m.quantidade) : m.quantidade;
-      saldos[m.produtoId] = saldoApos - delta;
+      const pid = m.produtoId || (m.items && m.items[0]?.produtoId);
+      const saldoApos = saldos[pid] || 0;
+      const isEnt = typeof imbelTipoAumentaEstoque === 'function'
+        ? imbelTipoAumentaEstoque(m.tipo)
+        : (m.tipo || '').toUpperCase().includes('ENTRADA') || (m.tipo || '') === 'entrada';
+      const delta = isEnt ? Number(m.quantidade) || 0 : -(Math.abs(Number(m.quantidade) || 0));
+      if (pid) saldos[pid] = saldoApos - delta;
       return { ...m, saldoApos };
     });
   }, [filtered]);
@@ -57,9 +62,13 @@ function ImbelMovimentacao() {
     const byTipo = { entrada: 0, saida: 0, ajuste: 0, transferencia: 0 };
     let totalEntrada = 0, totalSaida = 0, totalFat = 0;
     filtered.forEach(m => {
-      byTipo[m.tipo] = (byTipo[m.tipo] || 0) + 1;
-      if (m.tipo === 'entrada') totalEntrada += m.quantidade;
-      if (m.tipo === 'saida')  { totalSaida += Math.abs(m.quantidade); totalFat += m.valorTotal; }
+      const tipoKey = (m.tipo || '').toLowerCase().includes('ajuste') ? 'ajuste'
+        : (m.tipo || '').toLowerCase().includes('transfer') ? 'transferencia'
+        : (typeof imbelTipoAumentaEstoque === 'function' ? imbelTipoAumentaEstoque(m.tipo) : (m.tipo||'').toUpperCase().includes('ENTRADA'))
+          ? 'entrada' : 'saida';
+      byTipo[tipoKey] = (byTipo[tipoKey] || 0) + 1;
+      if (tipoKey === 'entrada') totalEntrada += Number(m.quantidade) || 0;
+      if (tipoKey === 'saida')  { totalSaida += Math.abs(Number(m.quantidade) || 0); totalFat += Number(m.valor) || Number(m.valorTotal) || 0; }
     });
     return { total: filtered.length, byTipo, totalEntrada, totalSaida, totalFat };
   }, [filtered]);
@@ -72,12 +81,23 @@ function ImbelMovimentacao() {
   function startEdit(m) { setEditingId(m.id); setEditData({ ...m }); setEditReason(''); }
   function cancelEdit() { setEditingId(null); setEditData(null); setEditReason(''); }
 
-  function fmtDateLong(ts) {
-    const d = new Date(ts);
-    return {
-      data: d.toLocaleDateString('pt-BR'),
-      hora: d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
-    };
+  function fmtDateLong(m) {
+    // suporta tanto m.timestamp (ISO) quanto m.data + m.hora (campos separados)
+    if (m.data) {
+      const d = new Date(m.data + 'T12:00:00');
+      return {
+        data: d.toLocaleDateString('pt-BR'),
+        hora: m.hora || '',
+      };
+    }
+    if (m.timestamp) {
+      const d = new Date(m.timestamp);
+      return {
+        data: d.toLocaleDateString('pt-BR'),
+        hora: d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+      };
+    }
+    return { data: '—', hora: '' };
   }
 
   return h('div', { className: 'imbel-subtab' }, [
@@ -166,57 +186,108 @@ function ImbelMovimentacao() {
     h('div', { className: 'imbel-body', key: 'body' }, [
       h('table', { className: 'price-table imbel-mov-table', key: 't' }, [
         h('thead', { key: 'h' }, h('tr', {}, [
-          h('th', { key: 1, style: { minWidth: 90  } }, 'ID'),
-          h('th', { key: 2, style: { minWidth: 110 } }, 'DATA / HORA'),
-          h('th', { key: 3, style: { minWidth: 110 } }, 'TIPO'),
-          h('th', { key: 4, style: { minWidth: 180 } }, 'PRODUTO'),
-          h('th', { className: 'num', key: 5, style: { minWidth: 80  } }, 'QTD'),
-          h('th', { className: 'num', key: 6, style: { minWidth: 100 } }, 'SALDO APÓS'),
-          h('th', { key: 7, style: { minWidth: 90  } }, 'NF'),
-          h('th', { key: 8, style: { minWidth: 180 } }, 'CLIENTE'),
-          h('th', { key: 9, style: { minWidth: 100 } }, 'USUÁRIO'),
-          h('th', { className: 'num', key: 10, style: { minWidth: 110 } }, 'VALOR'),
-          h('th', { key: 11, style: { minWidth: 180 } }, 'OBSERVAÇÃO'),
-          h('th', { key: 12, style: { minWidth: 80  } }, ''),
+          h('th', { key: 'cb', style: { width: 36, minWidth: 36 } },
+            h('input', { type: 'checkbox', title: 'Selecionar todos' })
+          ),
+          h('th', { key: 1,  style: { minWidth: 80,  textAlign: 'left'  } }, 'ID'),
+          h('th', { key: 2,  style: { minWidth: 180, textAlign: 'left'  } }, 'DESTINATÁRIO'),
+          h('th', { key: 3,  style: { minWidth: 100 } }, 'DATA'),
+          h('th', { key: 4,  style: { minWidth: 110 } }, 'TIPO'),
+          h('th', { key: 5,  style: { minWidth: 180, textAlign: 'left'  } }, 'PRODUTO'),
+          h('th', { className: 'num', key: 6, style: { minWidth: 70  } }, 'QTD'),
+          h('th', { className: 'num', key: 7, style: { minWidth: 110 } }, 'VALOR'),
+          h('th', { key: 8,  style: { minWidth: 50  }, title: 'Entregue'  }, 'ENTG.'),
+          h('th', { key: 9,  style: { minWidth: 50  }, title: 'Pagamento' }, 'PGTO'),
+          h('th', { key: 10, style: { minWidth: 40  }, title: 'FI'        }, 'FI'),
+          h('th', { key: 11, style: { minWidth: 70  } }, 'AÇÕES'),
         ])),
         h('tbody', { key: 'b' },
           withBalance.map(m => {
-            const meta = TIPO_MOV_META[m.tipo];
-            const { data, hora } = fmtDateLong(m.timestamp);
+            const { data, hora } = fmtDateLong(m);
             const editing = editingId === m.id;
-            return h('tr', { key: m.id, className: editing ? 'editing' : '' }, [
-              h('td', { className: 'ncm', key: 1 }, m.id),
-              h('td', { key: 2 }, [
-                h('div', { style: { fontFamily: 'IBM Plex Mono,monospace', fontSize: 11, color: '#0f1e31', fontWeight: 600 }, key: 1 }, data),
-                h('div', { style: { fontFamily: 'IBM Plex Mono,monospace', fontSize: 10, color: '#94a3b8' }, key: 2 }, hora),
+            // normaliza tipo para lógica de cores
+            const tipoUp   = (m.tipo || '').toUpperCase();
+            const isEntrada = typeof imbelTipoAumentaEstoque === 'function'
+              ? imbelTipoAumentaEstoque(m.tipo)
+              : tipoUp.includes('ENTRADA');
+            const isAjuste  = tipoUp.includes('AJUSTE');
+            const isTransf  = tipoUp.includes('TRANSFER');
+            const badgeBg   = isAjuste ? 'rgba(37,99,235,.10)' : isTransf ? 'rgba(30,58,95,.10)' : isEntrada ? 'rgba(22,163,74,.12)' : 'rgba(220,38,38,.10)';
+            const badgeClr  = isAjuste ? '#1d4ed8' : isTransf ? '#1e3a5f' : isEntrada ? '#15803d' : '#dc2626';
+            const badgePfx  = isAjuste ? '⬡ ' : isTransf ? '→ ' : isEntrada ? '+ ' : '↗ ';
+            const qtdSign   = isEntrada ? '+' : '−';
+            const qtdColor  = isEntrada ? '#15803d' : '#dc2626';
+            // label do tipo: usa IMBEL_TIPOS se disponível, senão usa m.tipo direto
+            const tipoLabel = (typeof IMBEL_TIPOS !== 'undefined' && IMBEL_TIPOS[m.tipo])
+              ? IMBEL_TIPOS[m.tipo].label
+              : (m.tipo || '—');
+
+            // checkbox cell helper
+            const chkStyle = { width: 16, height: 16, cursor: 'pointer', accentColor: isEntrada ? '#16a34a' : '#1e3a5f' };
+
+            return h('tr', { key: m.id, className: editing ? 'editing' : '', style: { fontWeight: editing ? 600 : 400 } }, [
+              // ☐ checkbox
+              h('td', { key: 'cb', style: { textAlign: 'center', padding: '5px 8px' } },
+                h('input', { type: 'checkbox', style: chkStyle })
+              ),
+              // ID
+              h('td', { key: 1, style: { whiteSpace: 'nowrap', padding: '5px 8px' } },
+                h('span', { style: { fontFamily: 'IBM Plex Mono,monospace', fontSize: 11, fontWeight: 700, color: '#1e3a5f', background: '#f0f4f9', padding: '1px 6px', borderRadius: 2, letterSpacing: '.04em' } }, m.id)
+              ),
+              // DESTINATÁRIO
+              h('td', { key: 2, style: { fontWeight: 600, color: '#1e293b', padding: '5px 8px', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, [
+                m.destinatario || h('span', { style: { color: '#94a3b8' }, key: 'd' }, '—'),
+                m.cpfCnpj && h('div', { style: { fontFamily: 'IBM Plex Mono,monospace', fontSize: 10, color: '#94a3b8', fontWeight: 400, marginTop: 1 }, key: 'c' }, m.cpfCnpj),
               ]),
-              h('td', { key: 3 }, h('span', {
-                style: { color: meta.color, background: meta.bg, padding: '2px 8px', borderRadius: 2, fontSize: 10, fontWeight: 600, letterSpacing: 0.4, textTransform: 'uppercase', display: 'inline-flex', alignItems: 'center', gap: 4 }
-              }, meta.label)),
-              h('td', { className: 'name', key: 4 }, [
-                h('div', { style: { fontWeight: 600, color: '#0f1e31' }, key: 1 }, m.produtoNome),
-                h('div', { style: { fontFamily: 'IBM Plex Mono,monospace', fontSize: 10, color: '#94a3b8' }, key: 2 }, m.produtoId),
+              // DATA
+              h('td', { key: 3, style: { textAlign: 'center', whiteSpace: 'nowrap', fontFamily: 'IBM Plex Mono,monospace', fontSize: 11, color: '#374151', padding: '5px 8px' } }, [
+                h('div', { key: 'd' }, data),
+                hora && h('div', { key: 'h', style: { fontSize: 10, color: '#94a3b8' } }, hora),
               ]),
-              h('td', { className: 'num', key: 5, style: { fontWeight: 700, color: meta.color, fontSize: 13 } },
+              // TIPO badge
+              h('td', { key: 4, style: { textAlign: 'center', padding: '5px 8px' } },
+                h('span', { style: { display: 'inline-flex', alignItems: 'center', gap: 3, background: badgeBg, color: badgeClr, fontFamily: 'var(--tv-font-display,inherit)', fontSize: 10, fontWeight: 700, letterSpacing: '.06em', padding: '2px 7px', borderRadius: 3, whiteSpace: 'nowrap', border: `1px solid ${badgeClr}33` } },
+                  badgePfx + tipoLabel
+                )
+              ),
+              // PRODUTO
+              h('td', { key: 5, style: { fontWeight: 500, padding: '5px 8px', maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, [
+                h('div', { style: { fontWeight: 600, color: '#0f1e31' }, key: 'n' }, m.produtoNome || m.produtoId || '—'),
+                m.produtoId && m.produtoNome && h('div', { style: { fontFamily: 'IBM Plex Mono,monospace', fontSize: 10, color: '#94a3b8' }, key: 'id' }, m.produtoId),
+              ]),
+              // QTD
+              h('td', { key: 6, className: 'num', style: { fontFamily: 'IBM Plex Mono,monospace', fontWeight: 700, fontSize: 13, color: qtdColor, padding: '5px 8px' } },
                 editing
-                  ? h('input', { type: 'number', value: editData.quantidade, onChange: e => setEditData({ ...editData, quantidade: parseInt(e.target.value) || 0 }), style: { width: 70, padding: '4px 6px', textAlign: 'right', fontFamily: 'IBM Plex Mono,monospace', border: '1px solid #e5a128', borderRadius: 2 } })
-                  : (meta.sign + fmt(Math.abs(m.quantidade), 0))),
-              h('td', { className: 'num', key: 6, style: { color: m.saldoApos < (IMBEL_PRODUTOS.find(p => p.id === m.produtoId)?.estoqueMin || 0) ? '#dc2626' : '#64748b' } }, fmt(m.saldoApos, 0)),
-              h('td', { className: 'pn',     key: 7 }, m.nf || '—'),
-              h('td', { className: 'fabrica',key: 8 }, m.cliente || h('span', { style: { color: '#94a3b8' } }, '—')),
-              h('td', { key: 9, style: { fontSize: 11 } }, m.usuario),
-              h('td', { className: 'num', key: 10, style: { color: '#16a34a', fontWeight: 600 } }, m.tipo === 'saida' ? 'R$ ' + fmt(m.valorTotal, 0) : '—'),
-              h('td', { key: 11, style: { fontSize: 11, fontStyle: 'italic', color: '#64748b' } },
+                  ? h('input', { type: 'number', value: editData.quantidade, onChange: e => setEditData({ ...editData, quantidade: parseInt(e.target.value) || 0 }), style: { width: 60, padding: '3px 5px', textAlign: 'right', fontFamily: 'IBM Plex Mono,monospace', border: '1px solid #e5a128', borderRadius: 2 } })
+                  : qtdSign + fmt(Math.abs(m.quantidade), 0)
+              ),
+              // VALOR
+              h('td', { key: 7, className: 'num', style: { fontFamily: 'IBM Plex Mono,monospace', fontWeight: 700, fontSize: 12, color: '#15803d', padding: '5px 8px' } },
+                m.valorTotal ? 'R$ ' + fmt(m.valorTotal, 0) : h('span', { style: { color: '#94a3b8', fontWeight: 400 } }, '—')
+              ),
+              // ENTG. checkbox
+              h('td', { key: 8, style: { textAlign: 'center', padding: '5px 8px' } },
+                h('input', { type: 'checkbox', checked: (m.entregue || '').toUpperCase() === 'SIM', readOnly: true, style: { width: 15, height: 15, cursor: 'pointer', accentColor: '#16a34a' } })
+              ),
+              // PGTO checkbox
+              h('td', { key: 9, style: { textAlign: 'center', padding: '5px 8px' } },
+                h('input', { type: 'checkbox', checked: (m.pagamento || '').toUpperCase() === 'SIM', readOnly: true, style: { width: 15, height: 15, cursor: 'pointer', accentColor: '#16a34a' } })
+              ),
+              // FI checkbox
+              h('td', { key: 10, style: { textAlign: 'center', padding: '5px 8px' } },
+                h('input', { type: 'checkbox', checked: (m.fi || '').toUpperCase() === 'SIM', readOnly: true, style: { width: 15, height: 15, cursor: 'pointer', accentColor: '#1e3a5f' } })
+              ),
+              // AÇÕES
+              h('td', { key: 11, style: { textAlign: 'center', padding: '5px 8px' } },
                 editing
-                  ? h('input', { type: 'text', value: editData.observacao, onChange: e => setEditData({ ...editData, observacao: e.target.value }), placeholder: 'Observação', style: { width: '100%', padding: '4px 6px', fontSize: 11, border: '1px solid #e5a128', borderRadius: 2 } })
-                  : (m.observacao || '—')),
-              h('td', { key: 12, style: { textAlign: 'right' } },
-                editing
-                  ? h('div', { style: { display: 'flex', gap: 4 } }, [
-                      h('button', { className: 'btn small', key: 1, style: { color: '#16a34a' }, onClick: cancelEdit }, '✓'),
-                      h('button', { className: 'btn small ghost', key: 2, onClick: cancelEdit }, '✕'),
+                  ? h('div', { style: { display: 'flex', gap: 4, justifyContent: 'center' } }, [
+                      h('button', { key: 1, onClick: cancelEdit, style: { background: 'none', border: '1px solid #16a34a', borderRadius: 3, padding: '2px 7px', cursor: 'pointer', color: '#16a34a', fontSize: 12 } }, '✓'),
+                      h('button', { key: 2, onClick: cancelEdit, style: { background: 'none', border: '1px solid #dc2626', borderRadius: 3, padding: '2px 7px', cursor: 'pointer', color: '#dc2626', fontSize: 12 } }, '✕'),
                     ])
-                  : h('button', { className: 'icon-btn', onClick: () => startEdit(m), title: 'Editar' }, '⋯')
+                  : h('div', { style: { display: 'flex', gap: 4, justifyContent: 'center' } }, [
+                      h('button', { key: 1, onClick: () => startEdit(m), title: 'Editar', style: { background: 'none', border: '1px solid #e2e8f0', borderRadius: 3, padding: '2px 7px', cursor: 'pointer', color: '#64748b', fontSize: 12 } }, '✎'),
+                      h('button', { key: 2, title: 'Excluir', style: { background: 'none', border: '1px solid #fca5a5', borderRadius: 3, padding: '2px 7px', cursor: 'pointer', color: '#dc2626', fontSize: 12 } }, '✕'),
+                    ])
               ),
             ]);
           })
@@ -225,8 +296,8 @@ function ImbelMovimentacao() {
       editingId && h('div', { className: 'imbel-edit-bar', key: 'eb' }, [
         h('div', { className: 'imbel-edit-ttl', key: 1 }, ['Editando ', h('b', { key: 'b' }, editingId), ' · justificativa obrigatória']),
         h('input', { type: 'text', value: editReason, onChange: e => setEditReason(e.target.value), placeholder: 'Por que está editando este lançamento?', className: 'imbel-edit-input', key: 2 }),
-        h('button', { className: 'btn ghost', onClick: cancelEdit, key: 3, style: { border: '1px solid #e2e8f0', borderRadius: 4, padding: '0 12px', height: 32, cursor: 'pointer', fontSize: 12 } }, 'Cancelar'),
-        h('button', { className: 'btn accent', onClick: cancelEdit, disabled: !editReason.trim(), key: 4, style: { background: '#0f1e31', color: '#e5a128', border: 'none', borderRadius: 4, padding: '0 12px', height: 32, cursor: 'pointer', fontSize: 12, fontWeight: 600 } }, 'Salvar'),
+        h('button', { key: 3, onClick: cancelEdit, style: { border: '1px solid #e2e8f0', borderRadius: 4, padding: '0 12px', height: 32, cursor: 'pointer', fontSize: 12, background: '#fff' } }, 'Cancelar'),
+        h('button', { key: 4, onClick: cancelEdit, disabled: !editReason.trim(), style: { background: '#0f1e31', color: '#e5a128', border: 'none', borderRadius: 4, padding: '0 12px', height: 32, cursor: 'pointer', fontSize: 12, fontWeight: 600 } }, 'Salvar'),
       ]),
     ]),
 
