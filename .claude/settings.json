@@ -34,7 +34,9 @@
       "Bash(Select-String -Path \"e:\\\\MEUS DOCUMENTOS\\\\OneDrive\\\\Documentos\\\\Sistemas\\\\Estoque\\\\Controle-Estoque\\\\app.js\" -Pattern \"function renderizarTabela|renderizarTabela\\\\s*=\")",
       "Bash(Select-Object LineNumber, Line)",
       "Bash(python3 -c ' *)",
-      "Bash(copy app.js app2.js)"
+      "Bash(copy app.js app2.js)",
+      "Bash(findstr /n \"controleImbel\\\\|imbelEstoque\\\\|inventario\\\\|inventário\" \"e:\\\\MEUS DOCUMENTOS\\\\OneDrive\\\\Documentos\\\\Sistemas\\\\Estoque\\\\Controle-Estoque\\\\index.html\")",
+      "Bash(findstr /n \"controleImbel\" \"e:\\\\MEUS DOCUMENTOS\\\\OneDrive\\\\Documentos\\\\Sistemas\\\\Estoque\\\\Controle-Estoque\\\\index.html\")"
     ],
     "additionalDirectories": [
       "\\tmp"
