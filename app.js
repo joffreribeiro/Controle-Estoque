@@ -7787,11 +7787,24 @@ function renderControleImbelMovimentacao() {
             const st = document.createElement('style');
             st.id = '_imbelMovGridStyle';
             st.textContent = `
-                table.imbel-mov-grid { border-collapse: collapse !important; }
-                table.imbel-mov-grid td { border: 1px solid #d1d5db !important; }
+                table.imbel-mov-grid { border-collapse: collapse !important; table-layout:fixed !important; }
+                table.imbel-mov-grid td { border: 1px solid #d1d5db !important; vertical-align:top; padding:8px 10px !important; white-space:normal !important; word-break:break-word !important; overflow-wrap:break-word !important; }
                 table.imbel-mov-grid tbody tr:nth-child(even) td { background: #f8fafc !important; }
                 table.imbel-mov-grid tbody tr:nth-child(odd)  td { background: #ffffff !important; }
                 table.imbel-mov-grid tbody tr:hover td { background: #eff6ff !important; }
+                /* Tornar a coluna Observação menor e permitir quebra de linha */
+                table.imbel-mov-grid th:nth-child(8),
+                table.imbel-mov-grid td:nth-child(8) {
+                    width:180px !important;
+                    max-width:220px !important;
+                    text-align:left !important;
+                    padding-left:12px !important;
+                    white-space:normal !important;
+                }
+                table.imbel-mov-grid th:nth-child(6),
+                table.imbel-mov-grid td:nth-child(6) {
+                    width:180px !important;
+                }
             `;
             document.head.appendChild(st);
         }
@@ -7809,7 +7822,7 @@ function renderControleImbelMovimentacao() {
         <th style="${thStyle};width:55px">Qtd</th>
         <th style="${thStyle};width:180px">Cliente</th>
         <th style="${thStyle};width:100px">Valor</th>
-        <th style="${thStyle};width:auto">Observação</th>
+        <th style="${thStyle};width:180px;text-align:left;padding-left:12px">Observação</th>
         <th style="${thStyle};width:48px" title="Pagamento">Pgto</th>
         <th style="${thStyle};width:48px" title="Entregue">Entg.</th>
         <th style="${thStyle};width:40px" title="Envio FI">FI</th>
