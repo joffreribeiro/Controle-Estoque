@@ -6369,8 +6369,8 @@ const IMBEL_TIPOS = {
         descricao: 'Produto recebido da Fábrica de Itajubá'
     },
     RETORNO_MARKETING: {
-        label: 'Retorno Marketing', categoria: 'entrada', icon: '↩️', cor: '#0369a1', bg: '#eff6ff', contaReceita: false,
-        descricao: 'Produto devolvido pelo setor de marketing'
+        label: 'Retorno Promo', categoria: 'entrada', icon: '↩', cor: '#0284c7', bg: '#e0f2fe', contaReceita: false,
+        descricao: 'Produto retornado de ação promocional'
     },
     AJUSTE_ENTRADA: {
         label: 'Ajuste de Inventário (+)', categoria: 'entrada', icon: '🔧', cor: '#64748b', bg: '#f8fafc', contaReceita: false,
@@ -6381,8 +6381,8 @@ const IMBEL_TIPOS = {
         descricao: 'Venda ao cliente final'
     },
     SAIDA_MARKETING: {
-        label: 'Saída Marketing', categoria: 'saida', icon: '📣', cor: '#7c3aed', bg: '#faf5ff', contaReceita: false,
-        descricao: 'Produto cedido para ação de marketing ou evento'
+        label: 'Saída Promo', categoria: 'saida', icon: '↗', cor: '#7c3aed', bg: '#f3e8ff', contaReceita: false,
+        descricao: 'Produto cedido para ação promocional ou evento'
     },
     DEVOLUCAO_FABRICA: {
         label: 'Devolução à Fábrica', categoria: 'saida', icon: '🔙', cor: '#dc2626', bg: '#fef2f2', contaReceita: false,
@@ -7601,7 +7601,7 @@ function renderControleImbelMovimentacao() {
     container.className = 'imbel-subtab';
 
     // ── state dos filtros (período e tipo) ──
-    if (!container._movState) container._movState = { periodo: '30d', tipo: '' };
+    if (!container._movState) container._movState = { periodo: '', tipo: '' };
     const movState = container._movState;
 
     // calcular contagens por categoria para os chips de tipo
@@ -7805,7 +7805,6 @@ function renderControleImbelMovimentacao() {
         <th style="${thStyle};min-width:90px">Saldo Após</th>
         <th style="${thStyle};min-width:90px">NF</th>
         <th style="${thStyle};text-align:left;min-width:180px">Cliente</th>
-        <th style="${thStyle};min-width:80px">Usuário</th>
         <th style="${thStyle};min-width:110px">Valor</th>
         <th style="${thStyle};text-align:left;min-width:180px">Observação</th>
         <th style="${thStyle};min-width:70px">Ações</th>
@@ -7978,13 +7977,39 @@ function renderControleImbelMovimentacao() {
                                                  title="FI">
                                 </td>`;
 
-                                // ── badge de tipo: entrada=verde, saída=vermelho, ajuste=azul ──
-                                const isEntrada = cfgSafe.categoria === 'entrada';
-                                const isAjuste  = (first.tipo||'').toUpperCase().includes('AJUSTE');
-                                const badgeBg   = isAjuste  ? 'rgba(37,99,235,.12)' : isEntrada ? 'rgba(22,163,74,.12)' : 'rgba(220,38,38,.10)';
-                                const badgeClr  = isAjuste  ? '#1d4ed8' : isEntrada ? '#15803d' : '#dc2626';
-                                const badgePfx  = isAjuste  ? '⬡' : isEntrada ? '+ ' : '↗ ';
-                                const tipoBadge = `<span style="display:inline-flex;align-items:center;gap:3px;background:${badgeBg};color:${badgeClr};font-family:var(--tv-font-display);font-size:0.65rem;font-weight:700;letter-spacing:.06em;padding:2px 7px;border-radius:3px;white-space:nowrap;border:1px solid ${badgeClr}33">${badgePfx}${cfgSafe.label||first.tipo||'—'}</span>`;
+                                // ── badge de tipo com cor distinta por tipo ──
+                                const isEntrada    = cfgSafe.categoria === 'entrada';
+                                const isAjuste     = (first.tipo||'').toUpperCase().includes('AJUSTE');
+                                const isSaidaPromo = first.tipo === 'SAIDA_MARKETING';
+                                const isRetornoPromo = first.tipo === 'RETORNO_MARKETING';
+                                const isVenda      = first.tipo === 'VENDA';
+
+                                // cores distintas por tipo:
+                                // Venda       → laranja âmbar
+                                // Saída Promo → roxo
+                                // Entrada (recebimento/retorno) → verde
+                                // Retorno Promo → azul ciano
+                                // Ajuste      → cinza azulado
+                                const badgeBg  = isAjuste      ? '#f1f5f9'
+                                               : isRetornoPromo? '#e0f2fe'
+                                               : isEntrada     ? '#dcfce7'
+                                               : isSaidaPromo  ? '#f3e8ff'
+                                               : isVenda       ? '#fef3c7'
+                                               :                 '#fee2e2';
+                                const badgeClr = isAjuste      ? '#475569'
+                                               : isRetornoPromo? '#0284c7'
+                                               : isEntrada     ? '#16a34a'
+                                               : isSaidaPromo  ? '#7c3aed'
+                                               : isVenda       ? '#d97706'
+                                               :                 '#dc2626';
+                                const badgePfx = isAjuste      ? '± '
+                                               : isRetornoPromo? '↩ '
+                                               : isEntrada     ? '+ '
+                                               : isSaidaPromo  ? '↗ '
+                                               : isVenda       ? '↗ '
+                                               :                 '↗ ';
+                                const tipoLabel = cfgSafe.label || first.tipo || '—';
+                                const tipoBadge = `<span style="display:inline-flex;align-items:center;gap:3px;background:${badgeBg};color:${badgeClr};font-family:var(--tv-font-display);font-size:0.65rem;font-weight:700;letter-spacing:.06em;padding:2px 8px;border-radius:3px;white-space:nowrap;border:1px solid ${badgeClr}44">${badgePfx}${tipoLabel}</span>`;
 
                                 // ── quantidade colorida: + verde / - vermelho ──
                                 const qtdColor  = isEntrada ? '#15803d' : '#dc2626';
@@ -8021,7 +8046,6 @@ function renderControleImbelMovimentacao() {
             ${first.destinatario || '<span style="color:#94a3b8">—</span>'}
             ${first.cpfCnpj ? `<div style="font-family:var(--tv-font-mono);font-size:0.62rem;color:#94a3b8;font-weight:400;margin-top:1px">${first.cpfCnpj}</div>` : ''}
         </td>
-        <td style="${tdCenter};font-size:0.72rem;color:#64748b">${usuarioVal || '<span style="color:#cbd5e1">—</span>'}</td>
         <td style="${tdCenter};font-family:var(--tv-font-mono);font-size:0.75rem;font-weight:700;color:#15803d">${fmt(totalVal)}</td>
         <td style="${tdBase};font-size:0.72rem;color:#64748b;font-style:italic">${obsVal || '<span style="color:#cbd5e1">—</span>'}</td>
         <td style="${tdCenter}">
@@ -8050,7 +8074,7 @@ function renderControleImbelMovimentacao() {
                         trItem.dataset.groupChild = groupKey;
                         trItem.style.cssText =
                             'display:none;background:#f0f9ff;' +
-                            'border-bottom:1px solid #e2e8f0;font-size:0.85rem';
+                            'border-bottom:1px solid #e2e8f0;font-size:0.78rem;font-family:var(--tv-font-display)';
                         const itIsEntrada = cfgSafe.categoria === 'entrada';
                         const itQtdColor = itIsEntrada ? '#15803d' : '#dc2626';
                         const itQtdSign  = itIsEntrada ? '+' : '−';
@@ -8062,7 +8086,6 @@ function renderControleImbelMovimentacao() {
                         <span style="color:#94a3b8;margin-right:6px">└</span>${pNome}
                     </td>
                     <td style="${tdCenter};font-family:var(--tv-font-mono);font-size:.82rem;font-weight:700;color:${itQtdColor}">${itQtdSign}${it.quantidade||0}</td>
-                    <td style="${tdCenter}"></td>
                     <td style="${tdCenter}"></td>
                     <td style="${tdCenter}"></td>
                     <td style="${tdCenter}"></td>
@@ -8088,7 +8111,7 @@ function renderControleImbelMovimentacao() {
                 ].filter(Boolean);
 
                 trDetail.innerHTML = `
-            <td colspan="12"
+            <td colspan="11"
                     style="padding:8px 16px 8px 40px;background:#f8fafc;border-left:4px solid #1e3a5f;border-bottom:1px solid #e2e8f0;font-size:0.8rem">
                 ${campos.length
                     ? campos.map(c => `<span style="margin-right:20px;color:#475569">${c}</span>`).join('')
