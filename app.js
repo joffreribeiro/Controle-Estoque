@@ -7812,7 +7812,8 @@ function renderControleImbelMovimentacao() {
     </tr></thead><tbody></tbody>`;
 
         const tbody = tabela.querySelector('tbody');
-        const tdStyle  = 'padding:5px 10px;vertical-align:middle';
+        const B = 'border:1px solid #d1d5db;background:#fff';
+        const tdStyle  = `padding:5px 10px;vertical-align:middle;${B}`;
         const tdCenter = `${tdStyle};text-align:center`;
         const tdBase   = `${tdStyle};text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:220px`;
         const tdFirst  = tdBase;
@@ -7930,10 +7931,7 @@ function renderControleImbelMovimentacao() {
                 // ── GROUP HEADER ROW ──
                 const trGroup = document.createElement('tr');
                 trGroup.dataset.groupKey = groupKey;
-                trGroup.style.cssText =
-                    `background:${isEven?'#f8fafc':'#fff'};` +
-                    `border-bottom:1px solid #e2e8f0;cursor:pointer;` +
-                    `font-weight:600`;
+                trGroup.style.cssText = 'cursor:pointer;font-weight:600';
                 trGroup.title = 'Clique para ver os produtos';
 
                                 // resumo de produtos do grupo (considera sub-itens internos)
