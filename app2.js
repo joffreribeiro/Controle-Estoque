@@ -7809,10 +7809,10 @@ function renderControleImbelMovimentacao() {
         <th style="${thStyle};width:55px">Qtd</th>
         <th style="${thStyle};width:180px">Cliente</th>
         <th style="${thStyle};width:100px">Valor</th>
-        <th style="${thStyle};width:auto">Observação</th>
-        <th style="${thStyle};width:48px" title="Pagamento">Pgto</th>
-        <th style="${thStyle};width:48px" title="Entregue">Entg.</th>
-        <th style="${thStyle};width:40px" title="Envio FI">FI</th>
+        <th style="${thStyle};width:180px">Observação</th>
+        <th style="${thStyle};width:48px;white-space:nowrap" title="Pagamento">Pgto</th>
+        <th style="${thStyle};width:48px;white-space:nowrap" title="Entregue">Entg.</th>
+        <th style="${thStyle};width:40px;white-space:nowrap" title="Envio FI">FI</th>
         <th style="${thStyle};width:65px">Ações</th>
     </tr></thead><tbody></tbody>`;
 
@@ -7996,7 +7996,7 @@ function renderControleImbelMovimentacao() {
                                 const isVenda      = first.tipo === 'VENDA';
 
                                 // cores distintas por tipo:
-                                // Venda       → laranja âmbar
+                                // Venda       → vermelho
                                 // Saída Promo → roxo
                                 // Entrada (recebimento/retorno) → verde
                                 // Retorno Promo → azul ciano
@@ -8005,13 +8005,13 @@ function renderControleImbelMovimentacao() {
                                                : isRetornoPromo? '#e0f2fe'
                                                : isEntrada     ? '#dcfce7'
                                                : isSaidaPromo  ? '#f3e8ff'
-                                               : isVenda       ? '#fef3c7'
+                                               : isVenda       ? '#fee2e2'
                                                :                 '#fee2e2';
                                 const badgeClr = isAjuste      ? '#475569'
                                                : isRetornoPromo? '#0284c7'
                                                : isEntrada     ? '#16a34a'
                                                : isSaidaPromo  ? '#7c3aed'
-                                               : isVenda       ? '#d97706'
+                                               : isVenda       ? '#dc2626'
                                                :                 '#dc2626';
                                 const badgePfx = isAjuste      ? '± '
                                                : isRetornoPromo? '↩ '
