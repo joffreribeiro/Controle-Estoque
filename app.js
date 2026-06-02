@@ -8274,6 +8274,26 @@ function renderControleImbelMovimentacao() {
     tabelaWrap.appendChild(tabela);
     container.appendChild(tabelaWrap);
 
+    // ── forçar bordas via setProperty após DOM insertion ──
+    function _aplicarBordasMovGrid() {
+        tabela.querySelectorAll('td').forEach(td => {
+            td.style.setProperty('border-top',    '1px solid #d1d5db', 'important');
+            td.style.setProperty('border-right',  '1px solid #d1d5db', 'important');
+            td.style.setProperty('border-bottom', '1px solid #d1d5db', 'important');
+            td.style.setProperty('border-left',   '1px solid #d1d5db', 'important');
+        });
+        // linhas alternadas
+        tabela.querySelectorAll('tbody tr').forEach((tr, i) => {
+            const bg = i % 2 === 0 ? '#ffffff' : '#f8fafc';
+            tr.querySelectorAll('td').forEach(td => {
+                td.style.setProperty('background-color', bg, 'important');
+            });
+        });
+    }
+    _aplicarBordasMovGrid();
+    const _origPopulate = populateTbody;
+    populateTbody = function() { _origPopulate(); _aplicarBordasMovGrid(); };
+
     // 5. FOOTBAR
     const footbarMov = document.createElement('div');
     footbarMov.className = 'imbel-footbar';
