@@ -152,33 +152,40 @@
 
 /* =================================================================
    TABELA DE MOVIMENTAÇÃO IMBEL — grid com bordas visíveis
+   Usa attribute selector para garantir máxima especificidade
    ================================================================= */
-table.imbel-mov-grid {
+table[class~="imbel-mov-grid"],
+.imbel-body table.imbel-mov-grid {
   border-collapse: collapse !important;
   border-spacing: 0 !important;
-  border: 1px solid #d1d5db !important;
 }
 
-table.imbel-mov-grid td,
-table.imbel-mov-grid th {
-  border: 1px solid #d1d5db !important;
+.imbel-body table.imbel-mov-grid td,
+.imbel-body table.imbel-mov-grid th,
+table[class~="imbel-mov-grid"] td,
+table[class~="imbel-mov-grid"] th {
+  border-top: 1px solid #d1d5db !important;
+  border-right: 1px solid #d1d5db !important;
+  border-bottom: 1px solid #d1d5db !important;
+  border-left: 1px solid #d1d5db !important;
   padding: 5px 10px !important;
   vertical-align: middle !important;
 }
 
 /* cabeçalho: bordas mais sutis sobre fundo escuro */
-table.imbel-mov-grid thead th {
+.imbel-body table.imbel-mov-grid thead th,
+table[class~="imbel-mov-grid"] thead th {
   border-color: rgba(255,255,255,0.15) !important;
 }
 
 /* linhas alternadas */
-table.imbel-mov-grid tbody tr:nth-child(even) td {
+table[class~="imbel-mov-grid"] tbody tr:nth-child(even) td {
   background-color: #f8fafc !important;
 }
-table.imbel-mov-grid tbody tr:nth-child(odd) td {
+table[class~="imbel-mov-grid"] tbody tr:nth-child(odd) td {
   background-color: #ffffff !important;
 }
-table.imbel-mov-grid tbody tr:hover td {
+table[class~="imbel-mov-grid"] tbody tr:hover td {
   background-color: #eff6ff !important;
 }
 

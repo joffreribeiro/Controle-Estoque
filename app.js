@@ -7781,7 +7781,7 @@ function renderControleImbelMovimentacao() {
         const thStyle = 'padding:6px 10px;background:var(--tv-navy-900);color:#e2e8f0;font-family:var(--tv-font-display);font-size:.62rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;white-space:nowrap;text-align:center;border-right:1px solid rgba(255,255,255,0.08)';
         const tabela = document.createElement('table');
         tabela.className = 'imbel-mov-grid';
-        tabela.style.cssText = 'width:max-content;min-width:100%;font-size:.78rem';
+        tabela.style.cssText = 'width:max-content;min-width:100%;font-size:.78rem;border-collapse:collapse';
         tabela.innerHTML = `<thead><tr style="position:sticky;top:0;z-index:3">
         <th style="${thStyle};text-align:left;min-width:90px">ID</th>
         <th style="${thStyle};min-width:110px">Data / Hora</th>
@@ -7798,11 +7798,11 @@ function renderControleImbelMovimentacao() {
     </tr></thead><tbody></tbody>`;
 
         const tbody = tabela.querySelector('tbody');
-        // bordas gerenciadas por .imbel-mov-grid td no CSS
-        const tdStyle  = 'padding:5px 10px;vertical-align:middle';
+        const _bdr = '1px solid #d1d5db';
+        const tdStyle  = `padding:5px 10px;vertical-align:middle;border-right:${_bdr};border-bottom:${_bdr}`;
         const tdCenter = `${tdStyle};text-align:center`;
         const tdBase   = `${tdStyle};text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:220px`;
-        const tdFirst  = tdBase;
+        const tdFirst  = `${tdBase};border-left:${_bdr}`;
 
         // função para popular tbody com filtros (agrupa por destinatário+data ou groupId)
         function populateTbody() {
