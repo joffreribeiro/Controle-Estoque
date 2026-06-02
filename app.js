@@ -7604,12 +7604,13 @@ function renderControleImbelMovimentacao() {
     if (!container._movState) container._movState = { periodo: '', tipo: '' };
     const movState = container._movState;
 
-    // calcular contagens por categoria para os chips de tipo
+    // calcular contagens por tipo específico
     const movAll0 = (data.movimentacoes||[]);
+    const cntPorTipo = {};
+    movAll0.forEach(m => { cntPorTipo[m.tipo] = (cntPorTipo[m.tipo]||0) + 1; });
     const cntEntrada = movAll0.filter(m => imbelTipoAumentaEstoque(m.tipo)).length;
     const cntSaida   = movAll0.filter(m => !imbelTipoAumentaEstoque(m.tipo) && !(m.tipo||'').toUpperCase().includes('AJUSTE')).length;
     const cntAjuste  = movAll0.filter(m => (m.tipo||'').toUpperCase().includes('AJUSTE')).length;
-    const cntTransf  = movAll0.filter(m => (m.tipo||'').toUpperCase().includes('TRANSFER')||getImbelTipo(m.tipo).categoria==='transferencia').length;
 
     // ── Command bar linha 1: busca + produto + botões de ação ──
     const cmdbar = document.createElement('div');
@@ -7676,11 +7677,14 @@ function renderControleImbelMovimentacao() {
     // chips de tipo com contagem
     filterBar.insertAdjacentHTML('beforeend','<span style="font-family:var(--tv-font-display);font-size:0.62rem;font-weight:700;letter-spacing:.08em;color:var(--tv-navy-500)">TIPO:</span>');
     const tipoChips = [
-        { key:'',        label:'Todos',        cnt: movAll0.length,    bg:'var(--tv-navy-200)', clr:'var(--tv-navy-700)', actBg:'var(--tv-navy-700)', actClr:'#fff' },
-        { key:'ENTRADA', label:'+ Entrada',    cnt: cntEntrada,        bg:'rgba(22,163,74,.1)', clr:'#15803d',           actBg:'rgba(22,163,74,.85)', actClr:'#fff' },
-        { key:'SAIDA',   label:'↗ Saída',      cnt: cntSaida,          bg:'rgba(220,38,38,.1)', clr:'#dc2626',           actBg:'rgba(220,38,38,.85)', actClr:'#fff' },
-        { key:'AJUSTE',  label:'⬡ Ajuste',     cnt: cntAjuste,         bg:'rgba(37,99,235,.1)', clr:'#1d4ed8',           actBg:'rgba(37,99,235,.8)', actClr:'#fff' },
-    ];
+        { key:'',                   label:'Todos',              cnt: movAll0.length,                    bg:'#e2e8f0',              clr:'#374151',   actBg:'#0f1e31',           actClr:'#fff'    },
+        { key:'VENDA',              label:'↗ Venda',            cnt: cntPorTipo['VENDA']||0,            bg:'#fef3c7',              clr:'#d97706',   actBg:'#d97706',           actClr:'#fff'    },
+        { key:'SAIDA_MARKETING',    label:'↗ Saída Promo',      cnt: cntPorTipo['SAIDA_MARKETING']||0,  bg:'#f3e8ff',              clr:'#7c3aed',   actBg:'#7c3aed',           actClr:'#fff'    },
+        { key:'RECEBIMENTO_FABRICA',label:'+ Recebimento',      cnt: cntPorTipo['RECEBIMENTO_FABRICA']||0, bg:'#dcfce7',           clr:'#16a34a',   actBg:'#16a34a',           actClr:'#fff'    },
+        { key:'RETORNO_MARKETING',  label:'↩ Retorno Promo',    cnt: cntPorTipo['RETORNO_MARKETING']||0,bg:'#e0f2fe',              clr:'#0284c7',   actBg:'#0284c7',           actClr:'#fff'    },
+        { key:'DEVOLUCAO_FABRICA',  label:'↗ Dev. Fábrica',     cnt: cntPorTipo['DEVOLUCAO_FABRICA']||0,bg:'#fee2e2',              clr:'#dc2626',   actBg:'#dc2626',           actClr:'#fff'    },
+        { key:'AJUSTE',             label:'± Ajuste',           cnt: cntAjuste,                         bg:'#f1f5f9',              clr:'#475569',   actBg:'#475569',           actClr:'#fff'    },
+    ].filter(tc => tc.key === '' || tc.cnt > 0);
     tipoChips.forEach(tc => {
         const chip = document.createElement('button');
         const isActive = movState.tipo === tc.key;
@@ -7797,16 +7801,17 @@ function renderControleImbelMovimentacao() {
         tabela.className = 'imbel-mov-grid';
         tabela.style.cssText = 'width:max-content;min-width:100%;font-size:.78rem;border-collapse:collapse';
         tabela.innerHTML = `<thead><tr style="position:sticky;top:0;z-index:3">
-        <th style="${thStyle};text-align:left;min-width:90px">ID</th>
+        <th style="${thStyle};min-width:90px">ID</th>
         <th style="${thStyle};min-width:110px">Data / Hora</th>
         <th style="${thStyle};min-width:130px">Tipo</th>
-        <th style="${thStyle};text-align:left;min-width:200px">Produto</th>
+        <th style="${thStyle};min-width:200px">Produto</th>
         <th style="${thStyle};min-width:70px">Qtd</th>
-        <th style="${thStyle};min-width:90px">Saldo Após</th>
-        <th style="${thStyle};min-width:90px">NF</th>
-        <th style="${thStyle};text-align:left;min-width:180px">Cliente</th>
+        <th style="${thStyle};min-width:180px">Cliente</th>
         <th style="${thStyle};min-width:110px">Valor</th>
-        <th style="${thStyle};text-align:left;min-width:180px">Observação</th>
+        <th style="${thStyle};min-width:180px">Observação</th>
+        <th style="${thStyle};min-width:60px" title="Pagamento">Pgto</th>
+        <th style="${thStyle};min-width:60px" title="Entregue">Entg.</th>
+        <th style="${thStyle};min-width:50px" title="Envio FI">FI</th>
         <th style="${thStyle};min-width:70px">Ações</th>
     </tr></thead><tbody></tbody>`;
 
@@ -7820,7 +7825,11 @@ function renderControleImbelMovimentacao() {
         // função para popular tbody com filtros (agrupa por destinatário+data ou groupId)
         function populateTbody() {
             tbody.innerHTML = '';
-            const all = (data.movimentacoes||[]).slice().reverse();
+            const all = (data.movimentacoes||[]).slice().sort((a, b) => {
+                const da = (a.data||'') + (a.hora||'');
+                const db = (b.data||'') + (b.hora||'');
+                return db.localeCompare(da);
+            });
 
             // Apply filters
             const fProd  = (document.getElementById('imbel_filter_prod')||{}).value||'';
@@ -7844,10 +7853,11 @@ function renderControleImbelMovimentacao() {
                 }
                 if (fTipo) {
                     const tipoUp = (m.tipo||'').toUpperCase();
-                    if (fTipo === 'ENTRADA') { if (!imbelTipoAumentaEstoque(m.tipo)) return false; }
-                    else if (fTipo === 'SAIDA') { if (imbelTipoAumentaEstoque(m.tipo) || tipoUp.includes('AJUSTE')) return false; }
-                    else if (fTipo === 'AJUSTE') { if (!tipoUp.includes('AJUSTE')) return false; }
-                    else { if (tipoUp !== fTipo) return false; }
+                    if (fTipo === 'AJUSTE') {
+                        if (!tipoUp.includes('AJUSTE')) return false;
+                    } else {
+                        if (m.tipo !== fTipo) return false;
+                    }
                 }
                 if (fStart && (m.data||'') < fStart) return false;
                 if (fEnd   && (m.data||'') > fEnd)   return false;
@@ -8030,7 +8040,7 @@ function renderControleImbelMovimentacao() {
                                 const saldoAposColor = saldoAposGrp <= 0 ? '#dc2626' : saldoAposGrp <= 5 ? '#d97706' : '#374151';
 
                                 trGroup.innerHTML = `
-        <td style="${tdFirst};white-space:nowrap">
+        <td style="${tdCenter};white-space:nowrap">
             <span style="font-family:var(--tv-font-mono);font-size:0.68rem;font-weight:700;color:var(--tv-navy-700);background:var(--tv-navy-100);padding:1px 6px;border-radius:3px;letter-spacing:.03em" title="${first.id||''}">${idShort}</span>
         </td>
         <td style="${tdCenter};font-family:var(--tv-font-mono);font-size:0.72rem;color:#374151;white-space:nowrap">
@@ -8040,14 +8050,39 @@ function renderControleImbelMovimentacao() {
         <td style="${tdCenter}">${tipoBadge}</td>
         ${produtoCell}
         ${qtdCell}
-        <td style="${tdCenter};font-family:var(--tv-font-mono);font-size:0.78rem;font-weight:600;color:${saldoAposColor}">${fmtQtd(saldoAposGrp)}</td>
-        <td style="${tdBase};font-family:var(--tv-font-mono);font-size:0.72rem;color:#64748b">${nfVal || '<span style="color:#cbd5e1">—</span>'}</td>
-        <td style="${tdBase};font-weight:500;color:#1e293b">
+        <td style="${tdCenter};font-weight:500;color:#1e293b">
             ${first.destinatario || '<span style="color:#94a3b8">—</span>'}
             ${first.cpfCnpj ? `<div style="font-family:var(--tv-font-mono);font-size:0.62rem;color:#94a3b8;font-weight:400;margin-top:1px">${first.cpfCnpj}</div>` : ''}
         </td>
         <td style="${tdCenter};font-family:var(--tv-font-mono);font-size:0.75rem;font-weight:700;color:#15803d">${fmt(totalVal)}</td>
-        <td style="${tdBase};font-size:0.72rem;color:#64748b;font-style:italic">${obsVal || '<span style="color:#cbd5e1">—</span>'}</td>
+        <td style="${tdCenter};font-size:0.72rem;color:#64748b;font-style:italic;text-align:left">${obsVal || '<span style="color:#cbd5e1">—</span>'}</td>
+        <td style="${tdCenter}">
+            <input type="checkbox" class="imbel_table_chk_pag"
+                data-ids="${itens.map(m=>m.id).join(',')}"
+                ${isPago?'checked':''}
+                onchange="imbelSetGrupoField(this,'pagamento')"
+                onclick="event.stopPropagation()"
+                style="width:15px;height:15px;cursor:pointer;accent-color:#16a34a"
+                title="Pagamento">
+        </td>
+        <td style="${tdCenter}">
+            <input type="checkbox" class="imbel_table_chk_ent"
+                data-ids="${itens.map(m=>m.id).join(',')}"
+                ${isEntregue?'checked':''}
+                onchange="imbelSetGrupoField(this,'entregue')"
+                onclick="event.stopPropagation()"
+                style="width:15px;height:15px;cursor:pointer;accent-color:#16a34a"
+                title="Entregue">
+        </td>
+        <td style="${tdCenter}">
+            <input type="checkbox" class="imbel_table_chk_fi"
+                data-ids="${itens.map(m=>m.id).join(',')}"
+                ${isFI?'checked':''}
+                onchange="imbelSetGrupoField(this,'fi')"
+                onclick="event.stopPropagation()"
+                style="width:15px;height:15px;cursor:pointer;accent-color:#1e3a5f"
+                title="Envio FI">
+        </td>
         <td style="${tdCenter}">
             <button class="imbel-row-btn" style="padding:2px 8px" data-editmov="${itens[0].id}" data-editid="${itens[0].id}" title="Editar">✎</button>
             <button class="imbel-row-btn danger" style="padding:2px 8px" data-delid="${itens[0].id}" title="Excluir">✕</button>
@@ -8087,9 +8122,9 @@ function renderControleImbelMovimentacao() {
                     </td>
                     <td style="${tdCenter};font-family:var(--tv-font-mono);font-size:.82rem;font-weight:700;color:${itQtdColor}">${itQtdSign}${it.quantidade||0}</td>
                     <td style="${tdCenter}"></td>
-                    <td style="${tdCenter}"></td>
-                    <td style="${tdCenter}"></td>
                     <td style="${tdCenter};font-weight:600;color:#16a34a">R$ ${Number(it.valor||0).toLocaleString('pt-BR',{minimumFractionDigits:2})}</td>
+                    <td style="${tdCenter}"></td>
+                    <td style="${tdCenter}"></td>
                     <td style="${tdCenter}"></td>
                     <td style="${tdCenter}"></td>`;
                         tbody.appendChild(trItem);
@@ -8111,7 +8146,7 @@ function renderControleImbelMovimentacao() {
                 ].filter(Boolean);
 
                 trDetail.innerHTML = `
-            <td colspan="11"
+            <td colspan="12"
                     style="padding:8px 16px 8px 40px;background:#f8fafc;border-left:4px solid #1e3a5f;border-bottom:1px solid #e2e8f0;font-size:0.8rem">
                 ${campos.length
                     ? campos.map(c => `<span style="margin-right:20px;color:#475569">${c}</span>`).join('')
