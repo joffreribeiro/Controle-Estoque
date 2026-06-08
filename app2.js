@@ -700,6 +700,44 @@ function diagnosticarProdutoPorNome(nome) {
 }
 window.diagnosticarProdutoPorNome = diagnosticarProdutoPorNome;
 
+// Diagnóstico específico: mostra tudo sobre um produto para um representante
+function diagRep(nomeProduto, rep) {
+    const p = (estoque.produtos || []).find(x => (x.nome||'').toUpperCase().includes((nomeProduto||'').toUpperCase()));
+    if (!p) { console.error('Produto não encontrado:', nomeProduto); return; }
+    const repUpper = (rep||'ISA').toUpperCase();
+    const distribKey = p.distribuicao ? Object.keys(p.distribuicao).find(k => k.toUpperCase() === repUpper) : null;
+    const distribuido = distribKey ? (p.distribuicao[distribKey] || 0) : 0;
+    const vendasDoRep = (estoque.registroVendas || []).filter(v =>
+        !v.cancelado && (v.representante||'').toUpperCase() === repUpper &&
+        (Array.isArray(v.items) ? v.items.some(i => i.produtoId === p.id) : v.produtoId === p.id)
+    );
+    const vendidoRep = vendasDoRep.reduce((s, v) => {
+        if (Array.isArray(v.items) && v.items.length) {
+            const it = v.items.find(i => i.produtoId === p.id);
+            return s + (it ? (Number(it.quantidade) || 0) : 0);
+        }
+        return s + (Number(v.quantidade) || 0);
+    }, 0);
+    console.group(`Diagnóstico: ${p.nome} / ${rep}`);
+    console.log('produto.id:', p.id);
+    console.log('distribuicao keys:', JSON.stringify(p.distribuicao));
+    console.log('distribKey encontrada:', distribKey);
+    console.log('Distribuído:', distribuido);
+    console.log('Vendido (soma registros):', vendidoRep);
+    console.log('Disponível:', distribuido - vendidoRep);
+    console.log('produto.vendas["ISA"]:', p.vendas && p.vendas['ISA']);
+    console.log('Vendas ativas para este produto/rep:', vendasDoRep.length, 'contratos');
+    vendasDoRep.forEach(v => {
+        const it = Array.isArray(v.items) ? v.items.find(i => i.produtoId === p.id) : null;
+        console.log(`  contrato=${v.contrato} qtd=${it ? it.quantidade : v.quantidade} cancelado=${v.cancelado}`);
+    });
+    console.log('registroDistribuicao para este produto:',
+        (estoque.registroDistribuicao||[]).filter(d => Number(d.produtoId)===Number(p.id) || d.produtoNome===p.nome)
+    );
+    console.groupEnd();
+}
+window.diagRep = diagRep;
+
 // Verifica integridade do estoque: detecta divergências entre produto.vendas e registroVendas
 function verificarIntegridadeEstoque() {
     const divergencias = [];
