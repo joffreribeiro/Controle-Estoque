@@ -627,6 +627,37 @@ function reconstruirDistribuicaoAPartirDeRegistros() {
     });
 }
 
+// Reconstrói o objeto `produto.vendas` a partir dos registros de venda (exclui canceladas)
+function reconstruirVendasAPartirDeRegistros() {
+    if (!Array.isArray(estoque.produtos)) return;
+    estoque.produtos.forEach(p => {
+        p.vendas = {};
+        (estoque.representantes || []).forEach(r => { p.vendas[r] = 0; });
+    });
+    (estoque.registroVendas || []).forEach(v => {
+        try {
+            if (v.cancelado) return;
+            const rep = (v.representante || '').toString().toUpperCase();
+            if (!rep) return;
+            if (Array.isArray(v.items) && v.items.length) {
+                v.items.forEach(it => {
+                    const prod = estoque.produtos.find(p => p.id === it.produtoId);
+                    if (!prod) return;
+                    if (!prod.vendas) prod.vendas = {};
+                    prod.vendas[rep] = (prod.vendas[rep] || 0) + (Number(it.quantidade) || 0);
+                });
+            } else if (v.produtoId) {
+                const prod = estoque.produtos.find(p => p.id === v.produtoId);
+                if (!prod) return;
+                if (!prod.vendas) prod.vendas = {};
+                prod.vendas[rep] = (prod.vendas[rep] || 0) + (Number(v.quantidade) || 0);
+            }
+        } catch (e) {
+            console.warn('reconstruirVendasAPartirDeRegistros: erro ao processar venda', e);
+        }
+    });
+}
+
 // Função de diagnóstico disponível no console para inspecionar um produto rapidamente
 function diagnosticarProduto(produtoId) {
     try {
@@ -1908,8 +1939,9 @@ function carregarDados() {
         categoriaPorProduto = (estoque.categoriaPorProduto && typeof estoque.categoriaPorProduto === 'object')
             ? estoque.categoriaPorProduto
             : {};
-        // Reconstruir distribuições por produto a partir dos registros (corrige inconsistências legadas)
+        // Reconstruir distribuições e vendas por produto a partir dos registros (corrige inconsistências legadas)
         try { reconstruirDistribuicaoAPartirDeRegistros(); } catch (e) { /* ignore */ }
+        try { reconstruirVendasAPartirDeRegistros(); } catch (e) { /* ignore */ }
 
         // Restore IMBEL data if it was saved in the main object
         try {
@@ -10268,12 +10300,6 @@ function mostrarConfirmacaoEstoque(mensagem, callbackConfirmar, callbackCancelar
 function finalizarSalvamentoVendaDetalhada(params) {
     const { contrato, loja, representante, observacoes, itens, totalQtd, totalValor, isEditing, vendaAnterior, vendaAnteriorSnapshot, vendaEditandoIdLocal } = params;
 
-    // Aplicar novos valores ao estoque
-    (itens || []).forEach(it => {
-        const produto = estoque.produtos.find(p => p.id === it.produtoId);
-        if (produto) produto.vendas[representante] = (produto.vendas[representante] || 0) + it.quantidade;
-    });
-
     if (isEditing && vendaAnterior) {
         const idx = estoque.registroVendas.findIndex(v => v.id === vendaEditandoIdLocal);
         if (idx !== -1) {
@@ -10301,6 +10327,8 @@ function finalizarSalvamentoVendaDetalhada(params) {
         }
         vendaEditandoId = null;
 
+        // Reconstruir vendas a partir dos registros para garantir consistência
+        try { reconstruirVendasAPartirDeRegistros(); } catch (e) {}
         salvarDados();
         renderizarTabela();
         renderizarDashboard();
@@ -10348,6 +10376,8 @@ function finalizarSalvamentoVendaDetalhada(params) {
         );
     } catch (e) {}
 
+    // Reconstruir vendas a partir dos registros para garantir consistência
+    try { reconstruirVendasAPartirDeRegistros(); } catch (e) {}
     salvarDados();
     renderizarTabela();
     renderizarDashboard();
@@ -11101,30 +11131,17 @@ function excluirVenda(vendaId) {
         return;
     }
 
-    // Devolver ao estoque: lidar com vendas multi-itens
-    if (Array.isArray(venda.items) && venda.items.length > 0) {
-        venda.items.forEach(it => {
-            const produto = estoque.produtos.find(p => p.id === it.produtoId);
-            if (produto) {
-                produto.vendas[venda.representante] = Math.max(0, (produto.vendas[venda.representante] || 0) - it.quantidade);
-            }
-        });
-    } else {
-        const produto = estoque.produtos.find(p => p.id === venda.produtoId);
-        if (produto) {
-            produto.vendas[venda.representante] = Math.max(0, (produto.vendas[venda.representante] || 0) - venda.quantidade);
-        }
-    }
-
     // Remover do registro
     estoque.registroVendas = estoque.registroVendas.filter(v => v.id !== vendaId);
-    
+
     // Remover do controle de envio se este era o último contrato
     const contratoRestante = estoque.registroVendas.some(v => v.contrato === venda.contrato);
     if (!contratoRestante && estoque.controleEnvio[venda.contrato]) {
         delete estoque.controleEnvio[venda.contrato];
     }
 
+    // Reconstruir vendas a partir dos registros para garantir consistência
+    try { reconstruirVendasAPartirDeRegistros(); } catch (e) {}
     salvarDados();
     renderizarTabela();
     renderizarDashboard();
@@ -11159,17 +11176,6 @@ function cancelarContrato(contratoKey) {
         let snapshot = null;
         try { snapshot = JSON.parse(JSON.stringify(venda)); } catch (e) { snapshot = null; }
 
-        // Reverter quantidades vendidas no representante
-        if (Array.isArray(venda.items) && venda.items.length > 0) {
-            venda.items.forEach(it => {
-                const produto = estoque.produtos.find(p => p.id === it.produtoId);
-                if (produto) produto.vendas[venda.representante] = Math.max(0, (produto.vendas[venda.representante] || 0) - it.quantidade);
-            });
-        } else {
-            const produto = estoque.produtos.find(p => p.id === venda.produtoId);
-            if (produto) produto.vendas[venda.representante] = Math.max(0, (produto.vendas[venda.representante] || 0) - (venda.quantidade || 0));
-        }
-
         venda.cancelado = true;
         venda.canceladoEm = new Date().toISOString();
         venda.canceladoPor = getUsuarioAtual();
@@ -11179,6 +11185,8 @@ function cancelarContrato(contratoKey) {
         } catch (e) {}
     });
 
+    // Reconstruir vendas a partir dos registros para garantir consistência
+    try { reconstruirVendasAPartirDeRegistros(); } catch (e) {}
     salvarDados();
     renderizarTabela();
     renderizarDashboard();

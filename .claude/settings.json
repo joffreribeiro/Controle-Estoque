@@ -36,7 +36,11 @@
       "Bash(python3 -c ' *)",
       "Bash(copy app.js app2.js)",
       "Bash(findstr /n \"controleImbel\\\\|imbelEstoque\\\\|inventario\\\\|inventário\" \"e:\\\\MEUS DOCUMENTOS\\\\OneDrive\\\\Documentos\\\\Sistemas\\\\Estoque\\\\Controle-Estoque\\\\index.html\")",
-      "Bash(findstr /n \"controleImbel\" \"e:\\\\MEUS DOCUMENTOS\\\\OneDrive\\\\Documentos\\\\Sistemas\\\\Estoque\\\\Controle-Estoque\\\\index.html\")"
+      "Bash(findstr /n \"controleImbel\" \"e:\\\\MEUS DOCUMENTOS\\\\OneDrive\\\\Documentos\\\\Sistemas\\\\Estoque\\\\Controle-Estoque\\\\index.html\")",
+      "Bash(Get-ChildItem -Path \"e:\\\\MEUS DOCUMENTOS\\\\OneDrive\\\\Documentos\\\\Sistemas\\\\Estoque\\\\Controle-Estoque\" -Recurse -Force)",
+      "Bash(Select-Object FullName)",
+      "PowerShell(head -100)",
+      "PowerShell(Get-ChildItem -Path \"e:\\\\MEUS DOCUMENTOS\\\\OneDrive\\\\Documentos\\\\Sistemas\\\\Estoque\\\\Controle-Estoque\" -Depth 1 | Where-Object { $_.PSIsContainer } | Select-Object Name)"
     ],
     "additionalDirectories": [
       "\\tmp"
