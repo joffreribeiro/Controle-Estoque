@@ -582,6 +582,32 @@ function obterMetricasImbelProduto(produto) {
     };
 }
 
+// Verifica se um item/registro de venda corresponde a um produto (por ID numérico ou nome)
+// Necessário porque registros históricos podem ter produtoId antigo (ex: 11) enquanto produto.id é novo (ex: 1779112654305)
+function vendaItemMatchProduto(item, produto) {
+    if (!item || !produto) return false;
+    if (Number(item.produtoId) === Number(produto.id)) return true;
+    if (item.produtoNome && produto.nome && item.produtoNome.trim().toLowerCase() === produto.nome.trim().toLowerCase()) return true;
+    return false;
+}
+function vendaMatchProduto(v, produto) {
+    if (!v || !produto) return false;
+    if (Array.isArray(v.items) && v.items.length) return v.items.some(i => vendaItemMatchProduto(i, produto));
+    if (Number(v.produtoId) === Number(produto.id)) return true;
+    if (v.produtoNome && produto.nome && v.produtoNome.trim().toLowerCase() === produto.nome.trim().toLowerCase()) return true;
+    return false;
+}
+function vendaItemQtdParaProduto(v, produto) {
+    if (!v || !produto) return 0;
+    if (Array.isArray(v.items) && v.items.length) {
+        const it = v.items.find(i => vendaItemMatchProduto(i, produto));
+        return it ? (Number(it.quantidade) || 0) : 0;
+    }
+    if (Number(v.produtoId) === Number(produto.id)) return Number(v.quantidade) || 0;
+    if (v.produtoNome && produto.nome && v.produtoNome.trim().toLowerCase() === produto.nome.trim().toLowerCase()) return Number(v.quantidade) || 0;
+    return 0;
+}
+
 // Reconstrói o objeto `produto.distribuicao` a partir dos registros de distribuição e devolução
 function reconstruirDistribuicaoAPartirDeRegistros() {
     if (!Array.isArray(estoque.produtos)) return;
@@ -641,13 +667,13 @@ function reconstruirVendasAPartirDeRegistros() {
             if (!rep) return;
             if (Array.isArray(v.items) && v.items.length) {
                 v.items.forEach(it => {
-                    const prod = estoque.produtos.find(p => Number(p.id) === Number(it.produtoId));
+                    const prod = estoque.produtos.find(p => Number(p.id) === Number(it.produtoId) || (it.produtoNome && p.nome && it.produtoNome.trim().toLowerCase() === p.nome.trim().toLowerCase()));
                     if (!prod) return;
                     if (!prod.vendas) prod.vendas = {};
                     prod.vendas[rep] = (prod.vendas[rep] || 0) + (Number(it.quantidade) || 0);
                 });
-            } else if (v.produtoId) {
-                const prod = estoque.produtos.find(p => Number(p.id) === Number(v.produtoId));
+            } else if (v.produtoId || v.produtoNome) {
+                const prod = estoque.produtos.find(p => Number(p.id) === Number(v.produtoId) || (v.produtoNome && p.nome && v.produtoNome.trim().toLowerCase() === p.nome.trim().toLowerCase()));
                 if (!prod) return;
                 if (!prod.vendas) prod.vendas = {};
                 prod.vendas[rep] = (prod.vendas[rep] || 0) + (Number(v.quantidade) || 0);
@@ -724,10 +750,7 @@ function diagRep(nomeProduto, rep) {
 
     // --- vendas ---
     console.group('vendas nos registroVendas');
-    const todasVendasProduto = (estoque.registroVendas||[]).filter(v => {
-        if (Array.isArray(v.items) && v.items.length) return v.items.some(i => Number(i.produtoId) === Number(p.id));
-        return Number(v.produtoId) === Number(p.id);
-    });
+    const todasVendasProduto = (estoque.registroVendas||[]).filter(v => vendaMatchProduto(v, p));
     console.log('Total de registros com este produto (incluindo cancelados):', todasVendasProduto.length);
     const repsUnicos = [...new Set(todasVendasProduto.map(v => JSON.stringify({rep: v.representante, cancelado: !!v.cancelado})))];
     console.log('Representantes distintos nas vendas:', repsUnicos);
@@ -735,8 +758,7 @@ function diagRep(nomeProduto, rep) {
     console.log(`Vendas ativas com representante="${rep}" (case-insensitive):`, vendasDoRep.length);
     let vendidoRep = 0;
     vendasDoRep.forEach(v => {
-        const it = Array.isArray(v.items) ? v.items.find(i => Number(i.produtoId) === Number(p.id)) : null;
-        const qtd = it ? it.quantidade : (v.quantidade || 0);
+        const qtd = vendaItemQtdParaProduto(v, p);
         vendidoRep += qtd;
         console.log(`  contrato=${v.contrato} rep="${v.representante}" qtd=${qtd}`);
     });
@@ -759,12 +781,7 @@ function verificarIntegridadeEstoque() {
             const vendidoRegistros = (estoque.registroVendas || []).reduce((s, v) => {
                 if (v.cancelado) return s;
                 if ((v.representante || '').toUpperCase() !== repUpper) return s;
-                if (Array.isArray(v.items) && v.items.length) {
-                    const it = v.items.find(i => Number(i.produtoId) === Number(p.id));
-                    return s + (it ? (Number(it.quantidade) || 0) : 0);
-                }
-                if (Number(v.produtoId) === Number(p.id)) return s + (Number(v.quantidade) || 0);
-                return s;
+                return s + vendaItemQtdParaProduto(v, p);
             }, 0);
             const vendidoCache = Number((p.vendas && p.vendas[rep]) || 0);
             if (vendidoCache !== vendidoRegistros) {
@@ -885,12 +902,7 @@ function exportarRelatorioRepresentante(rep) {
                 const vendido = (estoque.registroVendas || []).reduce((s, v) => {
                     if (v.cancelado) return s;
                     if ((v.representante || '').toUpperCase() !== repUpper) return s;
-                    if (Array.isArray(v.items) && v.items.length) {
-                        const it = v.items.find(i => Number(i.produtoId) === Number(p.id));
-                        return s + (it ? (Number(it.quantidade) || 0) : 0);
-                    }
-                    if (Number(v.produtoId) === Number(p.id)) return s + (Number(v.quantidade) || 0);
-                    return s;
+                    return s + vendaItemQtdParaProduto(v, p);
                 }, 0);
                 const disponivel = distribuido - vendido;
                 rows.push({ Representante: r, Produto: p.nome, PN: p.pn || '', Distribuído: distribuido, Vendido: vendido, Disponível: disponivel });
@@ -10641,12 +10653,7 @@ function atualizarBadgeEstoqueItem(selectEl) {
         if (v.cancelado) return s;
         if (vendaEditandoId !== null && v.id === vendaEditandoId) return s;
         if ((v.representante || '').toUpperCase() !== repUpper) return s;
-        if (Array.isArray(v.items) && v.items.length) {
-            const it = v.items.find(i => Number(i.produtoId) === Number(produto.id));
-            return s + (it ? (Number(it.quantidade) || 0) : 0);
-        }
-        if (Number(v.produtoId) === Number(produto.id)) return s + (Number(v.quantidade) || 0);
-        return s;
+        return s + vendaItemQtdParaProduto(v, produto);
     }, 0);
     const disp = distribuido - vendidoRep;
     badge.textContent = `Disp. ${rep}: ${disp}`;
@@ -10776,12 +10783,7 @@ function validarEstoqueParaVenda(representante, itens, excluirVendaId) {
             if (v.cancelado) return s;
             if (excluirVendaId !== undefined && v.id === excluirVendaId) return s;
             if ((v.representante || '').toUpperCase() !== repUpper) return s;
-            if (Array.isArray(v.items) && v.items.length) {
-                const it = v.items.find(i => Number(i.produtoId) === Number(produto.id));
-                return s + (it ? (Number(it.quantidade) || 0) : 0);
-            }
-            if (Number(v.produtoId) === Number(produto.id)) return s + (Number(v.quantidade) || 0);
-            return s;
+            return s + vendaItemQtdParaProduto(v, produto);
         }, 0);
         const saldo = disp - vendido;
         if ((it.quantidade || 0) > saldo) {
@@ -11048,12 +11050,7 @@ function salvarVendaDetalhada(event) {
             if (v.cancelado) return s;
             if (isEditing && v.id === vendaEditandoId) return s;
             if ((v.representante || '').toUpperCase() !== repUpper) return s;
-            if (Array.isArray(v.items) && v.items.length) {
-                const vi = v.items.find(i => Number(i.produtoId) === Number(produto.id));
-                return s + (vi ? (Number(vi.quantidade) || 0) : 0);
-            }
-            if (Number(v.produtoId) === Number(produto.id)) return s + (Number(v.quantidade) || 0);
-            return s;
+            return s + vendaItemQtdParaProduto(v, produto);
         }, 0);
         const saldoApos = distribuido - vendidoAtual - (it.quantidade || 0);
         const minAlerta = Number(produto.estoqueMin) || 0;
