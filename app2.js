@@ -10411,7 +10411,21 @@ function atualizarBadgeEstoqueItem(selectEl) {
     if (!produto) { badge.textContent = ''; return; }
     const rep = (document.getElementById('representanteVendaDet')?.value || '').trim();
     if (!rep) { badge.textContent = ''; return; }
-    const disp = (produto.distribuicao[rep] || 0) - (produto.vendas[rep] || 0);
+    const repUpper = rep.toUpperCase();
+    const distribKey = produto.distribuicao ? Object.keys(produto.distribuicao).find(k => k.toUpperCase() === repUpper) : null;
+    const vendidoRep = (estoque.registroVendas || []).reduce((s, v) => {
+        if (v.cancelado) return s;
+        if (vendaEditandoId !== null && v.id === vendaEditandoId) return s;
+        if ((v.representante || '').toUpperCase() !== repUpper) return s;
+        if (Array.isArray(v.items) && v.items.length) {
+            const it = v.items.find(i => i.produtoId === produto.id);
+            return s + (it ? (Number(it.quantidade) || 0) : 0);
+        }
+        if (v.produtoId === produto.id) return s + (Number(v.quantidade) || 0);
+        return s;
+    }, 0);
+    const distribuido = distribKey ? (produto.distribuicao[distribKey] || 0) : 0;
+    const disp = distribuido - vendidoRep;
     badge.textContent = `Disp. ${rep}: ${disp}`;
     badge.style.color = disp > 0 ? '#15803d' : '#dc2626';
     badge.style.background = disp > 0 ? '#f0fdf4' : '#fef2f2';
@@ -10508,7 +10522,7 @@ function atualizarPrecoVenda() {
     atualizarTotalVendaDetalhada();
 }
 
-function validarEstoqueParaVenda(representante, itens) {
+function validarEstoqueParaVenda(representante, itens, excluirVendaId) {
     const erros = [];
     (itens || []).forEach(it => {
         let produto = null;
@@ -10519,8 +10533,20 @@ function validarEstoqueParaVenda(representante, itens) {
             return;
         }
         const isImbelRep = (representante || '').toString().toUpperCase() === 'IMBEL';
-        const disp = isImbelRep ? calcularImbelDisponivel(produto) : ((produto.distribuicao && produto.distribuicao[representante]) ? produto.distribuicao[representante] : 0);
-        const vendido = isImbelRep ? 0 : ((produto.vendas && produto.vendas[representante]) ? produto.vendas[representante] : 0);
+        const repUpper = (representante || '').toString().toUpperCase();
+        const distribKey = produto.distribuicao ? Object.keys(produto.distribuicao).find(k => k.toUpperCase() === repUpper) : null;
+        const disp = isImbelRep ? calcularImbelDisponivel(produto) : (distribKey ? (produto.distribuicao[distribKey] || 0) : 0);
+        const vendido = isImbelRep ? 0 : (estoque.registroVendas || []).reduce((s, v) => {
+            if (v.cancelado) return s;
+            if (excluirVendaId !== undefined && v.id === excluirVendaId) return s;
+            if ((v.representante || '').toUpperCase() !== repUpper) return s;
+            if (Array.isArray(v.items) && v.items.length) {
+                const it = v.items.find(i => i.produtoId === produto.id);
+                return s + (it ? (Number(it.quantidade) || 0) : 0);
+            }
+            if (v.produtoId === produto.id) return s + (Number(v.quantidade) || 0);
+            return s;
+        }, 0);
         const saldo = disp - vendido;
         if ((it.quantidade || 0) > saldo) {
             erros.push({ produto: produto.nome, solicitado: it.quantidade || 0, disponivel: saldo });
@@ -10557,12 +10583,6 @@ function mostrarConfirmacaoEstoque(mensagem, callbackConfirmar, callbackCancelar
 function finalizarSalvamentoVendaDetalhada(params) {
     const { contrato, loja, representante, observacoes, itens, totalQtd, totalValor, isEditing, vendaAnterior, vendaAnteriorSnapshot, vendaEditandoIdLocal } = params;
 
-    // Aplicar novos valores ao estoque
-    (itens || []).forEach(it => {
-        const produto = estoque.produtos.find(p => p.id === it.produtoId);
-        if (produto) produto.vendas[representante] = (produto.vendas[representante] || 0) + it.quantidade;
-    });
-
     if (isEditing && vendaAnterior) {
         const idx = estoque.registroVendas.findIndex(v => v.id === vendaEditandoIdLocal);
         if (idx !== -1) {
@@ -10590,6 +10610,7 @@ function finalizarSalvamentoVendaDetalhada(params) {
         }
         vendaEditandoId = null;
 
+        try { reconstruirVendasAPartirDeRegistros(); } catch (e) {}
         salvarDados();
         renderizarTabela();
         renderizarDashboard();
@@ -10637,6 +10658,7 @@ function finalizarSalvamentoVendaDetalhada(params) {
         );
     } catch (e) {}
 
+    try { reconstruirVendasAPartirDeRegistros(); } catch (e) {}
     salvarDados();
     renderizarTabela();
     renderizarDashboard();
@@ -10751,44 +10773,17 @@ function salvarVendaDetalhada(event) {
             return;
         }
         try { vendaAnteriorSnapshot = JSON.parse(JSON.stringify(vendaAnterior)); } catch (e) { vendaAnteriorSnapshot = null; }
-
-        // Reverter quantidades da venda anterior no representante antigo
-        if (Array.isArray(vendaAnterior.items) && vendaAnterior.items.length > 0) {
-            vendaAnterior.items.forEach(it => {
-                const produto = estoque.produtos.find(p => p.id === it.produtoId);
-                if (produto) {
-                    produto.vendas[vendaAnterior.representante] = Math.max(0, (produto.vendas[vendaAnterior.representante] || 0) - it.quantidade);
-                }
-            });
-        } else {
-            const produto = estoque.produtos.find(p => p.id === vendaAnterior.produtoId);
-            if (produto) {
-                produto.vendas[vendaAnterior.representante] = Math.max(0, (produto.vendas[vendaAnterior.representante] || 0) - (vendaAnterior.quantidade || 0));
-            }
-        }
     }
 
-    // Validar estoque antes de salvar
-    const validacao = validarEstoqueParaVenda(representante, itens);
+    // Validar estoque antes de salvar (excluir a venda editada do cálculo para não contar duas vezes)
+    const validacao = validarEstoqueParaVenda(representante, itens, isEditing ? vendaEditandoId : undefined);
     if (!validacao.valido) {
         let msg = '⚠️ Estoque insuficiente para ' + representante + ':\n\n';
         validacao.erros.forEach(e => { msg += `• ${e.produto}: solicitado ${e.solicitado}, disponível ${e.disponivel}\n`; });
         msg += '\nDeseja registrar mesmo assim?';
 
         const cancelarCallback = () => {
-            // re-aplica venda anterior caso o usuário cancele
-            if (isEditing && vendaAnterior) {
-                if (Array.isArray(vendaAnterior.items) && vendaAnterior.items.length > 0) {
-                    vendaAnterior.items.forEach(it => {
-                        const produto = estoque.produtos.find(p => p.id === it.produtoId);
-                        if (produto) produto.vendas[vendaAnterior.representante] = (produto.vendas[vendaAnterior.representante] || 0) + it.quantidade;
-                    });
-                } else {
-                    const produto = estoque.produtos.find(p => p.id === vendaAnterior.produtoId);
-                    if (produto) produto.vendas[vendaAnterior.representante] = (produto.vendas[vendaAnterior.representante] || 0) + (vendaAnterior.quantidade || 0);
-                }
-                vendaEditandoId = null;
-            }
+            if (isEditing) vendaEditandoId = vendaAnterior ? vendaAnterior.id : null;
         };
 
         mostrarConfirmacaoEstoque(msg, () => {
@@ -11390,30 +11385,16 @@ function excluirVenda(vendaId) {
         return;
     }
 
-    // Devolver ao estoque: lidar com vendas multi-itens
-    if (Array.isArray(venda.items) && venda.items.length > 0) {
-        venda.items.forEach(it => {
-            const produto = estoque.produtos.find(p => p.id === it.produtoId);
-            if (produto) {
-                produto.vendas[venda.representante] = Math.max(0, (produto.vendas[venda.representante] || 0) - it.quantidade);
-            }
-        });
-    } else {
-        const produto = estoque.produtos.find(p => p.id === venda.produtoId);
-        if (produto) {
-            produto.vendas[venda.representante] = Math.max(0, (produto.vendas[venda.representante] || 0) - venda.quantidade);
-        }
-    }
-
     // Remover do registro
     estoque.registroVendas = estoque.registroVendas.filter(v => v.id !== vendaId);
-    
+
     // Remover do controle de envio se este era o último contrato
     const contratoRestante = estoque.registroVendas.some(v => v.contrato === venda.contrato);
     if (!contratoRestante && estoque.controleEnvio[venda.contrato]) {
         delete estoque.controleEnvio[venda.contrato];
     }
 
+    try { reconstruirVendasAPartirDeRegistros(); } catch (e) {}
     salvarDados();
     renderizarTabela();
     renderizarDashboard();
@@ -11448,17 +11429,6 @@ function cancelarContrato(contratoKey) {
         let snapshot = null;
         try { snapshot = JSON.parse(JSON.stringify(venda)); } catch (e) { snapshot = null; }
 
-        // Reverter quantidades vendidas no representante
-        if (Array.isArray(venda.items) && venda.items.length > 0) {
-            venda.items.forEach(it => {
-                const produto = estoque.produtos.find(p => p.id === it.produtoId);
-                if (produto) produto.vendas[venda.representante] = Math.max(0, (produto.vendas[venda.representante] || 0) - it.quantidade);
-            });
-        } else {
-            const produto = estoque.produtos.find(p => p.id === venda.produtoId);
-            if (produto) produto.vendas[venda.representante] = Math.max(0, (produto.vendas[venda.representante] || 0) - (venda.quantidade || 0));
-        }
-
         venda.cancelado = true;
         venda.canceladoEm = new Date().toISOString();
         venda.canceladoPor = getUsuarioAtual();
@@ -11468,6 +11438,7 @@ function cancelarContrato(contratoKey) {
         } catch (e) {}
     });
 
+    try { reconstruirVendasAPartirDeRegistros(); } catch (e) {}
     salvarDados();
     renderizarTabela();
     renderizarDashboard();
