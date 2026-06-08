@@ -705,35 +705,44 @@ function diagRep(nomeProduto, rep) {
     const p = (estoque.produtos || []).find(x => (x.nome||'').toUpperCase().includes((nomeProduto||'').toUpperCase()));
     if (!p) { console.error('Produto não encontrado:', nomeProduto); return; }
     const repUpper = (rep||'ISA').toUpperCase();
+
+    console.group(`=== Diagnóstico: ${p.nome} / ${rep} ===`);
+    console.log('produto.id:', p.id, '| tipo:', typeof p.id);
+
+    // --- distribuicao ---
+    console.group('distribuicao');
+    console.log('todas as chaves e valores:', JSON.stringify(p.distribuicao));
     const distribKey = p.distribuicao ? Object.keys(p.distribuicao).find(k => k.toUpperCase() === repUpper) : null;
-    const distribuido = distribKey ? (p.distribuicao[distribKey] || 0) : 0;
-    const vendasDoRep = (estoque.registroVendas || []).filter(v =>
-        !v.cancelado && (v.representante||'').toUpperCase() === repUpper &&
-        (Array.isArray(v.items) ? v.items.some(i => i.produtoId === p.id) : v.produtoId === p.id)
-    );
-    const vendidoRep = vendasDoRep.reduce((s, v) => {
-        if (Array.isArray(v.items) && v.items.length) {
-            const it = v.items.find(i => i.produtoId === p.id);
-            return s + (it ? (Number(it.quantidade) || 0) : 0);
-        }
-        return s + (Number(v.quantidade) || 0);
-    }, 0);
-    console.group(`Diagnóstico: ${p.nome} / ${rep}`);
-    console.log('produto.id:', p.id);
-    console.log('distribuicao keys:', JSON.stringify(p.distribuicao));
-    console.log('distribKey encontrada:', distribKey);
-    console.log('Distribuído:', distribuido);
-    console.log('Vendido (soma registros):', vendidoRep);
-    console.log('Disponível:', distribuido - vendidoRep);
-    console.log('produto.vendas["ISA"]:', p.vendas && p.vendas['ISA']);
-    console.log('Vendas ativas para este produto/rep:', vendasDoRep.length, 'contratos');
+    console.log('chave encontrada para', rep, ':', distribKey, '→', distribKey ? p.distribuicao[distribKey] : 'NÃO ENCONTRADA');
+    const regDist = (estoque.registroDistribuicao||[]).filter(d => Number(d.produtoId)===Number(p.id) || d.produtoNome===p.nome);
+    console.log('registroDistribuicao (', regDist.length, 'registros):');
+    regDist.forEach(d => console.log(`  rep="${d.representante}" qtd=${d.quantidade} data=${d.data}`));
+    console.groupEnd();
+
+    // --- vendas ---
+    console.group('vendas nos registroVendas');
+    const todasVendasProduto = (estoque.registroVendas||[]).filter(v => {
+        if (Array.isArray(v.items) && v.items.length) return v.items.some(i => i.produtoId === p.id);
+        return v.produtoId === p.id;
+    });
+    console.log('Total de registros com este produto (incluindo cancelados):', todasVendasProduto.length);
+    const repsUnicos = [...new Set(todasVendasProduto.map(v => JSON.stringify({rep: v.representante, cancelado: !!v.cancelado})))];
+    console.log('Representantes distintos nas vendas:', repsUnicos);
+    const vendasDoRep = todasVendasProduto.filter(v => !v.cancelado && (v.representante||'').toUpperCase() === repUpper);
+    console.log(`Vendas ativas com representante="${rep}" (case-insensitive):`, vendasDoRep.length);
+    let vendidoRep = 0;
     vendasDoRep.forEach(v => {
         const it = Array.isArray(v.items) ? v.items.find(i => i.produtoId === p.id) : null;
-        console.log(`  contrato=${v.contrato} qtd=${it ? it.quantidade : v.quantidade} cancelado=${v.cancelado}`);
+        const qtd = it ? it.quantidade : (v.quantidade || 0);
+        vendidoRep += qtd;
+        console.log(`  contrato=${v.contrato} rep="${v.representante}" qtd=${qtd}`);
     });
-    console.log('registroDistribuicao para este produto:',
-        (estoque.registroDistribuicao||[]).filter(d => Number(d.produtoId)===Number(p.id) || d.produtoNome===p.nome)
-    );
+    console.log('Total vendido para', rep, ':', vendidoRep);
+    console.groupEnd();
+
+    // --- resultado ---
+    const distribuido = distribKey ? (p.distribuicao[distribKey] || 0) : 0;
+    console.log('RESULTADO → Distribuído:', distribuido, '| Vendido:', vendidoRep, '| Disponível:', distribuido - vendidoRep);
     console.groupEnd();
 }
 window.diagRep = diagRep;
