@@ -11361,13 +11361,15 @@ function renderizarRegistroVendas() {
         const progressBadge = contratoCancelado ? '' :
             `<span class="ctr-progress" style="background:${progressCor}22;border-color:${progressCor};color:${progressCor}">${qtdConcluidos}/3</span>`;
 
-        const statusBtn = (checked, campo) => contratoCancelado
-            ? `<button type="button" class="status-indicator" disabled title="Contrato cancelado" style="opacity:0.3;cursor:not-allowed">
-                <svg viewBox="0 0 12 12" aria-hidden="true"><path fill="white" d="M4.7 9.2 1.9 6.4l1.1-1.1 1.7 1.7 4.2-4.2L10 4z"/></svg>
-               </button>`
-            : `<button type="button" class="status-indicator ${checked ? 'checked' : ''}" onclick="salvarControleEnvio('${primeira.contratoRaw || contratoKey}', '${campo}', ${!checked})" title="${campo}">
-                <svg viewBox="0 0 12 12" aria-hidden="true"><path fill="white" d="M4.7 9.2 1.9 6.4l1.1-1.1 1.7 1.7 4.2-4.2L10 4z"/></svg>
-               </button>`;
+        const statusBtn = (checked, campo) => {
+            if (contratoCancelado) return `<button type="button" class="status-indicator" disabled title="Contrato cancelado" style="opacity:0.3;cursor:not-allowed"><svg viewBox="0 0 12 12" aria-hidden="true"><path fill="white" d="M4.7 9.2 1.9 6.4l1.1-1.1 1.7 1.7 4.2-4.2L10 4z"/></svg></button>`;
+            let tooltipTitle = campo;
+            if (campo === 'enviado' && checked) {
+                const ts = estoque.controleEnvio?.[primeira.contratoRaw || contratoKey]?.emailEnviadoEm;
+                if (ts) tooltipTitle = `Email enviado em ${ts}`;
+            }
+            return `<button type="button" class="status-indicator ${checked ? 'checked' : ''}" onclick="salvarControleEnvio('${primeira.contratoRaw || contratoKey}', '${campo}', ${!checked})" title="${tooltipTitle}"><svg viewBox="0 0 12 12" aria-hidden="true"><path fill="white" d="M4.7 9.2 1.9 6.4l1.1-1.1 1.7 1.7 4.2-4.2L10 4z"/></svg></button>`;
+        };
 
         const resumo = document.createElement('tr');
         resumo.className = 'row-contrato-resumo' + (contratoCancelado ? ' contrato-cancelado' : '');
@@ -11381,12 +11383,16 @@ function renderizarRegistroVendas() {
         if (contratoCancelado) {
             actionsHtml = '<span class="badge-cancelado">CANCELADO</span>';
         } else {
+            const emailEnviadoEm = (estoque.controleEnvio?.[primeira.contratoRaw || contratoKey]?.emailEnviadoEm) || '';
+            const emailBtnTitle = emailEnviadoEm ? `Email enviado em ${emailEnviadoEm}` : 'Preparar email de pedido';
+            const emailBtnStyle = emailEnviadoEm ? 'color:#15803d;border-color:#bbf7d0;background:#f0fdf4' : '';
             actionsHtml = `<button class="btn-action btn-edit" onclick="abrirModalVendaDetalhada(${primeira.vendaId})" title="Editar venda">✎</button>` +
                           `<button class="btn-action btn-delete" onclick="excluirVenda(${primeira.vendaId})" title="Excluir venda">🗑</button>` +
                           `<button class="btn-action" onclick="abrirHistoricoContrato('${contratoKey}')" title="Histórico do Contrato">🕘</button>` +
                           `<button class="btn-action btn-cancel" onclick="cancelarContrato('${contratoKey}')" title="Cancelar contrato">✖</button>` +
                           `<button class="btn-action btn-delete" onclick="limparControleEnvio('${primeira.contratoRaw || contratoKey}')" title="Limpar dados de envio">📭</button>` +
-                          `<button class="btn-contrato-docx" onclick="gerarContratoVenda('${primeira.vendaId || primeira.contratoRaw}')" title="Gerar contrato .docx">📄</button>`;
+                          `<button class="btn-contrato-docx" onclick="gerarContratoVenda('${primeira.vendaId || primeira.contratoRaw}')" title="Gerar contrato .docx">📄</button>` +
+                          `<button class="btn-action" onclick="prepararEmailPorContrato('${primeira.contratoRaw || contratoKey}')" title="${emailBtnTitle}" style="${emailBtnStyle}">✉️</button>`;
         }
 
         resumo.innerHTML = `
@@ -24998,41 +25004,29 @@ function carregarConfigEmail() {
     if (assEl  && cfg.assinatura) assEl.value = cfg.assinatura;
 }
 
+// _emailVendaContratoAtual: guarda o contrato da venda que abriu o modal, para marcar enviado depois
+window._emailVendaContratoAtual = null;
+
 function prepararEmailVenda(venda) {
     if (!venda) return;
     const cfg = _getCfgEmail();
     const contrato = venda.contrato || '';
     const cliente  = venda.loja || '';
-    const rep      = venda.representante || '';
-    let data = venda.data || '';
-    try { if (data) data = new Date(data).toLocaleDateString('pt-BR'); } catch(e) {}
-
-    const itensLinhas = (venda.items || venda.itens || []).map(it => {
-        const val = Number(it.valorTotal) || (Number(it.valorUnitario || 0) * Number(it.quantidade || 0));
-        return `  • ${it.produtoNome || ''}  ×${it.quantidade || 0}  —  R$ ${val.toLocaleString('pt-BR', {minimumFractionDigits:2})}`;
-    }).join('\n');
-
-    const valorTotal = Number(venda.valorTotal) || 0;
     const assinatura = cfg.assinatura || 'Atenciosamente,\nControle de Estoque — Fábrica de Itajubá';
 
-    const assunto = `Pedido — Contrato ${contrato} / ${rep}`;
+    // Formato exato solicitado:
+    // Assunto: CTR xxx/2026 - [nome do comprador]
+    // Corpo: "Prezados,\n\nSegue em anexo o Contrato nº xxx/2026 - [nome do comprador], para análise e providências."
+    const assunto = `CTR ${contrato} - ${cliente}`;
     const corpo = [
         'Prezados,',
         '',
-        `Encaminhamos o pedido referente ao Contrato ${contrato}, conforme abaixo:`,
-        '',
-        `Cliente:           ${cliente}`,
-        `Representante:     ${rep}`,
-        `Data:              ${data}`,
-        '',
-        'Itens:',
-        itensLinhas,
-        '',
-        `Valor Total:       R$ ${valorTotal.toLocaleString('pt-BR', {minimumFractionDigits:2})}`,
-        venda.observacoes ? `\nObservações: ${venda.observacoes}` : '',
+        `Segue em anexo o Contrato nº ${contrato} - ${cliente}, para análise e providências.`,
         '',
         assinatura,
-    ].filter(l => l !== null && l !== undefined).join('\n');
+    ].join('\n');
+
+    window._emailVendaContratoAtual = contrato;
 
     const destEl    = document.getElementById('emailVendaDest');
     const assuntoEl = document.getElementById('emailVendaAssunto');
@@ -25054,6 +25048,23 @@ function abrirEmailNoZimbra() {
     const url = `mailto:${encodeURIComponent(dest)}?subject=${encodeURIComponent(assunto)}&body=${encodeURIComponent(corpo)}`;
     window.open(url, '_blank');
     fecharModal('modalEmailVenda');
+
+    // Marcar "Contrato Enviado" com data/hora do envio
+    const contrato = window._emailVendaContratoAtual;
+    if (contrato) {
+        try {
+            const agora = new Date();
+            const ts = agora.toLocaleDateString('pt-BR') + ' ' + agora.toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'});
+            if (!estoque.controleEnvio) estoque.controleEnvio = {};
+            if (!estoque.controleEnvio[contrato]) estoque.controleEnvio[contrato] = {};
+            estoque.controleEnvio[contrato].enviado = true;
+            estoque.controleEnvio[contrato].emailEnviadoEm = ts;
+            salvarDados();
+            try { renderizarRegistroVendas(); } catch(e) {}
+            mostrarNotificacao(`Email preparado — contrato ${contrato} marcado como enviado (${ts}).`, 'success');
+        } catch(e) {}
+        window._emailVendaContratoAtual = null;
+    }
 }
 
 function copiarTextoEmail() {
@@ -25063,4 +25074,17 @@ function copiarTextoEmail() {
     navigator.clipboard.writeText(texto)
         .then(() => mostrarNotificacao('Texto copiado para a área de transferência.', 'success'))
         .catch(() => mostrarNotificacao('Não foi possível copiar automaticamente.', 'warning'));
+}
+
+// Abre modal de email a partir da tabela de vendas (passando o contrato como string)
+function prepararEmailPorContrato(contratoKey) {
+    // Busca a primeira venda ativa do contrato para obter loja/cliente
+    const venda = (estoque.registroVendas || []).find(v =>
+        !v.cancelado && (String(v.contrato) === String(contratoKey) || String(v.contrato).replace(/\D/g,'') === String(contratoKey).replace(/\D/g,''))
+    );
+    if (venda) {
+        prepararEmailVenda(venda);
+    } else {
+        mostrarNotificacao('Venda não encontrada para este contrato.', 'warning');
+    }
 }
