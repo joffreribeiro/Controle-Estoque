@@ -141,6 +141,14 @@
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
                         <span class="nav-text">Carregar do Cloud</span>
                     </button>
+                    <button class="sidebar-action-btn" data-admin="true" onclick="exportarBackupLocal(true)" title="Exportar backup JSON local">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+                        <span class="nav-text">Backup Local</span>
+                    </button>
+                    <button class="sidebar-action-btn" data-admin="true" onclick="verificarIntegridadeEstoque()" title="Verificar integridade do estoque">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M9 12l2 2 4-4"/><path d="M21 12c0 4.97-4.03 9-9 9S3 16.97 3 12 7.03 3 12 3s9 4.03 9 9z"/></svg>
+                        <span class="nav-text">Verificar Estoque</span>
+                    </button>
                     <div id="authPanel" class="auth-panel sidebar-auth-panel">
                         <button id="openLoginBtn" class="sidebar-action-btn sidebar-login-btn" onclick="openLoginModal()" title="Login">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
@@ -163,6 +171,12 @@
                      font-size:0.78rem;font-weight:600;padding:6px 12px;text-align:center;
                      border-radius:6px;margin-top:6px">
                   📵 Sem conexão — dados salvos localmente
+                </div>
+                <div id="bannerSemSync" style="display:none;background:#92400e;color:#fef3c7;
+                     font-size:0.75rem;font-weight:600;padding:6px 10px;text-align:center;
+                     border-radius:6px;margin-top:6px;align-items:center;gap:6px;flex-direction:column">
+                  <span>⚠️ Dados salvos apenas localmente</span>
+                  <button onclick="openLoginModal()" style="background:#fbbf24;color:#78350f;border:none;border-radius:4px;padding:2px 8px;font-size:0.72rem;font-weight:700;cursor:pointer">Fazer login</button>
                 </div>
             </div>
         </aside>
@@ -1611,6 +1625,7 @@
                     <button class="btn btn-outline btn-sm" onclick="colapsarTodosContratos()">▸ Colapsar</button>
                     <button class="btn btn-outline btn-sm" onclick="limparFiltrosVendas()">🔄</button>
                     <button class="btn btn-outline btn-sm" onclick="abrirModalCancelamentos()" title="Ver contratos cancelados">⛔ Cancelamentos</button>
+                    <button class="btn btn-outline btn-sm" data-admin="true" onclick="exportarRelatorioRepresentante(document.getElementById('filtroRepresentante')?.value || '')" title="Exportar relatório de estoque por representante">📊 Exportar</button>
                     <span id="vendasContador" class="prod-result-count"></span>
                 </div>
 
@@ -4146,7 +4161,26 @@
             </div>
         </div>
 
-    <script src="app2.js?v=16"></script>
+    <!-- Modal: Integridade do Estoque -->
+    <div id="modalIntegridadeEstoque" class="modal" style="display:none;align-items:center;justify-content:center">
+        <div class="modal-content" style="max-width:560px;width:95%">
+            <div class="modal-header">
+                <h3 class="modal-title">Verificação de Integridade do Estoque</h3>
+                <button class="modal-close" onclick="fecharModal('modalIntegridadeEstoque')">&times;</button>
+            </div>
+            <div class="modal-body" id="corpoModalIntegridade" style="padding:16px">
+                <p style="color:#64748b">Verificando...</p>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline" onclick="fecharModal('modalIntegridadeEstoque')">Fechar</button>
+                <button class="btn btn-primary" onclick="reconstruirVendasAPartirDeRegistros();salvarDados();fecharModal('modalIntegridadeEstoque');mostrarNotificacao('Agregados reconstruídos.','success')">
+                    Corrigir agora
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script src="app2.js?v=17"></script>
 
     <script>
     (function matchSubtitleWidth(){

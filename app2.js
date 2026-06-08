@@ -700,6 +700,65 @@ function diagnosticarProdutoPorNome(nome) {
 }
 window.diagnosticarProdutoPorNome = diagnosticarProdutoPorNome;
 
+// Verifica integridade do estoque: detecta divergências entre produto.vendas e registroVendas
+function verificarIntegridadeEstoque() {
+    const divergencias = [];
+    (estoque.produtos || []).forEach(p => {
+        (estoque.representantes || []).forEach(rep => {
+            const repUpper = rep.toUpperCase();
+            const vendidoRegistros = (estoque.registroVendas || []).reduce((s, v) => {
+                if (v.cancelado) return s;
+                if ((v.representante || '').toUpperCase() !== repUpper) return s;
+                if (Array.isArray(v.items) && v.items.length) {
+                    const it = v.items.find(i => i.produtoId === p.id);
+                    return s + (it ? (Number(it.quantidade) || 0) : 0);
+                }
+                if (v.produtoId === p.id) return s + (Number(v.quantidade) || 0);
+                return s;
+            }, 0);
+            const vendidoCache = Number((p.vendas && p.vendas[rep]) || 0);
+            if (vendidoCache !== vendidoRegistros) {
+                divergencias.push({ produto: p.nome, rep, cache: vendidoCache, registros: vendidoRegistros });
+            }
+        });
+    });
+
+    if (divergencias.length === 0) {
+        mostrarNotificacao('Integridade OK — nenhuma divergência encontrada.', 'success');
+        return;
+    }
+
+    let html = `<div style="max-height:300px;overflow-y:auto;font-size:0.82rem">
+        <p style="color:#dc2626;font-weight:600;margin-bottom:8px">${divergencias.length} divergência(s) encontrada(s):</p>
+        <table style="width:100%;border-collapse:collapse">
+        <tr style="background:#f1f5f9;font-weight:600"><td style="padding:4px 8px">Produto</td><td>Rep</td><td>Cache</td><td>Real</td></tr>`;
+    divergencias.forEach(d => {
+        html += `<tr style="border-top:1px solid #e2e8f0">
+            <td style="padding:4px 8px">${d.produto}</td>
+            <td>${d.rep}</td>
+            <td style="color:#dc2626">${d.cache}</td>
+            <td style="color:#15803d">${d.registros}</td>
+        </tr>`;
+    });
+    html += '</table></div><p style="margin-top:8px;font-size:0.8rem;color:#64748b">Clique em Corrigir para reconstruir os agregados.</p>';
+
+    const modal = document.getElementById('modalIntegridadeEstoque');
+    if (modal) {
+        const body = document.getElementById('corpoModalIntegridade') || modal.querySelector('.modal-body');
+        if (body) body.innerHTML = html;
+        modal.style.display = 'flex';
+    } else {
+        // Fallback: alert simples
+        const linhas = divergencias.map(d => `${d.produto} / ${d.rep}: cache=${d.cache}, real=${d.registros}`).join('\n');
+        if (confirm(`${divergencias.length} divergência(s):\n\n${linhas}\n\nDeseja corrigir agora?`)) {
+            reconstruirVendasAPartirDeRegistros();
+            salvarDados();
+            mostrarNotificacao('Agregados reconstruídos com sucesso.', 'success');
+        }
+    }
+}
+window.verificarIntegridadeEstoque = verificarIntegridadeEstoque;
+
 // =============================
 // Firebase (inicialização e helpers)
 // =============================
@@ -710,27 +769,103 @@ function updateFirestoreStatus(connected, lastSyncDate, message) {
         const dot = document.getElementById('fsDot');
         const text = document.getElementById('fsText');
         if (!el || !dot || !text) return;
-        if (connected) {
-            dot.classList.remove('fs-offline');
-            dot.classList.remove('fs-warning');
+        dot.classList.remove('fs-online', 'fs-offline', 'fs-warning', 'fs-saving');
+        if (message && (message.includes('Salvando') || message.includes('aguardando'))) {
+            dot.classList.add('fs-warning');
+            text.textContent = message;
+        } else if (connected) {
             dot.classList.add('fs-online');
-            const label = message || 'Cloud: conectado';
             if (lastSyncDate) {
                 const dt = (lastSyncDate instanceof Date) ? lastSyncDate : new Date(lastSyncDate);
-                text.textContent = `${label} — último sync: ${dt.toLocaleString('pt-BR')}`;
+                const hm = dt.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+                text.textContent = (message || 'Sincronizado') + ' • ' + hm;
             } else {
-                text.textContent = message || 'Cloud: conectado — sem sync';
+                text.textContent = message || 'Cloud: conectado';
             }
         } else {
-            dot.classList.remove('fs-online');
-            dot.classList.remove('fs-warning');
             dot.classList.add('fs-offline');
             text.textContent = message || 'Cloud: desconectado';
         }
+        // Banner sem login
+        const banner = document.getElementById('bannerSemSync');
+        if (banner) {
+            const semLogin = message && message.includes('aguardando login');
+            banner.style.display = semLogin ? 'flex' : 'none';
+        }
+    } catch (e) { /* ignore UI update errors */ }
+}
+
+// Exporta backup JSON local (1x por dia automaticamente)
+function exportarBackupLocal(forcar) {
+    try {
+        const hoje = new Date().toISOString().split('T')[0];
+        if (!forcar) {
+            const ultimo = localStorage.getItem('_ultimoBackupLocal');
+            if (ultimo === hoje) return;
+        }
+        const dados = JSON.stringify(estoque, null, 2);
+        const blob = new Blob([dados], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `backup-estoque-${hoje}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        localStorage.setItem('_ultimoBackupLocal', hoje);
+        if (forcar) mostrarNotificacao('Backup exportado: backup-estoque-' + hoje + '.json', 'success');
     } catch (e) {
-        // ignore UI update errors
+        console.error('exportarBackupLocal falhou:', e);
     }
 }
+window.exportarBackupLocal = exportarBackupLocal;
+
+// Exporta relatório de estoque por representante (Excel ou CSV)
+function exportarRelatorioRepresentante(rep) {
+    try {
+        const reps = rep ? [rep] : (estoque.representantes || []).filter(r => r !== 'IMBEL');
+        const rows = [];
+        (estoque.produtos || []).forEach(p => {
+            reps.forEach(r => {
+                const repUpper = r.toUpperCase();
+                const distribKey = p.distribuicao ? Object.keys(p.distribuicao).find(k => k.toUpperCase() === repUpper) : null;
+                const distribuido = distribKey ? (p.distribuicao[distribKey] || 0) : 0;
+                if (distribuido === 0) return;
+                const vendido = (estoque.registroVendas || []).reduce((s, v) => {
+                    if (v.cancelado) return s;
+                    if ((v.representante || '').toUpperCase() !== repUpper) return s;
+                    if (Array.isArray(v.items) && v.items.length) {
+                        const it = v.items.find(i => i.produtoId === p.id);
+                        return s + (it ? (Number(it.quantidade) || 0) : 0);
+                    }
+                    if (v.produtoId === p.id) return s + (Number(v.quantidade) || 0);
+                    return s;
+                }, 0);
+                const disponivel = distribuido - vendido;
+                rows.push({ Representante: r, Produto: p.nome, PN: p.pn || '', Distribuído: distribuido, Vendido: vendido, Disponível: disponivel });
+            });
+        });
+        if (!rows.length) { mostrarNotificacao('Nenhum dado para exportar.', 'warning'); return; }
+        const data = new Date().toISOString().split('T')[0];
+        const filename = `relatorio-estoque-${rep || 'todos'}-${data}`;
+        if (window.XLSX) {
+            const ws = XLSX.utils.json_to_sheet(rows);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, 'Estoque');
+            XLSX.writeFile(wb, filename + '.xlsx');
+        } else {
+            const header = Object.keys(rows[0]).join(';');
+            const csv = header + '\n' + rows.map(r => Object.values(r).join(';')).join('\n');
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a'); a.href = url; a.download = filename + '.csv';
+            document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
+        }
+        mostrarNotificacao(`Relatório exportado: ${filename}`, 'success');
+    } catch (e) { console.error('exportarRelatorioRepresentante falhou:', e); mostrarNotificacao('Erro ao exportar relatório.', 'error'); }
+}
+window.exportarRelatorioRepresentante = exportarRelatorioRepresentante;
 
 try {
     if (typeof firebase !== 'undefined') {
@@ -1003,6 +1138,16 @@ async function inicializar() {
     // Reativar auto-save: habilita salvamento automático (debounced + periódico)
     try { window.__AUTO_SAVE_CLOUD.enabled = true; } catch (e) {}
     try { iniciarAutoSaveCloud(); } catch (e) { console.warn('Falha ao iniciar auto-save:', e); }
+
+    // Reconstrução periódica dos agregados (a cada 5 min) para manter badges sempre corretos
+    setInterval(() => {
+        try { reconstruirVendasAPartirDeRegistros(); } catch (e) {}
+        try { reconstruirDistribuicaoAPartirDeRegistros(); } catch (e) {}
+        try { atualizarBadgesEstoqueTodasLinhas(); } catch (e) {}
+    }, 5 * 60 * 1000);
+
+    // Backup automático diário
+    setTimeout(() => { try { exportarBackupLocal(false); } catch (e) {} }, 3000);
 
     // Marcar que a inicialização foi concluída — a partir daqui edições são do usuário
     window._appInitialized = true;
@@ -2852,6 +2997,25 @@ function getUsuarioAtual() {
         try { localStorage.setItem('estoqueUsuarioAtual', usuario); } catch (e) {}
     }
     return usuario;
+}
+
+// Auditoria genérica para qualquer operação (distribuição, cadastro, etc.)
+function registrarAuditoria(acao, antes, depois, detalhes) {
+    if (!Array.isArray(estoque.auditoriaVendas)) estoque.auditoriaVendas = [];
+    const entry = {
+        id: Date.now() + Math.floor(Math.random() * 1000),
+        quando: new Date().toISOString(),
+        quem: getUsuarioAtual(),
+        acao: acao,
+        contrato: '-',
+        antes: antes || null,
+        depois: depois || null,
+        detalhes: detalhes || ''
+    };
+    estoque.auditoriaVendas.push(entry);
+    if (estoque.auditoriaVendas.length > 1000) {
+        estoque.auditoriaVendas = estoque.auditoriaVendas.slice(-1000);
+    }
 }
 
 function registrarAuditoriaVenda(acao, vendaAntes, vendaDepois, detalhes = '') {
@@ -10427,6 +10591,8 @@ function atualizarBadgeEstoqueItem(selectEl) {
     const distribuido = distribKey ? (produto.distribuicao[distribKey] || 0) : 0;
     const disp = distribuido - vendidoRep;
     badge.textContent = `Disp. ${rep}: ${disp}`;
+    badge.title = `Distribuído: ${distribuido} | Vendido: ${vendidoRep} | Disponível: ${disp}`;
+    badge.style.cursor = 'help';
     badge.style.color = disp > 0 ? '#15803d' : '#dc2626';
     badge.style.background = disp > 0 ? '#f0fdf4' : '#fef2f2';
     badge.style.borderColor = disp > 0 ? '#bbf7d0' : '#fecaca';
@@ -10791,6 +10957,35 @@ function salvarVendaDetalhada(event) {
         }, cancelarCallback);
 
         return;
+    }
+
+    // Alerta de estoque baixo (saldo após esta venda < estoqueMin do produto)
+    const alertasBaixo = [];
+    (itens || []).forEach(it => {
+        const produto = (estoque.produtos || []).find(p => p.id === it.produtoId);
+        if (!produto) return;
+        const repUpper = (representante || '').toUpperCase();
+        const distribKey = produto.distribuicao ? Object.keys(produto.distribuicao).find(k => k.toUpperCase() === repUpper) : null;
+        const distribuido = distribKey ? (produto.distribuicao[distribKey] || 0) : 0;
+        const vendidoAtual = (estoque.registroVendas || []).reduce((s, v) => {
+            if (v.cancelado) return s;
+            if (isEditing && v.id === vendaEditandoId) return s;
+            if ((v.representante || '').toUpperCase() !== repUpper) return s;
+            if (Array.isArray(v.items) && v.items.length) {
+                const vi = v.items.find(i => i.produtoId === produto.id);
+                return s + (vi ? (Number(vi.quantidade) || 0) : 0);
+            }
+            if (v.produtoId === produto.id) return s + (Number(v.quantidade) || 0);
+            return s;
+        }, 0);
+        const saldoApos = distribuido - vendidoAtual - (it.quantidade || 0);
+        const minAlerta = Number(produto.estoqueMin) || 0;
+        if (saldoApos >= 0 && saldoApos <= minAlerta) {
+            alertasBaixo.push(`⚠️ ${produto.nome}: restará ${saldoApos} unid. para ${representante} (mín: ${minAlerta})`);
+        }
+    });
+    if (alertasBaixo.length > 0) {
+        mostrarNotificacao(alertasBaixo.join('\n'), 'warning');
     }
 
     // Se válido, finalizar imediatamente
@@ -12089,6 +12284,7 @@ function salvarNovaDistribuicao(event) {
         };
         estoque.registroDistribuicao.push(novaDistribuicao);
         registrosCriados.push(novaDistribuicao);
+        try { registrarAuditoria('distribuicao', null, novaDistribuicao, `Distribuído ${item.quantidade}x ${produto.nome} → ${representante}`); } catch(e) {}
     });
     // Reconstruir agregados a partir dos registros e salvar
     try { reconstruirDistribuicaoAPartirDeRegistros(); } catch (e) {}
@@ -12644,6 +12840,7 @@ function salvarProduto(event) {
         };
         if (categoria) categoriaPorProduto[nome] = categoria;
 
+        try { registrarAuditoria('edicao-produto', { nome: nomeAnterior }, { nome, estoqueConsolidado: Number(estoqueTotal) || 0 }, `Produto "${nome}" editado`); } catch(e) {}
         atualizarSelectsProdutos();
         try { popularSelectProdutosPrecif(); } catch (e) {}
         salvarDados();
@@ -12714,6 +12911,7 @@ function salvarProduto(event) {
     if (categoria) categoriaPorProduto[nome] = categoria;
 
     estoque.produtos.push(novoProduto);
+    try { registrarAuditoria('cadastro-produto', null, { id: novoProduto.id, nome, categoria, estoqueConsolidado: Number(estoqueConsolidado) || 0 }, `Produto "${nome}" cadastrado`); } catch(e) {}
     // Atualizar selects imediatamente para refletir o novo produto em qualquer modal aberto
     atualizarSelectsProdutos();
     try { popularSelectProdutosPrecif(); } catch (e) {}
@@ -24135,6 +24333,10 @@ if (window.firebase && firebase.auth) {
                 if (formEl) formEl.style.display = 'none';
                 if (signedEl) signedEl.style.display = 'flex';
                 if (userDisplay) userDisplay.textContent = user.email || user.uid;
+                try {
+                    const banner = document.getElementById('bannerSemSync');
+                    if (banner) banner.style.display = 'none';
+                } catch (e) {}
 
                 // Verifica claims para habilitar controles de admin
                 let isAdmin = false;
@@ -24255,7 +24457,11 @@ if (window.firebase && firebase.auth) {
                 if (loggedBadgeEl) loggedBadgeEl.style.display = 'none';
                 try { localStorage.removeItem('currentUser'); } catch(e) {}
                 try { window.__cloudAutoLoadDoneForUid = null; } catch (e) {}
-                try { updateFirestoreStatus(true, null, 'Cloud: aguardando login'); } catch (e) {}
+                try { updateFirestoreStatus(false, null, 'Cloud: aguardando login'); } catch (e) {}
+                try {
+                    const banner = document.getElementById('bannerSemSync');
+                    if (banner) banner.style.display = 'flex';
+                } catch (e) {}
             }
         });
     } catch (err) {
