@@ -2991,6 +2991,37 @@
                         </div>
                     </div>
 
+                    <!-- SEÇÃO: EMAIL / ZIMBRA -->
+                    <div class="cfg-section-label" style="margin-top:32px">Email de Pedidos</div>
+                    <div class="cfg-panel">
+                        <div class="cfg-panel-head">
+                            <div class="cfg-panel-head-icon">✉️</div>
+                            <div>
+                                <div class="cfg-panel-head-title">Configuração de Email — Zimbra</div>
+                                <div class="cfg-panel-head-sub">Destinatário e remetente padrão para envio de pedidos ao confirmar venda.</div>
+                            </div>
+                        </div>
+                        <div class="cfg-panel-body">
+                            <div class="cfg-field-grid cols2">
+                                <div class="cfg-field">
+                                    <label>Destinatário padrão</label>
+                                    <input type="email" id="cfgEmailDest" placeholder="pedidos.fi@imbel.gov.br" value="pedidos.fi@imbel.gov.br">
+                                </div>
+                                <div class="cfg-field">
+                                    <label>Seu email (remetente no assunto)</label>
+                                    <input type="email" id="cfgEmailRemetente" placeholder="seu.email@imbel.gov.br">
+                                </div>
+                                <div class="cfg-field span2">
+                                    <label>Assinatura padrão da mensagem</label>
+                                    <textarea id="cfgEmailAssinatura" rows="3" style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:var(--radius-control);font-size:.88rem;resize:vertical;box-sizing:border-box" placeholder="Atenciosamente,&#10;Controle de Estoque — Fábrica de Itajubá"></textarea>
+                                </div>
+                            </div>
+                            <div class="cfg-btn-row" style="margin-top:12px">
+                                <button class="cfg-btn cfg-btn-primary" onclick="salvarConfigEmail()">Salvar Configurações de Email</button>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- SEÇÃO: ZONA DE PERIGO -->
                     <div class="cfg-section-label" style="margin-top:32px">Zona de Perigo</div>
                     <div class="cfg-panel cfg-danger-panel">
@@ -4252,6 +4283,38 @@
         </div>
     </div>
 
+    <!-- Modal: Email de Pedido -->
+    <div id="modalEmailVenda" class="modal" style="display:none;align-items:center;justify-content:center">
+        <div class="modal-content" style="max-width:620px;width:95vw;max-height:90vh;overflow-y:auto">
+            <div class="modal-header">
+                <h3 class="modal-title">Enviar Pedido por Email</h3>
+                <button class="modal-close" onclick="fecharModal('modalEmailVenda')">&times;</button>
+            </div>
+            <div style="padding:16px;display:flex;flex-direction:column;gap:14px">
+                <div>
+                    <label style="display:block;font-size:.75rem;font-weight:700;color:#64748b;text-transform:uppercase;margin-bottom:4px">Destinatário</label>
+                    <input id="emailVendaDest" type="email" class="form-control" style="width:100%;box-sizing:border-box">
+                </div>
+                <div>
+                    <label style="display:block;font-size:.75rem;font-weight:700;color:#64748b;text-transform:uppercase;margin-bottom:4px">Assunto</label>
+                    <input id="emailVendaAssunto" type="text" class="form-control" style="width:100%;box-sizing:border-box">
+                </div>
+                <div>
+                    <label style="display:block;font-size:.75rem;font-weight:700;color:#64748b;text-transform:uppercase;margin-bottom:4px">Mensagem</label>
+                    <textarea id="emailVendaCorpo" rows="12" class="form-control" style="width:100%;box-sizing:border-box;font-family:monospace;font-size:.83rem;resize:vertical;white-space:pre"></textarea>
+                </div>
+                <p style="font-size:.75rem;color:#94a3b8;margin:0;line-height:1.5">
+                    Ao clicar <strong>Abrir no Zimbra</strong>, seu cliente de email abrirá com esses dados preenchidos — você poderá adicionar anexos e fazer ajustes finais antes de enviar.
+                </p>
+            </div>
+            <div class="modal-footer" style="gap:8px">
+                <button class="btn btn-outline" onclick="copiarTextoEmail()" title="Copiar mensagem para a área de transferência">Copiar texto</button>
+                <button class="btn btn-outline" onclick="fecharModal('modalEmailVenda')">Cancelar</button>
+                <button class="btn btn-primary" onclick="abrirEmailNoZimbra()">Abrir no Zimbra</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Modal: Produtos sem movimentação -->
     <div id="modalProdutosSemMovimentacao" class="modal" style="display:none;align-items:center;justify-content:center">
         <div class="modal-content" style="max-width:720px;width:95vw;max-height:88vh;overflow-y:auto">
@@ -4266,7 +4329,7 @@
         </div>
     </div>
 
-    <script src="app2.js?v=24"></script>
+    <script src="app2.js?v=25"></script>
 
     <script>
     (function matchSubtitleWidth(){

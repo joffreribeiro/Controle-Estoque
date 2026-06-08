@@ -3418,6 +3418,7 @@ function trocarAba(aba) {
             try { renderizarConfigVendedor(); } catch (e) { if (window.__showRuntimeErrorOverlay) window.__showRuntimeErrorOverlay(e); }
             try { renderizarSelectConfigRep(); } catch (e) { if (window.__showRuntimeErrorOverlay) window.__showRuntimeErrorOverlay(e); }
             try { renderizarListaRepresentantesConfig(); } catch(e) {}
+            try { carregarConfigEmail(); } catch(e) {}
         }
 
         try { if (window.__updateDebugPanel) window.__updateDebugPanel(); } catch (e) {}
@@ -10980,6 +10981,8 @@ function finalizarSalvamentoVendaDetalhada(params) {
     fecharModal('modalVendaDetalhada');
 
     mostrarNotificacao(`Venda registrada: Contrato ${contrato} - ${totalQtd} itens - ${formatarMoedaValor(totalValor)}`, 'success');
+    // Abrir modal de email para envio do pedido
+    try { setTimeout(() => prepararEmailVenda(novaVenda), 300); } catch(e) {}
 }
 
 function salvarVendaDetalhada(event) {
@@ -23527,6 +23530,8 @@ function confirmarConversaoVenda() {
         'success'
     );
     trocarAba('vendas');
+    // Abrir modal de email para envio do pedido
+    try { setTimeout(() => prepararEmailVenda(novaVenda), 400); } catch(e) {}
 }
 
 function excluirProposta(id) {
@@ -24963,4 +24968,99 @@ function renderizarGraficoEvolucao() {
 // Inicializar select de meses ao carregar a aba de relatórios
 document.addEventListener('DOMContentLoaded', function() {
     try { _popularSelectMes(); } catch(e) {}
+    try { carregarConfigEmail(); } catch(e) {}
 });
+
+// =============================
+// Email de Pedidos — Zimbra (item 15)
+// =============================
+function _getCfgEmail() {
+    try { return JSON.parse(localStorage.getItem('zimbraEmailConfig') || '{}'); } catch(e) { return {}; }
+}
+
+function salvarConfigEmail() {
+    const cfg = {
+        dest:       (document.getElementById('cfgEmailDest')?.value || '').trim(),
+        remetente:  (document.getElementById('cfgEmailRemetente')?.value || '').trim(),
+        assinatura: (document.getElementById('cfgEmailAssinatura')?.value || '').trim(),
+    };
+    localStorage.setItem('zimbraEmailConfig', JSON.stringify(cfg));
+    mostrarNotificacao('Configurações de email salvas.', 'success');
+}
+
+function carregarConfigEmail() {
+    const cfg = _getCfgEmail();
+    const destEl = document.getElementById('cfgEmailDest');
+    const remEl  = document.getElementById('cfgEmailRemetente');
+    const assEl  = document.getElementById('cfgEmailAssinatura');
+    if (destEl && cfg.dest) destEl.value = cfg.dest;
+    if (remEl  && cfg.remetente) remEl.value = cfg.remetente;
+    if (assEl  && cfg.assinatura) assEl.value = cfg.assinatura;
+}
+
+function prepararEmailVenda(venda) {
+    if (!venda) return;
+    const cfg = _getCfgEmail();
+    const contrato = venda.contrato || '';
+    const cliente  = venda.loja || '';
+    const rep      = venda.representante || '';
+    let data = venda.data || '';
+    try { if (data) data = new Date(data).toLocaleDateString('pt-BR'); } catch(e) {}
+
+    const itensLinhas = (venda.items || venda.itens || []).map(it => {
+        const val = Number(it.valorTotal) || (Number(it.valorUnitario || 0) * Number(it.quantidade || 0));
+        return `  • ${it.produtoNome || ''}  ×${it.quantidade || 0}  —  R$ ${val.toLocaleString('pt-BR', {minimumFractionDigits:2})}`;
+    }).join('\n');
+
+    const valorTotal = Number(venda.valorTotal) || 0;
+    const assinatura = cfg.assinatura || 'Atenciosamente,\nControle de Estoque — Fábrica de Itajubá';
+
+    const assunto = `Pedido — Contrato ${contrato} / ${rep}`;
+    const corpo = [
+        'Prezados,',
+        '',
+        `Encaminhamos o pedido referente ao Contrato ${contrato}, conforme abaixo:`,
+        '',
+        `Cliente:           ${cliente}`,
+        `Representante:     ${rep}`,
+        `Data:              ${data}`,
+        '',
+        'Itens:',
+        itensLinhas,
+        '',
+        `Valor Total:       R$ ${valorTotal.toLocaleString('pt-BR', {minimumFractionDigits:2})}`,
+        venda.observacoes ? `\nObservações: ${venda.observacoes}` : '',
+        '',
+        assinatura,
+    ].filter(l => l !== null && l !== undefined).join('\n');
+
+    const destEl    = document.getElementById('emailVendaDest');
+    const assuntoEl = document.getElementById('emailVendaAssunto');
+    const corpoEl   = document.getElementById('emailVendaCorpo');
+
+    if (destEl)    destEl.value    = cfg.dest || 'pedidos.fi@imbel.gov.br';
+    if (assuntoEl) assuntoEl.value = assunto;
+    if (corpoEl)   corpoEl.value   = corpo;
+
+    const modal = document.getElementById('modalEmailVenda');
+    if (modal) modal.style.display = 'flex';
+}
+
+function abrirEmailNoZimbra() {
+    const dest    = (document.getElementById('emailVendaDest')?.value   || '').trim();
+    const assunto = (document.getElementById('emailVendaAssunto')?.value || '').trim();
+    const corpo   = (document.getElementById('emailVendaCorpo')?.value   || '').trim();
+
+    const url = `mailto:${encodeURIComponent(dest)}?subject=${encodeURIComponent(assunto)}&body=${encodeURIComponent(corpo)}`;
+    window.open(url, '_blank');
+    fecharModal('modalEmailVenda');
+}
+
+function copiarTextoEmail() {
+    const assunto = (document.getElementById('emailVendaAssunto')?.value || '').trim();
+    const corpo   = (document.getElementById('emailVendaCorpo')?.value   || '').trim();
+    const texto   = `Assunto: ${assunto}\n\n${corpo}`;
+    navigator.clipboard.writeText(texto)
+        .then(() => mostrarNotificacao('Texto copiado para a área de transferência.', 'success'))
+        .catch(() => mostrarNotificacao('Não foi possível copiar automaticamente.', 'warning'));
+}
