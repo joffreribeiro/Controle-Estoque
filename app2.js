@@ -276,8 +276,18 @@ let categoriaPorProduto = {};
     window.addEventListener('error', function(ev){ try { showRuntimeErrorOverlay(ev.error || ev.message || ev); console.error('Unhandled error', ev.error || ev.message || ev); } catch(e){} });
     window.addEventListener('unhandledrejection', function(ev){ try { showRuntimeErrorOverlay(ev.reason || ev); console.error('Unhandled rejection', ev.reason || ev); } catch(e){} });
     document.addEventListener('DOMContentLoaded', function(){ try { if (window.__SHOW_DEBUG_PANEL) setTimeout(updateDebugPanel, 400); } catch(e){} });
-    // Garantir salvamento síncrono/local ao fechar a aba
-    try { window.addEventListener('beforeunload', function(){ try { salvarDados({imediato:true}); } catch(e){} }); } catch(e) {}
+    // Garantir salvamento síncrono/local ao fechar a aba + aviso se não sincronizado com Firebase
+    try {
+        window.addEventListener('beforeunload', function(ev) {
+            try { salvarDados({imediato:true}); } catch(e) {}
+            if (window._dadosAlterados && !window._cloudSyncedRecently) {
+                const msg = 'Você tem alterações não sincronizadas com o Firebase.';
+                ev.preventDefault();
+                ev.returnValue = msg;
+                return msg;
+            }
+        });
+    } catch(e) {}
 })();
 // ===== NCM / Predefinições fiscais =====
 const NCM_PRODUTOS = {
@@ -682,6 +692,51 @@ function reconstruirVendasAPartirDeRegistros() {
             console.warn('reconstruirVendasAPartirDeRegistros: erro ao processar venda', e);
         }
     });
+}
+
+// Migração única: normaliza produtoId antigo nos registros históricos para o ID atual do produto (por nome)
+// Chame normalizarProdutoIdsNosRegistros() no console para executar manualmente, ou chame em carregarDados
+function normalizarProdutoIdsNosRegistros() {
+    let totalAlterados = 0;
+    const colecoes = [
+        { arr: estoque.registroVendas || [], tipo: 'venda' },
+        { arr: estoque.registroDistribuicao || [], tipo: 'distribuicao' },
+        { arr: estoque.registroDevolucoes || [], tipo: 'devolucao' },
+    ];
+    colecoes.forEach(({ arr, tipo }) => {
+        arr.forEach(reg => {
+            // Registros multi-item (vendas com items[])
+            if (Array.isArray(reg.items)) {
+                reg.items.forEach(it => {
+                    const prodAtual = (estoque.produtos || []).find(p => Number(p.id) === Number(it.produtoId));
+                    if (prodAtual) return; // ID já correto
+                    const porNome = it.produtoNome && (estoque.produtos || []).find(p => p.nome && p.nome.trim().toLowerCase() === it.produtoNome.trim().toLowerCase());
+                    if (porNome && porNome.id !== it.produtoId) {
+                        it.produtoId = porNome.id;
+                        totalAlterados++;
+                    }
+                });
+            }
+            // Registros de campo único
+            if (reg.produtoId !== undefined) {
+                const prodAtual = (estoque.produtos || []).find(p => Number(p.id) === Number(reg.produtoId));
+                if (!prodAtual) {
+                    const porNome = reg.produtoNome && (estoque.produtos || []).find(p => p.nome && p.nome.trim().toLowerCase() === reg.produtoNome.trim().toLowerCase());
+                    if (porNome && porNome.id !== reg.produtoId) {
+                        reg.produtoId = porNome.id;
+                        totalAlterados++;
+                    }
+                }
+            }
+        });
+    });
+    if (totalAlterados > 0) {
+        salvarDados();
+        console.log(`normalizarProdutoIdsNosRegistros: ${totalAlterados} registro(s) corrigido(s) e salvos.`);
+    } else {
+        console.log('normalizarProdutoIdsNosRegistros: nenhuma inconsistência encontrada.');
+    }
+    return totalAlterados;
 }
 
 // Função de diagnóstico disponível no console para inspecionar um produto rapidamente
@@ -2005,13 +2060,21 @@ function toggleDetalheProdutoConsulta(nomeId) {
 }
 
 function carregarDados() {
-    const dadosSalvos = localStorage.getItem('estoqueArmasV2');
+    let dadosSalvos = null;
+    try {
+        const lzRaw = localStorage.getItem('estoqueArmasV2_lz');
+        if (lzRaw && window.LZString) {
+            dadosSalvos = LZString.decompressFromUTF16(lzRaw);
+        }
+    } catch(e) {}
+    if (!dadosSalvos) dadosSalvos = localStorage.getItem('estoqueArmasV2');
     if (dadosSalvos) {
         try {
             estoque = JSON.parse(dadosSalvos);
         } catch (e) {
             console.error('Falha ao interpretar localStorage estoqueArmasV2:', e);
             localStorage.removeItem('estoqueArmasV2');
+            localStorage.removeItem('estoqueArmasV2_lz');
             estoque = {
                 produtos: [],
                 representantes: ['KOLTE', 'ISA', 'LC', 'ADES', 'FL', 'IMBEL'],
@@ -2147,6 +2210,7 @@ function carregarDados() {
             ? estoque.categoriaPorProduto
             : {};
         // Reconstruir distribuições e vendas por produto a partir dos registros (corrige inconsistências legadas)
+        try { normalizarProdutoIdsNosRegistros(); } catch (e) { /* ignore */ }
         try { reconstruirDistribuicaoAPartirDeRegistros(); } catch (e) { /* ignore */ }
         try { reconstruirVendasAPartirDeRegistros(); } catch (e) { /* ignore */ }
 
@@ -2227,7 +2291,18 @@ function _executarSalvarLocal() {
         const imbelData = loadImbel();
         estoque._imbelData = imbelData;
     } catch(e) {}
-    localStorage.setItem('estoqueArmasV2', JSON.stringify(estoque));
+    try {
+        const json = JSON.stringify(estoque);
+        if (window.LZString) {
+            const compressed = LZString.compressToUTF16(json);
+            localStorage.setItem('estoqueArmasV2_lz', compressed);
+            localStorage.setItem('estoqueArmasV2', json); // manter plain como fallback
+        } else {
+            localStorage.setItem('estoqueArmasV2', json);
+        }
+    } catch (e) {
+        try { localStorage.setItem('estoqueArmasV2', JSON.stringify(estoque)); } catch(e2) {}
+    }
     try { localStorage.setItem('precificacoesClienteBackupV1', JSON.stringify(precificacoesCliente || [])); } catch (e) {}
     atualizarEstatisticas();
 
@@ -3312,6 +3387,7 @@ function trocarAba(aba) {
         } else if (aba === 'relatorios') {
             try { prepararRelatorioInventario(); } catch (e) { if (window.__showRuntimeErrorOverlay) window.__showRuntimeErrorOverlay(e); }
             try { gerarRelatorioRentabilidade(); } catch (e) { if (window.__showRuntimeErrorOverlay) window.__showRuntimeErrorOverlay(e); }
+            try { _popularSelectMes(); } catch (e) {}
         } else if (aba === 'controleenvio') {
             try { renderizarControleEnvio(); } catch (e) { if (window.__showRuntimeErrorOverlay) window.__showRuntimeErrorOverlay(e); }
         } else if (aba === 'controleimbel') {
@@ -15261,6 +15337,8 @@ function renderizarGraficoComissoes() {
             });
         }
     } catch (e) { console.warn('erro renderizar valor vendas por rep', e); }
+    // Gráfico de evolução de vendas (item 13)
+    try { renderizarGraficoEvolucao(); } catch(e) {}
 }
 
 // ========================================
@@ -24569,3 +24647,320 @@ function requireAdminOrNotify() {
 
 // Forçar chamada inicial para ajustar UI caso o listener já tenha ocorrido
 try { if (firebase && firebase.auth) firebase.auth().currentUser; } catch(e) {}
+
+// =============================
+// Pesquisa Global (Ctrl+K)
+// =============================
+function abrirBuscaGlobal() {
+    const wrap = document.getElementById('buscaGlobalWrap');
+    const overlay = document.getElementById('buscaGlobalOverlay');
+    const input = document.getElementById('buscaGlobalInput');
+    if (!wrap) return;
+    wrap.style.display = 'block';
+    overlay.style.display = 'block';
+    input.value = '';
+    document.getElementById('buscaGlobalResultados').style.display = 'none';
+    setTimeout(() => input.focus(), 50);
+}
+function fecharBuscaGlobal() {
+    const wrap = document.getElementById('buscaGlobalWrap');
+    if (wrap) wrap.style.display = 'none';
+    const overlay = document.getElementById('buscaGlobalOverlay');
+    if (overlay) overlay.style.display = 'none';
+}
+document.addEventListener('keydown', function(e) {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'k') { e.preventDefault(); abrirBuscaGlobal(); }
+});
+function renderizarBuscaGlobal() {
+    const q = (document.getElementById('buscaGlobalInput')?.value || '').trim().toLowerCase();
+    const res = document.getElementById('buscaGlobalResultados');
+    if (!res) return;
+    if (q.length < 2) { res.style.display = 'none'; return; }
+    const itens = [];
+    // Produtos
+    (estoque.produtos || []).forEach(p => {
+        if ((p.nome || '').toLowerCase().includes(q) || (p.pn || '').toLowerCase().includes(q)) {
+            itens.push({ tipo: 'Produto', label: p.nome, sub: p.pn || '', acao: () => { fecharBuscaGlobal(); trocarAba('estoque'); setTimeout(() => { const el = document.getElementById('filtroEstoqueBusca'); if (el) { el.value = p.nome; el.dispatchEvent(new Event('input')); } }, 300); } });
+        }
+    });
+    // Clientes
+    (estoque.clientes || []).forEach(c => {
+        const nome = c.nome || c.razaoSocial || '';
+        if (nome.toLowerCase().includes(q) || (c.cpfCnpj || '').toLowerCase().includes(q)) {
+            itens.push({ tipo: 'Cliente', label: nome, sub: c.cpfCnpj || '', acao: () => { fecharBuscaGlobal(); trocarAba('clientes'); setTimeout(() => { const el = document.getElementById('filtroClientesBusca'); if (el) { el.value = nome; el.dispatchEvent(new Event('input')); } }, 300); } });
+        }
+    });
+    // Contratos/Vendas
+    (estoque.registroVendas || []).forEach(v => {
+        if (v.cancelado) return;
+        const contrato = String(v.contrato || '');
+        const loja = String(v.loja || v.cliente || '');
+        if (contrato.toLowerCase().includes(q) || loja.toLowerCase().includes(q)) {
+            itens.push({ tipo: 'Contrato', label: `Contrato ${contrato}`, sub: `${v.representante || ''} — ${loja}`, acao: () => { fecharBuscaGlobal(); trocarAba('vendas'); setTimeout(() => { const el = document.getElementById('filtroVendasBusca') || document.getElementById('filtroContrato'); if (el) { el.value = contrato; el.dispatchEvent(new Event('input')); } }, 300); } });
+        }
+    });
+    if (itens.length === 0) {
+        res.innerHTML = '<div style="padding:16px;text-align:center;color:#94a3b8;font-size:.875rem">Nenhum resultado encontrado.</div>';
+        res.style.display = 'block';
+        return;
+    }
+    const cores = { Produto: '#3b82f6', Cliente: '#10b981', Contrato: '#f59e0b' };
+    res.innerHTML = itens.slice(0, 12).map((it, idx) => `
+        <div onclick="window._buscaGlobalAcoes[${idx}]()" style="padding:10px 14px;cursor:pointer;display:flex;align-items:center;gap:10px;border-bottom:1px solid #f1f5f9"
+             onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background=''">
+            <span style="font-size:.65rem;font-weight:700;padding:2px 6px;border-radius:4px;background:${cores[it.tipo]||'#6b7280'}20;color:${cores[it.tipo]||'#6b7280'};white-space:nowrap">${it.tipo}</span>
+            <div>
+                <div style="font-size:.875rem;font-weight:600;color:#1e293b">${it.label}</div>
+                ${it.sub ? `<div style="font-size:.75rem;color:#94a3b8">${it.sub}</div>` : ''}
+            </div>
+        </div>`).join('');
+    window._buscaGlobalAcoes = itens.slice(0, 12).map(it => it.acao);
+    res.style.display = 'block';
+}
+
+// =============================
+// Fechamento Mensal por Representante (item 11)
+// =============================
+function _popularSelectMes() {
+    const sel = document.getElementById('filtroFechamentoMensalMes');
+    if (!sel) return;
+    const meses = new Set();
+    (estoque.registroVendas || []).forEach(v => {
+        const d = parseDateToYYYYMMDD(v.data || v.dataVenda);
+        if (d) meses.add(d.slice(0, 7));
+    });
+    (estoque.registroDistribuicao || []).forEach(d => {
+        const dt = parseDateToYYYYMMDD(d.data);
+        if (dt) meses.add(dt.slice(0, 7));
+    });
+    const sorted = [...meses].sort().reverse();
+    sel.innerHTML = sorted.map(m => `<option value="${m}">${m}</option>`).join('');
+}
+function abrirModalFechamentoMensalRep() {
+    _popularSelectMes();
+    const mes = document.getElementById('filtroFechamentoMensalMes')?.value;
+    if (!mes) { mostrarNotificacao('Nenhum mês disponível.', 'warning'); return; }
+    _renderizarFechamentoMensalRep(mes);
+    document.getElementById('tituloFechamentoMensalRep').textContent = `Fechamento Mensal — ${mes}`;
+    const modal = document.getElementById('modalFechamentoMensalRep');
+    if (modal) { modal.style.display = 'flex'; }
+}
+function _calcularFechamentoMes(mes) {
+    const reps = estoque.representantes || [];
+    return reps.map(rep => {
+        const repU = rep.toUpperCase();
+        const distribuido = (estoque.registroDistribuicao || []).reduce((s, d) => {
+            if ((d.representante || '').toUpperCase() !== repU) return s;
+            const dt = parseDateToYYYYMMDD(d.data);
+            if (!dt || dt.slice(0, 7) !== mes) return s;
+            return s + (Number(d.quantidade) || 0);
+        }, 0);
+        const devolvido = (estoque.registroDevolucoes || []).reduce((s, d) => {
+            if ((d.origem || '').toUpperCase() !== repU) return s;
+            const dt = parseDateToYYYYMMDD(d.data);
+            if (!dt || dt.slice(0, 7) !== mes) return s;
+            return s + (Number(d.quantidade) || 0);
+        }, 0);
+        const vendas = (estoque.registroVendas || []).filter(v => {
+            if (v.cancelado) return false;
+            if ((v.representante || '').toUpperCase() !== repU) return false;
+            const dt = parseDateToYYYYMMDD(v.data || v.dataVenda);
+            return dt && dt.slice(0, 7) === mes;
+        });
+        let vendido = 0, faturamento = 0;
+        vendas.forEach(v => {
+            if (Array.isArray(v.items) && v.items.length) {
+                v.items.forEach(it => { vendido += Number(it.quantidade) || 0; faturamento += Number(it.valorTotal) || (Number(it.valorUnitario || 0) * Number(it.quantidade || 0)); });
+            } else {
+                vendido += Number(v.quantidade) || 0;
+                faturamento += Number(v.valorTotal) || (Number(v.valorUnitario || 0) * Number(v.quantidade || 0));
+            }
+        });
+        return { rep, distribuido, devolvido, vendido, faturamento, saldo: distribuido - devolvido - vendido, contratos: vendas.length };
+    }).filter(r => r.distribuido > 0 || r.vendido > 0 || r.devolvido > 0);
+}
+function _renderizarFechamentoMensalRep(mes) {
+    const rows = _calcularFechamentoMes(mes);
+    const div = document.getElementById('conteudoFechamentoMensalRep');
+    if (!div) return;
+    if (!rows.length) { div.innerHTML = '<p style="color:#94a3b8;padding:16px">Nenhum dado para este mês.</p>'; return; }
+    const fmt = v => formatarMoedaValor ? formatarMoedaValor(v) : v.toFixed(2);
+    div.innerHTML = `<table style="width:100%;border-collapse:collapse;font-size:.85rem">
+        <thead><tr style="background:#f1f5f9;font-weight:700;color:#334155">
+            <th style="padding:8px 10px;text-align:left">Representante</th>
+            <th style="padding:8px 10px;text-align:right">Contratos</th>
+            <th style="padding:8px 10px;text-align:right">Distribuído</th>
+            <th style="padding:8px 10px;text-align:right">Vendido</th>
+            <th style="padding:8px 10px;text-align:right">Devolvido</th>
+            <th style="padding:8px 10px;text-align:right">Saldo</th>
+            <th style="padding:8px 10px;text-align:right">Faturamento</th>
+        </tr></thead>
+        <tbody>${rows.map((r, i) => `<tr style="border-top:1px solid #e2e8f0;background:${i%2?'#f8fafc':'#fff'}">
+            <td style="padding:8px 10px;font-weight:600">${r.rep}</td>
+            <td style="padding:8px 10px;text-align:right">${r.contratos}</td>
+            <td style="padding:8px 10px;text-align:right">${r.distribuido}</td>
+            <td style="padding:8px 10px;text-align:right">${r.vendido}</td>
+            <td style="padding:8px 10px;text-align:right">${r.devolvido}</td>
+            <td style="padding:8px 10px;text-align:right;font-weight:700;color:${r.saldo<0?'#dc2626':'#15803d'}">${r.saldo}</td>
+            <td style="padding:8px 10px;text-align:right;color:#0369a1">${fmt(r.faturamento)}</td>
+        </tr>`).join('')}</tbody>
+    </table>`;
+    window._fechamentoMensalRepCache = { mes, rows };
+}
+function exportarFechamentoMensalRepExcel() {
+    _popularSelectMes();
+    const mes = document.getElementById('filtroFechamentoMensalMes')?.value;
+    if (!mes) { mostrarNotificacao('Selecione um mês.', 'warning'); return; }
+    const rows = (window._fechamentoMensalRepCache?.mes === mes) ? window._fechamentoMensalRepCache.rows : _calcularFechamentoMes(mes);
+    if (!rows.length) { mostrarNotificacao('Sem dados para exportar.', 'warning'); return; }
+    const data = rows.map(r => ({ Representante: r.rep, Contratos: r.contratos, Distribuído: r.distribuido, Vendido: r.vendido, Devolvido: r.devolvido, Saldo: r.saldo, 'Faturamento (R$)': r.faturamento.toFixed(2) }));
+    if (window.XLSX) {
+        const ws = XLSX.utils.json_to_sheet(data);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, `Fechamento ${mes}`);
+        XLSX.writeFile(wb, `fechamento-mensal-${mes}.xlsx`);
+    } else {
+        const csv = [Object.keys(data[0]).join(';'), ...data.map(r => Object.values(r).join(';'))].join('\n');
+        const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a'); a.href = url; a.download = `fechamento-mensal-${mes}.csv`; a.click();
+    }
+}
+
+// =============================
+// Produtos sem movimentação (item 12)
+// =============================
+function abrirModalProdutosSemMovimentacao() {
+    const dias = Number(document.getElementById('diasSemMovimentacao')?.value) || 30;
+    const hoje = new Date();
+    const limiteMs = dias * 24 * 60 * 60 * 1000;
+    const alertas = [];
+    (estoque.produtos || []).forEach(p => {
+        (estoque.representantes || []).forEach(rep => {
+            const repU = rep.toUpperCase();
+            const distribKey = p.distribuicao ? Object.keys(p.distribuicao).find(k => k.toUpperCase() === repU) : null;
+            const qtdDistribuida = distribKey ? (p.distribuicao[distribKey] || 0) : 0;
+            if (qtdDistribuida <= 0) return;
+            // última venda para este rep+produto
+            let ultimaVenda = null;
+            (estoque.registroVendas || []).forEach(v => {
+                if (v.cancelado || (v.representante || '').toUpperCase() !== repU) return;
+                if (!vendaMatchProduto(v, p)) return;
+                const dt = parseDateToYYYYMMDD(v.data || v.dataVenda);
+                if (dt && (!ultimaVenda || dt > ultimaVenda)) ultimaVenda = dt;
+            });
+            const diasParado = ultimaVenda
+                ? Math.floor((hoje - new Date(ultimaVenda)) / (24 * 60 * 60 * 1000))
+                : null; // nunca vendeu
+            if (diasParado === null || diasParado >= dias) {
+                const vendido = (estoque.registroVendas || []).reduce((s, v) => {
+                    if (v.cancelado || (v.representante || '').toUpperCase() !== repU) return s;
+                    return s + vendaItemQtdParaProduto(v, p);
+                }, 0);
+                const saldo = qtdDistribuida - vendido;
+                if (saldo > 0) alertas.push({ produto: p.nome, rep, saldo, ultimaVenda: ultimaVenda || 'Nunca', diasParado: diasParado ?? '—' });
+            }
+        });
+    });
+    const div = document.getElementById('conteudoProdutosSemMovimentacao');
+    if (div) {
+        if (!alertas.length) {
+            div.innerHTML = `<p style="color:#15803d;padding:16px;font-weight:600">Nenhum produto parado há mais de ${dias} dias.</p>`;
+        } else {
+            div.innerHTML = `<p style="color:#dc2626;font-weight:600;margin-bottom:12px">${alertas.length} produto(s) parado(s) há mais de ${dias} dias:</p>
+            <table style="width:100%;border-collapse:collapse;font-size:.85rem">
+                <thead><tr style="background:#fef2f2;color:#991b1b;font-weight:700">
+                    <th style="padding:8px 10px;text-align:left">Produto</th>
+                    <th style="padding:8px 10px">Representante</th>
+                    <th style="padding:8px 10px;text-align:right">Saldo</th>
+                    <th style="padding:8px 10px;text-align:right">Última Venda</th>
+                    <th style="padding:8px 10px;text-align:right">Dias Parado</th>
+                </tr></thead>
+                <tbody>${alertas.map((a, i) => `<tr style="border-top:1px solid #fee2e2;background:${i%2?'#fff7f7':'#fff'}">
+                    <td style="padding:8px 10px;font-weight:600">${a.produto}</td>
+                    <td style="padding:8px 10px;text-align:center">${a.rep}</td>
+                    <td style="padding:8px 10px;text-align:right">${a.saldo}</td>
+                    <td style="padding:8px 10px;text-align:right">${a.ultimaVenda}</td>
+                    <td style="padding:8px 10px;text-align:right;font-weight:700;color:#dc2626">${a.diasParado}</td>
+                </tr>`).join('')}</tbody>
+            </table>`;
+        }
+    }
+    const modal = document.getElementById('modalProdutosSemMovimentacao');
+    if (modal) modal.style.display = 'flex';
+}
+
+// =============================
+// Gráfico de evolução de vendas (item 13)
+// =============================
+let _chartEvolucao = null;
+function _popularSelectRepEvolucao() {
+    const sel = document.getElementById('chartEvolucaoRep');
+    if (!sel || sel.dataset.populated) return;
+    (estoque.representantes || []).forEach(r => {
+        const opt = document.createElement('option'); opt.value = r; opt.textContent = r; sel.appendChild(opt);
+    });
+    sel.dataset.populated = '1';
+}
+function renderizarGraficoEvolucao() {
+    _popularSelectRepEvolucao();
+    const agrupamento = document.getElementById('chartEvolucaoAgrupamento')?.value || 'mes';
+    const repFiltro = (document.getElementById('chartEvolucaoRep')?.value || '').toUpperCase();
+    const canvas = document.getElementById('chartEvolucaoVendas');
+    if (!canvas) return;
+
+    const buckets = {};
+    (estoque.registroVendas || []).forEach(v => {
+        if (v.cancelado) return;
+        if (repFiltro && (v.representante || '').toUpperCase() !== repFiltro) return;
+        const dt = parseDateToYYYYMMDD(v.data || v.dataVenda);
+        if (!dt) return;
+        let chave;
+        if (agrupamento === 'mes') {
+            chave = dt.slice(0, 7);
+        } else {
+            const d = new Date(dt + 'T00:00:00');
+            const monday = new Date(d); monday.setDate(d.getDate() - (d.getDay() === 0 ? 6 : d.getDay() - 1));
+            chave = monday.toISOString().slice(0, 10);
+        }
+        let qtd = 0;
+        if (Array.isArray(v.items) && v.items.length) {
+            v.items.forEach(it => { qtd += Number(it.quantidade) || 0; });
+        } else { qtd = Number(v.quantidade) || 0; }
+        buckets[chave] = (buckets[chave] || 0) + qtd;
+    });
+
+    const labels = Object.keys(buckets).sort();
+    const valores = labels.map(l => buckets[l]);
+
+    if (_chartEvolucao) { _chartEvolucao.destroy(); _chartEvolucao = null; }
+    _chartEvolucao = new Chart(canvas.getContext('2d'), {
+        type: 'line',
+        data: {
+            labels,
+            datasets: [{
+                label: 'Unidades Vendidas',
+                data: valores,
+                borderColor: '#3b82f6',
+                backgroundColor: 'rgba(59,130,246,.1)',
+                borderWidth: 2,
+                pointRadius: 3,
+                fill: true,
+                tension: 0.3
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: { legend: { display: false } },
+            scales: {
+                x: { ticks: { maxTicksLimit: 12, font: { size: 11 } } },
+                y: { beginAtZero: true, ticks: { font: { size: 11 } } }
+            }
+        }
+    });
+}
+
+// Inicializar select de meses ao carregar a aba de relatórios
+document.addEventListener('DOMContentLoaded', function() {
+    try { _popularSelectMes(); } catch(e) {}
+});

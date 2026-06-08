@@ -9,6 +9,7 @@
     <link rel="stylesheet" href="styles.css?v=20260601-08">
     <link rel="stylesheet" href="imbel.css?v=20260602-06">
     <link id="favicon" rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='48' fill='%230b1723'/%3E%3Crect x='30' y='70' width='40' height='12' rx='1' fill='%23d4af37'/%3E%3Crect x='20' y='55' width='15' height='12' rx='1' fill='%23f6c84c'/%3E%3Crect x='42' y='55' width='15' height='12' rx='1' fill='%23f6c84c'/%3E%3Crect x='65' y='55' width='15' height='12' rx='1' fill='%23f6c84c'/%3E%3Crect x='30' y='40' width='15' height='12' rx='1' fill='%23ffd700'/%3E%3Crect x='55' y='40' width='15' height='12' rx='1' fill='%23ffd700'/%3E%3Crect x='25' y='28' width='12' height='9' rx='1' fill='%23f6c84c'/%3E%3Crect x='44' y='28' width='12' height='9' rx='1' fill='%23f6c84c'/%3E%3Crect x='63' y='28' width='12' height='9' rx='1' fill='%23f6c84c'/%3E%3C/svg%3E">
+    <script src="https://cdn.jsdelivr.net/npm/lz-string@1.5.0/libs/lz-string.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
@@ -64,6 +65,10 @@
             <nav class="sidebar-nav" aria-label="Navegação principal">
                 <div class="nav-group">
                     <div class="nav-group-label">Principal</div>
+                    <button class="nav-item" onclick="abrirBuscaGlobal()" title="Ctrl+K">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                        <span class="nav-text">Busca Global <kbd style="font-size:.65rem;opacity:.6;background:#1e3a5f;padding:1px 4px;border-radius:3px">Ctrl+K</kbd></span>
+                    </button>
                     <button class="nav-item active" data-tab="estoque" onclick="trocarAba('estoque')">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
                         <span class="nav-text">Estoque</span>
@@ -180,6 +185,19 @@
                 </div>
             </div>
         </aside>
+
+        <!-- Pesquisa Global -->
+        <div id="buscaGlobalWrap" style="position:fixed;top:12px;left:50%;transform:translateX(-50%);z-index:2000;width:min(520px,90vw);display:none">
+            <div style="position:relative">
+                <svg style="position:absolute;left:12px;top:50%;transform:translateY(-50%);opacity:.5;pointer-events:none" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                <input id="buscaGlobalInput" type="text" placeholder="Buscar produto, cliente ou contrato… (Esc para fechar)"
+                    oninput="renderizarBuscaGlobal()"
+                    onkeydown="if(event.key==='Escape')fecharBuscaGlobal()"
+                    style="width:100%;padding:10px 12px 10px 36px;font-size:0.9rem;border:2px solid #3b82f6;border-radius:10px;box-shadow:0 8px 30px rgba(0,0,0,0.2);outline:none;background:#fff;box-sizing:border-box">
+            </div>
+            <div id="buscaGlobalResultados" style="background:#fff;border-radius:10px;box-shadow:0 8px 30px rgba(0,0,0,0.15);margin-top:4px;max-height:60vh;overflow-y:auto;display:none"></div>
+        </div>
+        <div id="buscaGlobalOverlay" onclick="fecharBuscaGlobal()" style="display:none;position:fixed;inset:0;z-index:1999;background:rgba(0,0,0,.3)"></div>
 
         <!-- Painel de Alertas (flutuante) -->
         <div id="painelAlertas" style="display:none; position:fixed; top:60px; right:16px; 
@@ -1809,6 +1827,23 @@
                     </div>
                 </div>
 
+                <!-- Gráfico de Evolução de Vendas -->
+                <div class="dashboard-card" style="margin-top:20px;padding:20px;border-radius:12px;border:1px solid #e2e8f0;background:#fff">
+                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+                        <h3 style="font-size:1rem;font-weight:700;color:#1e3a5f;margin:0">Evolução de Vendas</h3>
+                        <div style="display:flex;gap:8px;align-items:center">
+                            <select id="chartEvolucaoAgrupamento" onchange="renderizarGraficoEvolucao()" style="font-size:0.78rem;padding:4px 8px;border:1px solid #d1d5db;border-radius:6px">
+                                <option value="semana">Por semana</option>
+                                <option value="mes" selected>Por mês</option>
+                            </select>
+                            <select id="chartEvolucaoRep" onchange="renderizarGraficoEvolucao()" style="font-size:0.78rem;padding:4px 8px;border:1px solid #d1d5db;border-radius:6px">
+                                <option value="">Todos os representantes</option>
+                            </select>
+                        </div>
+                    </div>
+                    <canvas id="chartEvolucaoVendas" style="max-height:260px"></canvas>
+                </div>
+
                                 <div class="section-card" style="margin-top:20px">
                                     <div style="display:grid;grid-template-columns:1fr 1fr;gap:32px">
                                         <div class="chart-container" style="padding:12px">
@@ -1973,6 +2008,28 @@
                             <span style="font-size:0.7rem;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.06em;margin-right:4px">Fechamento</span>
                             <button class="btn btn-outline btn-sm" onclick="gerarFechamentoMensalComissoes()">Fechar Mês</button>
                             <button class="btn btn-outline btn-sm" onclick="abrirFechamentosComissoes()">Ver Histórico</button>
+                        </div>
+
+                        <!-- Separador -->
+                        <div style="width:1px;height:32px;background:#e2e8f0;margin:0 2px"></div>
+
+                        <!-- Grupo: Mensal por Representante -->
+                        <div style="display:flex;align-items:center;gap:4px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:5px 8px">
+                            <span style="font-size:0.7rem;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.06em;margin-right:4px">Mensal</span>
+                            <select id="filtroFechamentoMensalMes" style="font-size:0.78rem;padding:3px 6px;border:1px solid #d1d5db;border-radius:5px"></select>
+                            <button class="btn btn-outline btn-sm" onclick="abrirModalFechamentoMensalRep()">Ver Relatório</button>
+                            <button class="btn btn-outline btn-sm" style="color:#16a34a;border-color:#16a34a" onclick="exportarFechamentoMensalRepExcel()">Excel</button>
+                        </div>
+
+                        <!-- Separador -->
+                        <div style="width:1px;height:32px;background:#e2e8f0;margin:0 2px"></div>
+
+                        <!-- Grupo: Sem Movimentação -->
+                        <div style="display:flex;align-items:center;gap:4px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:5px 8px">
+                            <span style="font-size:0.7rem;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.06em;margin-right:4px">Parado</span>
+                            <input type="number" id="diasSemMovimentacao" value="30" min="1" max="365" style="width:52px;font-size:0.78rem;padding:3px 6px;border:1px solid #d1d5db;border-radius:5px" title="Dias sem venda">
+                            <span style="font-size:0.78rem;color:#64748b">dias</span>
+                            <button class="btn btn-outline btn-sm" style="color:#dc2626;border-color:#dc2626" onclick="abrirModalProdutosSemMovimentacao()">Ver Alertas</button>
                         </div>
                     </div>
                 </div>
@@ -4180,7 +4237,36 @@
         </div>
     </div>
 
-    <script src="app2.js?v=22"></script>
+    <!-- Modal: Fechamento Mensal por Representante -->
+    <div id="modalFechamentoMensalRep" class="modal" style="display:none;align-items:center;justify-content:center">
+        <div class="modal-content" style="max-width:860px;width:95vw;max-height:88vh;overflow-y:auto">
+            <div class="modal-header">
+                <h3 class="modal-title" id="tituloFechamentoMensalRep">Fechamento Mensal por Representante</h3>
+                <button class="modal-close" onclick="fecharModal('modalFechamentoMensalRep')">&times;</button>
+            </div>
+            <div id="conteudoFechamentoMensalRep" style="padding:16px"></div>
+            <div class="modal-footer">
+                <button class="btn btn-outline" onclick="fecharModal('modalFechamentoMensalRep')">Fechar</button>
+                <button class="btn btn-primary" onclick="exportarFechamentoMensalRepExcel()">Exportar Excel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Produtos sem movimentação -->
+    <div id="modalProdutosSemMovimentacao" class="modal" style="display:none;align-items:center;justify-content:center">
+        <div class="modal-content" style="max-width:720px;width:95vw;max-height:88vh;overflow-y:auto">
+            <div class="modal-header">
+                <h3 class="modal-title">Produtos Parados com Representante</h3>
+                <button class="modal-close" onclick="fecharModal('modalProdutosSemMovimentacao')">&times;</button>
+            </div>
+            <div id="conteudoProdutosSemMovimentacao" style="padding:16px"></div>
+            <div class="modal-footer">
+                <button class="btn btn-outline" onclick="fecharModal('modalProdutosSemMovimentacao')">Fechar</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="app2.js?v=24"></script>
 
     <script>
     (function matchSubtitleWidth(){
