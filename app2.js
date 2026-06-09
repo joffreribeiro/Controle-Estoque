@@ -10981,8 +10981,6 @@ function finalizarSalvamentoVendaDetalhada(params) {
     fecharModal('modalVendaDetalhada');
 
     mostrarNotificacao(`Venda registrada: Contrato ${contrato} - ${totalQtd} itens - ${formatarMoedaValor(totalValor)}`, 'success');
-    // Abrir modal de email para envio do pedido
-    try { setTimeout(() => prepararEmailVenda(novaVenda), 300); } catch(e) {}
 }
 
 function salvarVendaDetalhada(event) {
@@ -23536,8 +23534,6 @@ function confirmarConversaoVenda() {
         'success'
     );
     trocarAba('vendas');
-    // Abrir modal de email para envio do pedido
-    try { setTimeout(() => prepararEmailVenda(novaVenda), 400); } catch(e) {}
 }
 
 function excluirProposta(id) {
@@ -24987,6 +24983,7 @@ function _getCfgEmail() {
 function salvarConfigEmail() {
     const cfg = {
         dest:       (document.getElementById('cfgEmailDest')?.value || '').trim(),
+        cc:         (document.getElementById('cfgEmailCC')?.value || '').trim(),
         remetente:  (document.getElementById('cfgEmailRemetente')?.value || '').trim(),
         assinatura: (document.getElementById('cfgEmailAssinatura')?.value || '').trim(),
     };
@@ -24997,9 +24994,11 @@ function salvarConfigEmail() {
 function carregarConfigEmail() {
     const cfg = _getCfgEmail();
     const destEl = document.getElementById('cfgEmailDest');
+    const ccEl   = document.getElementById('cfgEmailCC');
     const remEl  = document.getElementById('cfgEmailRemetente');
     const assEl  = document.getElementById('cfgEmailAssinatura');
     if (destEl && cfg.dest) destEl.value = cfg.dest;
+    if (ccEl   && cfg.cc)   ccEl.value   = cfg.cc;
     if (remEl  && cfg.remetente) remEl.value = cfg.remetente;
     if (assEl  && cfg.assinatura) assEl.value = cfg.assinatura;
 }
@@ -25032,7 +25031,9 @@ function prepararEmailVenda(venda) {
     const assuntoEl = document.getElementById('emailVendaAssunto');
     const corpoEl   = document.getElementById('emailVendaCorpo');
 
+    const ccEl = document.getElementById('emailVendaCC');
     if (destEl)    destEl.value    = cfg.dest || 'pedidos.fi@imbel.gov.br';
+    if (ccEl)      ccEl.value      = cfg.cc || '';
     if (assuntoEl) assuntoEl.value = assunto;
     if (corpoEl)   corpoEl.value   = corpo;
 
@@ -25042,11 +25043,14 @@ function prepararEmailVenda(venda) {
 
 function abrirEmailNoZimbra() {
     const dest    = (document.getElementById('emailVendaDest')?.value   || '').trim();
+    const cc      = (document.getElementById('emailVendaCC')?.value     || '').trim();
     const assunto = (document.getElementById('emailVendaAssunto')?.value || '').trim();
     const corpo   = (document.getElementById('emailVendaCorpo')?.value   || '').trim();
 
-    const url = `mailto:${encodeURIComponent(dest)}?subject=${encodeURIComponent(assunto)}&body=${encodeURIComponent(corpo)}`;
-    window.open(url, '_blank');
+    // Abre o cliente de email padrão configurado no Windows (Outlook)
+    let mailtoUrl = `mailto:${encodeURIComponent(dest)}?subject=${encodeURIComponent(assunto)}&body=${encodeURIComponent(corpo)}`;
+    if (cc) mailtoUrl += `&cc=${encodeURIComponent(cc)}`;
+    window.location.href = mailtoUrl;
     fecharModal('modalEmailVenda');
 
     // Marcar "Contrato Enviado" com data/hora do envio

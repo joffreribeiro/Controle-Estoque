@@ -3011,6 +3011,10 @@
                                     <label>Seu email (remetente no assunto)</label>
                                     <input type="email" id="cfgEmailRemetente" placeholder="seu.email@imbel.gov.br">
                                 </div>
+                                <div class="cfg-field">
+                                    <label>CC padrão (com cópia)</label>
+                                    <input type="text" id="cfgEmailCC" placeholder="email@imbel.gov.br; outro@imbel.gov.br">
+                                </div>
                                 <div class="cfg-field span2">
                                     <label>Assinatura padrão da mensagem</label>
                                     <textarea id="cfgEmailAssinatura" rows="3" style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:var(--radius-control);font-size:.88rem;resize:vertical;box-sizing:border-box" placeholder="Atenciosamente,&#10;Controle de Estoque — Fábrica de Itajubá"></textarea>
@@ -4296,6 +4300,10 @@
                     <input id="emailVendaDest" type="email" class="form-control" style="width:100%;box-sizing:border-box">
                 </div>
                 <div>
+                    <label style="display:block;font-size:.75rem;font-weight:700;color:#64748b;text-transform:uppercase;margin-bottom:4px">CC (com cópia)</label>
+                    <input id="emailVendaCC" type="text" class="form-control" style="width:100%;box-sizing:border-box" placeholder="email1@imbel.gov.br; email2@imbel.gov.br">
+                </div>
+                <div>
                     <label style="display:block;font-size:.75rem;font-weight:700;color:#64748b;text-transform:uppercase;margin-bottom:4px">Assunto</label>
                     <input id="emailVendaAssunto" type="text" class="form-control" style="width:100%;box-sizing:border-box">
                 </div>
@@ -4303,14 +4311,14 @@
                     <label style="display:block;font-size:.75rem;font-weight:700;color:#64748b;text-transform:uppercase;margin-bottom:4px">Mensagem</label>
                     <textarea id="emailVendaCorpo" rows="12" class="form-control" style="width:100%;box-sizing:border-box;font-family:monospace;font-size:.83rem;resize:vertical;white-space:pre"></textarea>
                 </div>
-                <p style="font-size:.75rem;color:#94a3b8;margin:0;line-height:1.5">
-                    Ao clicar <strong>Abrir no Zimbra</strong>, seu cliente de email abrirá com esses dados preenchidos — você poderá adicionar anexos e fazer ajustes finais antes de enviar.
-                </p>
+                <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:10px 12px;font-size:.78rem;color:#1e40af;line-height:1.6">
+                    Ao clicar <strong>Abrir no Outlook</strong>, o Outlook abrirá com destinatário, assunto e mensagem já preenchidos. Adicione os anexos e envie.
+                </div>
             </div>
             <div class="modal-footer" style="gap:8px">
                 <button class="btn btn-outline" onclick="copiarTextoEmail()" title="Copiar mensagem para a área de transferência">Copiar texto</button>
                 <button class="btn btn-outline" onclick="fecharModal('modalEmailVenda')">Cancelar</button>
-                <button class="btn btn-primary" onclick="abrirEmailNoZimbra()">Abrir no Zimbra</button>
+                <button class="btn btn-primary" onclick="abrirEmailNoZimbra()">Abrir no Outlook</button>
             </div>
         </div>
     </div>
@@ -4329,7 +4337,7 @@
         </div>
     </div>
 
-    <script src="app2.js?v=25"></script>
+    <script src="app2.js?v=27"></script>
 
     <script>
     (function matchSubtitleWidth(){
