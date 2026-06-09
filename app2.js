@@ -10715,26 +10715,40 @@ function atualizarBadgeEstoqueItem(selectEl) {
     const rep = (document.getElementById('representanteVendaDet')?.value || '').trim();
     if (!rep) { badge.textContent = ''; return; }
     const repUpper = rep.toUpperCase();
-    // Calcular distribuído em tempo real dos registros (evita inconsistência de produto.distribuicao)
-    const distribuido = (estoque.registroDistribuicao || []).reduce((s, d) => {
-        if ((d.representante || '').toUpperCase() !== repUpper) return s;
-        if (Number(d.produtoId) !== Number(produto.id) && d.produtoNome !== produto.nome) return s;
-        return s + (Number(d.quantidade) || 0);
-    }, 0) - (estoque.registroDevolucoes || []).reduce((s, d) => {
-        if ((d.origem || '').toUpperCase() !== repUpper) return s;
-        if (Number(d.produtoId) !== Number(produto.id) && d.produtoNome !== produto.nome) return s;
-        return s + (Number(d.quantidade) || 0);
-    }, 0);
-    // Calcular vendido em tempo real dos registros
-    const vendidoRep = (estoque.registroVendas || []).reduce((s, v) => {
-        if (v.cancelado) return s;
-        if (vendaEditandoId !== null && v.id === vendaEditandoId) return s;
-        if ((v.representante || '').toUpperCase() !== repUpper) return s;
-        return s + vendaItemQtdParaProduto(v, produto);
-    }, 0);
-    const disp = distribuido - vendidoRep;
-    badge.textContent = `Disp. ${rep}: ${disp}`;
-    badge.title = `Distribuído: ${distribuido} | Vendido: ${vendidoRep} | Disponível: ${disp}`;
+    const isImbelRep = repUpper === 'IMBEL';
+
+    let disp, distribuido, vendidoRep;
+
+    if (isImbelRep) {
+        // IMBEL (Venda Direta): usar métricas consolidadas — sem distribuição por rep
+        const met = obterMetricasImbelProduto(produto);
+        disp = Number(met.imbelSaldo || 0);
+        distribuido = Number(met.imbelDisp || 0);
+        vendidoRep = Number(met.imbelVenda || 0);
+        badge.textContent = `Disp. IMBEL: ${disp}`;
+        badge.title = `Disp. IMBEL (após dist.): ${distribuido} | Vendido IMBEL: ${vendidoRep} | Disponível: ${disp}`;
+    } else {
+        // Representante externo: calcular a partir de registroDistribuicao/Vendas
+        distribuido = (estoque.registroDistribuicao || []).reduce((s, d) => {
+            if ((d.representante || '').toUpperCase() !== repUpper) return s;
+            if (Number(d.produtoId) !== Number(produto.id) && d.produtoNome !== produto.nome) return s;
+            return s + (Number(d.quantidade) || 0);
+        }, 0) - (estoque.registroDevolucoes || []).reduce((s, d) => {
+            if ((d.origem || '').toUpperCase() !== repUpper) return s;
+            if (Number(d.produtoId) !== Number(produto.id) && d.produtoNome !== produto.nome) return s;
+            return s + (Number(d.quantidade) || 0);
+        }, 0);
+        vendidoRep = (estoque.registroVendas || []).reduce((s, v) => {
+            if (v.cancelado) return s;
+            if (vendaEditandoId !== null && v.id === vendaEditandoId) return s;
+            if ((v.representante || '').toUpperCase() !== repUpper) return s;
+            return s + vendaItemQtdParaProduto(v, produto);
+        }, 0);
+        disp = distribuido - vendidoRep;
+        badge.textContent = `Disp. ${rep}: ${disp}`;
+        badge.title = `Distribuído: ${distribuido} | Vendido: ${vendidoRep} | Disponível: ${disp}`;
+    }
+
     badge.style.cursor = 'help';
     badge.style.color = disp > 0 ? '#15803d' : '#dc2626';
     badge.style.background = disp > 0 ? '#f0fdf4' : '#fef2f2';
