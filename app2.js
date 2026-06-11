@@ -20235,7 +20235,10 @@ window._pcRenderizarLista = function() {
     const countEl = document.getElementById('pcCliCount');
     if (!listEl) return;
 
-    const busca = (window._pcEstado.busca || '').toLowerCase().trim();
+    const campoBusca = document.getElementById('pcBuscaCliente');
+    const buscaRaw = campoBusca ? campoBusca.value : (window._pcEstado.busca || '');
+    window._pcEstado.busca = buscaRaw;
+    const busca = buscaRaw.toLowerCase().trim();
     const filtroStatus = window._pcEstado.status || 'ativo';
 
     let lista = (clientes || []).slice();
