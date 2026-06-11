@@ -7228,7 +7228,7 @@ function renderControleImbelDashboard() {
         <button class="btn" onclick="renderControleImbelDashboard()">↺ Atualizar</button>
         <button class="btn" onclick="gerarRelatorioVendasImbel && gerarRelatorioVendasImbel()">Relatório</button>
       </div>
-    </div>`;
+    </div>
     <div class="imbel-kpis">
       <div class="kpi">
         <div class="kpi-label">Receita ${periodoLabel}</div>
@@ -7995,12 +7995,10 @@ function renderControleImbelCadastro() {
     window.imbelCadExportarSelecionados = function() {
         const selecionados = (data.produtos||[]).filter(p => _cadSelectedIds.has(p.id));
         const sep = ';';
-        let csv = 'Nome' + sep + 'Código' + sep + 'Qtd Inicial' + sep + 'Saldo' + sep + 'Valor Unit.
-';
+        let csv = 'Nome' + sep + 'Código' + sep + 'Qtd Inicial' + sep + 'Saldo' + sep + 'Valor Unit.\n';
         selecionados.forEach(p => {
             const sld = saldos[p.id]?.saldo ?? 0;
-            csv += [p.nome, p.codigo||'', p.quantidadeInicial||0, sld, Number(p.valorUnitario||0).toFixed(2)].join(sep) + '
-';
+            csv += [p.nome, p.codigo||'', p.quantidadeInicial||0, sld, Number(p.valorUnitario||0).toFixed(2)].join(sep) + '\n';
         });
         const blob = new Blob(['﻿' + csv], {type:'text/csv;charset=utf-8;'});
         const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
