@@ -43,7 +43,8 @@
       "PowerShell(Get-ChildItem -Path \"e:\\\\MEUS DOCUMENTOS\\\\OneDrive\\\\Documentos\\\\Sistemas\\\\Estoque\\\\Controle-Estoque\" -Depth 1 | Where-Object { $_.PSIsContainer } | Select-Object Name)",
       "Read(//c/controle estoque/**)",
       "Read(//c//**)",
-      "Bash(grep -E '\\\\.js$|\\\\.html$')"
+      "Bash(grep -E '\\\\.js$|\\\\.html$')",
+      "Bash(powershell -Command \"Select-String -Path 'index.html' -Pattern 'pc-main|pc-cli-col|pcCliList|pcCliCount|pc-detail-col' | Select-Object LineNumber, Line | Format-Table -AutoSize\")"
     ],
     "additionalDirectories": [
       "\\tmp"

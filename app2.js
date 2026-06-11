@@ -20255,8 +20255,10 @@ window._pcRenderizarLista = function() {
         });
     }
     lista.sort((a, b) => (a.nome || '').localeCompare(b.nome || '', 'pt-BR'));
+    console.log('[PC] filtrado='+lista.length+' nomes='+lista.slice(0,3).map(c=>c.nome).join(','));
 
     if (countEl) countEl.textContent = lista.length + ' cliente' + (lista.length !== 1 ? 's' : '');
+    console.log('[PC] countEl na tela='+document.getElementById('pcCliCount')?.textContent);
 
     const selecionadoId = (document.getElementById('precifClienteSelect') || {}).value;
 
