@@ -332,6 +332,35 @@
     body {
         padding-left: var(--sidebar-width);
     }
+
+    body.sidebar-collapsed {
+        padding-left: var(--sidebar-collapsed-width);
+    }
+
+    body.sidebar-collapsed .sidebar {
+        width: var(--sidebar-collapsed-width);
+        padding: 10px 8px;
+        overflow: hidden;
+    }
+
+    body.sidebar-collapsed .sidebar .logo-text,
+    body.sidebar-collapsed .sidebar .nav-group-label,
+    body.sidebar-collapsed .sidebar .nav-text,
+    body.sidebar-collapsed .sidebar .sidebar-footer,
+    body.sidebar-collapsed .sidebar .auth-panel {
+        display: none;
+    }
+
+    body.sidebar-collapsed .sidebar .logo-icon {
+        width: 34px;
+        height: 34px;
+        flex: 0 0 34px;
+    }
+
+    body.sidebar-collapsed .sidebar .nav-item {
+        justify-content: center;
+        padding: 8px 4px;
+    }
 }
 
 @media (min-width: 901px) and (max-width: 1200px) {

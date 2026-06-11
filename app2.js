@@ -14623,7 +14623,7 @@ function _executarBuscaGlobalReal(termo) {
 // ========================================
 
 function toggleSidebarExpanded() {
-    document.body.classList.toggle('sidebar-expanded');
+    document.body.classList.toggle('sidebar-collapsed');
 }
 
 function toggleMobileSidebar(forceOpen) {
@@ -16801,6 +16801,7 @@ function trocarSubabaPrecif(subaba) {
             const fbTime = document.getElementById('pcFootbarTime');
             if (fbTime) fbTime.textContent = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
         } catch (e) {}
+        try { window._pcRenderizarLista(); } catch (e) {}
     }
 
     if (subaba === 'consultaPrec') {
