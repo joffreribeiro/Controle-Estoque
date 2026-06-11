@@ -53,7 +53,10 @@
       "Bash(powershell -Command \"Select-String -Path 'index.html' -Pattern 'IMBEL_PRODUTOS|IMBEL_MOVIMENTACOES|IMBEL_AUDIT|IMBEL_REP_COMPARE|NF-124|MV000|IA00' | Select-Object -First 10 | Format-Table LineNumber, Line -AutoSize\")",
       "Bash(powershell -Command \"Select-String -Path 'index.html' -Pattern 'imbel-dashboard\\\\.jsx|imbel-movimentacao\\\\.jsx|imbel-auditoria\\\\.jsx|imbel\\\\.css|ImbelDashboard|ImbelMovimentacao|ImbelAuditoria' | Format-Table LineNumber, Line -AutoSize\")",
       "Bash(powershell -Command \"Select-String -Path 'index.html' -Pattern '\\\\.jsx|imbel-dash|imbel-mov|imbel-audit|imbel-cad|imbel-prec|imbel-inv' | Format-Table LineNumber, Line -AutoSize\")",
-      "Bash(powershell -Command \"Select-String -Path 'index.html' -Pattern 'jsx' | Format-Table LineNumber, Line -AutoSize\")"
+      "Bash(powershell -Command \"Select-String -Path 'index.html' -Pattern 'jsx' | Format-Table LineNumber, Line -AutoSize\")",
+      "Bash(node)",
+      "Bash(node _fix4.js)",
+      "Bash(del \"e:\\\\MEUS DOCUMENTOS\\\\OneDrive\\\\Documentos\\\\Sistemas\\\\Estoque\\\\Controle-Estoque\\\\_fix4.js\")"
     ],
     "additionalDirectories": [
       "\\tmp"

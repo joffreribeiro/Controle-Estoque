@@ -7123,13 +7123,29 @@ function renderControleImbelDashboard() {
     const data = loadImbel();
     const container = document.getElementById('controleImbelDashboardContainer');
     if (!container) return;
+
+    if (!container._dashPeriodo) container._dashPeriodo = '30d';
+    const dashPeriodo = container._dashPeriodo;
+
+    function dashCutoff(p) {
+        const now = Date.now();
+        if (p === '7d')  return new Date(now -  7 * 864e5).toISOString().slice(0, 10);
+        if (p === '30d') return new Date(now - 30 * 864e5).toISOString().slice(0, 10);
+        if (p === '90d') return new Date(now - 90 * 864e5).toISOString().slice(0, 10);
+        if (p === 'ytd') return new Date(new Date().getFullYear(), 0, 1).toISOString().slice(0, 10);
+        return '1970-01-01';
+    }
+    const dashCorte = dashCutoff(dashPeriodo);
+    const periodoLabel = { '7d':'7d', '30d':'30d', '90d':'90d', 'ytd':'YTD', 'tudo':'Tudo' }[dashPeriodo] || dashPeriodo;
+
     container.innerHTML = '';
     container.className = 'imbel-subtab';
 
     const fmtM = v => 'R$ ' + Number(v).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
 
     const movimentacoes = (data.movimentacoes || []).slice();
-    const vendas = movimentacoes.filter(m => getImbelTipo(m.tipo).contaReceita);
+    const movsPeriodo = movimentacoes.filter(m => (m.data||'') >= dashCorte);
+    const vendas = movsPeriodo.filter(m => getImbelTipo(m.tipo).contaReceita);
 
     const receitaTotal    = vendas.reduce((s,m) => s + (Number(m.valor)||0), 0);
     const unidadesVendidas= vendas.reduce((s,m) => s + (Number(m.quantidade)||0), 0);
@@ -7178,8 +7194,8 @@ function renderControleImbelDashboard() {
 
     // ── Alerts ──
     const alertas = [];
-    if (esgotado.length) alertas.push({ tipo:'crit', msg:`${esgotado.length} produto(s) esgotado(s): ${esgotado.slice(0,3).map(p=>p.nome).join(', ')}` });
-    if (baixo.length) alertas.push({ tipo:'warn', msg:`${baixo.length} produto(s) abaixo do ponto de reposição` });
+    if (esgotado.length) alertas.push({ tipo:'crit', msg:`${esgotado.length} produto(s) esgotado(s): ${esgotado.slice(0,3).map(p=>p.nome).join(', ')}`, navEstoque: true });
+    if (baixo.length) alertas.push({ tipo:'warn', msg:`${baixo.length} produto(s) abaixo do ponto de reposição`, navEstoque: true });
     if (pendentes.length) alertas.push({ tipo:'warn', msg:`${pendentes.length} pedido(s) com pagamento pendente — ${fmtM(valorPendentes)}` });
     if (!alertas.length) alertas.push({ tipo:'ok', msg:'Todos os indicadores dentro do normal' });
 
@@ -7187,36 +7203,50 @@ function renderControleImbelDashboard() {
     const root = document.createElement('div');
     root.style.cssText = 'display:contents';
 
-    // 1. COMMAND BAR (Dashboard não tem typebar)
+    // 1. COMMAND BAR com seletor de período
+    const _dashPeriodos = [
+        { key:'7d',   lbl:'7d'   },
+        { key:'30d',  lbl:'30d'  },
+        { key:'90d',  lbl:'90d'  },
+        { key:'ytd',  lbl:'YTD'  },
+        { key:'tudo', lbl:'Tudo' },
+    ];
     root.innerHTML = `
     <div class="imbel-cmdbar">
       <div style="display:flex;align-items:center;gap:8px">
         <span class="imbel-dot-large"></span>
         <span style="font-size:13px;font-weight:600;color:#0f1e31;letter-spacing:0.5px">IMBEL — DASHBOARD</span>
       </div>
+      <div style="display:flex;align-items:center;gap:2px;background:var(--tv-navy-100);border-radius:5px;padding:2px;margin-left:8px">
+        <span style="font-family:var(--tv-font-display);font-size:0.62rem;font-weight:700;letter-spacing:.08em;color:var(--tv-navy-500);padding:0 6px 0 4px">PERÍODO</span>
+        ${_dashPeriodos.map(p => `<button
+          data-dashperiodo="${p.key}"
+          style="font-family:var(--tv-font-display);font-size:0.68rem;font-weight:700;letter-spacing:.04em;padding:3px 9px;border:none;border-radius:3px;cursor:pointer;transition:background .15s,color .15s;background:${dashPeriodo===p.key?'var(--tv-navy-700)':'transparent'};color:${dashPeriodo===p.key?'#fff':'var(--tv-navy-600)'}"
+          onclick="(function(k){document.getElementById('controleImbelDashboardContainer')._dashPeriodo=k;renderControleImbelDashboard();})(this.dataset.dashperiodo)">${p.lbl}</button>`).join('')}
+      </div>
       <div class="actions">
         <button class="btn" onclick="renderControleImbelDashboard()">↺ Atualizar</button>
         <button class="btn" onclick="gerarRelatorioVendasImbel && gerarRelatorioVendasImbel()">Relatório</button>
       </div>
-    </div>
+    </div>`;
     <div class="imbel-kpis">
       <div class="kpi">
-        <div class="kpi-label">Receita Total</div>
+        <div class="kpi-label">Receita ${periodoLabel}</div>
         <div class="kpi-value accent">${fmtM(receitaTotal)}</div>
         <div class="kpi-sub">${pedidosCount} pedidos</div>
       </div>
       <div class="kpi">
-        <div class="kpi-label">Unid. Vendidas</div>
+        <div class="kpi-label">Unid. Vendidas ${periodoLabel}</div>
         <div class="kpi-value">${unidadesVendidas}</div>
         <div class="kpi-sub">ticket médio ${fmtM(ticketMedio)}</div>
       </div>
       <div class="kpi">
-        <div class="kpi-label">Clientes Ativos</div>
+        <div class="kpi-label">Clientes Ativos ${periodoLabel}</div>
         <div class="kpi-value">${clientesSet.size}</div>
         <div class="kpi-sub">destinatários únicos</div>
       </div>
       <div class="kpi">
-        <div class="kpi-label">Pagos</div>
+        <div class="kpi-label">Pagos ${periodoLabel}</div>
         <div class="kpi-value pos">${pagosCount}</div>
         <div class="kpi-sub">${pedidosCount - pagosCount} pendente(s)</div>
       </div>
@@ -7286,6 +7316,8 @@ function renderControleImbelDashboard() {
     <div class="imbel-footbar">
       <div class="seg"><span class="lbl">IMBEL</span><span class="val accent">DASHBOARD</span></div>
       <div class="divider"></div>
+      <div class="seg"><span class="lbl">PERÍODO</span><span class="val accent">${periodoLabel}</span></div>
+      <div class="divider"></div>
       <div class="seg"><span class="lbl">PRODUTOS</span><span class="val">${produtos.length}</span></div>
       <div class="divider"></div>
       <div class="seg"><span class="lbl">VENDAS</span><span class="val">${pedidosCount}</span></div>
@@ -7354,10 +7386,16 @@ function renderControleImbelDashboard() {
     const alertEl = root.querySelector('#imbelAlertasWrap');
     if (alertEl) {
         alertas.forEach(a => {
-            alertEl.innerHTML += `<div class="imbel-alert-row">
-              <div class="imbel-alert-dot ${a.tipo}"></div>
+            const row = document.createElement('div');
+            row.className = 'imbel-alert-row' + (a.navEstoque ? ' clickable' : '');
+            if (a.navEstoque) {
+                row.title = 'Ver no Inventário';
+                row.onclick = () => trocarSubAbaControleImbel('estoque');
+            }
+            row.innerHTML = `<div class="imbel-alert-dot ${a.tipo}"></div>
               <div style="font-family:var(--tv-font-display);font-size:0.73rem;color:var(--tv-navy-700)">${_escapeHtml(a.msg)}</div>
-            </div>`;
+              ${a.navEstoque ? '<div style="font-family:var(--tv-font-mono);font-size:0.6rem;color:#94a3b8;margin-left:auto;padding-left:6px">→ Inventário</div>' : ''}`;
+            alertEl.appendChild(row);
         });
     }
 
@@ -7913,7 +7951,11 @@ function renderControleImbelCadastro() {
     const tabela = document.createElement('table');
     tabela.className = 'imbel-table';
     tabela.id = 'imbelCadTabela';
+    // estado de seleção para bulk actions
+    let _cadSelectedIds = new Set();
+
     tabela.innerHTML = `<thead><tr>
+      <th style="width:32px;text-align:center"><input type="checkbox" id="imbelCadChkAll" title="Selecionar todos"></th>
       <th style="text-align:left">Nome</th>
       <th>Código</th>
       <th>Qtd Inicial</th>
@@ -7925,26 +7967,79 @@ function renderControleImbelCadastro() {
     </tr></thead><tbody></tbody>`;
     const tbody = tabela.querySelector('tbody');
 
+    // Barra de bulk actions (inserida entre typebar e kpiStrip)
+    const bulkBar = document.createElement('div');
+    bulkBar.id = 'imbelCadBulkBar';
+    bulkBar.className = 'imbel-bulk-bar';
+    bulkBar.style.display = 'none';
+    container.insertBefore(bulkBar, kpiStrip);
+
+    function updateBulkBar() {
+        const n = _cadSelectedIds.size;
+        if (n === 0) { bulkBar.style.display = 'none'; return; }
+        bulkBar.style.display = 'flex';
+        bulkBar.innerHTML = `
+          <span class="imbel-bulk-count">${n} produto(s) selecionado(s)</span>
+          <div class="imbel-bulk-actions">
+            <button class="imbel-bulk-btn" onclick="imbelCadExportarSelecionados()">Exportar</button>
+            <button class="imbel-bulk-btn danger" onclick="imbelCadDesativarSelecionados()">Desativar</button>
+            <button class="imbel-bulk-btn ghost" onclick="imbelCadLimparSelecao()">✕ Limpar</button>
+          </div>`;
+    }
+
+    window.imbelCadLimparSelecao = function() {
+        _cadSelectedIds = new Set();
+        renderCadRows(document.getElementById('imbelCadBusca')?.value || '');
+        updateBulkBar();
+    };
+    window.imbelCadExportarSelecionados = function() {
+        const selecionados = (data.produtos||[]).filter(p => _cadSelectedIds.has(p.id));
+        const sep = ';';
+        let csv = 'Nome' + sep + 'Código' + sep + 'Qtd Inicial' + sep + 'Saldo' + sep + 'Valor Unit.
+';
+        selecionados.forEach(p => {
+            const sld = saldos[p.id]?.saldo ?? 0;
+            csv += [p.nome, p.codigo||'', p.quantidadeInicial||0, sld, Number(p.valorUnitario||0).toFixed(2)].join(sep) + '
+';
+        });
+        const blob = new Blob(['﻿' + csv], {type:'text/csv;charset=utf-8;'});
+        const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+        a.download = 'imbel_produtos_selecionados.csv'; a.click();
+        mostrarNotificacao('Exportado ' + selecionados.length + ' produto(s).', 'success');
+    };
+    window.imbelCadDesativarSelecionados = function() {
+        if (!confirm('Desativar ' + _cadSelectedIds.size + ' produto(s)?')) return;
+        const d = loadImbel();
+        (d.produtos||[]).forEach(p => { if (_cadSelectedIds.has(p.id)) p.inativo = true; });
+        saveImbel(d);
+        _cadSelectedIds = new Set();
+        mostrarNotificacao('Produtos desativados.', 'success');
+        renderControleImbelCadastro();
+    };
+
     function renderCadRows(busca) {
         tbody.innerHTML = '';
         const termo = (busca||'').toLowerCase();
         const prods = (data.produtos||[]).filter(p => !termo || (p.nome||'').toLowerCase().includes(termo) || (p.codigo||'').toLowerCase().includes(termo));
         if (!prods.length) {
-            tbody.innerHTML = `<tr class="imbel-empty-row"><td colspan="8">Nenhum produto encontrado</td></tr>`;
+            tbody.innerHTML = `<tr class="imbel-empty-row"><td colspan="9">Nenhum produto encontrado</td></tr>`;
             return;
         }
         prods.forEach((p, idx) => {
             const saldo = saldos[p.id]?.saldo ?? 0;
             const ponto = p.pontoReposicao !== undefined ? Number(p.pontoReposicao) : Math.max(1, Math.floor((Number(p.quantidadeInicial)||0)*0.2));
             const saldoCls = saldo <= 0 ? 'neg' : saldo <= ponto ? 'amber' : 'pos';
+            const isSelected = _cadSelectedIds.has(p.id);
             const tr = document.createElement('tr');
+            if (isSelected) tr.style.background = '#eff6ff';
             tr.innerHTML = `
-              <td style="font-weight:600">${_escapeHtml(p.nome)}</td>
+              <td style="text-align:center;width:32px"><input type="checkbox" class="imbel-cad-chk" data-pid="${p.id}" ${isSelected ? 'checked' : ''}></td>
+              <td style="font-weight:600">${_escapeHtml(p.nome)}${p.inativo ? ' <span style="font-size:9px;color:#94a3b8;font-weight:400">[inativo]</span>' : ''}</td>
               <td class="mono dim">${p.codigo||'—'}</td>
               <td class="mono" style="text-align:center">${p.quantidadeInicial ?? '—'}</td>
               <td class="mono ${saldoCls}" style="text-align:center">${saldo}</td>
               <td class="mono" style="text-align:center">${(p.pontoReposicao !== undefined && p.pontoReposicao !== null) ? p.pontoReposicao : '—'}</td>
-              <td class="mono" style="text-align:right">${p.valorUnitario ? 'R$ ' + Number(p.valorUnitario).toLocaleString('pt-BR',{minimumFractionDigits:2}) : '—'}</td>
+              <td class="mono" style="text-align:right">${p.valorUnitario ? 'R$ ' + Number(p.valorUnitario).toLocaleString('pt-BR',{minimumFractionDigits:2}) : '—'}</td>
               <td class="dim">${_escapeHtml(p.observacao||'—')}</td>
               <td><div class="imbel-row-actions">
                 <button class="imbel-row-btn" data-editid="${p.id}">✎ Editar</button>
@@ -7952,6 +8047,32 @@ function renderControleImbelCadastro() {
               </div></td>`;
             tbody.appendChild(tr);
         });
+        // bind checkboxes de linha
+        tbody.querySelectorAll('.imbel-cad-chk').forEach(chk => {
+            chk.onchange = function() {
+                if (this.checked) _cadSelectedIds.add(this.dataset.pid);
+                else _cadSelectedIds.delete(this.dataset.pid);
+                const tr = this.closest('tr');
+                if (tr) tr.style.background = this.checked ? '#eff6ff' : '';
+                updateBulkBar();
+                const chkAll = document.getElementById('imbelCadChkAll');
+                if (chkAll) chkAll.indeterminate = _cadSelectedIds.size > 0 && _cadSelectedIds.size < prods.length;
+            };
+        });
+        // bind "selecionar todos"
+        const chkAll = document.getElementById('imbelCadChkAll');
+        if (chkAll) {
+            chkAll.indeterminate = _cadSelectedIds.size > 0 && _cadSelectedIds.size < prods.length;
+            chkAll.checked = _cadSelectedIds.size === prods.length && prods.length > 0;
+            chkAll.onchange = function() {
+                if (this.checked) prods.forEach(p => _cadSelectedIds.add(p.id));
+                else _cadSelectedIds = new Set();
+                renderCadRows(document.getElementById('imbelCadBusca')?.value || '');
+                updateBulkBar();
+            };
+        }
+        const kpiCount = document.getElementById('imbelCadKpiCount');
+        if (kpiCount) kpiCount.textContent = prods.length;
     }
 
     window._imbelCadFiltrar = () => {
@@ -8314,25 +8435,37 @@ function renderControleImbelMovimentacao() {
     container.appendChild(cmdbar);
     container.appendChild(filterBar);
 
-    // KPI strip
-    const movAll = (data.movimentacoes||[]);
-    const totalEntradas = movAll.filter(m=>imbelTipoAumentaEstoque(m.tipo)).reduce((s,m)=>s+(Number(m.quantidade)||0),0);
-    const totalSaidas   = movAll.filter(m=>!imbelTipoAumentaEstoque(m.tipo)).reduce((s,m)=>s+(Number(m.quantidade)||0),0);
-    const totalValor    = movAll.reduce((s,m)=>s+(Number(m.valor)||0),0);
-    const totalVendas   = movAll.filter(m=>getImbelTipo(m.tipo).contaReceita);
-    const recTot        = totalVendas.reduce((s,m)=>s+(Number(m.valor)||0),0);
-
-    // 3. KPI STRIP
+    // 3. KPI STRIP — valores atualizados por updateMovKpi() após cada filtro
     const kpiStrip = document.createElement('div');
     kpiStrip.className = 'imbel-kpis';
     kpiStrip.id = 'imbelMovKpiStrip';
     kpiStrip.innerHTML = `
-      <div class="kpi"><div class="kpi-label">Movimentações</div><div class="kpi-value">${movAll.length}</div><div class="kpi-sub">total registros</div></div>
-      <div class="kpi"><div class="kpi-label">Entradas</div><div class="kpi-value pos">${totalEntradas}</div><div class="kpi-sub">unidades recebidas</div></div>
-      <div class="kpi"><div class="kpi-label">Saídas</div><div class="kpi-value neg">${totalSaidas}</div><div class="kpi-sub">unidades despachadas</div></div>
-      <div class="kpi"><div class="kpi-label">Receita Vendas</div><div class="kpi-value accent">R$ ${recTot.toLocaleString('pt-BR',{minimumFractionDigits:2})}</div><div class="kpi-sub">${totalVendas.length} pedidos</div></div>
-      <div class="kpi"><div class="kpi-label">Valor Total</div><div class="kpi-value">R$ ${totalValor.toLocaleString('pt-BR',{minimumFractionDigits:2})}</div><div class="kpi-sub">todas movimentações</div></div>`;
+      <div class="kpi" id="imbelMovKpiLanc"><div class="kpi-label">Movimentações</div><div class="kpi-value">—</div><div class="kpi-sub">—</div></div>
+      <div class="kpi" id="imbelMovKpiEnt"><div class="kpi-label">Entradas</div><div class="kpi-value pos">—</div><div class="kpi-sub">unidades recebidas</div></div>
+      <div class="kpi" id="imbelMovKpiSai"><div class="kpi-label">Saídas</div><div class="kpi-value neg">—</div><div class="kpi-sub">unidades despachadas</div></div>
+      <div class="kpi" id="imbelMovKpiRec"><div class="kpi-label">Receita Vendas</div><div class="kpi-value accent">—</div><div class="kpi-sub">—</div></div>
+      <div class="kpi" id="imbelMovKpiVal"><div class="kpi-label">Valor Total</div><div class="kpi-value">—</div><div class="kpi-sub">todas movimentações</div></div>`;
     container.appendChild(kpiStrip);
+
+    function updateMovKpi(filteredList, totalCount, periodoKey) {
+        const pLabel = periodoKey === '7d' ? '7d' : periodoKey === '30d' ? '30d' : periodoKey === '90d' ? '90d' : 'Total';
+        const ent    = filteredList.filter(m=>imbelTipoAumentaEstoque(m.tipo)).reduce((s,m)=>s+(Number(m.quantidade)||0),0);
+        const sai    = filteredList.filter(m=>!imbelTipoAumentaEstoque(m.tipo)).reduce((s,m)=>s+(Number(m.quantidade)||0),0);
+        const val    = filteredList.reduce((s,m)=>s+(Number(m.valor)||0),0);
+        const vends  = filteredList.filter(m=>getImbelTipo(m.tipo).contaReceita);
+        const rec    = vends.reduce((s,m)=>s+(Number(m.valor)||0),0);
+        const fmt    = v => 'R$ ' + Number(v).toLocaleString('pt-BR',{minimumFractionDigits:2});
+        const kLanc  = document.getElementById('imbelMovKpiLanc');
+        const kEnt   = document.getElementById('imbelMovKpiEnt');
+        const kSai   = document.getElementById('imbelMovKpiSai');
+        const kRec   = document.getElementById('imbelMovKpiRec');
+        const kVal   = document.getElementById('imbelMovKpiVal');
+        if (kLanc) { kLanc.querySelector('.kpi-label').textContent = 'Movimentações ' + pLabel; kLanc.querySelector('.kpi-value').textContent = filteredList.length; kLanc.querySelector('.kpi-sub').textContent = filteredList.length < totalCount ? filteredList.length + ' de ' + totalCount : 'total registros'; }
+        if (kEnt)  kEnt.querySelector('.kpi-value').textContent = ent;
+        if (kSai)  kSai.querySelector('.kpi-value').textContent = sai;
+        if (kRec)  { kRec.querySelector('.kpi-label').textContent = 'Receita ' + pLabel; kRec.querySelector('.kpi-value').textContent = fmt(rec); kRec.querySelector('.kpi-sub').textContent = vends.length + ' pedidos'; }
+        if (kVal)  kVal.querySelector('.kpi-value').textContent = fmt(val);
+    }
 
     // --- connect button handlers ---
     cmdbar.querySelector('#imbelBtnAddMov').onclick = () => {
@@ -8486,6 +8619,10 @@ function renderControleImbelMovimentacao() {
             if (contadorEl) {
                 const total = (data.movimentacoes||[]).length;
                 contadorEl.textContent = groups.size < total ? `${groups.size} grupo(s) · ${filtered.length} de ${total}` : `${groups.size} grupo(s)`;
+            }
+            // Atualizar KPIs com base no filtro atual (Fix V9)
+            if (typeof updateMovKpi === 'function') {
+                updateMovKpi(filtered, (data.movimentacoes||[]).length, movState.periodo || (movState.dateFrom ? 'custom' : 'Total'));
             }
 
             const fmt = v => 'R$ ' + Number(v||0).toLocaleString('pt-BR',

@@ -1316,3 +1316,62 @@ table[class~="imbel-mov-grid"] tbody tr:hover td {
 }
 .imbel-phr-params .l { display: block; font-size: 9px; font-weight: 600; letter-spacing: 0.4px; text-transform: uppercase; color: #94a3b8; }
 .imbel-phr-params .v { display: block; font-family: 'IBM Plex Mono', monospace; font-size: 12px; font-weight: 700; color: #0f1e31; margin-top: 2px; }
+
+/* =================================================================
+   FIX V9 — BULK ACTIONS BAR (Cadastro)
+   ================================================================= */
+.imbel-bulk-bar {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  height: 36px;
+  background: #0a1828;
+  color: #e2e8f0;
+  border-bottom: 1px solid #e5a128;
+  gap: 12px;
+}
+.imbel-bulk-count {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  color: #e5a128;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.imbel-bulk-actions {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+.imbel-bulk-btn {
+  height: 26px;
+  padding: 0 10px;
+  font-size: 11px;
+  font-weight: 500;
+  border-radius: 4px;
+  border: 1px solid #1e3a5f;
+  background: #0f2035;
+  color: #c4d1e1;
+  cursor: pointer;
+  font-family: var(--tv-font-sans, inherit);
+  white-space: nowrap;
+  transition: background 0.12s, border-color 0.12s;
+}
+.imbel-bulk-btn:hover { background: #1e3a5f; border-color: #3b6090; }
+.imbel-bulk-btn.danger { color: #f87171; border-color: #7f1d1d40; }
+.imbel-bulk-btn.danger:hover { background: #3f0a0a; border-color: #dc2626; }
+.imbel-bulk-btn.ghost { background: transparent; border-color: transparent; color: #647d99; }
+.imbel-bulk-btn.ghost:hover { background: #0f2035; border-color: #1e3a5f; }
+
+/* =================================================================
+   FIX V9 — ALERTAS CLICÁVEIS (Dashboard)
+   ================================================================= */
+.imbel-alert-row.clickable {
+  cursor: pointer;
+  transition: background 0.12s;
+}
+.imbel-alert-row.clickable:hover {
+  background: #eff6ff;
+  border-left-color: #3b82f6;
+}
