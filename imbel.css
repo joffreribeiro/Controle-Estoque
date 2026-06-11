@@ -344,6 +344,39 @@ table[class~="imbel-mov-grid"] tbody tr:hover td {
   color: #374151;
   cursor: pointer;
 }
+
+/* Select estilizado com chevron — Movimentação cmdbar */
+.imov-select-wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+.imov-select {
+  height: 30px;
+  padding: 0 28px 0 10px;
+  font-size: 12px;
+  font-family: var(--tv-font-sans, inherit);
+  border: 1px solid #e2e8f0;
+  border-radius: 5px;
+  background: #fff;
+  color: #374151;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  min-width: 160px;
+  outline: none;
+  transition: border-color 0.12s;
+}
+.imov-select:hover { border-color: #cbd5e1; }
+.imov-select:focus { border-color: #94a3b8; box-shadow: 0 0 0 2px rgba(148,163,184,0.15); }
+.imov-select-arrow {
+  position: absolute;
+  right: 8px;
+  pointer-events: none;
+  color: #94a3b8;
+  flex-shrink: 0;
+}
 .imbel-cmdbar .filter-label {
   font-size: 10px;
   font-weight: 600;

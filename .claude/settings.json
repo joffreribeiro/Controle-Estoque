@@ -45,7 +45,15 @@
       "Read(//c//**)",
       "Bash(grep -E '\\\\.js$|\\\\.html$')",
       "Bash(powershell -Command \"Select-String -Path 'index.html' -Pattern 'pc-main|pc-cli-col|pcCliList|pcCliCount|pc-detail-col' | Select-Object LineNumber, Line | Format-Table -AutoSize\")",
-      "Bash(powershell -Command \"Select-String -Path 'app2.js' -Pattern '_pcRenderizarLista\\\\s*=' | Select-Object LineNumber, Line\")"
+      "Bash(powershell -Command \"Select-String -Path 'app2.js' -Pattern '_pcRenderizarLista\\\\s*=' | Select-Object LineNumber, Line\")",
+      "Bash(powershell -Command \"Select-String -Path 'index.html' -Pattern 'IMBEL_MOVIMENTACOES|IMBEL_AUDIT|IMBEL_PRODUTOS|imbel-data|geraMovimentacoes|geraAudit' | Select-Object -First 20 | Format-Table LineNumber, Line -AutoSize\")",
+      "Bash(powershell -Command \"Select-String -Path 'index.html' -Pattern 'IMBEL_MOVIMENTACOES|IMBEL_AUDIT|geraMovimentacoes|geraAudit|imbel.*data|IMBEL_PRODUTOS' | Select-Object -First 15 | Format-Table LineNumber, Line -AutoSize -Wrap\")",
+      "Bash(powershell -Command \"Select-String -Path 'app2.js' -Pattern 'IMBEL_MOVIMENTACOES\\\\s*=|IMBEL_AUDIT\\\\s*=|IMBEL_PRODUTOS\\\\s*=|geraMovimentacoes|geraAudit|function.*imbel.*mov|ImbelInventario|imbel-inventario' | Select-Object LineNumber, Line | Format-Table -AutoSize -Wrap | Select-Object -First 30\")",
+      "Bash(powershell -Command \"Select-String -Path 'index.html' -Pattern 'imbel-dashboard|imbel-movimentacao|imbel-auditoria|ImbelDashboard|ImbelMovimentacao|ImbelAuditoria|IMBEL_PRODUTOS|IMBEL_MOVIMENTACOES|IMBEL_AUDIT|IMBEL_REP' | Select-Object -First 20 | Format-Table LineNumber, Line -AutoSize -Wrap\")",
+      "Bash(powershell -Command \"Select-String -Path 'index.html' -Pattern 'IMBEL_PRODUTOS|IMBEL_MOVIMENTACOES|IMBEL_AUDIT|IMBEL_REP_COMPARE|NF-124|MV000|IA00' | Select-Object -First 10 | Format-Table LineNumber, Line -AutoSize\")",
+      "Bash(powershell -Command \"Select-String -Path 'index.html' -Pattern 'imbel-dashboard\\\\.jsx|imbel-movimentacao\\\\.jsx|imbel-auditoria\\\\.jsx|imbel\\\\.css|ImbelDashboard|ImbelMovimentacao|ImbelAuditoria' | Format-Table LineNumber, Line -AutoSize\")",
+      "Bash(powershell -Command \"Select-String -Path 'index.html' -Pattern '\\\\.jsx|imbel-dash|imbel-mov|imbel-audit|imbel-cad|imbel-prec|imbel-inv' | Format-Table LineNumber, Line -AutoSize\")",
+      "Bash(powershell -Command \"Select-String -Path 'index.html' -Pattern 'jsx' | Format-Table LineNumber, Line -AutoSize\")"
     ],
     "additionalDirectories": [
       "\\tmp"
