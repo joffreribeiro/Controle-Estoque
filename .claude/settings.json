@@ -44,7 +44,8 @@
       "Read(//c/controle estoque/**)",
       "Read(//c//**)",
       "Bash(grep -E '\\\\.js$|\\\\.html$')",
-      "Bash(powershell -Command \"Select-String -Path 'index.html' -Pattern 'pc-main|pc-cli-col|pcCliList|pcCliCount|pc-detail-col' | Select-Object LineNumber, Line | Format-Table -AutoSize\")"
+      "Bash(powershell -Command \"Select-String -Path 'index.html' -Pattern 'pc-main|pc-cli-col|pcCliList|pcCliCount|pc-detail-col' | Select-Object LineNumber, Line | Format-Table -AutoSize\")",
+      "Bash(powershell -Command \"Select-String -Path 'app2.js' -Pattern '_pcRenderizarLista\\\\s*=' | Select-Object LineNumber, Line\")"
     ],
     "additionalDirectories": [
       "\\tmp"

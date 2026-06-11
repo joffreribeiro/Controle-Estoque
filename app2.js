@@ -20237,7 +20237,6 @@ window._pcRenderizarLista = function() {
     const buscaRaw = campoBusca ? campoBusca.value : (window._pcEstado.busca || '');
     window._pcEstado.busca = buscaRaw;
     const busca = buscaRaw.toLowerCase().trim();
-    console.log('[PC] render: busca="'+busca+'" total='+((clientes||[]).length)+' listEl='+listEl.id);
     const filtroStatus = window._pcEstado.status || 'ativo';
 
     let lista = (clientes || []).slice();
@@ -20246,19 +20245,19 @@ window._pcRenderizarLista = function() {
         lista = lista.filter(c => !c.inativo);
     }
     if (busca) {
+        const buscaDigitos = busca.replace(/\D/g,'');
         lista = lista.filter(c => {
-            return (c.nome || '').toLowerCase().includes(busca)
-                || (c.cnpj || '').replace(/\D/g,'').includes(busca.replace(/\D/g,''))
-                || (c.cpf || '').replace(/\D/g,'').includes(busca.replace(/\D/g,''))
-                || (c.cidade || '').toLowerCase().includes(busca)
-                || (c.uf || '').toLowerCase().includes(busca);
+            if ((c.nome || '').toLowerCase().includes(busca)) return true;
+            if ((c.cidade || '').toLowerCase().includes(busca)) return true;
+            if ((c.uf || '').toLowerCase().includes(busca)) return true;
+            if (buscaDigitos && (c.cnpj || '').replace(/\D/g,'').includes(buscaDigitos)) return true;
+            if (buscaDigitos && (c.cpf || '').replace(/\D/g,'').includes(buscaDigitos)) return true;
+            return false;
         });
     }
     lista.sort((a, b) => (a.nome || '').localeCompare(b.nome || '', 'pt-BR'));
-    console.log('[PC] filtrado='+lista.length+' nomes='+lista.slice(0,3).map(c=>c.nome).join(','));
 
     if (countEl) countEl.textContent = lista.length + ' cliente' + (lista.length !== 1 ? 's' : '');
-    console.log('[PC] countEl na tela='+document.getElementById('pcCliCount')?.textContent);
 
     const selecionadoId = (document.getElementById('precifClienteSelect') || {}).value;
 
