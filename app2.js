@@ -20223,8 +20223,6 @@ function popularSelectClientesPrecif() {
     const elROI  = document.getElementById('precifROIPadraoLabel'); if (elROI) elROI.textContent = 'Padrão: ' + roiPad + '%';
     const elCom  = document.getElementById('precifComissaoPadraoLabel'); if (elCom) elCom.textContent = 'Padrão: ' + comPad + '%';
 
-    // Atualizar lista Bloomberg
-    try { window._pcRenderizarLista(); } catch (e) {}
 }
 
 // ── Estado do painel Por Cliente (Bloomberg) ──
