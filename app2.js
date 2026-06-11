@@ -20231,12 +20231,13 @@ window._pcEstado = { busca: '', status: 'ativo' };
 window._pcRenderizarLista = function() {
     const listEl = document.getElementById('pcCliList');
     const countEl = document.getElementById('pcCliCount');
-    if (!listEl) return;
+    if (!listEl) { console.warn('[PC] pcCliList nao encontrado'); return; }
 
     const campoBusca = document.getElementById('pcBuscaCliente');
     const buscaRaw = campoBusca ? campoBusca.value : (window._pcEstado.busca || '');
     window._pcEstado.busca = buscaRaw;
     const busca = buscaRaw.toLowerCase().trim();
+    console.log('[PC] render: busca="'+busca+'" total='+((clientes||[]).length)+' listEl='+listEl.id);
     const filtroStatus = window._pcEstado.status || 'ativo';
 
     let lista = (clientes || []).slice();
