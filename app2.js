@@ -20341,7 +20341,6 @@ window._pcSelecionarCliente = function(id) {
 window._pcFiltrarLista = function(val) {
     const v = (val !== undefined ? val : '') || '';
     window._pcEstado.busca = v;
-    console.log('[PC] filtrar:', v, 'clientes:', (clientes||[]).length);
     window._pcRenderizarLista();
 };
 
