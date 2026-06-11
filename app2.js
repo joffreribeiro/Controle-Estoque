@@ -20339,9 +20339,25 @@ window._pcSelecionarCliente = function(id) {
 };
 
 window._pcFiltrarLista = function(val) {
-    window._pcEstado.busca = val || '';
+    const v = (val !== undefined ? val : '') || '';
+    window._pcEstado.busca = v;
+    console.log('[PC] filtrar:', v, 'clientes:', (clientes||[]).length);
     window._pcRenderizarLista();
 };
+
+// Garantir binding do campo de busca após qualquer re-render
+(function _pcBindBusca() {
+    function bind() {
+        const el = document.getElementById('pcBuscaCliente');
+        if (!el || el._pcBound) return;
+        el._pcBound = true;
+        el.addEventListener('input', function() { window._pcFiltrarLista(this.value); });
+        el.addEventListener('keyup',  function() { window._pcFiltrarLista(this.value); });
+    }
+    document.addEventListener('DOMContentLoaded', bind);
+    // Também tentar imediatamente caso o DOM já esteja carregado
+    if (document.readyState !== 'loading') bind();
+})();
 
 window._pcSetStatus = function(status, btn) {
     window._pcEstado.status = status;

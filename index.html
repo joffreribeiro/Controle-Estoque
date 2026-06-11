@@ -731,7 +731,6 @@
             <select id="fcp-cliente" class="cq-hero-input" onchange="filtrarConsultaPrecificacoes(1)" title="Filtrar por cliente">
                 <option value="">Todos os clientes…</option>
             </select>
-            <span class="cq-search-kbd">⌘K</span>
         </div>
         <div class="cq-hero-tags">
             <span class="cq-hero-tag-lbl">FILTROS:</span>
@@ -899,8 +898,7 @@
 <div class="pc-command-bar">
     <div class="pc-search-wrap">
         <svg class="pc-search-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="6.5" cy="6.5" r="4.5"/><path d="M10 10l3 3"/></svg>
-        <input type="text" id="pcBuscaCliente" class="pc-search-input" placeholder="Buscar cliente, CNPJ, cidade…" oninput="window._pcFiltrarLista(this.value)">
-        <span class="pc-search-kbd">⌘K</span>
+        <input type="text" id="pcBuscaCliente" class="pc-search-input" placeholder="Buscar cliente, CNPJ, cidade…" oninput="window._pcFiltrarLista(this.value)" onkeyup="window._pcFiltrarLista(this.value)">
     </div>
     <div class="pc-bar-divider"></div>
     <div class="pc-seg" id="pcFiltroStatus">
