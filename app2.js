@@ -12413,6 +12413,11 @@ async function gerarContratoVenda(vendaId) {
     });
 
     try {
+        // DEBUG: inspecionar XML do parágrafo VENDEDOR
+        try {
+            const _pVend = new Paragraph({ children: [B('VENDEDOR: ')], alignment: AlignmentType.LEFT, spacing: { before: 80, after: 80 }, indent: { left: 567 } });
+            console.log('Paragraph root:', JSON.stringify(_pVend.root?.map?.(x => x?.constructor?.name + ':' + JSON.stringify(x?.root))));
+        } catch(_e) { console.log('debug err', _e); }
         mostrarNotificacao('Gerando contrato...', 'info');
         const buffer = await Packer.toBlob(doc);
         const url = URL.createObjectURL(buffer);
