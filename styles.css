@@ -2386,21 +2386,6 @@ tr.total-row:hover {
     background: #eef2f7;
 }
 
-.tabela-vendas tbody tr.row-contrato-resumo td.col-acoes {
-    background: #e8f0f9;
-}
-
-.tabela-vendas tbody tr.row-contrato-resumo:hover td.col-acoes {
-    background: #d9e8f5;
-}
-
-.tabela-vendas tbody tr.sub-linha-produto td.col-acoes {
-    background: #f0f4ff;
-}
-
-.tabela-vendas tbody tr.sub-linha-produto:hover td.col-acoes {
-    background: #e8eeff;
-}
 
 .row-contrato-resumo {
     background: #e8f0f9 !important;
@@ -2670,14 +2655,25 @@ tr.total-row:hover {
 
 #tabelaRegistroVendas td.col-acoes {
     white-space: nowrap;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 3px;
+    text-align: center;
+    vertical-align: middle;
+    background: #ffffff !important;
+    border-left: none !important;
 }
 
-#tabelaRegistroVendas .sub-linha-produto td.col-acoes {
+#tabelaRegistroVendas tr.row-contrato-resumo td.col-acoes {
+    background: #e8f0f9 !important;
+}
+#tabelaRegistroVendas tr.row-contrato-resumo:hover td.col-acoes {
+    background: #d9e8f5 !important;
+}
+
+#tabelaRegistroVendas tr.sub-linha-produto td.col-acoes {
     display: table-cell;
+    background: #f0f4ff !important;
+}
+#tabelaRegistroVendas tr.sub-linha-produto:hover td.col-acoes {
+    background: #e8eeff !important;
 }
 
 #tabelaRegistroVendas td.col-acoes .btn-action {
