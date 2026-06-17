@@ -12224,11 +12224,11 @@ async function gerarContratoVenda(vendaId) {
                 E(),
                 PC([B(`CONTRATO Nº ${contratoNum} – FÁBRICA DE ITAJUBÁ/IMBEL®`, 24)], { before: 60, after: 120 }),
 
-                new Paragraph({ children: [B('VENDEDOR: '), N(vendedor.nomeEmpresa || 'INDÚSTRIA DE MATERIAL BÉLICO DO BRASIL – IMBEL – FÁBRICA DE ITAJUBÁ')], alignment: AlignmentType.LEFT, spacing: { before: 80, after: 80 }, indent: { left: 851, hanging: 1 } }),
-                new Paragraph({ children: [B('COMPRADOR: '), N(venda.loja||'')], alignment: AlignmentType.LEFT, spacing: { before: 80, after: 80 }, indent: { left: 851, hanging: 1 } }),
-                new Paragraph({ children: [B('REPRESENTANTE COMERCIAL AUTORIZADO: '), N(rep.razaoSocial || venda.representante || '')], alignment: AlignmentType.LEFT, spacing: { before: 80, after: 80 }, indent: { left: 851, hanging: 1 } }),
-                new Paragraph({ children: [B('OBJETO: '), N('Compra e venda de armamento, peças e acessórios do portfólio da Fábrica de Itajubá da IMBEL® (FI/IMBEL®), em especial: ' + objetoItens + '.')], alignment: AlignmentType.LEFT, spacing: { before: 80, after: 80 }, indent: { left: 851, hanging: 1 } }),
-                new Paragraph({ children: [B('VIGÊNCIA DO CONTRATO: '), N(fmtDate(dataVenda) + ' a ' + fmtDate(dataFim) + '.')], alignment: AlignmentType.LEFT, spacing: { before: 80, after: 80 }, indent: { left: 851, hanging: 1 } }),
+                new Paragraph({ children: [B('VENDEDOR: '), N(vendedor.nomeEmpresa || 'INDÚSTRIA DE MATERIAL BÉLICO DO BRASIL – IMBEL – FÁBRICA DE ITAJUBÁ')], alignment: AlignmentType.LEFT, spacing: { before: 80, after: 80 }, indent: { left: 4876, hanging: 1 } }),
+                new Paragraph({ children: [B('COMPRADOR: '), N(venda.loja||'')], alignment: AlignmentType.LEFT, spacing: { before: 80, after: 80 }, indent: { left: 4876, hanging: 1 } }),
+                new Paragraph({ children: [B('REPRESENTANTE COMERCIAL AUTORIZADO: '), N(rep.razaoSocial || venda.representante || '')], alignment: AlignmentType.LEFT, spacing: { before: 80, after: 80 }, indent: { left: 4876, hanging: 1 } }),
+                new Paragraph({ children: [B('OBJETO: '), N('Compra e venda de armamento, peças e acessórios do portfólio da Fábrica de Itajubá da IMBEL® (FI/IMBEL®), em especial: ' + objetoItens + '.')], alignment: AlignmentType.LEFT, spacing: { before: 80, after: 80 }, indent: { left: 4876, hanging: 1 } }),
+                new Paragraph({ children: [B('VIGÊNCIA DO CONTRATO: '), N(fmtDate(dataVenda) + ' a ' + fmtDate(dataFim) + '.')], alignment: AlignmentType.LEFT, spacing: { before: 80, after: 80 }, indent: { left: 4876, hanging: 1 } }),
                 E(),
                 PC([B('PREÂMBULO', 22)], { before: 120, after: 120 }),
 
