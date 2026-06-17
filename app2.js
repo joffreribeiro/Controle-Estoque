@@ -1449,7 +1449,7 @@ function renderConsultaPrecificacoes(dados) {
                 if (!Array.isArray(dados) || dados.length === 0) {
                         body.innerHTML = `
                         <tr>
-                            <td colspan="26">
+                            <td colspan="27">
                                 <div class="empty-state">
                                     <div class="empty-icon">📋</div>
                                     <div class="empty-text">Nenhuma precificação salva</div>
@@ -1490,7 +1490,7 @@ function renderConsultaPrecificacoes(dados) {
                 // rótulo de numeração AAAA/NNN para a precificação
                 const precYear = new Date(prec.dataCriacao || prec.data || prec.createdAt || Date.now()).getFullYear();
                 const precSeq = seqMap.get(prec) || rowCounter;
-                const precLabel = `${precYear}/${String(precSeq).padStart(3, '0')}`;
+                const precLabel = `${String(precSeq).padStart(3, '0')}/${precYear}`;
                 const trClass = exp ? 'prec-expirada' : '';
                 const statusBadge = exp ? '<span class="badge-prec-expirada">✗ Expirada</span>' : '<span class="badge-prec-ativa">✓ Ativa</span>';
                 const rep = prec.representante || prec.rep || '';
@@ -1499,14 +1499,16 @@ function renderConsultaPrecificacoes(dados) {
 
                 html += `<tr class="${trClass}">`;
                 html += `<td style="min-width:60px">${_escapeHtml(String(precLabel || prec.id || prec.versao || rowCounter))}</td>`;
-                html += `<td style="min-width:100px">${prec.dataCriacao ? new Date(prec.dataCriacao).toLocaleString('pt-BR') : (prec.data ? new Date(prec.data).toLocaleString('pt-BR') : '-')}</td>`;
+                html += `<td style="min-width:100px">${prec.dataCriacao ? new Date(prec.dataCriacao).toLocaleDateString('pt-BR') : (prec.data ? new Date(prec.data).toLocaleDateString('pt-BR') : '-')}</td>`;
                 html += `<td style="min-width:100px">${prec.dataExpiracao ? new Date(prec.dataExpiracao).toLocaleDateString('pt-BR') : '-'}</td>`;
                 html += `<td style="min-width:80px">${statusBadge}</td>`;
-                html += `<td style="min-width:160px;text-align:left">${_escapeHtml(prec.clienteNome || prec.cliente || '')}</td>`;
+                html += `<td style="min-width:110px;max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:left" title="${_escapeHtml(prec.clienteNome || prec.cliente || '')}">${_escapeHtml(prec.clienteNome || prec.cliente || '')}</td>`;
                 html += `<td style="min-width:50px">${_escapeHtml(prec.clienteUF || prec.uf || '')}</td>`;
                 html += `<td style="min-width:80px">${_escapeHtml(_tipoClienteLabel(prec.tipoPessoa || ''))}</td>`;
                 html += `<td style="min-width:90px"><span class="badge-rep${repClass}">${_escapeHtml(rep)}</span></td>`;
                 html += `<td style="min-width:160px;text-align:left">${_escapeHtml(prod.produto || prod.produtoNome || prod.nome || '')}</td>`;
+                const _vlrFinalConsulta = Number(prod.precoFinal || prod.valorFinal || prod.valorBase || 0);
+                html += `<td style="min-width:110px;text-align:right;font-weight:600;color:#16a34a">${_cpFmt(_vlrFinalConsulta)}</td>`;
                 // Descrição do produto (quando disponível)
                 html += `<td style="min-width:200px;text-align:left;color:#475569">${_escapeHtml(prod.descricao || prod.descricaoProduto || '')}</td>`;
                 // Quantidade — logo após a descrição
