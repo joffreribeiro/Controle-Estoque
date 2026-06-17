@@ -1879,13 +1879,13 @@ async function gerarDocxProposta() {
     const itensRows = document.querySelectorAll('#itensPropostaContainer .item-venda-row');
     const itens = [];
     itensRows.forEach(row => {
-        const prodSel = row.querySelector('select[name="produto"], .produto-select, select');
-        const qtdEl   = row.querySelector('input[name="quantidade"], .qtd-input, input[type="number"]');
-        const valEl   = row.querySelector('input[name="valorUnit"], .valor-input, input[type="text"]');
+        const prodSel  = row.querySelector('.item-produto');
+        const qtdEl    = row.querySelector('.item-quantidade');
+        const valEl    = row.querySelector('.item-valor');
         const nomeProd = prodSel ? (prodSel.options[prodSel.selectedIndex]?.text || '') : '';
-        const qtd = Number(qtdEl?.value || 1);
+        const qtd  = Number(qtdEl?.value || 1);
         const vUnit = Number((valEl?.value || '0').replace(/\./g,'').replace(',','.'));
-        if (nomeProd) itens.push({ nome: nomeProd, qtd, vUnit, vTot: qtd * vUnit });
+        if (nomeProd && nomeProd !== '(nenhum produto)') itens.push({ nome: nomeProd, qtd, vUnit, vTot: qtd * vUnit });
     });
     const totalGeral = itens.reduce((s, it) => s + it.vTot, 0);
 
@@ -1936,12 +1936,17 @@ async function gerarDocxProposta() {
     });
 
     // ── Tabela de produtos ──
-    const col1=3780, col2=700, col3=1500, col4=1500, col5=1212;
-    // col1+col2+col3+col4+col5 = 8692 — ajustar
-    const cw = [4200, 700, 1700, 2046]; // DESCRIÇÃO, QTD, UNIT, TOTAL — total = 8646... usar TW
-    const [cDesc, cQtd, cUnit, cTot] = [TW-4692, 700, 1996, 1996];
+    const [cItem, cDesc, cQtd, cUnit, cTot] = [700, TW-4692, 700, 1996, 1996];
+    const hCellRS = (t, w) => new TableCell({
+        children: [PT([B(t, SZS, 'FFFFFF')], AlignmentType.CENTER)],
+        width: { size: w, type: WidthType.DXA }, borders,
+        shading: { fill: '000000', type: ShadingType.CLEAR },
+        margins: { top: 30, bottom: 30, left: 100, right: 100 },
+        rowSpan: 2, verticalAlign: VerticalAlign.CENTER,
+    });
+
     const prodRows = itens.map((it, i) => new TableRow({ children: [
-        cell([PT([N(String(i+1), SZS)], AlignmentType.CENTER)], 700),
+        cellC([PT([N(String(i+1), SZS)], AlignmentType.CENTER)], cItem),
         cell([PT([N(it.nome, SZS)])], cDesc),
         cellC([PT([N(String(it.qtd), SZS)], AlignmentType.CENTER)], cQtd),
         cellC([PT([N(fmtMoeda(it.vUnit), SZS)], AlignmentType.CENTER)], cUnit),
@@ -1950,13 +1955,24 @@ async function gerarDocxProposta() {
 
     const tabelaProdutos = new Table({
         width: { size: TW, type: WidthType.DXA },
-        columnWidths: [700, cDesc, cQtd, cUnit, cTot],
+        columnWidths: [cItem, cDesc, cQtd, cUnit, cTot],
         rows: [
+            // Linha 1: ITEM(rowspan2), DESCRIÇÃO(rowspan2), QTD(rowspan2), PREÇO(colspan2)
             new TableRow({ children: [
-                hCell('ITEM', 700),
-                hCell('DESCRIÇÃO', cDesc),
-                hCell('QTD', cQtd),
-                hCell('PREÇO (EM R$) UNIT', cUnit),
+                hCellRS('ITEM', cItem),
+                hCellRS('DESCRIÇÃO', cDesc),
+                hCellRS('QTD', cQtd),
+                new TableCell({
+                    children: [PT([B('PREÇO (EM R$)', SZS, 'FFFFFF')], AlignmentType.CENTER)],
+                    width: { size: cUnit + cTot, type: WidthType.DXA }, borders,
+                    shading: { fill: '000000', type: ShadingType.CLEAR },
+                    margins: { top: 30, bottom: 30, left: 100, right: 100 },
+                    columnSpan: 2, verticalAlign: VerticalAlign.CENTER,
+                }),
+            ]}),
+            // Linha 2: UNIT, TOTAL
+            new TableRow({ children: [
+                hCell('UNIT', cUnit),
                 hCell('TOTAL', cTot),
             ]}),
             ...prodRows,
@@ -1986,7 +2002,24 @@ async function gerarDocxProposta() {
                     margin: { top: 720, right: 720, bottom: 1800, left: 720, header: 450, footer: 390 }
                 }
             },
-            headers: { default: new Header({ children: [new Paragraph({ children: [new TextRun({text:'',size:SZ})], spacing:{before:0,after:0} })] }) },
+            headers: { default: new Header({ children: [new Paragraph({
+                spacing: { before: 0, after: 0 },
+                children: [
+                    ...(typeof PROPOSTA_BG_B64 !== 'undefined' ? [new ImageRun({
+                        data: 'data:image/jpeg;base64,' + PROPOSTA_BG_B64,
+                        transformation: { width: 573, height: 405 },
+                        type: 'jpg',
+                        floating: {
+                            behindDocument: true,
+                            horizontalPosition: { relative: 'column', offset: -1111250 },
+                            verticalPosition: { relative: 'paragraph', offset: -450215 },
+                            wrap: { type: 'none' },
+                            allowOverlap: true,
+                            zIndex: 4,
+                        }
+                    })] : [new TextRun({ text: '', size: SZ })])
+                ]
+            })] }) },
             footers: { default: new Footer({ children: [
                 new Paragraph({ alignment: AlignmentType.CENTER, spacing:{before:60,after:0}, children:[N(txtRodapeContato, SZS-2)] })
             ]}) },
@@ -2002,25 +2035,25 @@ async function gerarDocxProposta() {
                 P([N('Obrigado por considerar a compra dos produtos e serviços IMBEL. Para nós é uma honra poder assessorá-lo e, eventualmente, ter sua Instituição Pública como cliente. Nossos produtos são reconhecidos pela durabilidade e qualidade demandadas e testadas pelas Forças Armadas do Brasil e diversas Instituições de Segurança.')]),
                 P([N('Segue abaixo a Proposta Comercial solicitada. Verifique se as informações abaixo atendem suas necessidades e nos acessem sempre que necessário. Estamos à sua disposição para eventuais esclarecimentos ou adequações.')]),
 
-                PC([B('PRODUTOS IMBEL :', SZ)], {before:120,after:80}),
+                PL([B('1.   PRODUTOS IMBEL :', SZ)], {before:120,after:80}),
                 tabelaProdutos,
                 E(),
 
-                PL([B('PRAZO DE ENTREGA: ', SZ), N(txtPrazo, SZ)]),
+                PL([B('2.   PRAZO DE ENTREGA: ', SZ), N(txtPrazo, SZ)]),
                 E(),
-                PL([B('LOCAL E CONDIÇÕES DE ENTREGA: ', SZ), N(txtLocal, SZ)]),
+                PL([B('3.   LOCAL E CONDIÇÕES DE ENTREGA: ', SZ), N(txtLocal, SZ)]),
                 E(),
-                PL([B('CONDIÇÕES DE PAGAMENTO: ', SZ), N(txtPgto, SZ)]),
+                PL([B('4.   CONDIÇÕES DE PAGAMENTO: ', SZ), N(txtPgto, SZ)]),
                 E(),
-                PL([B('VALIDADE DA PROPOSTA COMERCIAL: ', SZ), N(validade + ' (' + (Number(validade)===60?'sessenta':Number(validade)===30?'trinta':validade) + ') dias, a contar da data de sua assinatura.', SZ)]),
+                PL([B('5.   VALIDADE DA PROPOSTA COMERCIAL: ', SZ), N(validade + ' (' + (Number(validade)===60?'sessenta':Number(validade)===30?'trinta':validade) + ') dias, a contar da data de sua assinatura.', SZ)]),
                 E(),
-                PL([B('DADOS DA EMPRESA: ', SZ), N(dadosEmpresa, SZ)]),
+                PL([B('6.   DADOS DA EMPRESA: ', SZ), N(dadosEmpresa, SZ)]),
                 E(),
-                PL([B('GARANTIA: ', SZ), N(txtGarantia, SZ)]),
+                PL([B('7.   GARANTIA: ', SZ), N(txtGarantia, SZ)]),
                 E(),
-                PL([B('IMPOSTOS, CONTRIBUIÇÕES E DESPESAS: ', SZ), N(txtImpostos, SZ)]),
+                PL([B('8.   IMPOSTOS, CONTRIBUIÇÕES E DESPESAS: ', SZ), N(txtImpostos, SZ)]),
                 E(),
-                ...(obs ? [PL([B('OBSERVAÇÕES: ', SZ), N(obs, SZ)]), E()] : []),
+                ...(obs ? [PL([B('9.   OBSERVAÇÕES: ', SZ), N(obs, SZ)]), E()] : []),
 
                 PL([N('Para esclarecimentos adicionais sobre a presente Proposta Comercial, favor contatar:')]),
                 PL([B('Contato: '), N(rep.nomeResponsavel || vendedor.nomeResponsavel || '')]),
