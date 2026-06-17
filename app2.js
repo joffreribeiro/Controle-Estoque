@@ -1407,6 +1407,13 @@ function _cpFmt(v) {
     return Number(v || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 }
 
+// Converte tipo interno (PJ/PF) para rótulo de exibição
+function _tipoClienteLabel(tipo) {
+    if (tipo === 'PJ') return 'Lojista';
+    if (tipo === 'PF') return 'Cons. Final';
+    return tipo || '';
+}
+
 // Formata percentual
 function _cpPct(v) {
     return Number(v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '%';
@@ -1497,7 +1504,7 @@ function renderConsultaPrecificacoes(dados) {
                 html += `<td style="min-width:80px">${statusBadge}</td>`;
                 html += `<td style="min-width:160px;text-align:left">${_escapeHtml(prec.clienteNome || prec.cliente || '')}</td>`;
                 html += `<td style="min-width:50px">${_escapeHtml(prec.clienteUF || prec.uf || '')}</td>`;
-                html += `<td style="min-width:50px">${_escapeHtml(prec.tipoPessoa || '')}</td>`;
+                html += `<td style="min-width:80px">${_escapeHtml(_tipoClienteLabel(prec.tipoPessoa || ''))}</td>`;
                 html += `<td style="min-width:90px"><span class="badge-rep${repClass}">${_escapeHtml(rep)}</span></td>`;
                 html += `<td style="min-width:160px;text-align:left">${_escapeHtml(prod.produto || prod.produtoNome || prod.nome || '')}</td>`;
                 // Descrição do produto (quando disponível)
@@ -16054,7 +16061,7 @@ function renderizarClientes(filtro) {
             : '-';
 
         const tipo = c.tipoPessoa || (((c.cnpj||'').replace(/\D/g,'').length <= 11) ? 'PF' : 'PJ');
-        const tipoBadge = `<span class="badge-tipo-cliente ${tipo.toLowerCase()}">${tipo}</span>`;
+        const tipoBadge = `<span class="badge-tipo-cliente ${tipo.toLowerCase()}">${_tipoClienteLabel(tipo)}</span>`;
 
         const totalCompras = vendas.filter(v =>
             (v.loja || '').toLowerCase() === (c.nome || '').toLowerCase()
@@ -16201,7 +16208,7 @@ function exportarClientesExcel() {
 
             return {
                 'Nome / Razão Social':  c.nome        || '',
-                'Tipo':                 tipo,
+                'Tipo':                 _tipoClienteLabel(tipo),
                 'CNPJ / CPF':           c.cnpj        || '',
                 'Endereço':             c.endereco     || '',
                 'Cidade':               c.cidade       || '',
@@ -17456,7 +17463,7 @@ function _renderizarImpostosBloomb(container) {
                 <span class="imp-legend-cell tax-mid">18–25%</span>
                 <span class="imp-legend-cell tax-high">25–35%</span>
                 <span class="imp-legend-cell tax-very-high">≥ 35%</span>
-                <span class="imp-legend-note">● indica valor editado · alíquota base: ICMS por NCM/UF ${s.tipoPJ==='PF'?'PF':'PJ'} 2025</span>
+                <span class="imp-legend-note">● indica valor editado · alíquota base: ICMS por NCM/UF ${_tipoClienteLabel(s.tipoPJ||'PJ')} 2025</span>
             </div>
         </div>`;
     };
@@ -17525,8 +17532,8 @@ function _renderizarImpostosBloomb(container) {
             </div>
             <div class="imp-bar-div"></div>
             <div class="imp-seg" style="margin-left:0">
-                <button class="imp-seg-btn${s.tipoPJ==='PJ'?' active':''}" onclick="window._impSetTipoPJ('PJ')">PJ</button>
-                <button class="imp-seg-btn${s.tipoPJ==='PF'?' active':''}" onclick="window._impSetTipoPJ('PF')">PF</button>
+                <button class="imp-seg-btn${s.tipoPJ==='PJ'?' active':''}" onclick="window._impSetTipoPJ('PJ')">Lojista</button>
+                <button class="imp-seg-btn${s.tipoPJ==='PF'?' active':''}" onclick="window._impSetTipoPJ('PF')">Cons. Final</button>
             </div>
             <div class="imp-bar-div"></div>
             <span class="imp-region-lbl">REGIÃO:</span>
@@ -18800,7 +18807,7 @@ function renderizarTabelaPrecoVenda() {
             <div class="tv-footbar-item"><strong>PROD</strong> ${prodCount}/${produtos.length}</div>
             <div class="tv-footbar-item"><strong>UF</strong> ${ufCount}/27</div>
             <div class="tv-footbar-item"><strong>CÉL</strong> ${prodCount * ufCount}</div>
-            <div class="tv-footbar-item"><strong>CLI</strong> ${tp === 'PJ' ? 'Lojista' : 'Varejo'}</div>
+            <div class="tv-footbar-item"><strong>CLI</strong> ${_tipoClienteLabel(tp)}</div>
             <div class="tv-footbar-item"><strong>SORT</strong> ${sortLabel}</div>
             ${wiLabel ? `<div class="tv-footbar-item" style="color:var(--tv-amber-400)"><strong>${wiLabel}</strong></div>` : ''}
             <div class="tv-footbar-item sep"></div>
@@ -19034,8 +19041,8 @@ function renderizarTabelaPrecoVenda() {
                 <button class="tv-seg-btn${tvState.viewMode==='mapa'?' active':''}" onclick="window._tvSetView('mapa')">Mapa BR</button>
             </div>
             <div class="tv-seg">
-                <button class="tv-seg-btn${tipoPessoa==='PJ'?' active':''}" onclick="window._tvSetTipo('PJ')">PJ Lojista</button>
-                <button class="tv-seg-btn${tipoPessoa==='PF'?' active':''}" onclick="window._tvSetTipo('PF')">PF Varejo</button>
+                <button class="tv-seg-btn${tipoPessoa==='PJ'?' active':''}" onclick="window._tvSetTipo('PJ')">Lojista</button>
+                <button class="tv-seg-btn${tipoPessoa==='PF'?' active':''}" onclick="window._tvSetTipo('PF')">Consumidor Final</button>
             </div>
             <div class="tv-seg">
                 <button class="tv-seg-btn${tvState.density==='compact'?' active':''}" onclick="window._tvSetDensity('compact')" title="Compacto">▬</button>
@@ -19208,7 +19215,7 @@ function abrirGavetaComponentes(chaveGrupo) {
         <div style="background:#1e3a5f;color:#fff;padding:14px 20px;display:flex;justify-content:space-between;align-items:center;flex-shrink:0">
             <div>
                 <div style="font-weight:700;font-size:1rem">Componentes: ${_escapeHtml(principal.nome)}</div>
-                <div style="font-size:0.78rem;opacity:0.75;margin-top:2px">${componentes.length} componente(s) · ${tipoPessoa === 'PJ' ? 'Lojista (PJ)' : 'Pessoa Física (PF)'}</div>
+                <div style="font-size:0.78rem;opacity:0.75;margin-top:2px">${componentes.length} componente(s) · ${_tipoClienteLabel(tipoPessoa)}</div>
             </div>
             <button onclick="fecharGavetaComponentes()" style="background:none;border:none;color:#fff;font-size:1.4rem;cursor:pointer;line-height:1;padding:4px 8px" title="Fechar">✕</button>
         </div>
@@ -19446,7 +19453,7 @@ function exportarProdutosCI() {
 function exportarTabelaPrecoVenda() {
     const container = document.getElementById('subaba-precif-tabelavenda');
     const tipo = (container && container._tipoPessoa) || 'PJ';
-    const label = tipo === 'PJ' ? 'Lojista' : 'Pessoa Fisica';
+    const label = _tipoClienteLabel(tipo);
     const produtos = (estoque.produtos || []).filter(p => p.nome);
 
     const linhas = [['NCM','Grupo','PN','Nome Fábrica','Componente','Nome','CI (R$)', ...ESTADOS_BR]];
@@ -19732,7 +19739,7 @@ function abrirDetalhePrecoVenda(nomeProduto, uf, tipoPessoa) {
         return;
     }
 
-    const tipoLabel = tipoPessoa === 'PJ' ? 'Lojista (PJ)' : 'Pessoa Física (PF)';
+    const tipoLabel = _tipoClienteLabel(tipoPessoa);
     const fmt = v => 'R$ ' + _fmtMoeda(v);
 
     // Determinar fonte de taxa e ROI para exibir badge informativo
@@ -19983,7 +19990,7 @@ function popularSelectsComparativo() {
         const cur = sel.value;
         sel.innerHTML = '<option value="">— não selecionado —</option>'
             + (clientes||[]).slice().sort((a,b) => (a.nome||'').localeCompare(b.nome||''))
-                .map(c => `<option value="${c.id}" ${String(c.id)===String(cur)?'selected':''}>${_escapeHtml(c.nome||'-')} (${_escapeHtml(c.uf||'??')} / ${(((c.cnpj||'').replace(/\D/g,''))).length===14?'PJ':'PF'})</option>`)
+                .map(c => `<option value="${c.id}" ${String(c.id)===String(cur)?'selected':''}>${_escapeHtml(c.nome||'-')} (${_escapeHtml(c.uf||'??')} / ${_tipoClienteLabel((((c.cnpj||'').replace(/\D/g,''))).length===14?'PJ':'PF')})</option>`)
                 .join('');
     });
     const taxaPadRaw = parseFloat(localStorage.getItem('precif_taxa_global'));
@@ -20053,7 +20060,7 @@ function calcularComparativo() {
               ${clientesData.map((c,i) => `
                 <th colspan="2" class="cmp-th-cliente" style="--cli-cor:${slotCores[i]};border-top:3px solid ${slotCores[i]}">
                   <div class="cmp-th-nome">${_escapeHtml(c.nome||'')}</div>
-                  <div class="cmp-th-meta">${_escapeHtml(c.uf||'')} · ${_escapeHtml(c.tipo||'')} · T${c.taxa}% R${c.roi}%</div>
+                  <div class="cmp-th-meta">${_escapeHtml(c.uf||'')} · ${_escapeHtml(_tipoClienteLabel(c.tipo||''))} · T${c.taxa}% R${c.roi}%</div>
                 </th>
               `).join('')}
               <th class="cmp-th-verdict" style="border-top:3px solid #f87171">&#9650; MAX</th>
@@ -20474,7 +20481,7 @@ function _renderRastrTimeline(container, _dadosPrecif, s, inPeriod, fmt, fmtDate
                 <div class="rastr-client-expand">${aberto?'&#9660;':'&#9654;'}</div>
                 <div class="rastr-client-info">
                     <span class="rastr-client-nome">${_escapeHtml(cliente.nome||'')}</span>
-                    <span class="rastr-client-meta">${_escapeHtml(cliente.uf||'—')} · ${tipo}</span>
+                    <span class="rastr-client-meta">${_escapeHtml(cliente.uf||'—')} · ${_tipoClienteLabel(tipo)}</span>
                 </div>
                 <div class="rastr-client-stats">
                     <span class="rastr-client-count">${eventos.length} eventos</span>
@@ -20580,7 +20587,7 @@ function exportarRastreabilidade() {
                 (precificacoesCliente || []).filter(p => String(p.clienteId) === String(c.id)).forEach(p => rows.push({
                         'Cliente': c.nome,
                         'UF': c.uf || '',
-                        'Tipo': ((c.cnpj || '').replace(/\D/g, '').length === 14 ? 'PJ' : 'PF'),
+                        'Tipo': _tipoClienteLabel((c.cnpj || '').replace(/\D/g, '').length === 14 ? 'PJ' : 'PF'),
                         'Evento': 'Precificação',
                         'Data': new Date(p.dataCriacao).toLocaleDateString('pt-BR'),
                         'Versão/Nº': 'v' + (p.versao || 1),
@@ -20591,7 +20598,7 @@ function exportarRastreabilidade() {
                 (propostas || []).filter(p => p.cliente === c.nome).forEach(p => rows.push({
                         'Cliente': c.nome,
                         'UF': c.uf || '',
-                        'Tipo': ((c.cnpj || '').replace(/\D/g, '').length === 14 ? 'PJ' : 'PF'),
+                        'Tipo': _tipoClienteLabel((c.cnpj || '').replace(/\D/g, '').length === 14 ? 'PJ' : 'PF'),
                         'Evento': 'Proposta',
                         'Data': new Date(p.dataCriacao || p.data || new Date()).toLocaleDateString('pt-BR'),
                         'Versão/Nº': p.numero,
@@ -20602,7 +20609,7 @@ function exportarRastreabilidade() {
                 (estoque.registroVendas || []).filter(v => v.loja === c.nome).forEach(v => rows.push({
                         'Cliente': c.nome,
                         'UF': c.uf || '',
-                        'Tipo': ((c.cnpj || '').replace(/\D/g, '').length === 14 ? 'PJ' : 'PF'),
+                        'Tipo': _tipoClienteLabel((c.cnpj || '').replace(/\D/g, '').length === 14 ? 'PJ' : 'PF'),
                         'Evento': 'Contrato',
                         'Data': new Date(v.data || new Date()).toLocaleDateString('pt-BR'),
                         'Versão/Nº': '#' + (v.contrato || ''),
@@ -20629,7 +20636,7 @@ function popularSelectClientesPrecif() {
             .filter(p => p.cliente === c.nome)
             .sort((a,b) => new Date(b.dataCriacao||0) - new Date(a.dataCriacao||0))[0];
         const badge = ultima ? ` [${String(ultima.status || '').toUpperCase()}]` : '';
-        return `<option value="${c.id}">${_escapeHtml(c.nome||'-')} — ${_escapeHtml(c.uf||'??')} (${tipo})${badge}</option>`;
+        return `<option value="${c.id}">${_escapeHtml(c.nome||'-')} — ${_escapeHtml(c.uf||'??')} (${_tipoClienteLabel(tipo)})${badge}</option>`;
     }).join('');
     select.innerHTML = '<option value="">Selecione um cliente...</option>' + optionsHtml;
     if (valorAtual) select.value = valorAtual;
@@ -20696,7 +20703,7 @@ window._pcRenderizarLista = function() {
         const uf = (c.uf || '').toUpperCase() || '??';
         const ativo = String(c.id) === String(selecionadoId) ? ' active' : '';
         return `<div class="pc-cli-item${ativo}" onclick="window._pcSelecionarCliente('${c.id}')" data-cli-id="${c.id}">
-            <div class="pc-cli-cat ${tipo.toLowerCase()}">${tipo}</div>
+            <div class="pc-cli-cat ${tipo.toLowerCase()}">${_tipoClienteLabel(tipo)}</div>
             <div class="pc-cli-info">
                 <div class="pc-cli-nome">${_escapeHtml(c.nome || '—')}</div>
                 <div class="pc-cli-doc">${_escapeHtml(doc)} · ${_escapeHtml(cidade)}</div>
@@ -20731,7 +20738,7 @@ window._pcSelecionarCliente = function(id) {
 
         const kpiNome = document.getElementById('pcKpiNome'); if (kpiNome) kpiNome.textContent = cliente.nome || '—';
         const kpiDoc  = document.getElementById('pcKpiDoc');  if (kpiDoc)  kpiDoc.textContent  = doc;
-        const kpiUFTipo = document.getElementById('pcKpiUFTipo'); if (kpiUFTipo) kpiUFTipo.textContent = uf + ' / ' + tipo;
+        const kpiUFTipo = document.getElementById('pcKpiUFTipo'); if (kpiUFTipo) kpiUFTipo.textContent = uf + ' / ' + _tipoClienteLabel(tipo);
         const kpiRep = document.getElementById('pcKpiRep'); if (kpiRep) kpiRep.textContent = 'Representante: ' + rep;
 
         // Propostas deste cliente
@@ -21323,7 +21330,7 @@ function aplicarEstadoPrecificacaoSalva(registro) {
         const name = document.getElementById('precifBannerNome'); if (name) name.textContent = cliente?.nome || registro.clienteNome || '—';
         const doc = document.getElementById('precifBannerDoc'); if (doc) doc.textContent = cliente?.cnpj || cliente?.cpf || '—';
         const ufBanner = document.getElementById('precifBannerUF'); if (ufBanner) ufBanner.textContent = registro.clienteUF || registro.uf || cliente?.uf || cliente?.estado || '—';
-        const tipoBanner = document.getElementById('precifBannerTipo'); if (tipoBanner) tipoBanner.textContent = registro.tipoPessoa || cliente?.tipoPessoa || '—';
+        const tipoBanner = document.getElementById('precifBannerTipo'); if (tipoBanner) tipoBanner.textContent = _tipoClienteLabel(registro.tipoPessoa || cliente?.tipoPessoa || '')  || '—';
         const contato = document.getElementById('precifBannerContato'); if (contato) contato.textContent = cliente?.contato || cliente?.email || '—';
         const taxaOverride = document.getElementById('precifTaxaOverride'); if (taxaOverride) taxaOverride.value = registro.taxa ?? '';
         const roiOverride = document.getElementById('precifROIOverride'); if (roiOverride) roiOverride.value = registro.roi ?? '';
@@ -21397,7 +21404,7 @@ function selecionarClientePrecif() {
         const name = document.getElementById('precifBannerNome'); if (name) name.textContent = cliente.nome || '—';
         const doc = document.getElementById('precifBannerDoc'); if (doc) doc.textContent = cliente.cnpj || cliente.cpf || '—';
         const ufB = document.getElementById('precifBannerUF'); if (ufB) ufB.textContent = uf || '—';
-        const tipoB = document.getElementById('precifBannerTipo'); if (tipoB) tipoB.textContent = tipoPessoa;
+        const tipoB = document.getElementById('precifBannerTipo'); if (tipoB) tipoB.textContent = _tipoClienteLabel(tipoPessoa);
         const contato = document.getElementById('precifBannerContato'); if (contato) contato.textContent = cliente.contato || cliente.email || '—';
 
         calcularPrecificacaoPorCliente({ forcarAtual: true });
@@ -21745,7 +21752,7 @@ function calcularPrecificacaoPorCliente(opcoes = {}) {
         </div>
         <div>
             <div style="font-size:0.75rem; color:#64748b; text-transform:uppercase; letter-spacing:0.5px">ICMS aplicado</div>
-            <div style="font-size:1rem; font-weight:700; color:${tipoPessoa==='PF'?'#dc2626':'#16a34a'}">${uf} / ${tipoPessoa}</div>
+            <div style="font-size:1rem; font-weight:700; color:${tipoPessoa==='PF'?'#dc2626':'#16a34a'}">${uf} / ${_tipoClienteLabel(tipoPessoa)}</div>
         </div>
         <div style="margin-left:auto; text-align:right">
             <div style="font-size:0.75rem; color:#64748b; text-transform:uppercase; letter-spacing:0.5px">Total da tabela</div>
@@ -21795,7 +21802,7 @@ function exportarPrecifCliente() {
         if (!cliente) { alert('Selecione um cliente antes de exportar.'); return; }
         const rows = [];
         const cabecalho = ['Produto','RETID','NCM','CI (R$)','Taxa %','ROI %','Valor Base','PIS %','COFINS %','ICMS %','Valor s/ IPI','IPI %','Valor c/ IPI','Comissão R$','Frete (R$)','Quantidade','Valor Final','Valor Total','Margem%'];
-        rows.push([`Cliente: ${cliente.nome}`, `UF: ${cliente.uf || cliente.estado || '—'}`, `Tipo: ${cliente.tipoPessoa || (((cliente.cnpj||'').replace(/\D/g,'')).length===14?'PJ':'PF')}`]);
+        rows.push([`Cliente: ${cliente.nome}`, `UF: ${cliente.uf || cliente.estado || '—'}`, `Tipo: ${_tipoClienteLabel(cliente.tipoPessoa || (((cliente.cnpj||'').replace(/\D/g,'')).length===14?'PJ':'PF'))}`]);
         rows.push([]);
         rows.push(cabecalho);
 
@@ -22823,8 +22830,8 @@ function _renderizarImpostosBloomb(container) {
     <div class="imp-command-bar">
         <input class="imp-search" type="text" placeholder="Buscar NCM..." value="${s.buscaICM||''}" oninput="window._impBuscaICM(this.value)">
         <div class="imp-seg">
-            <button class="imp-seg-btn${s.tipoPJ==='PJ'?' active':''}" onclick="window._impSetTipo('PJ')">PJ</button>
-            <button class="imp-seg-btn${s.tipoPJ==='PF'?' active':''}" onclick="window._impSetTipo('PF')">PF</button>
+            <button class="imp-seg-btn${s.tipoPJ==='PJ'?' active':''}" onclick="window._impSetTipo('PJ')">Lojista</button>
+            <button class="imp-seg-btn${s.tipoPJ==='PF'?' active':''}" onclick="window._impSetTipo('PF')">Cons. Final</button>
         </div>
         <div class="imp-bar-sep"></div>
         <button class="imp-bar-btn" onclick="exportarICMSEstados()">&#8679; EXPORTAR</button>
@@ -22944,7 +22951,7 @@ function _impRenderFootbar(container) {
         ? Object.keys(impostosEditaveis).length
         : (tabela ? Object.keys(tabela).length : 0);
     const busca = s.view === 'federais' ? (s.buscaFed||'') : (s.buscaICM||'');
-    const view = s.view === 'federais' ? 'FEDERAIS' : `ICMS / ${tipo}`;
+    const view = s.view === 'federais' ? 'FEDERAIS' : `ICMS / ${_tipoClienteLabel(tipo)}`;
     fb.innerHTML = `
         <span class="imp-footbar-tag">${view}</span>
         <span>NCMs: ${ncmCount}</span>
@@ -22970,7 +22977,7 @@ function exportarICMSEstados() {
     const tipo = document.getElementById('filtroICMS_Tipo')?.value || 'PJ';
     const tabela = tipo === 'PF' ? icmsEditavelPF : icmsEditavelPJ;
     const rows = Object.entries(tabela).map(([ncm, mapa]) => {
-        const row = { 'NCM': ncm, 'Descrição': impostosEditaveis[ncm]?.descricao || '', 'Tipo': tipo };
+        const row = { 'NCM': ncm, 'Descrição': impostosEditaveis[ncm]?.descricao || '', 'Tipo': _tipoClienteLabel(tipo) };
         ESTADOS_LISTA.forEach(uf => { row[uf] = mapa[uf] ?? ''; });
         return row;
     });
@@ -23035,7 +23042,7 @@ function renderizarTabelaICMS() {
         <tr id="icms_row_${_escapeHtml(rule.id)}">
             <td>${_escapeHtml(rule.ncm || '—')}</td>
             <td>${_escapeHtml(rule.estado)}</td>
-            <td>${_escapeHtml(rule.tipoPessoa)}</td>
+            <td>${_escapeHtml(rule.tipoPessoa === 'PJ' ? 'Lojista' : rule.tipoPessoa === 'PF' ? 'Cons. Final' : rule.tipoPessoa)}</td>
             <td>${_escapeHtml(rule.categoriaProduto)}</td>
             <td>${Number(rule.aliquota || 0).toFixed(2)}%</td>
             <td>
@@ -23067,8 +23074,8 @@ function adicionarRegraICMS() {
                 <td>
                     <select id="nr_tipoPessoa">
                         <option value="Todos">Todos</option>
-                        <option value="PJ">PJ</option>
-                        <option value="PF">PF</option>
+                        <option value="PJ">Lojista</option>
+                        <option value="PF">Cons. Final</option>
                     </select>
                 </td>
                 <td>
@@ -23137,8 +23144,8 @@ function editarRegraICMS(id) {
         <td>
             <select id="er_tipoPessoa_${id}">
                 <option value="Todos" ${rule.tipoPessoa === 'Todos' ? 'selected' : ''}>Todos</option>
-                <option value="PJ" ${rule.tipoPessoa === 'PJ' ? 'selected' : ''}>PJ</option>
-                <option value="PF" ${rule.tipoPessoa === 'PF' ? 'selected' : ''}>PF</option>
+                <option value="PJ" ${rule.tipoPessoa === 'PJ' ? 'selected' : ''}>Lojista</option>
+                <option value="PF" ${rule.tipoPessoa === 'PF' ? 'selected' : ''}>Cons. Final</option>
             </select>
         </td>
         <td><select id="er_categoria_${id}">${opcoesCategoria}</select></td>
@@ -23339,7 +23346,7 @@ function rodarSimulador() {
       ${row('ROI', '× ' + r.roi, '—')}
       ${row('Valor Base (CI × Taxa × ROI)', '—', fmt(r.valorBase), '#1e3a5f', true)}
       ${sep()}
-      ${row('ICMS (' + estado + ' / ' + tipoPessoa + ')', pct(r.icms), fmt(r.icmsR), '#dc2626')}
+      ${row('ICMS (' + estado + ' / ' + _tipoClienteLabel(tipoPessoa) + ')', pct(r.icms), fmt(r.icmsR), '#dc2626')}
       ${row('PIS', pct(r.pis), fmt(r.pisR), '#dc2626')}
       ${row('COFINS', pct(r.cofins), fmt(r.cofinsR), '#dc2626')}
       ${row('Valor c/ ICMS + PIS + COFINS', '—', fmt(r.valorImpostos), '#1e3a5f', true)}

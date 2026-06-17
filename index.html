@@ -478,10 +478,10 @@
                             <option value="FL">FL</option>
                             <option value="IMBEL">IMBEL</option>
                         </select>
-                        <select id="clienteFiltroTipo" class="prod-filter-select" onchange="filtrarClientes()" style="min-width:120px">
-                            <option value="">PF e PJ</option>
-                            <option value="PJ">Somente PJ</option>
-                            <option value="PF">Somente PF</option>
+                        <select id="clienteFiltroTipo" class="prod-filter-select" onchange="filtrarClientes()" style="min-width:140px">
+                            <option value="">Todos os tipos</option>
+                            <option value="PJ">Somente Lojista</option>
+                            <option value="PF">Somente Cons. Final</option>
                         </select>
                         <span class="prod-result-count" id="clienteResultCount"></span>
                         <button class="btn btn-primary" data-admin="true" onclick="abrirModalCliente()">
@@ -1165,8 +1165,8 @@
         </div>
         <div class="cmp-bar-divider"></div>
         <div class="cmp-seg">
-            <button class="cmp-seg-btn active" id="btnCmpPJ" onclick="window._cmpSetTipo('PJ',this)">PJ Lojista</button>
-            <button class="cmp-seg-btn" id="btnCmpPF" onclick="window._cmpSetTipo('PF',this)">PF Varejo</button>
+            <button class="cmp-seg-btn active" id="btnCmpPJ" onclick="window._cmpSetTipo('PJ',this)">Lojista</button>
+            <button class="cmp-seg-btn" id="btnCmpPF" onclick="window._cmpSetTipo('PF',this)">Consumidor Final</button>
         </div>
         <div class="cmp-bar-divider"></div>
         <span class="cmp-bar-label">CLIENTES PARA COMPARAR <span class="cmp-selecao-hint">até 3</span></span>
@@ -3734,20 +3734,20 @@
                                             </div>
 
                                             <div class="form-group" style="flex:1">
-                                                <label>Tipo de Pessoa</label>
+                                                <label>Tipo de Cliente</label>
                                                 <div style="display:flex;gap:0;border:1px solid #e2e8f0;
                                                                         border-radius:6px;overflow:hidden;height:38px">
                                                     <button type="button" id="btnTipoPJ"
                                                                     onclick="selecionarTipoPessoa('PJ')"
                                                                     style="flex:1;border:none;background:#1e3a5f;color:#fff;
                                                                                  font-weight:700;font-size:0.85rem;cursor:pointer">
-                                                        PJ
+                                                        Lojista
                                                     </button>
                                                     <button type="button" id="btnTipoPF"
                                                                     onclick="selecionarTipoPessoa('PF')"
                                                                     style="flex:1;border:none;background:#f1f5f9;color:#64748b;
                                                                                  font-weight:600;font-size:0.85rem;cursor:pointer">
-                                                        PF
+                                                        Cons. Final
                                                     </button>
                                                 </div>
                                                 <input type="hidden" id="clienteTipoPessoa" value="PJ">
@@ -4150,12 +4150,12 @@
                         </select>
                     </div>
                     <div class="form-group" style="margin:0">
-                        <label>Tipo de Pessoa</label>
+                        <label>Tipo de Cliente</label>
                         <select id="simTipoPessoa" onchange="rodarSimulador()"
                                 style="width:100%;padding:8px;border:1px solid #e2e8f0;
                                        border-radius:6px;font-size:0.9rem">
-                            <option value="PJ">Pessoa Jurídica (PJ)</option>
-                            <option value="PF">Pessoa Física (PF)</option>
+                            <option value="PJ">Lojista</option>
+                            <option value="PF">Consumidor Final</option>
                         </select>
                     </div>
                 </div>
