@@ -2072,7 +2072,7 @@ async function gerarDocxProposta() {
                 PL([B('Telefone: '), N('(61) 3415-4584; '), B('E-mail: '), N('nacionalfi.drcom@imbel.gov.br')]),
                 E(),
                 PL([N('Atenciosamente,')], {before:80,after:160}),
-                PL([N('Brasília, ' + dataFormatada)], {before:0,after:160}),
+                PC([N('Brasília, ' + dataFormatada)], {before:0,after:160}),
                 E(), E(),
                 PC([B('GUSTAVO KLEIN DIAS')], {before:0,after:0}),
                 PC([N('Chefe da Divisão de Vendas Mercado Nacional')], {before:0,after:0}),
