@@ -12025,12 +12025,11 @@ async function gerarContratoVenda(vendaId) {
         alignment: align,
         spacing: { before: 80, after: 80, ...sp },
         indent: { left: 0, right: 0, firstLine: 0 },
-        style: 'Normal',
     });
     const P  = (children, sp={}) => _p(children, AlignmentType.JUSTIFIED, sp);
     const PL = (children, sp={}) => _p(children, AlignmentType.LEFT, sp);
     const PC = (children, sp={}) => _p(children, AlignmentType.CENTER, sp);
-    const E  = () => new Paragraph({ children: [N('')], spacing: { before: 40, after: 40 }, indent: { left: 0, right: 0, firstLine: 0 }, style: 'Normal' });
+    const E  = () => new Paragraph({ children: [N('')], spacing: { before: 40, after: 40 }, indent: { left: 0, right: 0, firstLine: 0 } });
 
     const cell = (children, w, opts={}) => new TableCell({
         children: Array.isArray(children) ? children : [PL([N(children||'')])],
@@ -12207,20 +12206,6 @@ async function gerarContratoVenda(vendaId) {
     const objetoItens = itens.map(it => it.produtoNome||it.produto||'').filter(Boolean).join(', ');
 
     const doc = new Document({
-        styles: {
-            default: {
-                document: {
-                    run: { font: 'Calibri', size: 24 },
-                    paragraph: { spacing: { before: 0, after: 0 }, indent: { left: 0, right: 0, firstLine: 0 } }
-                },
-            },
-            paragraphStyles: [{
-                id: 'Normal',
-                name: 'Normal',
-                run: { font: 'Calibri', size: 24 },
-                paragraph: { indent: { left: 0, right: 0, firstLine: 0 }, spacing: { before: 0, after: 0 } },
-            }],
-        },
         sections: [{
             properties: {
                 page: {
