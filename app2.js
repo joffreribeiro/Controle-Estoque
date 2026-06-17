@@ -1922,16 +1922,17 @@ async function gerarDocxProposta() {
         : N('IMBEL', 40, '000000');
 
     // ── Cabeçalho: logo | nome empresa ──
+    const noTableBorder = { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' };
     const tabelaCabecalho = new Table({
         width: { size: TW, type: WidthType.DXA },
         columnWidths: [1134, TW - 1134],
-        borders: { top:{style:BorderStyle.NONE}, bottom:{style:BorderStyle.NONE}, left:{style:BorderStyle.NONE}, right:{style:BorderStyle.NONE}, insideH:{style:BorderStyle.NONE}, insideV:{style:BorderStyle.NONE} },
+        borders: { top: noTableBorder, bottom: noTableBorder, left: noTableBorder, right: noTableBorder, insideH: noTableBorder, insideV: noTableBorder },
         rows: [new TableRow({ children: [
-            new TableCell({ children: [new Paragraph({ children: [logoBlack], spacing:{before:0,after:0} })], borders: noBorder, verticalAlign: VerticalAlign.CENTER, width:{size:1134,type:WidthType.DXA} }),
+            new TableCell({ children: [new Paragraph({ children: [logoBlack], spacing:{before:0,after:0} })], borders: { top: noTableBorder, bottom: noTableBorder, left: noTableBorder, right: noTableBorder }, verticalAlign: VerticalAlign.CENTER, width:{size:1134,type:WidthType.DXA} }),
             new TableCell({ children: [
                 PC([B('INDÚSTRIA DE MATERIAL BÉLICO DO BRASIL', SZS*1.2|0, BLUE)], {before:0,after:20}),
                 PC([It('"Vinculada ao Ministério da Defesa por intermédio do Comando do Exército"', SZS-4, BLUE)], {before:0,after:0}),
-            ], borders: noBorder, verticalAlign: VerticalAlign.CENTER, width:{size:TW-1134,type:WidthType.DXA} }),
+            ], borders: { top: noTableBorder, bottom: noTableBorder, left: noTableBorder, right: noTableBorder }, verticalAlign: VerticalAlign.CENTER, width:{size:TW-1134,type:WidthType.DXA} }),
         ]})]
     });
 
@@ -12454,9 +12455,12 @@ async function gerarContratoVenda(vendaId) {
                     width: { size: TW, type: WidthType.DXA },
                     columnWidths: [1500, TW - 1500],
                     borders: {
-                        top: { style: BorderStyle.NONE }, bottom: { style: BorderStyle.NONE },
-                        left: { style: BorderStyle.NONE }, right: { style: BorderStyle.NONE },
-                        insideH: { style: BorderStyle.NONE }, insideV: { style: BorderStyle.NONE }
+                        top: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
+                        bottom: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
+                        left: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
+                        right: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
+                        insideH: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
+                        insideV: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' }
                     },
                     rows: [new TableRow({ children: [
                         // Coluna logo
@@ -12474,7 +12478,7 @@ async function gerarContratoVenda(vendaId) {
                                 alignment: AlignmentType.LEFT,
                                 spacing: { before: 0, after: 0 }
                             })],
-                            borders: { top: { style: BorderStyle.NONE }, bottom: { style: BorderStyle.NONE }, left: { style: BorderStyle.NONE }, right: { style: BorderStyle.NONE } },
+                            borders: { top: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' }, bottom: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' }, left: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' }, right: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' } },
                             verticalAlign: VerticalAlign.CENTER,
                         }),
                         // Coluna títulos
@@ -12484,7 +12488,7 @@ async function gerarContratoVenda(vendaId) {
                                 PC([B('COMPRA E VENDA DE ARMAMENTO, PEÇAS E ACESSÓRIOS', 24)], { before: 0, after: 20 }),
                                 PC([B('DE PRODUTOS CONTROLADOS E NÃO CONTROLADOS', 24)], { before: 0, after: 0 }),
                             ],
-                            borders: { top: { style: BorderStyle.NONE }, bottom: { style: BorderStyle.NONE }, left: { style: BorderStyle.NONE }, right: { style: BorderStyle.NONE } },
+                            borders: { top: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' }, bottom: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' }, left: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' }, right: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' } },
                             verticalAlign: VerticalAlign.CENTER,
                         }),
                     ]})]
