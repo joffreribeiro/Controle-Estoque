@@ -11967,7 +11967,14 @@ async function gerarContratoVenda(vendaId) {
     const itens      = (venda.items || venda.itens || []);
     if (!itens.length) { mostrarNotificacao('Esta venda não tem itens cadastrados.', 'warning'); return; }
 
-    const dataVenda = venda.data ? new Date(venda.data + 'T12:00:00') : new Date();
+    const _parseDataVenda = (d) => {
+        if (!d) return new Date();
+        // ISO completo: "2026-05-18T12:34:56.789Z"
+        if (d.includes('T') || d.includes('Z')) return new Date(d);
+        // só data: "2026-05-18"
+        return new Date(d + 'T12:00:00');
+    };
+    const dataVenda = _parseDataVenda(venda.data);
     const dataFim   = new Date(dataVenda);
     dataFim.setMonth(dataFim.getMonth() + 6);
 
@@ -11986,23 +11993,32 @@ async function gerarContratoVenda(vendaId) {
     const emailCli    = clienteObj?.email    || '';
     const nomeFantCli = clienteObj?.nomeFantasia || '';
 
+    const docxLib = (typeof docx !== 'undefined' && docx?.Document) ? docx
+                  : (typeof window.docx !== 'undefined' && window.docx?.Document) ? window.docx
+                  : null;
+    if (!docxLib) {
+        console.error('docx global não encontrado. Globals disponíveis:', Object.keys(window).filter(k => k.toLowerCase().includes('doc')));
+        mostrarNotificacao('Biblioteca de geração de documentos não carregada. Abra o console (F12) para detalhes.', 'error');
+        return;
+    }
+
     const {
         Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell,
         AlignmentType, WidthType, BorderStyle, ShadingType, VerticalAlign,
-        Header, Footer, PageNumber, NumberFormat
-    } = docx;
+        Footer, ImageRun
+    } = docxLib;
 
-    const TW = 9360;
-    const SZ = 18; // font size padrão (18 = 9pt)
-    const SZ_H = 20; // headers de tabela
+    const TW = 10692; // largura A4 com margens 680 DXA cada lado (~17.9cm)
+    const SZ = 24;    // 12pt — Calibri padrão do modelo
+    const SZ_H = 24;  // 12pt — headers de tabela
 
     const border   = { style: BorderStyle.SINGLE, size: 4, color: '000000' };
     const borders  = { top: border, bottom: border, left: border, right: border };
     const thinBot  = { top: { style: BorderStyle.NONE }, bottom: border, left: { style: BorderStyle.NONE }, right: { style: BorderStyle.NONE } };
 
-    const B  = (text, sz=SZ) => new TextRun({ text, bold: true, size: sz, font: 'Arial' });
-    const N  = (text, sz=SZ) => new TextRun({ text, size: sz, font: 'Arial' });
-    const It = (text, sz=SZ) => new TextRun({ text, italics: true, size: sz, font: 'Arial' });
+    const B  = (text, sz=SZ) => new TextRun({ text, bold: true, size: sz, font: 'Calibri' });
+    const N  = (text, sz=SZ) => new TextRun({ text, size: sz, font: 'Calibri' });
+    const It = (text, sz=SZ) => new TextRun({ text, italics: true, size: sz, font: 'Calibri' });
 
     const P  = (children, align=AlignmentType.JUSTIFIED, sp={}) =>
         new Paragraph({ children, alignment: align, spacing: { before: 80, after: 80, ...sp } });
@@ -12042,7 +12058,7 @@ async function gerarContratoVenda(vendaId) {
 
     const nomeEmpresaRodape = (venda.loja || 'NOME DA EMPRESA').toUpperCase();
 
-    const footerContent = new Footer({
+    const footerContent = Footer ? new Footer({
         children: [
             new Table({
                 width: { size: TW, type: WidthType.DXA },
@@ -12073,7 +12089,7 @@ async function gerarContratoVenda(vendaId) {
                 ]
             })
         ]
-    });
+    }) : null;
 
     // ── TABELA DE PRODUTOS ──
     const prodRows = itens.map(it => {
@@ -12177,30 +12193,65 @@ async function gerarContratoVenda(vendaId) {
     });
 
     // ── MONTAR DOCUMENTO ──
-    const contratoNum = String(venda.contrato||'XX').replace(/\/\d{4}$/, '');
-    const anoContrato = String(dataVenda.getFullYear());
+    const contratoRaw = String(venda.contrato || 'XX');
+    // Se já tem ano (ex: "526/2026"), usa direto; senão anexa o ano da data
+    const contratoNum = /\/\d{4}$/.test(contratoRaw)
+        ? contratoRaw
+        : contratoRaw + '/' + String(dataVenda.getFullYear());
     const objetoItens = itens.map(it => it.produtoNome||it.produto||'').filter(Boolean).join(', ');
 
     const doc = new Document({
         sections: [{
             properties: {
                 page: {
-                    size: { width: 12240, height: 15840 },
-                    margin: { top: 1080, right: 1080, bottom: 1440, left: 1080 }
+                    size: { width: 11906, height: 16838 }, // A4
+                    margin: { top: 740, right: 680, bottom: 448, left: 680, header: 680, footer: 391 }
                 },
                 pageNumberStart: 1,
             },
-            footers: { default: footerContent },
+            ...(footerContent ? { footers: { default: footerContent } } : {}),
             children: [
-                // ── CABEÇALHO DA PÁGINA 1 ──
-                PC([B('CONTRATO DE VENDA VAREJO', 28)], { before: 0, after: 40 }),
-                PC([B('IMBEL®/ FÁBRICA DE ITAJUBÁ / ' + nomeEmpresaRodape, 24)], { before: 0, after: 40 }),
+                // ── CABEÇALHO: logo flutuante + título centralizado ──
+                // Tabela 2 colunas: logo | títulos
+                new Table({
+                    width: { size: TW, type: WidthType.DXA },
+                    columnWidths: [1500, TW - 1500],
+                    borders: {
+                        top: { style: BorderStyle.NONE }, bottom: { style: BorderStyle.NONE },
+                        left: { style: BorderStyle.NONE }, right: { style: BorderStyle.NONE },
+                        insideH: { style: BorderStyle.NONE }, insideV: { style: BorderStyle.NONE }
+                    },
+                    rows: [new TableRow({ children: [
+                        // Coluna logo
+                        new TableCell({
+                            children: [new Paragraph({
+                                children: [
+                                    ...(ImageRun && typeof IMBEL_LOGO_B64 !== 'undefined' ? [new ImageRun({
+                                        data: Uint8Array.from(atob(IMBEL_LOGO_B64), c => c.charCodeAt(0)),
+                                        transformation: { width: 90, height: 68 },
+                                        type: 'png'
+                                    })] : [N('IMBEL®')])
+                                ],
+                                alignment: AlignmentType.LEFT,
+                                spacing: { before: 0, after: 0 }
+                            })],
+                            borders: { top: { style: BorderStyle.NONE }, bottom: { style: BorderStyle.NONE }, left: { style: BorderStyle.NONE }, right: { style: BorderStyle.NONE } },
+                            verticalAlign: VerticalAlign.CENTER,
+                        }),
+                        // Coluna títulos
+                        new TableCell({
+                            children: [
+                                PC([B('CONTRATO DE VENDA VAREJO', 24)], { before: 0, after: 20 }),
+                                PC([B('COMPRA E VENDA DE ARMAMENTO, PEÇAS E ACESSÓRIOS', 24)], { before: 0, after: 20 }),
+                                PC([B('DE PRODUTOS CONTROLADOS E NÃO CONTROLADOS', 24)], { before: 0, after: 0 }),
+                            ],
+                            borders: { top: { style: BorderStyle.NONE }, bottom: { style: BorderStyle.NONE }, left: { style: BorderStyle.NONE }, right: { style: BorderStyle.NONE } },
+                            verticalAlign: VerticalAlign.CENTER,
+                        }),
+                    ]})]
+                }),
                 E(),
-                PC([B('CONTRATO DE VENDA VAREJO', 22)]),
-                PC([B('COMPRA E VENDA DE ARMAMENTO, PEÇAS E ACESSÓRIOS', 22)]),
-                PC([B('DE PRODUTOS CONTROLADOS E NÃO CONTROLADOS', 22)]),
-                E(),
-                PC([B(`CONTRATO Nº ${contratoNum}/${anoContrato} – FÁBRICA DE ITAJUBÁ/IMBEL®`, 22)], { before: 0, after: 120 }),
+                PC([B(`CONTRATO Nº ${contratoNum} – FÁBRICA DE ITAJUBÁ/IMBEL®`, 24)], { before: 60, after: 120 }),
 
                 PL([B('VENDEDOR: '), N(vendedor.nomeEmpresa || 'INDÚSTRIA DE MATERIAL BÉLICO DO BRASIL – IMBEL – FÁBRICA DE ITAJUBÁ')]),
                 PL([B('COMPRADOR: '), N(venda.loja||'')]),
