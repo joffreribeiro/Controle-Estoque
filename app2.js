@@ -23583,8 +23583,14 @@ function abrirModalProposta(id = null) {
 
     if (Array.isArray(proposta.itens) && proposta.itens.length > 0) {
         proposta.itens.forEach(it => {
-            const preValor = it.valorUnitario ? it.valorUnitario.toLocaleString('pt-BR', { minimumFractionDigits: 2 }) : '';
-            adicionarItemPropostaRow({ produtoId: it.produtoId, quantidade: it.quantidade, valorUnit: preValor });
+            const _vRaw = Number(it.valorUnitario || it.precoFinalCalc || 0);
+            const preValor = _vRaw > 0 ? _vRaw.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '';
+            adicionarItemPropostaRow({
+                produtoId: it.produtoId,
+                produto: it.produto || it.produtoNome || '',
+                quantidade: it.quantidade,
+                valorUnit: preValor
+            });
         });
     } else {
         adicionarItemPropostaRow();
