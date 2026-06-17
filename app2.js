@@ -11562,7 +11562,7 @@ function renderizarRegistroVendas() {
                         <span class="expand-chevron ${expandido ? 'open' : ''}">▶</span>
                         <span class="expand-count">${linhasDoContrato} produtos</span>
                         <span class="expand-preview">${grupo.map(p => p.produtoNome.split(' ').slice(0,2).join(' ')).join(' · ')}</span>
-                        ${!expandido ? `<div class="prod-mais-wrap"><span class="prod-mais-chip">+${linhasDoContrato - 1}</span><div class="prod-mais-tooltip">${grupo.slice(1).map(p => `<div class="prod-mais-row"><span class="prod-mais-nome">${p.produtoNome}</span><span class="prod-mais-qty">× ${p.quantidade}</span></div>`).join('')}</div></div>` : ''}
+                        ${!expandido ? `<span class="prod-mais-wrap"><span class="prod-mais-chip">+${linhasDoContrato - 1}</span><span class="prod-mais-tooltip">${grupo.slice(1).map(p => `<span class="prod-mais-row"><span class="prod-mais-nome">${p.produtoNome}</span><span class="prod-mais-qty">× ${p.quantidade}</span></span>`).join('')}</span></span>` : ''}
                        </button>`
             }</td>
             <td class="col-qtd">${totalQtdContrato}</td>
@@ -11589,11 +11589,7 @@ function renderizarRegistroVendas() {
             // verificar se a venda específica está cancelada
             const vendaObj = estoque.registroVendas.find(v => v.id === linha.vendaId);
             const isLinhaCancelada = vendaObj && vendaObj.cancelado;
-                        const detalheAcoesHtml = isLinhaCancelada
-                                ? '<span class="badge-cancelado">CANCELADO</span>'
-                                : `<button class="btn-action btn-edit" onclick="abrirModalVendaDetalhada(${linha.vendaId})" title="Editar venda">✎</button>` +
-                                    `<button class="btn-action btn-delete" onclick="excluirVenda(${linha.vendaId})" title="Excluir venda">🗑</button>` +
-                                    `<button class="btn-contrato-docx" onclick="gerarContratoVenda('${linha.vendaId || linha.contratoKey}')" title="Gerar contrato .docx">📄 Contrato</button>`;
+            const detalheAcoesHtml = isLinhaCancelada ? '<span class="badge-cancelado">CANCELADO</span>' : '';
 
             tr.innerHTML = `
                 <td class="col-contrato detalhe-vazio"></td>

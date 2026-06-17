@@ -2315,7 +2315,7 @@ tr.total-row:hover {
 .col-valor-un { min-width: 110px; }
 .col-valor-total { min-width: 120px; }
 .col-obs { min-width: 150px; }
-.col-acoes { min-width: 80px; }
+.col-acoes { min-width: 235px; }
 
 .tabela-vendas td.col-loja,
 .tabela-vendas td.col-produto-venda {
@@ -2602,6 +2602,7 @@ tr.total-row:hover {
 }
 .prod-mais-tooltip {
     display: none;
+    flex-direction: column;
     position: absolute;
     bottom: calc(100% + 6px);
     left: 0;
@@ -2634,7 +2635,11 @@ tr.total-row:hover {
 .prod-mais-row:last-child { border-bottom: none; }
 .prod-mais-nome { color: rgba(255,255,255,0.75); }
 .prod-mais-qty  { font-family: monospace; font-weight: 600; }
-.prod-mais-wrap:hover .prod-mais-tooltip { display: block; }
+.prod-mais-wrap:hover .prod-mais-tooltip { display: flex; }
+
+.prod-mais-row {
+    display: flex !important;
+}
 
 /* Ajustes compactos para Registro de Vendas */
 #tabelaRegistroVendas td {
@@ -2651,7 +2656,11 @@ tr.total-row:hover {
     white-space: nowrap;
     display: flex;
     align-items: center;
-    gap: 4px;
+    gap: 3px;
+}
+
+#tabelaRegistroVendas .sub-linha-produto td.col-acoes {
+    display: table-cell;
 }
 
 #tabelaRegistroVendas td.col-acoes .btn-action {
