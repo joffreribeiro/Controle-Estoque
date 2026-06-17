@@ -12005,7 +12005,7 @@ async function gerarContratoVenda(vendaId) {
     const {
         Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell,
         AlignmentType, WidthType, BorderStyle, ShadingType, VerticalAlign,
-        Footer, ImageRun
+        Footer, ImageRun, Tab
     } = docxLib;
 
     const TW = 10692; // largura A4 com margens 680 DXA cada lado (~17.9cm)
@@ -12224,11 +12224,11 @@ async function gerarContratoVenda(vendaId) {
                 E(),
                 PC([B(`CONTRATO Nº ${contratoNum} – FÁBRICA DE ITAJUBÁ/IMBEL®`, 24)], { before: 60, after: 120 }),
 
-                new Paragraph({ children: [B('VENDEDOR: '), N(vendedor.nomeEmpresa || 'INDÚSTRIA DE MATERIAL BÉLICO DO BRASIL – IMBEL – FÁBRICA DE ITAJUBÁ')], alignment: AlignmentType.LEFT, spacing: { before: 80, after: 80 }, indent: { left: 567 } }),
-                new Paragraph({ children: [B('COMPRADOR: '), N(venda.loja||'')], alignment: AlignmentType.LEFT, spacing: { before: 80, after: 80 }, indent: { left: 567 } }),
-                new Paragraph({ children: [B('REPRESENTANTE COMERCIAL AUTORIZADO: '), N(rep.razaoSocial || venda.representante || '')], alignment: AlignmentType.LEFT, spacing: { before: 80, after: 80 }, indent: { left: 567 } }),
-                new Paragraph({ children: [B('OBJETO: '), N('Compra e venda de armamento, peças e acessórios do portfólio da Fábrica de Itajubá da IMBEL® (FI/IMBEL®), em especial: ' + objetoItens + '.')], alignment: AlignmentType.LEFT, spacing: { before: 80, after: 80 }, indent: { left: 567 } }),
-                new Paragraph({ children: [B('VIGÊNCIA DO CONTRATO: '), N(fmtDate(dataVenda) + ' a ' + fmtDate(dataFim) + '.')], alignment: AlignmentType.LEFT, spacing: { before: 80, after: 80 }, indent: { left: 567 } }),
+                new Paragraph({ children: [B('VENDEDOR: '), N(vendedor.nomeEmpresa || 'INDÚSTRIA DE MATERIAL BÉLICO DO BRASIL – IMBEL – FÁBRICA DE ITAJUBÁ')], alignment: AlignmentType.LEFT, spacing: { before: 80, after: 80 }, indent: { left: 567, hanging: 1 } }),
+                new Paragraph({ children: [B('COMPRADOR: '), N(venda.loja||'')], alignment: AlignmentType.LEFT, spacing: { before: 80, after: 80 }, indent: { left: 567, hanging: 1 } }),
+                new Paragraph({ children: [B('REPRESENTANTE COMERCIAL AUTORIZADO: '), N(rep.razaoSocial || venda.representante || '')], alignment: AlignmentType.LEFT, spacing: { before: 80, after: 80 }, indent: { left: 567, hanging: 1 } }),
+                new Paragraph({ children: [B('OBJETO: '), N('Compra e venda de armamento, peças e acessórios do portfólio da Fábrica de Itajubá da IMBEL® (FI/IMBEL®), em especial: ' + objetoItens + '.')], alignment: AlignmentType.LEFT, spacing: { before: 80, after: 80 }, indent: { left: 567, hanging: 1 } }),
+                new Paragraph({ children: [B('VIGÊNCIA DO CONTRATO: '), N(fmtDate(dataVenda) + ' a ' + fmtDate(dataFim) + '.')], alignment: AlignmentType.LEFT, spacing: { before: 80, after: 80 }, indent: { left: 567, hanging: 1 } }),
                 E(),
                 PC([B('PREÂMBULO', 22)], { before: 120, after: 120 }),
 
@@ -12413,11 +12413,6 @@ async function gerarContratoVenda(vendaId) {
     });
 
     try {
-        // DEBUG: inspecionar XML do parágrafo VENDEDOR
-        try {
-            const _pVend = new Paragraph({ children: [B('VENDEDOR: ')], alignment: AlignmentType.LEFT, spacing: { before: 80, after: 80 }, indent: { left: 567 } });
-            console.log('Paragraph root:', JSON.stringify(_pVend.root?.map?.(x => x?.constructor?.name + ':' + JSON.stringify(x?.root))));
-        } catch(_e) { console.log('debug err', _e); }
         mostrarNotificacao('Gerando contrato...', 'info');
         const buffer = await Packer.toBlob(doc);
         const url = URL.createObjectURL(buffer);
