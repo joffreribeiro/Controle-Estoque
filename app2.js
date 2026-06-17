@@ -12058,6 +12058,19 @@ async function gerarContratoVenda(vendaId) {
 
     const nomeEmpresaRodape = (venda.loja || 'NOME DA EMPRESA').toUpperCase();
 
+    const footerContent = new Footer({
+        children: [
+            new Paragraph({
+                alignment: AlignmentType.JUSTIFIED,
+                spacing: { before: 0, after: 60 },
+                border: { top: { style: BorderStyle.SINGLE, size: 4, color: '000000' } },
+                children: [new TextRun({ text: 'Nota: Informações privilegiadas, protegidas por lei, podem estar contidas neste documento. O acesso a este documento por qualquer pessoa, que não seja a pretendida, não está autorizado. Se o (a) senhor (a) não for o destinatário (a) pretendido (a), não pode usar, copiar, distribuir ou repassá-lo a qualquer pessoa, ou qualquer parte do seu conteúdo nem praticar qualquer ato baseado nele.', size: 18, font: 'Calibri' })],
+            }),
+            new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 0, after: 0 }, children: [new TextRun({ text: 'Contrato de Venda Varejo', size: 18, font: 'Calibri' })] }),
+            new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 0, after: 0 }, children: [new TextRun({ text: 'IMBEL® / FÁBRICA DE ITAJUBÁ / ' + nomeEmpresaRodape, size: 18, font: 'Calibri' })] }),
+        ]
+    });
+
     const headerContent = new Header({
         children: [new Paragraph({
             alignment: AlignmentType.RIGHT,
@@ -12190,6 +12203,7 @@ async function gerarContratoVenda(vendaId) {
                 pageNumberStart: 1,
             },
             headers: { default: headerContent },
+            footers: { default: footerContent },
             children: [
                 // ── CABEÇALHO: logo flutuante + título centralizado ──
                 // Tabela 2 colunas: logo | títulos
