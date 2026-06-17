@@ -12231,11 +12231,7 @@ async function gerarContratoVenda(vendaId) {
                         new TableCell({
                             children: [new Paragraph({
                                 children: [
-                                    ...(ImageRun && typeof IMBEL_LOGO_B64 !== 'undefined' ? [new ImageRun({
-                                        data: Uint8Array.from(atob(IMBEL_LOGO_B64), c => c.charCodeAt(0)),
-                                        transformation: { width: 90, height: 68 },
-                                        type: 'png'
-                                    })] : [N('IMBEL®')])
+                                    ...[N('IMBEL®', SZ)]
                                 ],
                                 alignment: AlignmentType.LEFT,
                                 spacing: { before: 0, after: 0 }
