@@ -12065,34 +12065,9 @@ async function gerarContratoVenda(vendaId) {
 
     const footerContent = Footer ? new Footer({
         children: [
-            new Table({
-                width: { size: TW, type: WidthType.DXA },
-                borders: { top: border, bottom: { style: BorderStyle.NONE }, left: { style: BorderStyle.NONE }, right: { style: BorderStyle.NONE }, insideH: { style: BorderStyle.NONE }, insideV: { style: BorderStyle.NONE } },
-                rows: [
-                    new TableRow({ children: [
-                        new TableCell({
-                            children: [new Paragraph({ children: [N(notaTexto, 14)], alignment: AlignmentType.JUSTIFIED })],
-                            width: { size: TW, type: WidthType.DXA },
-                            borders: { top: border, bottom: { style: BorderStyle.NONE }, left: { style: BorderStyle.NONE }, right: { style: BorderStyle.NONE } },
-                            margins: { top: 80, bottom: 40, left: 0, right: 0 },
-                        })
-                    ]}),
-                    new TableRow({ children: [
-                        new TableCell({
-                            children: [PC([N('Contrato de Venda Varejo', 14)])],
-                            width: { size: TW, type: WidthType.DXA },
-                            borders: { top: { style: BorderStyle.NONE }, bottom: { style: BorderStyle.NONE }, left: { style: BorderStyle.NONE }, right: { style: BorderStyle.NONE } },
-                        })
-                    ]}),
-                    new TableRow({ children: [
-                        new TableCell({
-                            children: [PC([N(`IMBEL® / FÁBRICA DE ITAJUBÁ / ${nomeEmpresaRodape}`, 14)])],
-                            width: { size: TW, type: WidthType.DXA },
-                            borders: { top: { style: BorderStyle.NONE }, bottom: { style: BorderStyle.NONE }, left: { style: BorderStyle.NONE }, right: { style: BorderStyle.NONE } },
-                        })
-                    ]}),
-                ]
-            })
+            new Paragraph({ children: [new TextRun({ text: notaTexto, size: 14, font: 'Calibri' })], alignment: AlignmentType.JUSTIFIED, indent: { left: 0, right: 0 } }),
+            new Paragraph({ children: [new TextRun({ text: 'Contrato de Venda Varejo', size: 14, font: 'Calibri' })], alignment: AlignmentType.CENTER, indent: { left: 0, right: 0 } }),
+            new Paragraph({ children: [new TextRun({ text: `IMBEL® / FÁBRICA DE ITAJUBÁ / ${nomeEmpresaRodape}`, size: 14, font: 'Calibri' })], alignment: AlignmentType.CENTER, indent: { left: 0, right: 0 } }),
         ]
     }) : null;
 
