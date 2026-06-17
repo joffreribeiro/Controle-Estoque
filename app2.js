@@ -12020,16 +12020,11 @@ async function gerarContratoVenda(vendaId) {
     const N  = (text, sz=SZ) => new TextRun({ text, size: sz, font: 'Calibri' });
     const It = (text, sz=SZ) => new TextRun({ text, italics: true, size: sz, font: 'Calibri' });
 
-    const _p = (children, align, sp={}) => new Paragraph({
-        children,
-        alignment: align,
-        spacing: { before: 80, after: 80, ...sp },
-        indent: { left: 0, right: 0, firstLine: 0 },
-    });
-    const P  = (children, sp={}) => _p(children, AlignmentType.JUSTIFIED, sp);
-    const PL = (children, sp={}) => _p(children, AlignmentType.LEFT, sp);
-    const PC = (children, sp={}) => _p(children, AlignmentType.CENTER, sp);
-    const E  = () => new Paragraph({ children: [N('')], spacing: { before: 40, after: 40 }, indent: { left: 0, right: 0, firstLine: 0 } });
+    const P  = (children, align=AlignmentType.JUSTIFIED, sp={}) =>
+        new Paragraph({ children, alignment: align, spacing: { before: 80, after: 80, ...sp } });
+    const PL = (children, sp={}) => P(children, AlignmentType.LEFT, sp);
+    const PC = (children, sp={}) => P(children, AlignmentType.CENTER, sp);
+    const E  = () => new Paragraph({ children: [N('')], spacing: { before: 40, after: 40 } });
 
     const cell = (children, w, opts={}) => new TableCell({
         children: Array.isArray(children) ? children : [PL([N(children||'')])],
