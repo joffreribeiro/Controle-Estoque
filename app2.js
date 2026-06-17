@@ -12063,13 +12063,7 @@ async function gerarContratoVenda(vendaId) {
 
     const nomeEmpresaRodape = (venda.loja || 'NOME DA EMPRESA').toUpperCase();
 
-    const footerContent = Footer ? new Footer({
-        children: [
-            new Paragraph({ children: [new TextRun({ text: notaTexto, size: 14, font: 'Calibri' })], alignment: AlignmentType.JUSTIFIED, indent: { left: 0, right: 0 } }),
-            new Paragraph({ children: [new TextRun({ text: 'Contrato de Venda Varejo', size: 14, font: 'Calibri' })], alignment: AlignmentType.CENTER, indent: { left: 0, right: 0 } }),
-            new Paragraph({ children: [new TextRun({ text: `IMBEL® / FÁBRICA DE ITAJUBÁ / ${nomeEmpresaRodape}`, size: 14, font: 'Calibri' })], alignment: AlignmentType.CENTER, indent: { left: 0, right: 0 } }),
-        ]
-    }) : null;
+    const footerContent = null;
 
     // ── TABELA DE PRODUTOS ──
     const prodRows = itens.map(it => {
