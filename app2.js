@@ -12020,9 +12020,9 @@ async function gerarContratoVenda(vendaId) {
     const N  = (text, sz=SZ) => new TextRun({ text, size: sz, font: 'Calibri' });
     const It = (text, sz=SZ) => new TextRun({ text, italics: true, size: sz, font: 'Calibri' });
 
-    const P  = (children, align=AlignmentType.JUSTIFIED, sp={}) =>
-        new Paragraph({ children, alignment: align, spacing: { before: 80, after: 80, ...sp } });
-    const PL = (children, sp={}) => P(children, AlignmentType.LEFT, sp);
+    const P  = (children, align=AlignmentType.JUSTIFIED, sp={}, ind={}) =>
+        new Paragraph({ children, alignment: align, spacing: { before: 80, after: 80, ...sp }, ...(Object.keys(ind).length ? { indent: ind } : {}) });
+    const PL = (children, sp={}, ind={}) => P(children, AlignmentType.LEFT, sp, ind);
     const PC = (children, sp={}) => P(children, AlignmentType.CENTER, sp);
     const E  = () => new Paragraph({ children: [N('')], spacing: { before: 40, after: 40 } });
 
@@ -12224,11 +12224,11 @@ async function gerarContratoVenda(vendaId) {
                 E(),
                 PC([B(`CONTRATO Nº ${contratoNum} – FÁBRICA DE ITAJUBÁ/IMBEL®`, 24)], { before: 60, after: 120 }),
 
-                PL([B('VENDEDOR: '), N(vendedor.nomeEmpresa || 'INDÚSTRIA DE MATERIAL BÉLICO DO BRASIL – IMBEL – FÁBRICA DE ITAJUBÁ')]),
-                PL([B('COMPRADOR: '), N(venda.loja||'')]),
-                PL([B('REPRESENTANTE COMERCIAL AUTORIZADO: '), N(rep.razaoSocial || venda.representante || '')]),
-                PL([B('OBJETO: '), N('Compra e venda de armamento, peças e acessórios do portfólio da Fábrica de Itajubá da IMBEL® (FI/IMBEL®), em especial: ' + objetoItens + '.')]),
-                PL([B('VIGÊNCIA DO CONTRATO: '), N(fmtDate(dataVenda) + ' a ' + fmtDate(dataFim) + '.')]),
+                PL([B('VENDEDOR: '), N(vendedor.nomeEmpresa || 'INDÚSTRIA DE MATERIAL BÉLICO DO BRASIL – IMBEL – FÁBRICA DE ITAJUBÁ')], {}, { left: 360 }),
+                PL([B('COMPRADOR: '), N(venda.loja||'')], {}, { left: 360 }),
+                PL([B('REPRESENTANTE COMERCIAL AUTORIZADO: '), N(rep.razaoSocial || venda.representante || '')], {}, { left: 360 }),
+                PL([B('OBJETO: '), N('Compra e venda de armamento, peças e acessórios do portfólio da Fábrica de Itajubá da IMBEL® (FI/IMBEL®), em especial: ' + objetoItens + '.')], {}, { left: 360 }),
+                PL([B('VIGÊNCIA DO CONTRATO: '), N(fmtDate(dataVenda) + ' a ' + fmtDate(dataFim) + '.')], {}, { left: 360 }),
                 E(),
                 PC([B('PREÂMBULO', 22)], { before: 120, after: 120 }),
 
