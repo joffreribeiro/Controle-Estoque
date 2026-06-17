@@ -1914,7 +1914,7 @@ async function gerarDocxProposta() {
         new Paragraph({ children, alignment: align, spacing: { before: 0, after: 0 } });
     const cell  = (children, w, opts={}) => new TableCell({ children: Array.isArray(children)?children:[PT([N(children||'')])], width:{size:w,type:WidthType.DXA}, borders, margins:{top:30,bottom:30,left:100,right:100}, ...opts });
     const cellC = (children, w, opts={}) => new TableCell({ children: Array.isArray(children)?children:[PT([N(children||'')],AlignmentType.CENTER)], width:{size:w,type:WidthType.DXA}, borders, margins:{top:30,bottom:30,left:100,right:100}, ...opts });
-    const hCell = (t, w) => new TableCell({ children:[PT([B(t,SZS,'FFFFFF')],AlignmentType.CENTER)], width:{size:w,type:WidthType.DXA}, borders, shading:{fill:'000000',type:ShadingType.CLEAR}, margins:{top:30,bottom:30,left:100,right:100} });
+    const hCell = (t, w) => new TableCell({ children:[PT([B(t,SZS)],AlignmentType.CENTER)], width:{size:w,type:WidthType.DXA}, borders, margins:{top:30,bottom:30,left:100,right:100} });
 
     // ── Logo preta ──
     const logoBlack = (typeof IMBEL_LOGO_BLACK_B64 !== 'undefined')
@@ -1938,9 +1938,8 @@ async function gerarDocxProposta() {
     // ── Tabela de produtos ──
     const [cItem, cDesc, cQtd, cUnit, cTot] = [700, TW-4692, 700, 1996, 1996];
     const hCellRS = (t, w) => new TableCell({
-        children: [PT([B(t, SZS, 'FFFFFF')], AlignmentType.CENTER)],
+        children: [PT([B(t, SZS)], AlignmentType.CENTER)],
         width: { size: w, type: WidthType.DXA }, borders,
-        shading: { fill: '000000', type: ShadingType.CLEAR },
         margins: { top: 30, bottom: 30, left: 100, right: 100 },
         rowSpan: 2, verticalAlign: VerticalAlign.CENTER,
     });
@@ -1963,9 +1962,8 @@ async function gerarDocxProposta() {
                 hCellRS('DESCRIÇÃO', cDesc),
                 hCellRS('QTD', cQtd),
                 new TableCell({
-                    children: [PT([B('PREÇO (EM R$)', SZS, 'FFFFFF')], AlignmentType.CENTER)],
+                    children: [PT([B('PREÇO (EM R$)', SZS)], AlignmentType.CENTER)],
                     width: { size: cUnit + cTot, type: WidthType.DXA }, borders,
-                    shading: { fill: '000000', type: ShadingType.CLEAR },
                     margins: { top: 30, bottom: 30, left: 100, right: 100 },
                     columnSpan: 2, verticalAlign: VerticalAlign.CENTER,
                 }),
@@ -1983,7 +1981,7 @@ async function gerarDocxProposta() {
     const cidadeVend = vendedor.cidade || 'Itajubá';
     const dataFormatada = fmtDate(dataDoc);
     const anoAtual = dataDoc.getFullYear();
-    const numProposta = numero ? numero + '/' + anoAtual : '___/' + anoAtual;
+    const numProposta = numero || ('___/' + anoAtual);
 
     // ── Texto fixo ──
     const txtPrazo = 'Até 180 (cento e oitenta) dias, contados a partir do recebimento pela contratada da via do contrato assinada pelas duas partes, do recebimento do empenho ou comprovante de pagamento da Guia de Recolhimento à União (GRU), e da autorização de aquisição da Diretoria de Fiscalização de Produtos Controlados, DFPC, o que ocorrer por último.';
@@ -2056,14 +2054,13 @@ async function gerarDocxProposta() {
                 ...(obs ? [PL([B('9.   OBSERVAÇÕES: ', SZ), N(obs, SZ)]), E()] : []),
 
                 PL([N('Para esclarecimentos adicionais sobre a presente Proposta Comercial, favor contatar:')]),
-                PL([B('Contato: '), N(rep.nomeResponsavel || vendedor.nomeResponsavel || '')]),
-                PL([B('Telefone: '), N(rep.telefone || '')]),
-                PL([B('E-mail: '), N(rep.email || '')]),
+                PL([B('Contato: '), N('Joffre Mozart Parada Ribeiro')]),
+                PL([B('Telefone: '), N('(61) 3415-4584; '), B('E-mail: '), N('nacionalfi.drcom@imbel.gov.br')]),
                 E(),
                 PL([N('Atenciosamente,')], {before:80,after:0}),
-                PL([N(cidadeVend + ', ' + dataFormatada)], {before:0,after:160}),
-                E(),
-                PC([B((vendedor.nomeResponsavel || '').toUpperCase())], {before:0,after:0}),
+                PL([N('Brasília, ' + dataFormatada)], {before:0,after:160}),
+                E(), E(),
+                PC([B('GUSTAVO KLEIN DIAS')], {before:0,after:0}),
                 PC([N('Chefe da Divisão de Vendas Mercado Nacional')], {before:0,after:0}),
             ]
         }]
@@ -23489,12 +23486,13 @@ function imprimirPrecificacao() {
 // ========================================
 
 function gerarNumeroProposta() {
+    const anoAtual = new Date().getFullYear();
     const existentes = propostas.map(p => {
-        const m = (p.numero || '').match(/P-(\d+)/);
+        const m = (p.numero || '').match(/^(\d+)\/\d{4}$/);
         return m ? parseInt(m[1]) : 0;
     });
     const proximo = existentes.length ? Math.max(...existentes) + 1 : 1;
-    return 'P-' + String(proximo).padStart(3, '0');
+    return String(proximo).padStart(3, '0') + '/' + anoAtual;
 }
 
 function abrirModalProposta(id = null) {
