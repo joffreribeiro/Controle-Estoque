@@ -728,20 +728,21 @@
 
     <!-- ── Hero search ── -->
     <div class="cq-hero">
-        <div class="cq-search-wrap">
-            <svg class="cq-search-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="6.5" cy="6.5" r="4.5"/><path d="M10 10l3 3"/></svg>
-            <select id="fcp-cliente" class="cq-hero-input" onchange="filtrarConsultaPrecificacoes(1)" title="Filtrar por cliente">
-                <option value="">Todos os clientes…</option>
-            </select>
-        </div>
-        <div class="cq-hero-tags">
-            <span class="cq-hero-tag-lbl">FILTROS:</span>
+        <div class="cq-hero-tags" style="flex-wrap:wrap;gap:6px;align-items:center">
+            <!-- Linha 1: visão + cliente + rep + status -->
             <div class="cq-seg" id="consultaPrecModo">
-                <button id="btnConsultaModoPrecif" class="cq-seg-btn active" onclick="alternarModoConsultaPrec('precificacao')">POR PRECIFICAÇÃO</button>
-                <button id="btnConsultaModoProduto" class="cq-seg-btn" onclick="alternarModoConsultaPrec('produto')">POR PRODUTO</button>
+                <button id="btnConsultaModoPrecif" class="cq-seg-btn active" onclick="alternarModoConsultaPrec('precificacao')">Por Precificação</button>
+                <button id="btnConsultaModoProduto" class="cq-seg-btn" onclick="alternarModoConsultaPrec('produto')">Por Produto</button>
+            </div>
+            <div class="cq-bar-sep"></div>
+            <div style="display:flex;align-items:center;gap:4px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:0 8px;height:34px">
+                <svg viewBox="0 0 16 16" fill="none" stroke="#94a3b8" stroke-width="1.8" width="13" height="13"><circle cx="6.5" cy="6.5" r="4.5"/><path d="M10 10l3 3"/></svg>
+                <select id="fcp-cliente" style="border:none;background:transparent;font-size:0.83rem;color:#334155;outline:none;min-width:130px;cursor:pointer" onchange="filtrarConsultaPrecificacoes(1)" title="Filtrar por cliente">
+                    <option value="">Todos os clientes</option>
+                </select>
             </div>
             <select id="fcp-rep" class="cq-select sm">
-                <option value="">Todos os representantes</option>
+                <option value="">Todos os rep.</option>
                 <option value="KOLTE">KOLTE</option>
                 <option value="ISA">ISA</option>
                 <option value="LC">LC</option>
@@ -751,8 +752,8 @@
             </select>
             <select id="fcp-status" class="cq-select sm">
                 <option value="">Todos os status</option>
-                <option value="ativa">&#10003; Ativa</option>
-                <option value="expirada">&#10007; Expirada</option>
+                <option value="ativa">✓ Ativa</option>
+                <option value="expirada">✗ Expirada</option>
             </select>
             <div class="cq-date-range">
                 <input type="date" id="fcp-de" class="cq-date-input" title="Data inicial">
@@ -762,8 +763,8 @@
             <button class="cq-btn primary" onclick="filtrarConsultaPrecificacoes()">FILTRAR</button>
             <button class="cq-btn" onclick="limparFiltrosConsultaPrec()">LIMPAR</button>
             <div class="cq-bar-sep"></div>
-            <button class="cq-btn" onclick="exportarPrecificacoesExcel()">&#8679; EXCEL</button>
-            <button class="cq-btn" onclick="window.print()">&#9113; IMPRIMIR</button>
+            <button class="cq-btn" onclick="exportarPrecificacoesExcel()">↑ EXCEL</button>
+            <button class="cq-btn" onclick="window.print()">⎙ IMPRIMIR</button>
         </div>
     </div>
 
@@ -1642,7 +1643,7 @@
                     </select>
                     <button class="btn btn-outline btn-sm" onclick="expandirTodosContratos()">▾ Expandir</button>
                     <button class="btn btn-outline btn-sm" onclick="colapsarTodosContratos()">▸ Colapsar</button>
-                    <button class="btn btn-outline btn-sm" onclick="limparFiltrosVendas()">🔄</button>
+                    <button class="btn btn-outline btn-sm" onclick="limparFiltrosVendas()" title="Limpar todos os filtros" style="color:#dc2626;border-color:#fca5a5">✕ Limpar</button>
                     <button class="btn btn-outline btn-sm" onclick="abrirModalCancelamentos()" title="Ver contratos cancelados">⛔ Cancelamentos</button>
                     <button class="btn btn-outline btn-sm" data-admin="true" onclick="exportarRelatorioRepresentante(document.getElementById('filtroRepresentante')?.value || '')" title="Exportar relatório de estoque por representante">📊 Exportar</button>
                     <span id="vendasContador" class="prod-result-count"></span>
