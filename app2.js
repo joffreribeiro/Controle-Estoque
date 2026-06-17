@@ -2009,8 +2009,8 @@ async function gerarDocxProposta() {
                         type: 'jpg',
                         floating: {
                             behindDocument: true,
-                            horizontalPosition: { relative: 'column', offset: -1111250 },
-                            verticalPosition: { relative: 'paragraph', offset: -450215 },
+                            horizontalPosition: { relative: 'page', offset: 1647746 },
+                            verticalPosition: { relative: 'page', offset: 5011034 },
                             wrap: { type: 'none' },
                             allowOverlap: true,
                             zIndex: 4,
@@ -2047,7 +2047,7 @@ async function gerarDocxProposta() {
                 P([N('Obrigado por considerar a compra dos produtos e serviços IMBEL. Para nós é uma honra poder assessorá-lo e, eventualmente, ter sua Instituição Pública como cliente. Nossos produtos são reconhecidos pela durabilidade e qualidade demandadas e testadas pelas Forças Armadas do Brasil e diversas Instituições de Segurança.')]),
                 P([N('Segue abaixo a Proposta Comercial solicitada. Verifique se as informações abaixo atendem suas necessidades e nos acessem sempre que necessário. Estamos à sua disposição para eventuais esclarecimentos ou adequações.')]),
 
-                PL([B('1.   PRODUTOS IMBEL :', SZ)], {before:120,after:80}),
+                PL([B('1.   PRODUTOS IMBEL:', SZ)], {before:120,after:80}),
                 tabelaProdutos,
                 E(),
 
@@ -2071,8 +2071,8 @@ async function gerarDocxProposta() {
                 PL([B('Contato: '), N('Joffre Mozart Parada Ribeiro')]),
                 PL([B('Telefone: '), N('(61) 3415-4584; '), B('E-mail: '), N('nacionalfi.drcom@imbel.gov.br')]),
                 E(),
-                PL([N('Atenciosamente,')], {before:80,after:0}),
-                PL([N('Brasília, ' + dataFormatada)], {before:0,after:160}),
+                PC([N('Atenciosamente,')], {before:80,after:160}),
+                PC([N('Brasília, ' + dataFormatada)], {before:0,after:160}),
                 E(), E(),
                 PC([B('GUSTAVO KLEIN DIAS')], {before:0,after:0}),
                 PC([N('Chefe da Divisão de Vendas Mercado Nacional')], {before:0,after:0}),
