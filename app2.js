@@ -1545,7 +1545,19 @@ function renderConsultaPrecificacoes(dados) {
                 html += `<td style="min-width:80px;text-align:right">${_cpPct(prod.margem)}</td>`;
                 html += `<td style="min-width:160px">${_escapeHtml(beneficios || '')}</td>`;
                 html += `<td style="min-width:110px;position:sticky;right:0">`;
-                html += `<button class="btn-action btn-edit" onclick="gerarPropostaDePrecificacao('${prec.id}', ${idxProd})">📋 Proposta</button>`;
+                const _propVinc = prec.propostaId ? (propostas || []).find(p => p.id === prec.propostaId) : null;
+                const _stIcone = { rascunho:'✏️', enviada:'📤', aceita:'✅', recusada:'❌', expirada:'⏳', aguardando_aprovacao:'🔄' };
+                if (_propVinc) {
+                    const _ic = _stIcone[_propVinc.status] || '📄';
+                    const _stLbl = (_propVinc.status || '').charAt(0).toUpperCase() + (_propVinc.status || '').slice(1);
+                    html += `<div style="display:flex;flex-direction:column;align-items:center;gap:3px;min-width:100px">
+                        <span style="font-size:0.72rem;color:#0ea5e9;font-weight:700">${_escapeHtml(_propVinc.numero || '')}</span>
+                        <span style="font-size:0.65rem;color:#64748b">${_ic} ${_stLbl}</span>
+                        <button onclick="irParaProposta('${_propVinc.id}')" style="font-size:0.7rem;padding:2px 8px;background:#f0f9ff;border:1px solid #0ea5e9;color:#0ea5e9;border-radius:4px;cursor:pointer">Ver →</button>
+                    </div>`;
+                } else {
+                    html += `<button class="btn-action btn-edit" onclick="gerarPropostaDePrecificacao('${prec.id}', ${idxProd})">📋 Proposta</button>`;
+                }
                 html += `<button class="btn-action btn-delete" onclick="excluirPrecificacao('${prec.id}')">🗑</button>`;
                 html += `</td>`;
                 html += `</tr>`;
@@ -24117,7 +24129,7 @@ function renderizarPropostas(filtro, statusFiltro) {
         const qtdDisplay = primeiroItem ? (primeiroItem.quantidade || 0) : '-';
         const unitDisplay = primeiroItem ? formatarMoedaValor(Number(primeiroItem.valorUnitario || primeiroItem.precoFinalCalc || 0)) : '-';
 
-        return `<tr>
+        return `<tr data-proposta-id="${p.id}">
             <td><span style="background:#0ea5e9; color:#fff; padding:2px 10px; border-radius:12px; font-size:0.82rem; font-weight:600;">${_escapeHtml(String(p.numero || ''))}</span></td>
             <td style="text-align:left">${_escapeHtml(p.cliente || '-')}</td>
             <td><span class="badge-rep ${repClass}">${_escapeHtml(p.representante || '-')}</span></td>
@@ -24131,19 +24143,9 @@ function renderizarPropostas(filtro, statusFiltro) {
             <td style="font-weight:600">${_escapeHtml(String(contratoDisplay))}</td>
             <td style="font-size:0.78rem;color:#dc2626;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${motivoRecusaEsc}">${p.status === 'recusada' && p.motivoRecusa ? motivoRecusaEsc : '—'}</td>
             <td>
-                                <div style="position:relative;display:inline-block">
-                                    <button class="btn btn-outline btn-sm" onclick="toggleMenuPDF('${p.id}')" id="btnPDF_${p.id}">
-                                        📄 PDF ▾
-                                    </button>
-                                    <div id="menuPDF_${p.id}" style="display:none;position:absolute;right:0;top:100%;z-index:100;background:#fff;border:1px solid #e2e8f0;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,0.12);min-width:180px;padding:4px 0">
-                                        <button onclick="gerarPdfProposta('${p.id}','simples')" style="display:block;width:100%;text-align:left;padding:8px 14px;border:none;background:none;cursor:pointer;font-size:0.85rem">
-                                            📋 Proposta simples
-                                        </button>
-                                        <button onclick="gerarPdfProposta('${p.id}','fiscal')" style="display:block;width:100%;text-align:left;padding:8px 14px;border:none;background:none;cursor:pointer;font-size:0.85rem">
-                                            🧾 Com detalhamento fiscal
-                                        </button>
-                                    </div>
-                                </div>
+                                <button class="btn btn-outline btn-sm" onclick="gerarPdfProposta('${p.id}','fiscal')" title="Detalhamento fiscal">
+                                    🧾 PDF Fiscal
+                                </button>
                 ${(p.aguardandoAprovacao || p.status === 'aguardando_aprovacao') ? `<button class="btn btn-success btn-sm" data-admin="true" onclick="aprovarProposta('${p.id}')" title="Aprovar">✅ Aprovar</button><button class="btn btn-danger btn-sm" data-admin="true" onclick="recusarAprovacaoProposta('${p.id}')" title="Recusar">❌ Recusar</button>` : ''}
                 <button class="btn btn-outline btn-sm" data-admin="true" onclick="abrirModalProposta('${p.id}')" title="Editar">✏️</button>
                 ${podeConverter ? `<button class="btn btn-success btn-sm" data-admin="true" onclick="converterPropostaEmVenda('${p.id}')" title="Converter em Venda" style="font-size:0.78rem;">🔄</button>` : ''}
@@ -24173,6 +24175,28 @@ function toggleMenuPDF(id) {
 function filtrarPropostas(valor) {
     const statusVal = document.getElementById('filtroStatusProposta')?.value || '';
     renderizarPropostas(valor || '', statusVal);
+}
+
+function irParaProposta(propostaId) {
+    const prop = (propostas || []).find(p => p.id === propostaId);
+    if (!prop) return;
+    trocarAba('propostas');
+    setTimeout(() => {
+        const filtroEl = document.getElementById('filtroProposta');
+        if (filtroEl) {
+            filtroEl.value = prop.numero;
+            filtrarPropostas(prop.numero);
+        }
+        setTimeout(() => {
+            const row = document.querySelector(`tr[data-proposta-id="${propostaId}"]`);
+            if (row) {
+                row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                row.style.transition = 'background 0.3s';
+                row.style.background = '#fef9c3';
+                setTimeout(() => { row.style.background = ''; }, 2000);
+            }
+        }, 300);
+    }, 100);
 }
 
 function atualizarKPIsPropostas() {
