@@ -2386,6 +2386,22 @@ tr.total-row:hover {
     background: #eef2f7;
 }
 
+.tabela-vendas tbody tr.row-contrato-resumo td.col-acoes {
+    background: #e8f0f9;
+}
+
+.tabela-vendas tbody tr.row-contrato-resumo:hover td.col-acoes {
+    background: #d9e8f5;
+}
+
+.tabela-vendas tbody tr.sub-linha-produto td.col-acoes {
+    background: #f0f4ff;
+}
+
+.tabela-vendas tbody tr.sub-linha-produto:hover td.col-acoes {
+    background: #e8eeff;
+}
+
 .row-contrato-resumo {
     background: #e8f0f9 !important;
     border-left: 3px solid #4a7ab5;
