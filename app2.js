@@ -12193,7 +12193,7 @@ async function gerarContratoVenda(vendaId) {
             properties: {
                 page: {
                     size: { width: 11906, height: 16838 }, // A4
-                    margin: { top: 740, right: 680, bottom: 448, left: 680, header: 680, footer: 391 }
+                    margin: { top: 740, right: 680, bottom: 1800, left: 680, header: 680, footer: 390 }
                 },
                 pageNumberStart: 1,
             },
