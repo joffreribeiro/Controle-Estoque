@@ -1857,6 +1857,7 @@ function gerarPropostaDePrecificacao(id, idxProduto) {
         // Aguarda o modal abrir e a estrutura ser criada
         setTimeout(() => {
             try {
+                if (document.getElementById('propostaPrecifId')) document.getElementById('propostaPrecifId').value = prec.id || '';
                 if (document.getElementById('propostaCliente')) document.getElementById('propostaCliente').value = prec.clienteNome || prec.cliente || '';
                 if (document.getElementById('propostaRepresentante')) document.getElementById('propostaRepresentante').value = prec.representante || prec.rep || '';
                 if (document.getElementById('propostaValidade')) document.getElementById('propostaValidade').value = prec.validade || prec.validadeDias || prec.validadeDias || 30;
@@ -23538,6 +23539,7 @@ function abrirModalProposta(id = null) {
     modalEl.style.display = 'flex';
     document.getElementById('formProposta').reset();
     document.getElementById('propostaEditId').value = '';
+    const _precifIdEl = document.getElementById('propostaPrecifId'); if (_precifIdEl) _precifIdEl.value = '';
     const container = document.getElementById('itensPropostaContainer');
     if (container) container.innerHTML = '';
     try { popularSelectRepresentantes('propostaRepresentante', true); } catch (e) {}
@@ -23836,6 +23838,23 @@ function salvarProposta(event) {
     salvarDados();
     renderizarPropostas();
     atualizarKPIsPropostas();
+
+    // Vincular proposta de volta na precificação de origem (se veio do botão Proposta da Consulta)
+    const _precifOrigemId = document.getElementById('propostaPrecifId')?.value;
+    if (_precifOrigemId && !editId) {
+        const _precifOrigem = (precificacoesCliente || []).find(p => String(p.id) === String(_precifOrigemId));
+        if (_precifOrigem) {
+            const _novaId = propostas[propostas.length - 1]?.id;
+            if (_novaId) {
+                _precifOrigem.propostaId = _novaId;
+                try { estoque.precificacoesCliente = precificacoesCliente; } catch(e) {}
+                salvarDados();
+                try { renderConsultaPrecificacoes(); } catch(e) {}
+            }
+        }
+        document.getElementById('propostaPrecifId').value = '';
+    }
+
     fecharModal('modalProposta');
     mostrarNotificacao(editId ? 'Proposta atualizada!' : 'Proposta criada: ' + numero, 'success');
 }
@@ -24088,7 +24107,7 @@ function renderizarPropostas(filtro, statusFiltro) {
     const sortP = _sortState['propostas'] || { col: 'data', dir: 'desc' };
     const getValProposta = (p, col) => {
         if (!p) return '';
-        if (col === 'numero') return Number(p.numero || 0);
+        if (col === 'numero') { const _m = (p.numero||'').match(/^(\d+)\/(\d{4})$/); return _m ? Number(_m[2])*10000+Number(_m[1]) : Number(p.numero||0); }
         if (col === 'cliente') return p.cliente || '';
         if (col === 'representante') return p.representante || '';
         if (col === 'valorTotal') return Number(p.valorTotal || 0);
@@ -24129,14 +24148,17 @@ function renderizarPropostas(filtro, statusFiltro) {
         const qtdDisplay = primeiroItem ? (primeiroItem.quantidade || 0) : '-';
         const unitDisplay = primeiroItem ? formatarMoedaValor(Number(primeiroItem.valorUnitario || primeiroItem.precoFinalCalc || 0)) : '-';
 
+        const _numPartes = (p.numero || '').split('/');
+        const _numFmt = _numPartes.length === 2
+            ? `${String(_numPartes[0]).padStart(3,'0')}/${_numPartes[1]}`
+            : _escapeHtml(String(p.numero || ''));
         return `<tr data-proposta-id="${p.id}">
-            <td><span style="background:#0ea5e9; color:#fff; padding:2px 10px; border-radius:12px; font-size:0.82rem; font-weight:600;">${_escapeHtml(String(p.numero || ''))}</span></td>
-            <td style="text-align:left">${_escapeHtml(p.cliente || '-')}</td>
+            <td><span style="background:#0ea5e9; color:#fff; padding:2px 10px; border-radius:12px; font-size:0.82rem; font-weight:600;">${_numFmt}</span></td>
+            <td style="text-align:left;max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${_escapeHtml(p.cliente||'')}">${_escapeHtml(p.cliente || '-')}</td>
             <td><span class="badge-rep ${repClass}">${_escapeHtml(p.representante || '-')}</span></td>
             <td style="text-align:left">${produtoDisplay}</td>
             <td style="text-align:center">${qtdDisplay}</td>
-            <td style="text-align:right">${unitDisplay}</td>
-            <td style="color:#16a34a; font-weight:600">${formatarMoedaValor(p.valorTotal || 0)}</td>
+            <td style="color:#16a34a; font-weight:600; text-align:right">${formatarMoedaValor(p.valorTotal || 0)}</td>
             <td>${dataProposta}</td>
             <td style="${validadeExpirada ? 'color:#ef4444; font-weight:600' : ''}">${dataValidade}</td>
             <td><span class="badge-status-proposta ${statusConf.cls}">${statusConf.label}</span>${motivoRecusaSmall}</td>
