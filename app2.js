@@ -1853,6 +1853,207 @@ function gerarPropostaDePrecificacao(id, idxProduto) {
     }
 }
 
+async function gerarDocxProposta() {
+    const docxLib = (typeof docx !== 'undefined' && docx?.Document) ? docx
+                  : (typeof window.docx !== 'undefined' && window.docx?.Document) ? window.docx
+                  : null;
+    if (!docxLib) { mostrarNotificacao('Biblioteca docx não carregada.', 'error'); return; }
+
+    const { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell,
+            AlignmentType, WidthType, BorderStyle, ShadingType, VerticalAlign,
+            Header, Footer, ImageRun, PageNumber } = docxLib;
+
+    // ── Coletar dados do modal ──
+    const numero      = document.getElementById('propostaNumero')?.value || '';
+    const cliente     = document.getElementById('propostaCliente')?.value || '';
+    const dataStr     = document.getElementById('propostaData')?.value || '';
+    const validade    = document.getElementById('propostaValidade')?.value || '60';
+    const repNome     = document.getElementById('propostaRepresentante')?.value || '';
+    const obs         = document.getElementById('propostaObservacoes')?.value || '';
+
+    const dataDoc = dataStr ? new Date(dataStr + 'T12:00:00') : new Date();
+    const fmtDate = d => d.toLocaleDateString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' });
+    const fmtMoeda = v => Number(v||0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+    // Coletar itens
+    const itensRows = document.querySelectorAll('#itensPropostaContainer .item-venda-row');
+    const itens = [];
+    itensRows.forEach(row => {
+        const prodSel = row.querySelector('select[name="produto"], .produto-select, select');
+        const qtdEl   = row.querySelector('input[name="quantidade"], .qtd-input, input[type="number"]');
+        const valEl   = row.querySelector('input[name="valorUnit"], .valor-input, input[type="text"]');
+        const nomeProd = prodSel ? (prodSel.options[prodSel.selectedIndex]?.text || '') : '';
+        const qtd = Number(qtdEl?.value || 1);
+        const vUnit = Number((valEl?.value || '0').replace(/\./g,'').replace(',','.'));
+        if (nomeProd) itens.push({ nome: nomeProd, qtd, vUnit, vTot: qtd * vUnit });
+    });
+    const totalGeral = itens.reduce((s, it) => s + it.vTot, 0);
+
+    const vendedor = carregarConfigVendedor();
+    const rep = getConfigRep(repNome);
+
+    // ── Helpers ──
+    const SZ = 22;
+    const SZS = 18; // small
+    const BLUE = '0080C9';
+    const B  = (t, sz=SZ, color=undefined) => new TextRun({ text: t, bold: true, size: sz, font: 'Calibri', ...(color?{color}:{}) });
+    const N  = (t, sz=SZ, color=undefined) => new TextRun({ text: t, size: sz, font: 'Calibri', ...(color?{color}:{}) });
+    const It = (t, sz=SZ, color=undefined) => new TextRun({ text: t, italics: true, size: sz, font: 'Calibri', ...(color?{color}:{}) });
+    const P  = (children, align=AlignmentType.JUSTIFIED, sp={}) =>
+        new Paragraph({ children, alignment: align, spacing: { before: 0, after: 160, ...sp } });
+    const PL = (children, sp={}) => P(children, AlignmentType.LEFT, sp);
+    const PC = (children, sp={}) => P(children, AlignmentType.CENTER, sp);
+    const E  = () => new Paragraph({ children: [N('')], spacing: { before: 0, after: 80 } });
+
+    const TW = 10692;
+    const border = { style: BorderStyle.SINGLE, size: 4, color: '000000' };
+    const borders = { top: border, bottom: border, left: border, right: border };
+    const noBorder = { top:{style:BorderStyle.NONE}, bottom:{style:BorderStyle.NONE}, left:{style:BorderStyle.NONE}, right:{style:BorderStyle.NONE} };
+
+    const PT = (children, align=AlignmentType.LEFT) =>
+        new Paragraph({ children, alignment: align, spacing: { before: 0, after: 0 } });
+    const cell  = (children, w, opts={}) => new TableCell({ children: Array.isArray(children)?children:[PT([N(children||'')])], width:{size:w,type:WidthType.DXA}, borders, margins:{top:30,bottom:30,left:100,right:100}, ...opts });
+    const cellC = (children, w, opts={}) => new TableCell({ children: Array.isArray(children)?children:[PT([N(children||'')],AlignmentType.CENTER)], width:{size:w,type:WidthType.DXA}, borders, margins:{top:30,bottom:30,left:100,right:100}, ...opts });
+    const hCell = (t, w) => new TableCell({ children:[PT([B(t,SZS,'FFFFFF')],AlignmentType.CENTER)], width:{size:w,type:WidthType.DXA}, borders, shading:{fill:'000000',type:ShadingType.CLEAR}, margins:{top:30,bottom:30,left:100,right:100} });
+
+    // ── Logo preta ──
+    const logoBlack = (typeof IMBEL_LOGO_BLACK_B64 !== 'undefined')
+        ? new ImageRun({ data: 'data:image/png;base64,' + IMBEL_LOGO_BLACK_B64, transformation: { width: 60, height: 46 }, type: 'png' })
+        : N('IMBEL', 40, '000000');
+
+    // ── Cabeçalho: logo | nome empresa ──
+    const tabelaCabecalho = new Table({
+        width: { size: TW, type: WidthType.DXA },
+        columnWidths: [1134, TW - 1134],
+        borders: { top:{style:BorderStyle.NONE}, bottom:{style:BorderStyle.NONE}, left:{style:BorderStyle.NONE}, right:{style:BorderStyle.NONE}, insideH:{style:BorderStyle.NONE}, insideV:{style:BorderStyle.NONE} },
+        rows: [new TableRow({ children: [
+            new TableCell({ children: [new Paragraph({ children: [logoBlack], spacing:{before:0,after:0} })], borders: noBorder, verticalAlign: VerticalAlign.CENTER, width:{size:1134,type:WidthType.DXA} }),
+            new TableCell({ children: [
+                PC([B('INDÚSTRIA DE MATERIAL BÉLICO DO BRASIL', SZS*1.2|0, BLUE)], {before:0,after:20}),
+                PC([It('"Vinculada ao Ministério da Defesa por intermédio do Comando do Exército"', SZS-4, BLUE)], {before:0,after:0}),
+            ], borders: noBorder, verticalAlign: VerticalAlign.CENTER, width:{size:TW-1134,type:WidthType.DXA} }),
+        ]})]
+    });
+
+    // ── Tabela de produtos ──
+    const col1=3780, col2=700, col3=1500, col4=1500, col5=1212;
+    // col1+col2+col3+col4+col5 = 8692 — ajustar
+    const cw = [4200, 700, 1700, 2046]; // DESCRIÇÃO, QTD, UNIT, TOTAL — total = 8646... usar TW
+    const [cDesc, cQtd, cUnit, cTot] = [TW-4692, 700, 1996, 1996];
+    const prodRows = itens.map((it, i) => new TableRow({ children: [
+        cell([PT([N(String(i+1), SZS)], AlignmentType.CENTER)], 700),
+        cell([PT([N(it.nome, SZS)])], cDesc),
+        cellC([PT([N(String(it.qtd), SZS)], AlignmentType.CENTER)], cQtd),
+        cellC([PT([N(fmtMoeda(it.vUnit), SZS)], AlignmentType.CENTER)], cUnit),
+        cellC([PT([N(fmtMoeda(it.vTot), SZS)], AlignmentType.CENTER)], cTot),
+    ]}));
+
+    const tabelaProdutos = new Table({
+        width: { size: TW, type: WidthType.DXA },
+        columnWidths: [700, cDesc, cQtd, cUnit, cTot],
+        rows: [
+            new TableRow({ children: [
+                hCell('ITEM', 700),
+                hCell('DESCRIÇÃO', cDesc),
+                hCell('QTD', cQtd),
+                hCell('PREÇO (EM R$) UNIT', cUnit),
+                hCell('TOTAL', cTot),
+            ]}),
+            ...prodRows,
+        ]
+    });
+
+    // ── Cidade/data para assinatura ──
+    const cidadeVend = vendedor.cidade || 'Itajubá';
+    const dataFormatada = fmtDate(dataDoc);
+    const anoAtual = dataDoc.getFullYear();
+    const numProposta = numero ? numero + '/' + anoAtual : '___/' + anoAtual;
+
+    // ── Texto fixo ──
+    const txtPrazo = 'Até 180 (cento e oitenta) dias, contados a partir do recebimento pela contratada da via do contrato assinada pelas duas partes, do recebimento do empenho ou comprovante de pagamento da Guia de Recolhimento à União (GRU), e da autorização de aquisição da Diretoria de Fiscalização de Produtos Controlados, DFPC, o que ocorrer por último.';
+    const txtLocal = 'O(s) item (itens) materiais constantes desta proposta comercial deverão ser retirados pela contratante na Fábrica de Itajubá ou em local negociado entre as partes, condicionado a entrega da nota de empenho e a autorização de aquisição da Diretoria de Fiscalização de Produtos Controlados - DFPC. Caso o órgão adquirente não forneça os dois documentos citados acima até a data limite da entrega do produto, será aplicado as sanções administrativas regulamentares e contratuais cabíveis.';
+    const txtPgto = 'O pagamento será realizado por meio de Nota de Empenho ou Guia de Recolhimento à União (GRU), sendo esta última, com vencimento em até 30 (trinta) dias. O início da produção do material industrializado ocorrerá após o reconhecimento do pagamento da GRU ou da apresentação da Nota de Empenho.';
+    const txtGarantia = 'Fica estabelecido o prazo de garantia de 12 (doze) meses (incluindo a garantia legal), contra eventuais defeitos de fabricação, desde que sejam cumpridas as recomendações presentes no manual da arma ou produto de acordo com o Código de Defesa do Consumidor, art. 50, que estabelece que "a garantia contratual é complementar à legal e será conferida mediante a termo escrito". A presente garantia ficará sem efeito, se o produto sofrer qualquer dano provocado por acidente, incluindo queda, mau uso, falta de manutenção, uso de munições inadequadas, desgaste natural oriundo da utilização, ou ainda no caso, apresentar sinais de conserto por pessoas não autorizadas, bem como por defeito oriundo de caso fortuito ou força maior. O Cliente, deverá acionar à Assistência Técnica indicada pelo fabricante, sendo da sua responsabilidade o transporte até o local indicado e/ou filial de Itajubá-MG, em se tratando de um produto controlado, obedecendo ao previsto na legislação vigente.';
+    const txtImpostos = 'Já estão incluídas todas as despesas com embalagem, seguro, impostos, taxas, contribuições e isenções, de acordo com a legislação vigente.';
+    const dadosEmpresa = `Razão Social: ${vendedor.nomeEmpresa||'Indústria de Material Bélico do Brasil – IMBEL®/ Fábrica de Itajubá (FI)'}; UG 168005 – Gestão: 16501; CNPJ (MF) nº ${vendedor.cnpj||'00.444.232/0007-24'}; Inscrição Estadual nº ${vendedor.inscricaoEstadual||'324.219.741.0138'}; Endereço: ${vendedor.endereco||'Av. Cel. Aventino Ribeiro, nº 1.099'}, ${vendedor.cidade||'Itajubá'}/${vendedor.uf||'MG'}, CEP: ${vendedor.cep||'37.501-345'}`;
+    const txtRodapeContato = 'Caso sua demanda não tenha sido atendida, ou, em caso de reclamações, sugestões ou elogios use nosso canal Fale Conosco através do link: www.imbel.gov.br/index.php/#faleconoscoscroll ou por intermédio do número de telefone 61-3415 4825.';
+
+    const doc = new Document({
+        sections: [{
+            properties: {
+                page: {
+                    size: { width: 11906, height: 16838 },
+                    margin: { top: 720, right: 720, bottom: 1800, left: 720, header: 450, footer: 390 }
+                }
+            },
+            headers: { default: new Header({ children: [new Paragraph({ children: [new TextRun({text:'',size:SZ})], spacing:{before:0,after:0} })] }) },
+            footers: { default: new Footer({ children: [
+                new Paragraph({ alignment: AlignmentType.CENTER, spacing:{before:60,after:0}, children:[N(txtRodapeContato, SZS-2)] })
+            ]}) },
+            children: [
+                tabelaCabecalho,
+                E(),
+                PC([B('PROPOSTA COMERCIAL nº ' + numProposta, 24)], {before:120,after:0}),
+                PC([B('DVMNA/DRCOM – IMBEL', 24)], {before:0,after:160}),
+
+                PL([B('Ao', SZ)], {before:0,after:0}),
+                PL([B(cliente || '___________', SZ)], {before:0,after:160}),
+
+                P([N('Obrigado por considerar a compra dos produtos e serviços IMBEL. Para nós é uma honra poder assessorá-lo e, eventualmente, ter sua Instituição Pública como cliente. Nossos produtos são reconhecidos pela durabilidade e qualidade demandadas e testadas pelas Forças Armadas do Brasil e diversas Instituições de Segurança.')]),
+                P([N('Segue abaixo a Proposta Comercial solicitada. Verifique se as informações abaixo atendem suas necessidades e nos acessem sempre que necessário. Estamos à sua disposição para eventuais esclarecimentos ou adequações.')]),
+
+                PC([B('PRODUTOS IMBEL :', SZ)], {before:120,after:80}),
+                tabelaProdutos,
+                E(),
+
+                PL([B('PRAZO DE ENTREGA: ', SZ), N(txtPrazo, SZ)]),
+                E(),
+                PL([B('LOCAL E CONDIÇÕES DE ENTREGA: ', SZ), N(txtLocal, SZ)]),
+                E(),
+                PL([B('CONDIÇÕES DE PAGAMENTO: ', SZ), N(txtPgto, SZ)]),
+                E(),
+                PL([B('VALIDADE DA PROPOSTA COMERCIAL: ', SZ), N(validade + ' (' + (Number(validade)===60?'sessenta':Number(validade)===30?'trinta':validade) + ') dias, a contar da data de sua assinatura.', SZ)]),
+                E(),
+                PL([B('DADOS DA EMPRESA: ', SZ), N(dadosEmpresa, SZ)]),
+                E(),
+                PL([B('GARANTIA: ', SZ), N(txtGarantia, SZ)]),
+                E(),
+                PL([B('IMPOSTOS, CONTRIBUIÇÕES E DESPESAS: ', SZ), N(txtImpostos, SZ)]),
+                E(),
+                ...(obs ? [PL([B('OBSERVAÇÕES: ', SZ), N(obs, SZ)]), E()] : []),
+
+                PL([N('Para esclarecimentos adicionais sobre a presente Proposta Comercial, favor contatar:')]),
+                PL([B('Contato: '), N(rep.nomeResponsavel || vendedor.nomeResponsavel || '')]),
+                PL([B('Telefone: '), N(rep.telefone || '')]),
+                PL([B('E-mail: '), N(rep.email || '')]),
+                E(),
+                PL([N('Atenciosamente,')], {before:80,after:0}),
+                PL([N(cidadeVend + ', ' + dataFormatada)], {before:0,after:160}),
+                E(),
+                PC([B((vendedor.nomeResponsavel || '').toUpperCase())], {before:0,after:0}),
+                PC([N('Chefe da Divisão de Vendas Mercado Nacional')], {before:0,after:0}),
+            ]
+        }]
+    });
+
+    try {
+        mostrarNotificacao('Gerando proposta...', 'info');
+        const blob = await Packer.toBlob(doc);
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `Proposta_${numProposta.replace('/','_')}_${(cliente||'cliente').replace(/[^a-z0-9]/gi,'_')}.docx`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+        mostrarNotificacao('Proposta gerada com sucesso!', 'success');
+    } catch(e) {
+        console.error('Erro ao gerar proposta:', e);
+        mostrarNotificacao('Erro ao gerar proposta: ' + e.message, 'error');
+    }
+}
+
 function exportarPrecificacoesExcel() {
     try {
         const lista = Array.isArray(precificacoesCliente) ? precificacoesCliente : [];
@@ -12024,15 +12225,17 @@ async function gerarContratoVenda(vendaId) {
         new Paragraph({ children, alignment: align, spacing: { before: 80, after: 80, ...sp }, ...(Object.keys(ind).length ? { indent: ind } : {}) });
     const PL = (children, sp={}, ind={}) => P(children, AlignmentType.LEFT, sp, ind);
     const PC = (children, sp={}) => P(children, AlignmentType.CENTER, sp);
+    const PT = (children, align=AlignmentType.LEFT) =>
+        new Paragraph({ children, alignment: align, spacing: { before: 0, after: 0 } });
     const E  = () => new Paragraph({ children: [N('')], spacing: { before: 40, after: 40 } });
 
     const cell = (children, w, opts={}) => new TableCell({
-        children: Array.isArray(children) ? children : [PL([N(children||'')])],
+        children: Array.isArray(children) ? children : [PT([N(children||'')])],
         width: { size: w, type: WidthType.DXA },
         borders, margins: { top: 30, bottom: 30, left: 100, right: 100 }, ...opts
     });
     const cellC = (children, w, opts={}) => new TableCell({
-        children: Array.isArray(children) ? children : [PC([N(children||'')])],
+        children: Array.isArray(children) ? children : [PT([N(children||'')], AlignmentType.CENTER)],
         width: { size: w, type: WidthType.DXA },
         borders, margins: { top: 30, bottom: 30, left: 100, right: 100 }, ...opts
     });
@@ -12043,7 +12246,7 @@ async function gerarContratoVenda(vendaId) {
         margins: { top: 30, bottom: 30, left: 100, right: 100 },
     });
     const spanCell = (children, w, span, shade=false, dark=false, opts={}) => new TableCell({
-        children: Array.isArray(children) ? children : [PL([N(children||'')])],
+        children: Array.isArray(children) ? children : [PT([N(children||'')])],
         width: { size: w, type: WidthType.DXA },
         columnSpan: span, borders,
         shading: dark  ? { fill: '000000', type: ShadingType.CLEAR } :
@@ -12116,20 +12319,21 @@ async function gerarContratoVenda(vendaId) {
     const tabelaVendedor = new Table({
         width: { size: TW, type: WidthType.DXA },
         columnWidths: [2340, 2340, 2340, 2340],
-            new TableRow({ children: [spanCell([PL([B('VENDEDOR', SZ_H, 'FFFFFF')])], TW, 4, false, true)] }),
-            new TableRow({ children: [spanCell([PL([B('Nome: '), N(vendedor.nomeEmpresa||'')])], TW, 4)] }),
+        rows: [
+            new TableRow({ children: [spanCell([PT([B('VENDEDOR', SZ_H, 'FFFFFF')])], TW, 4, false, true)] }),
+            new TableRow({ children: [spanCell([PT([B('Nome: '), N(vendedor.nomeEmpresa||'')])], TW, 4)] }),
             new TableRow({ children: [
-                spanCell([PL([B('CNPJ/MF: '), N(vendedor.cnpj||'')])], 4680, 2),
-                spanCell([PL([B('Inscrição estadual: '), N(vendedor.inscricaoEstadual||'')])], 4680, 2),
+                spanCell([PT([B('CNPJ/MF: '), N(vendedor.cnpj||'')])], 4680, 2),
+                spanCell([PT([B('Inscrição estadual: '), N(vendedor.inscricaoEstadual||'')])], 4680, 2),
             ]}),
-            new TableRow({ children: [spanCell([PL([B('Endereço: '), N(vendedor.endereco||'')])], TW, 4)] }),
+            new TableRow({ children: [spanCell([PT([B('Endereço: '), N(vendedor.endereco||'')])], TW, 4)] }),
             new TableRow({ children: [
-                cell([PL([B('Bairro: '), N(vendedor.bairro||'')])], 2340),
-                cell([PL([B('Cidade: '), N(vendedor.cidade||'')])], 2340),
-                cell([PL([B('UF: '),     N(vendedor.uf||'')])],     2340),
-                cell([PL([B('CEP: '),    N(vendedor.cep||'')])],    2340),
+                cell([PT([B('Bairro: '), N(vendedor.bairro||'')])], 2340),
+                cell([PT([B('Cidade: '), N(vendedor.cidade||'')])], 2340),
+                cell([PT([B('UF: '),     N(vendedor.uf||'')])],     2340),
+                cell([PT([B('CEP: '),    N(vendedor.cep||'')])],    2340),
             ]}),
-            new TableRow({ children: [spanCell([PL([B('Registro no EB: '), N(vendedor.registroEB||'')])], TW, 4)] }),
+            new TableRow({ children: [spanCell([PT([B('Registro no EB: '), N(vendedor.registroEB||'')])], TW, 4)] }),
         ]
     });
 
@@ -12137,23 +12341,24 @@ async function gerarContratoVenda(vendaId) {
     const tabelaComprador = new Table({
         width: { size: TW, type: WidthType.DXA },
         columnWidths: [2340, 2340, 2340, 2340],
-            new TableRow({ children: [spanCell([PL([B('COMPRADOR', SZ_H, 'FFFFFF')])], TW, 4, false, true)] }),
-            new TableRow({ children: [spanCell([PL([B('Nome: '), N(venda.loja||'')])], TW, 4)] }),
-            new TableRow({ children: [spanCell([PL([B('Nome Fantasia: '), N(nomeFantCli)])], TW, 4)] }),
+        rows: [
+            new TableRow({ children: [spanCell([PT([B('COMPRADOR', SZ_H, 'FFFFFF')])], TW, 4, false, true)] }),
+            new TableRow({ children: [spanCell([PT([B('Nome: '), N(venda.loja||'')])], TW, 4)] }),
+            new TableRow({ children: [spanCell([PT([B('Nome Fantasia: '), N(nomeFantCli)])], TW, 4)] }),
             new TableRow({ children: [
-                spanCell([PL([B('CNPJ/CPF: '), N(cnpjCliente)])], 4680, 2),
-                spanCell([PL([B('Inscrição estadual: '), N(ieCliente)])], 4680, 2),
+                spanCell([PT([B('CNPJ/CPF: '), N(cnpjCliente)])], 4680, 2),
+                spanCell([PT([B('Inscrição estadual: '), N(ieCliente)])], 4680, 2),
             ]}),
-            new TableRow({ children: [spanCell([PL([B('Endereço: '), N(endCliente)])], TW, 4)] }),
+            new TableRow({ children: [spanCell([PT([B('Endereço: '), N(endCliente)])], TW, 4)] }),
             new TableRow({ children: [
-                cell([PL([B('Bairro: '), N(bairCliente)])], 2340),
-                cell([PL([B('Cidade: '), N(cidCliente)])],  2340),
-                cell([PL([B('UF: '),     N(ufCliente)])],   2340),
-                cell([PL([B('CEP: '),    N(cepCliente)])],  2340),
+                cell([PT([B('Bairro: '), N(bairCliente)])], 2340),
+                cell([PT([B('Cidade: '), N(cidCliente)])],  2340),
+                cell([PT([B('UF: '),     N(ufCliente)])],   2340),
+                cell([PT([B('CEP: '),    N(cepCliente)])],  2340),
             ]}),
             new TableRow({ children: [
-                spanCell([PL([B('Registro no EB: '), N(regEBCli)])], 4680, 2),
-                spanCell([PL([B('E-mail: '),         N(emailCli)])], 4680, 2),
+                spanCell([PT([B('Registro no EB: '), N(regEBCli)])], 4680, 2),
+                spanCell([PT([B('E-mail: '),         N(emailCli)])], 4680, 2),
             ]}),
         ]
     });
@@ -12162,18 +12367,19 @@ async function gerarContratoVenda(vendaId) {
     const tabelaRep = new Table({
         width: { size: TW, type: WidthType.DXA },
         columnWidths: [3120, 1560, 2340, 2340],
-            new TableRow({ children: [spanCell([PL([B('REPRESENTANTE COMERCIAL AUTORIZADO', SZ_H, 'FFFFFF')])], TW, 4, false, true)] }),
-            new TableRow({ children: [spanCell([PL([B('Razão Social: '),    N(rep.razaoSocial||'')])], TW, 4)] }),
-            new TableRow({ children: [spanCell([PL([B('Nome Fantasia: '),   N(rep.nomeFantasia||'')])], TW, 4)] }),
+        rows: [
+            new TableRow({ children: [spanCell([PT([B('REPRESENTANTE COMERCIAL AUTORIZADO', SZ_H, 'FFFFFF')])], TW, 4, false, true)] }),
+            new TableRow({ children: [spanCell([PT([B('Razão Social: '),    N(rep.razaoSocial||'')])], TW, 4)] }),
+            new TableRow({ children: [spanCell([PT([B('Nome Fantasia: '),   N(rep.nomeFantasia||'')])], TW, 4)] }),
             new TableRow({ children: [
-                cell([PL([B('CNPJ: '),    N(rep.cnpj||'')])],   3120),
-                cell([PL([B('N.º CORE: '),N(rep.nrCore||'')])], 1560),
-                spanCell([PL([B('UF: '),  N(rep.ufCore||'')])], 4680, 2),
+                cell([PT([B('CNPJ: '),    N(rep.cnpj||'')])],   3120),
+                cell([PT([B('N.º CORE: '),N(rep.nrCore||'')])], 1560),
+                spanCell([PT([B('UF: '),  N(rep.ufCore||'')])], 4680, 2),
             ]}),
-            new TableRow({ children: [spanCell([PL([B('Nome do responsável: '), N(rep.nomeResponsavel||'')])], TW, 4)] }),
+            new TableRow({ children: [spanCell([PT([B('Nome do responsável: '), N(rep.nomeResponsavel||'')])], TW, 4)] }),
             new TableRow({ children: [
-                spanCell([PL([B('Telefone: '), N(rep.telefone||'')])], 4680, 2),
-                spanCell([PL([B('E-mail: '),   N(rep.email||'')])],    4680, 2),
+                spanCell([PT([B('Telefone: '), N(rep.telefone||'')])], 4680, 2),
+                spanCell([PT([B('E-mail: '),   N(rep.email||'')])],    4680, 2),
             ]}),
         ]
     });
