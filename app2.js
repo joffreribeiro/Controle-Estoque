@@ -2005,11 +2005,11 @@ async function gerarDocxProposta() {
                 children: [
                     ...(typeof PROPOSTA_BG_B64 !== 'undefined' ? [new ImageRun({
                         data: 'data:image/jpeg;base64,' + PROPOSTA_BG_B64,
-                        transformation: { width: 573, height: 405 },
+                        transformation: { width: 820, height: 580 },
                         type: 'jpg',
                         floating: {
                             behindDocument: true,
-                            horizontalPosition: { relative: 'page', offset: 1647746 },
+                            horizontalPosition: { relative: 'page', offset: 0 },
                             verticalPosition: { relative: 'page', offset: 0 },
                             wrap: { type: 'none' },
                             allowOverlap: true,
