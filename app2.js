@@ -107,25 +107,8 @@ function atualizarIndicadoresPrecificacao() {
     try {
         const total = Array.isArray(precificacoesCliente) ? precificacoesCliente.length : 0;
         // atualizar badge na sidebar (botão Precificação)
-        const navBtn = document.querySelector('.nav-item[data-tab="precificacao"]');
-        if (navBtn) {
-            let badge = document.getElementById('badgePrecificacoes');
-            if (!badge) {
-                badge = document.createElement('span');
-                badge.id = 'badgePrecificacoes';
-                badge.style.background = '#1e3a5f';
-                badge.style.color = '#fff';
-                badge.style.fontSize = '0.72rem';
-                badge.style.padding = '2px 6px';
-                badge.style.borderRadius = '999px';
-                badge.style.marginLeft = '8px';
-                badge.style.display = 'inline-block';
-                badge.className = 'badge';
-                navBtn.appendChild(badge);
-            }
-            badge.textContent = String(total);
-            badge.style.display = total > 0 ? 'inline-block' : 'none';
-        }
+        const _badgeExist = document.getElementById('badgePrecificacoes');
+        if (_badgeExist) _badgeExist.remove();
 
         // elementos opcionais na página (se existirem)
         const el1 = document.getElementById('precifTotalCount') || document.getElementById('precifCount');
