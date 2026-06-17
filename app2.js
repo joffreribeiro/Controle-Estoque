@@ -11555,7 +11555,16 @@ function renderizarRegistroVendas() {
             </td>
             <td class="col-loja" title="${primeira.loja}">${primeira.loja}</td>
             <td class="col-representante"><span class="badge-rep ${repClass}">${primeira.representante}</span></td>
-            <td class="col-produto-venda"><button class="btn-expand-contrato" onclick="toggleContratoExpandido('${contratoKey}')">${expandido ? '▾' : '▸'} ${linhasDoContrato} item(ns)</button></td>
+            <td class="col-produto-venda">${
+                linhasDoContrato === 1
+                    ? `<span class="prod-nome-inline">${grupo[0].produtoNome}</span>`
+                    : `<button class="btn-expand-contrato expand-btn-prod" onclick="toggleContratoExpandido('${contratoKey}')">
+                        <span class="expand-chevron ${expandido ? 'open' : ''}">▶</span>
+                        <span class="expand-count">${linhasDoContrato} produtos</span>
+                        <span class="expand-preview">${grupo.map(p => p.produtoNome.split(' ').slice(0,2).join(' ')).join(' · ')}</span>
+                        ${!expandido ? `<div class="prod-mais-wrap"><span class="prod-mais-chip">+${linhasDoContrato - 1}</span><div class="prod-mais-tooltip">${grupo.slice(1).map(p => `<div class="prod-mais-row"><span class="prod-mais-nome">${p.produtoNome}</span><span class="prod-mais-qty">× ${p.quantidade}</span></div>`).join('')}</div></div>` : ''}
+                       </button>`
+            }</td>
             <td class="col-qtd">${totalQtdContrato}</td>
             <td class="col-valor-total">${formatarMoedaValor(totalContrato)}</td>
             <td class="col-data">${dataDisplay}</td>
@@ -11571,7 +11580,7 @@ function renderizarRegistroVendas() {
 
         grupo.forEach((linha) => {
             const tr = document.createElement('tr');
-            tr.className = `row-contrato-detalhe ${expandido ? '' : 'hidden-row'}`;
+            tr.className = `row-contrato-detalhe sub-linha-produto ${expandido ? '' : 'hidden-row'}`;
             const valorUn = linha.valorUnitario ? formatarMoedaValor(linha.valorUnitario) : '-';
             const valorTot = linha.valorTotal || 0;
             totalQtd += linha.quantidade || 0;
@@ -11590,9 +11599,9 @@ function renderizarRegistroVendas() {
                 <td class="col-contrato detalhe-vazio"></td>
                 <td class="col-loja detalhe-vazio" title="${linha.observacoes || ''}"><span style="color:#64748b;font-size:0.8rem">${linha.observacoes && linha.observacoes !== '-' ? linha.observacoes : ''}</span></td>
                 <td class="col-representante detalhe-vazio"></td>
-                <td class="col-produto-venda" title="${linha.produtoNome}">↳ ${linha.produtoNome}</td>
-                <td class="col-qtd">${linha.quantidade}</td>
-                <td class="col-valor-total" style="font-size:0.85rem;color:#64748b">${valorUn} × ${linha.quantidade} = ${valorTot > 0 ? formatarMoedaValor(valorTot) : '-'}</td>
+                <td class="col-produto-venda sub-td" title="${linha.produtoNome}"><div class="sub-prod-nome"><span class="sub-prod-hierarchy">└</span>${linha.produtoNome}</div></td>
+                <td class="col-qtd sub-td sub-td-mono">${linha.quantidade}</td>
+                <td class="col-valor-total sub-td"><div class="sub-prod-valor"><span class="sub-prod-valor-unit">${valorUn}</span><span class="sub-prod-valor-formula">unit. × ${linha.quantidade}</span></div></td>
                 <td class="col-data" style="font-size:0.8rem">${linha.dataNorm ? formatDateToDDMMYYYY(linha.dataNorm) : '-'}</td>
                 <td class="col-sistema detalhe-vazio"></td>
                 <td class="col-assinado detalhe-vazio"></td>
