@@ -1432,7 +1432,7 @@ function renderConsultaPrecificacoes(dados) {
                 if (!Array.isArray(dados) || dados.length === 0) {
                         body.innerHTML = `
                         <tr>
-                            <td colspan="27">
+                            <td colspan="28">
                                 <div class="empty-state">
                                     <div class="empty-icon">📋</div>
                                     <div class="empty-text">Nenhuma precificação salva</div>
@@ -1481,7 +1481,7 @@ function renderConsultaPrecificacoes(dados) {
                 const beneficios = (prec.beneficiosPorProduto && (prec.beneficiosPorProduto[prod.produto] || prec.beneficiosPorProduto[prod.produtoId])) || (prec.descricao || '');
 
                 html += `<tr class="${trClass}">`;
-                html += `<td style="min-width:60px">${_escapeHtml(String(precLabel || prec.id || prec.versao || rowCounter))}</td>`;
+                html += `<td style="min-width:60px"><span style="font-weight:700;color:#1e3a5f">PC-</span>${_escapeHtml(String(precLabel || prec.id || prec.versao || rowCounter))}</td>`;
                 html += `<td style="min-width:100px">${prec.dataCriacao ? new Date(prec.dataCriacao).toLocaleDateString('pt-BR') : (prec.data ? new Date(prec.data).toLocaleDateString('pt-BR') : '-')}</td>`;
                 html += `<td style="min-width:100px">${prec.dataExpiracao ? new Date(prec.dataExpiracao).toLocaleDateString('pt-BR') : '-'}</td>`;
                 html += `<td style="min-width:80px">${statusBadge}</td>`;
@@ -1529,20 +1529,28 @@ function renderConsultaPrecificacoes(dados) {
                 html += `<td style="min-width:120px;text-align:right">${_cpFmt(valorTotalCalc)}</td>`;
                 html += `<td style="min-width:80px;text-align:right">${_cpPct(prod.margem)}</td>`;
                 html += `<td style="min-width:160px">${_escapeHtml(beneficios || '')}</td>`;
-                html += `<td style="min-width:110px;position:sticky;right:0">`;
+                // Coluna PROPOSTA
                 const _propVinc = prec.propostaId ? (propostas || []).find(p => p.id === prec.propostaId) : null;
                 const _stIcone = { rascunho:'✏️', enviada:'📤', aceita:'✅', recusada:'❌', expirada:'⏳', aguardando_aprovacao:'🔄' };
-                html += `<button class="btn-action btn-edit" onclick="editarPrecificacaoDaConsulta('${prec.id}')" title="Editar precificação">✏️</button>`;
                 if (_propVinc) {
                     const _ic = _stIcone[_propVinc.status] || '📄';
                     const _stLbl = (_propVinc.status || '').charAt(0).toUpperCase() + (_propVinc.status || '').slice(1);
-                    html += `<div style="display:flex;flex-direction:column;align-items:center;gap:3px;min-width:100px">
-                        <span style="font-size:0.72rem;color:#0ea5e9;font-weight:700">${_escapeHtml(_propVinc.numero || '')}</span>
-                        <span style="font-size:0.65rem;color:#64748b">${_ic} ${_stLbl}</span>
-                        <button onclick="irParaProposta('${_propVinc.id}')" style="font-size:0.7rem;padding:2px 8px;background:#f0f9ff;border:1px solid #0ea5e9;color:#0ea5e9;border-radius:4px;cursor:pointer">Ver →</button>
-                    </div>`;
+                    const _prNum = _propVinc.numero || '';
+                    html += `<td style="min-width:90px;text-align:center">
+                        <div style="display:flex;flex-direction:column;align-items:center;gap:2px">
+                            <span style="font-size:0.72rem;color:#0ea5e9;font-weight:700;white-space:nowrap">${_escapeHtml(_prNum)}</span>
+                            <span style="font-size:0.65rem;color:#64748b">${_ic} ${_stLbl}</span>
+                            <button onclick="irParaProposta('${_propVinc.id}')" style="font-size:0.68rem;padding:1px 7px;background:#f0f9ff;border:1px solid #0ea5e9;color:#0ea5e9;border-radius:4px;cursor:pointer;margin-top:1px">Ver →</button>
+                        </div>
+                    </td>`;
                 } else {
-                    html += `<button class="btn-action btn-edit" onclick="gerarPropostaDePrecificacao('${prec.id}', ${idxProd})">📋 Proposta</button>`;
+                    html += `<td style="min-width:90px;text-align:center"><span style="color:#cbd5e1;font-size:0.75rem">—</span></td>`;
+                }
+                // Coluna AÇÕES
+                html += `<td style="min-width:110px;position:sticky;right:0;white-space:nowrap">`;
+                html += `<button class="btn-action btn-edit" onclick="editarPrecificacaoDaConsulta('${prec.id}')" title="Editar precificação">✏️</button>`;
+                if (!_propVinc) {
+                    html += `<button class="btn-action btn-edit" onclick="gerarPropostaDePrecificacao('${prec.id}', ${idxProd})" title="Gerar proposta">📋</button>`;
                 }
                 html += `<button class="btn-action btn-delete" onclick="excluirPrecificacao('${prec.id}')">🗑</button>`;
                 html += `</td>`;
@@ -1778,7 +1786,7 @@ function _cqRenderizarCards(dadosPaginaAtual) {
         const exp = _cpExpirada(p);
         const y = new Date(p.dataCriacao || p.data || Date.now()).getFullYear();
         const seq = seqMap.get(p.id || p) || '?';
-        const num = String(seq).padStart(3, '0') + '/' + y;
+        const num = 'PC-' + String(seq).padStart(3, '0') + '/' + y;
         const data = p.dataCriacao ? new Date(p.dataCriacao).toLocaleDateString('pt-BR') : '—';
         const cliente = _escapeHtml(p.clienteNome || p.cliente || '—');
         const uf = _escapeHtml((p.clienteUF || p.uf || '').toUpperCase());
