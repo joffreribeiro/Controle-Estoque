@@ -2019,7 +2019,21 @@ async function gerarDocxProposta() {
                 ]
             })] }) },
             footers: { default: new Footer({ children: [
-                new Paragraph({ alignment: AlignmentType.CENTER, spacing:{before:60,after:0}, children:[N(txtRodapeContato, SZS-2)] })
+                new Paragraph({
+                    alignment: AlignmentType.LEFT,
+                    spacing: { before: 0, after: 40 },
+                    border: undefined,
+                    children: [
+                        new TextRun({ text: 'Proposta Comercial nº ' + numProposta + ' – DVMNA/DRCOM', size: SZS, font: 'Calibri' }),
+                        new TextRun({ text: '\t', size: SZS, font: 'Calibri' }),
+                        new TextRun({ text: 'Página ', size: SZS, font: 'Calibri' }),
+                        new TextRun({ children: [PageNumber.CURRENT], size: SZS, font: 'Calibri' }),
+                        new TextRun({ text: ' de ', size: SZS, font: 'Calibri' }),
+                        new TextRun({ children: [PageNumber.TOTAL_PAGES], size: SZS, font: 'Calibri' }),
+                    ],
+                    tabStops: [{ type: 'right', position: TW }],
+                }),
+                new Paragraph({ alignment: AlignmentType.CENTER, spacing:{before:40,after:0}, children:[N(txtRodapeContato, SZS-2)] }),
             ]}) },
             children: [
                 tabelaCabecalho,
