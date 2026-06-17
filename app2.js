@@ -23637,11 +23637,19 @@ function adicionarItemPropostaRow(item = null) {
 
     container.appendChild(row);
 
-    if (item && item.produtoId) {
+    if (item) {
         const _sel = row.querySelector('.item-produto');
-        _sel.value = String(item.produtoId);
-        if (!_sel.value && item.produto) {
-            const _found = (estoque.produtos || []).find(p => p.nome === item.produto || p.nome === item.produtoNome);
+        // tenta por id
+        if (item.produtoId) {
+            _sel.value = String(item.produtoId);
+        }
+        // se não achou a option (selectedIndex === 0 e não é o produto), tenta pelo nome
+        if ((!_sel.value || _sel.selectedIndex <= 0) && (item.produto || item.produtoNome)) {
+            const _nomeBusca = item.produto || item.produtoNome || '';
+            const _found = (estoque.produtos || []).find(p =>
+                p.nome === _nomeBusca ||
+                String(p.id) === String(item.produtoId)
+            );
             if (_found) _sel.value = String(_found.id);
         }
     }
@@ -23719,8 +23727,8 @@ function _coletarItensProposta() {
             let calc = null;
             try { if (produto && produto.nome) calc = calcularPreco(produto.nome); } catch (e) { calc = null; }
 
-            const valorUnit = (valorUnitarioInput && valorUnitarioInput > 0) ? valorUnitarioInput : (calc && calc.precoFinal ? Number(calc.precoFinal) : 0);
-            const valorTotal = Number((quantidade || 0) * valorUnit);
+            const valorUnit = Math.round(((valorUnitarioInput && valorUnitarioInput > 0) ? valorUnitarioInput : (calc && calc.precoFinal ? Number(calc.precoFinal) : 0)) * 100) / 100;
+            const valorTotal = Math.round((quantidade || 0) * valorUnit * 100) / 100;
 
             const descontoPct = parseFloat(row.querySelector('.item-desconto')?.value || '0') || 0;
             const valorOriginalData = (row.querySelector('.item-valor')?.dataset?.original || '').toString().replace(/\./g, '').replace(',', '.');
