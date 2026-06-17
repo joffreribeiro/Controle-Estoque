@@ -1549,6 +1549,7 @@ function renderConsultaPrecificacoes(dados) {
                 html += `<td style="min-width:110px;position:sticky;right:0">`;
                 const _propVinc = prec.propostaId ? (propostas || []).find(p => p.id === prec.propostaId) : null;
                 const _stIcone = { rascunho:'✏️', enviada:'📤', aceita:'✅', recusada:'❌', expirada:'⏳', aguardando_aprovacao:'🔄' };
+                html += `<button class="btn-action btn-edit" onclick="editarPrecificacaoDaConsulta('${prec.id}')" title="Editar precificação">✏️</button>`;
                 if (_propVinc) {
                     const _ic = _stIcone[_propVinc.status] || '📄';
                     const _stLbl = (_propVinc.status || '').charAt(0).toUpperCase() + (_propVinc.status || '').slice(1);
@@ -1794,7 +1795,7 @@ function _cqRenderizarCards(dadosPaginaAtual) {
         const exp = _cpExpirada(p);
         const y = new Date(p.dataCriacao || p.data || Date.now()).getFullYear();
         const seq = seqMap.get(p.id || p) || '?';
-        const num = y + '/' + String(seq).padStart(3, '0');
+        const num = String(seq).padStart(3, '0') + '/' + y;
         const data = p.dataCriacao ? new Date(p.dataCriacao).toLocaleDateString('pt-BR') : '—';
         const cliente = _escapeHtml(p.clienteNome || p.cliente || '—');
         const uf = _escapeHtml((p.clienteUF || p.uf || '').toUpperCase());
@@ -22065,6 +22066,16 @@ function carregarPrecificacaoSalva(clienteId) {
         const infoEl = document.getElementById('precifSalvoInfo'); if (infoEl) infoEl.innerHTML = `<span style="color:#16a34a; font-size:0.82rem">Usando precificação salva v${registro.versao} em ${new Date(registro.dataCriacao).toLocaleString('pt-BR')}</span>`;
         mostrarNotificacao('Precificação carregada.', 'success');
     } catch (e) { console.error('carregarPrecificacaoSalva', e); mostrarNotificacao('Erro ao carregar precificação salva.', 'error'); }
+}
+
+function editarPrecificacaoDaConsulta(precifId) {
+    const registro = (precificacoesCliente || []).find(p => String(p.id) === String(precifId));
+    if (!registro) { mostrarNotificacao('Precificação não encontrada.', 'error'); return; }
+    trocarSubabaPrecif('porcliente');
+    setTimeout(() => {
+        aplicarEstadoPrecificacaoSalva(registro);
+        mostrarNotificacao('Precificação carregada para edição.', 'success');
+    }, 150);
 }
 
 function criarPropostaDaPrecificacao() {
