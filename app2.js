@@ -12016,8 +12016,8 @@ async function gerarContratoVenda(vendaId) {
     const borders  = { top: border, bottom: border, left: border, right: border };
     const thinBot  = { top: { style: BorderStyle.NONE }, bottom: border, left: { style: BorderStyle.NONE }, right: { style: BorderStyle.NONE } };
 
-    const B  = (text, sz=SZ) => new TextRun({ text, bold: true, size: sz, font: 'Calibri' });
-    const N  = (text, sz=SZ) => new TextRun({ text, size: sz, font: 'Calibri' });
+    const B  = (text, sz=SZ, color=undefined) => new TextRun({ text, bold: true, size: sz, font: 'Calibri', ...(color ? { color } : {}) });
+    const N  = (text, sz=SZ, color=undefined) => new TextRun({ text, size: sz, font: 'Calibri', ...(color ? { color } : {}) });
     const It = (text, sz=SZ) => new TextRun({ text, italics: true, size: sz, font: 'Calibri' });
 
     const P  = (children, align=AlignmentType.JUSTIFIED, sp={}, ind={}) =>
@@ -12029,25 +12029,26 @@ async function gerarContratoVenda(vendaId) {
     const cell = (children, w, opts={}) => new TableCell({
         children: Array.isArray(children) ? children : [PL([N(children||'')])],
         width: { size: w, type: WidthType.DXA },
-        borders, margins: { top: 60, bottom: 60, left: 100, right: 100 }, ...opts
+        borders, margins: { top: 30, bottom: 30, left: 100, right: 100 }, ...opts
     });
     const cellC = (children, w, opts={}) => new TableCell({
         children: Array.isArray(children) ? children : [PC([N(children||'')])],
         width: { size: w, type: WidthType.DXA },
-        borders, margins: { top: 60, bottom: 60, left: 100, right: 100 }, ...opts
+        borders, margins: { top: 30, bottom: 30, left: 100, right: 100 }, ...opts
     });
     const hCell = (text, w) => new TableCell({
         children: [PC([B(text, SZ_H)])],
         width: { size: w, type: WidthType.DXA },
         borders, shading: { fill: 'D9D9D9', type: ShadingType.CLEAR },
-        margins: { top: 60, bottom: 60, left: 100, right: 100 },
+        margins: { top: 30, bottom: 30, left: 100, right: 100 },
     });
-    const spanCell = (children, w, span, shade=false, opts={}) => new TableCell({
+    const spanCell = (children, w, span, shade=false, dark=false, opts={}) => new TableCell({
         children: Array.isArray(children) ? children : [PL([N(children||'')])],
         width: { size: w, type: WidthType.DXA },
         columnSpan: span, borders,
-        shading: shade ? { fill: 'D9D9D9', type: ShadingType.CLEAR } : undefined,
-        margins: { top: 60, bottom: 60, left: 100, right: 100 }, ...opts
+        shading: dark  ? { fill: '000000', type: ShadingType.CLEAR } :
+                 shade ? { fill: 'D9D9D9', type: ShadingType.CLEAR } : undefined,
+        margins: { top: 30, bottom: 30, left: 100, right: 100 }, ...opts
     });
 
     // ── NOTA DE RODAPÉ (texto confidencial) ──
@@ -12115,8 +12116,7 @@ async function gerarContratoVenda(vendaId) {
     const tabelaVendedor = new Table({
         width: { size: TW, type: WidthType.DXA },
         columnWidths: [2340, 2340, 2340, 2340],
-        rows: [
-            new TableRow({ children: [spanCell([PL([B('VENDEDOR', SZ_H)])], TW, 4, true)] }),
+            new TableRow({ children: [spanCell([PL([B('VENDEDOR', SZ_H, 'FFFFFF')])], TW, 4, false, true)] }),
             new TableRow({ children: [spanCell([PL([B('Nome: '), N(vendedor.nomeEmpresa||'')])], TW, 4)] }),
             new TableRow({ children: [
                 spanCell([PL([B('CNPJ/MF: '), N(vendedor.cnpj||'')])], 4680, 2),
@@ -12137,8 +12137,7 @@ async function gerarContratoVenda(vendaId) {
     const tabelaComprador = new Table({
         width: { size: TW, type: WidthType.DXA },
         columnWidths: [2340, 2340, 2340, 2340],
-        rows: [
-            new TableRow({ children: [spanCell([PL([B('COMPRADOR', SZ_H)])], TW, 4, true)] }),
+            new TableRow({ children: [spanCell([PL([B('COMPRADOR', SZ_H, 'FFFFFF')])], TW, 4, false, true)] }),
             new TableRow({ children: [spanCell([PL([B('Nome: '), N(venda.loja||'')])], TW, 4)] }),
             new TableRow({ children: [spanCell([PL([B('Nome Fantasia: '), N(nomeFantCli)])], TW, 4)] }),
             new TableRow({ children: [
@@ -12163,8 +12162,7 @@ async function gerarContratoVenda(vendaId) {
     const tabelaRep = new Table({
         width: { size: TW, type: WidthType.DXA },
         columnWidths: [3120, 1560, 2340, 2340],
-        rows: [
-            new TableRow({ children: [spanCell([PL([B('REPRESENTANTE COMERCIAL AUTORIZADO', SZ_H)])], TW, 4, true)] }),
+            new TableRow({ children: [spanCell([PL([B('REPRESENTANTE COMERCIAL AUTORIZADO', SZ_H, 'FFFFFF')])], TW, 4, false, true)] }),
             new TableRow({ children: [spanCell([PL([B('Razão Social: '),    N(rep.razaoSocial||'')])], TW, 4)] }),
             new TableRow({ children: [spanCell([PL([B('Nome Fantasia: '),   N(rep.nomeFantasia||'')])], TW, 4)] }),
             new TableRow({ children: [
