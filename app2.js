@@ -23620,18 +23620,25 @@ function adicionarItemPropostaRow(item = null) {
     } catch (e) { preValorOriginal = ''; }
 
     row.innerHTML = `
-        <select class="item-produto" onchange="autoPreencherPrecoItemProposta(this); atualizarItemPropostaRow(this)">${opcoesHtml}</select>
-        <input type="number" class="item-quantidade" min="1" value="${preQtd}" style="width:90px" onchange="atualizarItemPropostaRow(this)" />
-        <input type="text" class="item-valor" placeholder="Valor unit." style="width:140px" oninput="formatarMoeda(this); atualizarItemPropostaRow(this)" value="${preValor}" data-original="${preValorOriginal}" />
-        <input type="number" step="0.01" min="0" max="100" class="item-desconto" placeholder="Desc%" oninput="aplicarDesconto(this)" style="width:65px; border:1px solid #e2e8f0; border-radius:6px; padding:5px 6px; text-align:center; font-size:0.82rem" title="Desconto % sobre o preço original">
+        <select class="item-produto" style="flex:1;min-width:0" onchange="autoPreencherPrecoItemProposta(this); atualizarItemPropostaRow(this)">${opcoesHtml}</select>
+        <input type="number" class="item-quantidade" min="1" value="${preQtd}" style="width:70px" onchange="atualizarItemPropostaRow(this)" />
+        <input type="text" class="item-valor" placeholder="Valor unit." style="width:130px" oninput="formatarMoeda(this); atualizarItemPropostaRow(this)" value="${preValor}" data-original="${preValorOriginal}" />
+        <input type="number" step="0.01" min="0" max="100" class="item-desconto" placeholder="Desc%" oninput="aplicarDesconto(this)" style="width:60px; border:1px solid #e2e8f0; border-radius:6px; padding:5px 6px; text-align:center; font-size:0.82rem" title="Desconto %">
         <span style="font-size:0.8rem; color:#94a3b8">%</span>
-        <div class="item-subtotal" style="min-width:120px">-</div>
-        <button type="button" class="btn btn-outline btn-sm" onclick="removerItemPropostaRow(this)">Remover</button>
+        <div class="item-subtotal" style="min-width:110px;text-align:right;font-weight:600">-</div>
+        <button type="button" class="btn btn-outline btn-sm" style="color:#ef4444;padding:4px 8px" onclick="removerItemPropostaRow(this)">✕</button>
     `;
 
     container.appendChild(row);
 
-    if (item && item.produtoId) row.querySelector('.item-produto').value = item.produtoId;
+    if (item && item.produtoId) {
+        const _sel = row.querySelector('.item-produto');
+        _sel.value = String(item.produtoId);
+        if (!_sel.value && item.produto) {
+            const _found = (estoque.produtos || []).find(p => p.nome === item.produto || p.nome === item.produtoNome);
+            if (_found) _sel.value = String(_found.id);
+        }
+    }
 
     atualizarItemPropostaRow(row.querySelector('.item-produto'));
 }
@@ -24177,15 +24184,14 @@ function renderizarPropostas(filtro, statusFiltro) {
             <td><span class="badge-status-proposta ${statusConf.cls}">${statusConf.label}</span>${motivoRecusaSmall}</td>
             <td style="font-weight:600">${_escapeHtml(String(contratoDisplay))}</td>
             <td style="font-size:0.78rem;color:#dc2626;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${motivoRecusaEsc}">${p.status === 'recusada' && p.motivoRecusa ? motivoRecusaEsc : '—'}</td>
-            <td>
-                                <button class="btn btn-outline btn-sm" onclick="gerarPdfProposta('${p.id}','fiscal')" title="Detalhamento fiscal">
-                                    🧾 PDF Fiscal
-                                </button>
-                ${(p.aguardandoAprovacao || p.status === 'aguardando_aprovacao') ? `<button class="btn btn-success btn-sm" data-admin="true" onclick="aprovarProposta('${p.id}')" title="Aprovar">✅ Aprovar</button><button class="btn btn-danger btn-sm" data-admin="true" onclick="recusarAprovacaoProposta('${p.id}')" title="Recusar">❌ Recusar</button>` : ''}
-                <button class="btn btn-outline btn-sm" data-admin="true" onclick="abrirModalProposta('${p.id}')" title="Editar">✏️</button>
-                ${podeConverter ? `<button class="btn btn-success btn-sm" data-admin="true" onclick="converterPropostaEmVenda('${p.id}')" title="Converter em Venda" style="font-size:0.78rem;">🔄</button>` : ''}
-                ${p.status === 'enviada' ? `<button class="btn btn-outline btn-sm" data-admin="true" onclick="recusarProposta('${p.id}')" title="Recusar" style="color:#dc2626">❌</button>` : ''}
-                <button class="btn btn-outline btn-sm" data-admin="true" onclick="excluirProposta('${p.id}')" title="Excluir" style="color:#ef4444">🗑️</button>
+            <td style="white-space:nowrap">
+                <div style="display:flex;flex-wrap:wrap;gap:4px;align-items:center;justify-content:flex-end">
+                    <button class="btn btn-outline btn-sm" onclick="abrirModalProposta('${p.id}')" title="Editar proposta" style="padding:4px 8px">✏️</button>
+                    <button class="btn btn-outline btn-sm" onclick="gerarPdfProposta('${p.id}','fiscal')" title="PDF com detalhamento fiscal" style="padding:4px 8px">🧾</button>
+                    ${podeConverter ? `<button class="btn btn-success btn-sm" data-admin="true" onclick="converterPropostaEmVenda('${p.id}')" title="Converter em Venda" style="padding:4px 8px">🔄</button>` : ''}
+                    ${(p.aguardandoAprovacao || p.status === 'aguardando_aprovacao') ? `<button class="btn btn-success btn-sm" data-admin="true" onclick="aprovarProposta('${p.id}')" title="Aprovar" style="padding:4px 8px">✅</button><button class="btn btn-danger btn-sm" data-admin="true" onclick="recusarAprovacaoProposta('${p.id}')" title="Recusar aprovação" style="padding:4px 8px">❌</button>` : ''}
+                    <button class="btn btn-outline btn-sm" data-admin="true" onclick="excluirProposta('${p.id}')" title="Excluir" style="padding:4px 8px;color:#ef4444">🗑️</button>
+                </div>
             </td>
         </tr>`;
     }).join('');
