@@ -12005,7 +12005,7 @@ async function gerarContratoVenda(vendaId) {
     const {
         Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell,
         AlignmentType, WidthType, BorderStyle, ShadingType, VerticalAlign,
-        Footer, ImageRun, Tab
+        Footer, Header, ImageRun, Tab, PageNumber, NumberFormat
     } = docxLib;
 
     const TW = 10692; // largura A4 com margens 680 DXA cada lado (~17.9cm)
@@ -12058,7 +12058,18 @@ async function gerarContratoVenda(vendaId) {
 
     const nomeEmpresaRodape = (venda.loja || 'NOME DA EMPRESA').toUpperCase();
 
-    const footerContent = null;
+    const headerContent = new Header({
+        children: [new Paragraph({
+            alignment: AlignmentType.RIGHT,
+            spacing: { before: 0, after: 0 },
+            children: [
+                new TextRun({ text: 'Página ', size: SZ, font: 'Calibri' }),
+                new TextRun({ children: [PageNumber.CURRENT], size: SZ, font: 'Calibri' }),
+                new TextRun({ text: ' de ', size: SZ, font: 'Calibri' }),
+                new TextRun({ children: [PageNumber.TOTAL_PAGES], size: SZ, font: 'Calibri' }),
+            ],
+        })]
+    });
 
     // ── TABELA DE PRODUTOS ──
     const prodRows = itens.map(it => {
@@ -12178,7 +12189,7 @@ async function gerarContratoVenda(vendaId) {
                 },
                 pageNumberStart: 1,
             },
-            ...(footerContent ? { footers: { default: footerContent } } : {}),
+            headers: { default: headerContent },
             children: [
                 // ── CABEÇALHO: logo flutuante + título centralizado ──
                 // Tabela 2 colunas: logo | títulos
