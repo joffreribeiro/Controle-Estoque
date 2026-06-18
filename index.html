@@ -1010,7 +1010,6 @@
             <div class="pc-produtos-header">
                 <span class="pc-produtos-title">PRODUTOS <span class="pc-produtos-hint">— Taxa/ROI individuais por linha</span></span>
                 <div style="display:flex;gap:6px;align-items:center">
-                    <button class="pc-btn primary sm" onclick="calcularPrecificacaoPorCliente({forcarAtual:true})">&#9881; CALCULAR</button>
                     <div style="position:relative;display:inline-block">
                         <button class="pc-btn sm" onclick="precifAbrirPickerProdutos(this)">+ PRODUTO</button>
                         <div id="precifPickerDropdown" style="display:none;position:absolute;top:calc(100% + 4px);right:0;z-index:9999;background:#fff;border:1px solid #cbd5e1;border-radius:6px;box-shadow:0 8px 32px rgba(0,0,0,0.18);width:380px;max-height:480px;flex-direction:column">
@@ -1035,6 +1034,11 @@
             </div>
             <div id="precifProdutoContador" class="pc-contador"></div>
             <div id="precifProdutosChecklist" style="display:none"></div>
+
+            <!-- Botão calcular -->
+            <div style="display:flex;justify-content:flex-end;padding:10px 0 4px 0">
+                <button class="pc-btn primary" onclick="calcularPrecificacaoPorCliente({forcarAtual:true})" style="font-size:0.95rem;padding:9px 28px;letter-spacing:0.04em">&#9881; CALCULAR</button>
+            </div>
 
             <!-- Benefício Fiscal -->
             <div class="pc-beneficio-toggle">
