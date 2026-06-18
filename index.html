@@ -1013,14 +1013,14 @@
                     <button class="pc-btn primary sm" onclick="calcularPrecificacaoPorCliente({forcarAtual:true})">&#9881; CALCULAR</button>
                     <div style="position:relative;display:inline-block">
                         <button class="pc-btn sm" onclick="precifAbrirPickerProdutos(this)">+ PRODUTO</button>
-                        <div id="precifPickerDropdown" style="display:none;position:absolute;top:calc(100% + 4px);right:0;z-index:9999;background:var(--tv-navy-900);border:1px solid var(--tv-navy-700);border-radius:4px;box-shadow:0 8px 32px rgba(0,0,0,0.5);width:340px;max-height:420px;flex-direction:column">
-                            <div style="padding:10px 12px;border-bottom:1px solid var(--tv-navy-700);display:flex;gap:8px;align-items:center">
+                        <div id="precifPickerDropdown" style="display:none;position:absolute;top:calc(100% + 4px);right:0;z-index:9999;background:#fff;border:1px solid #cbd5e1;border-radius:6px;box-shadow:0 8px 32px rgba(0,0,0,0.18);width:380px;max-height:480px;flex-direction:column">
+                            <div style="padding:10px 12px;border-bottom:1px solid #e2e8f0;display:flex;gap:8px;align-items:center">
                                 <input id="precifPickerBusca" type="text" placeholder="Buscar produto..." oninput="precifPickerFiltrar(this.value)" class="pc-picker-search">
                                 <button class="pc-btn sm" onclick="precifPickerMarcarTodos()">TODOS</button>
                                 <button class="pc-btn sm" onclick="precifPickerDesmarcarTodos()">NENHUM</button>
                             </div>
                             <div id="precifPickerLista" style="overflow-y:auto;flex:1;padding:6px 0"></div>
-                            <div style="padding:10px 12px;border-top:1px solid var(--tv-navy-700);display:flex;justify-content:flex-end;gap:8px">
+                            <div style="padding:10px 12px;border-top:1px solid #e2e8f0;display:flex;justify-content:flex-end;gap:8px">
                                 <button class="pc-btn sm" onclick="precifFecharPickerProdutos()">CANCELAR</button>
                                 <button class="pc-btn primary sm" onclick="precifConfirmarPickerProdutos()">ADICIONAR</button>
                             </div>

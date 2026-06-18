@@ -20951,22 +20951,22 @@ function precifAbrirPickerProdutos(btn) {
         const nomeUp = (prod.nome || '').toUpperCase();
         const filhas = pecasPorPai[nomeUp] || [];
         const ci = parseFloat(precificacao[prod.nome]?.ci || prod.ci || 0);
-        const ciTxt = ci > 0 ? ` <span style="color:#64748b;font-size:0.75rem">(CI: ${_fmtMoeda(ci)})</span>` : '';
+        const ciTxt = ci > 0 ? ` <span style="color:#94a3b8;font-size:0.75rem">(CI: ${_fmtMoeda(ci)})</span>` : '';
         const jatem = jaAdicionados.has(prod.nome);
 
-        html += `<div class="precif-picker-row" data-nome="${_escapeHtml(prod.nome)}" style="padding:6px 12px;display:flex;align-items:center;gap:8px;cursor:pointer;border-radius:0" onclick="precifPickerToggleItem(this)">
+        html += `<div class="precif-picker-row" data-nome="${_escapeHtml(prod.nome)}" style="padding:7px 12px;display:flex;align-items:center;gap:8px;cursor:pointer;border-radius:0;border-bottom:1px solid #f1f5f9" onclick="precifPickerToggleItem(this)">
             <input type="checkbox" class="precif-picker-cb" value="${_escapeHtml(prod.nome)}" ${jatem ? 'checked' : ''} style="width:15px;height:15px;accent-color:#1e3a5f;flex-shrink:0;pointer-events:none">
-            <span style="font-size:0.85rem;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${_escapeHtml(prod.nome)}${ciTxt}</span>
-            ${filhas.length ? `<span class="precif-picker-expand" data-pai="${_escapeHtml(nomeUp)}" onclick="precifPickerExpandirPai(event, this)" style="cursor:pointer;font-size:0.75rem;color:#94a3b8;flex-shrink:0;padding:2px 4px;border-radius:4px;background:#f1f5f9">&#9658; ${filhas.length} pe&#231;a${filhas.length > 1 ? 's' : ''}</span>` : ''}
+            <span style="font-size:0.85rem;color:#1e293b;font-weight:500;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${_escapeHtml(prod.nome)}${ciTxt}</span>
+            ${filhas.length ? `<span class="precif-picker-expand" data-pai="${_escapeHtml(nomeUp)}" onclick="precifPickerExpandirPai(event, this)" style="cursor:pointer;font-size:0.72rem;color:#475569;flex-shrink:0;padding:2px 6px;border-radius:4px;background:#e2e8f0">&#9658; ${filhas.length} pe&#231;a${filhas.length > 1 ? 's' : ''}</span>` : ''}
         </div>`;
 
         filhas.forEach(peca => {
             const ciP = parseFloat(precificacao[peca.nome]?.ci || peca.ci || 0);
-            const ciPTxt = ciP > 0 ? ` <span style="color:#64748b;font-size:0.75rem">(CI: ${_fmtMoeda(ciP)})</span>` : '';
+            const ciPTxt = ciP > 0 ? ` <span style="color:#94a3b8;font-size:0.75rem">(CI: ${_fmtMoeda(ciP)})</span>` : '';
             const jatemP = jaAdicionados.has(peca.nome);
-            html += `<div class="precif-picker-row precif-picker-filha" data-nome="${_escapeHtml(peca.nome)}" data-pai-filha="${_escapeHtml(nomeUp)}" style="display:none;padding:5px 12px 5px 30px;align-items:center;gap:8px;cursor:pointer;background:#f8fafc;border-left:3px solid #e2e8f0" onclick="precifPickerToggleItem(this)">
+            html += `<div class="precif-picker-row precif-picker-filha" data-nome="${_escapeHtml(peca.nome)}" data-pai-filha="${_escapeHtml(nomeUp)}" style="display:none;padding:5px 12px 5px 32px;align-items:center;gap:8px;cursor:pointer;background:#f8fafc;border-left:3px solid #cbd5e1;border-bottom:1px solid #f1f5f9" onclick="precifPickerToggleItem(this)">
                 <input type="checkbox" class="precif-picker-cb" value="${_escapeHtml(peca.nome)}" ${jatemP ? 'checked' : ''} style="width:14px;height:14px;accent-color:#475569;flex-shrink:0;pointer-events:none">
-                <span style="font-size:0.82rem;color:#475569;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">&#8618; ${_escapeHtml(peca.nome)}${ciPTxt}</span>
+                <span style="font-size:0.82rem;color:#334155;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">&#8618; ${_escapeHtml(peca.nome)}${ciPTxt}</span>
             </div>`;
         });
     });
