@@ -20913,163 +20913,339 @@ function precifGetProdutosSelecionados() {
 }
 
 // ==========================================
-// Picker multi-seleção de produtos (precificação)
+// Modal seletor de produtos (precificação V11)
 // ==========================================
 
-let _precifPickerAberto = false;
-let _precifPickerProdutosCache = [];
+const _selMod = {
+    selecionados: new Set(),   // nomes dos produtos marcados
+    expandidos: new Set(),     // nomes dos pais expandidos
+    catAtiva: 'todos',
+    busca: '',
+    todosCache: [],
+    pecasPorPai: {},           // NOME_PAI_UPPER → [produtos filhos]
+};
 
-function precifAbrirPickerProdutos(btn) {
-    const dropdown = document.getElementById('precifPickerDropdown');
-    if (!dropdown) return;
+// Mapa de rótulos por NCM
+const _SEL_NCM_LABELS = {
+    '9301.90.00': 'Armas Longas',
+    '9302.00.00': 'Armas Curtas',
+    '8211.10.00': 'Facas / Lâminas',
+    '9305.10.00': 'Acessórios / Peças',
+    '9306': 'Munições',
+};
 
-    if (_precifPickerAberto) {
-        precifFecharPickerProdutos();
-        return;
+function _selNcmLabel(ncm) {
+    if (!ncm) return 'Outros';
+    for (const [prefixo, label] of Object.entries(_SEL_NCM_LABELS)) {
+        if (ncm.startsWith(prefixo)) return label;
+    }
+    return ncm;
+}
+
+function precifAbrirModalProdutos() {
+    const modal = document.getElementById('selProdModal');
+    if (!modal) return;
+
+    // Monta cache de produtos
+    const todos = [...(estoque.produtos || [])].sort((a, b) =>
+        (a.nome || '').localeCompare(b.nome || '', 'pt-BR'));
+
+    _selMod.todosCache = todos;
+    _selMod.pecasPorPai = {};
+    todos.filter(p => p.componente && p.componente.trim() !== '' && p.componente.trim() !== '-')
+        .forEach(p => {
+            const pai = p.componente.trim().toUpperCase();
+            if (!_selMod.pecasPorPai[pai]) _selMod.pecasPorPai[pai] = [];
+            _selMod.pecasPorPai[pai].push(p);
+        });
+
+    // Pré-marca os que já estão na tabela
+    _selMod.selecionados = new Set(
+        Array.from(document.querySelectorAll('.precif-linha-produto'))
+            .map(l => l.dataset.nomeProduto).filter(Boolean)
+    );
+    _selMod.expandidos = new Set();
+    _selMod.catAtiva = 'todos';
+    _selMod.busca = '';
+
+    // Subtítulo do header
+    const subEl = document.getElementById('selModalSubtitle');
+    if (subEl) {
+        const nome = (document.getElementById('pcKpiNome') || {}).textContent || '—';
+        const ufTipo = (document.getElementById('pcKpiUFTipo') || {}).textContent || '';
+        subEl.textContent = nome.trim() + (ufTipo && ufTipo !== '— / —' ? ' · ' + ufTipo.trim() : '');
     }
 
-    const todos = [...(estoque.produtos || [])].sort((a, b) => (a.nome || '').localeCompare(b.nome || '', 'pt-BR'));
-    const principais = todos.filter(p => !p.componente || p.componente.trim() === '' || p.componente.trim() === '-');
-    const pecasPorPai = {};
-    todos.filter(p => p.componente && p.componente.trim() !== '' && p.componente.trim() !== '-').forEach(p => {
-        const pai = p.componente.trim().toUpperCase();
-        if (!pecasPorPai[pai]) pecasPorPai[pai] = [];
-        pecasPorPai[pai].push(p);
-    });
+    // Monta pílulas de categoria
+    _selModalMontarCats();
 
-    _precifPickerProdutosCache = todos;
-
-    const lista = document.getElementById('precifPickerLista');
-    if (!lista) return;
-
-    const jaAdicionados = new Set(
-        Array.from(document.querySelectorAll('.precif-linha-produto')).map(l => l.dataset.nomeProduto).filter(Boolean)
-    );
-
-    let html = '';
-    principais.forEach(prod => {
-        const nomeUp = (prod.nome || '').toUpperCase();
-        const filhas = pecasPorPai[nomeUp] || [];
-        const ci = parseFloat(precificacao[prod.nome]?.ci || prod.ci || 0);
-        const ciTxt = ci > 0 ? ` <span style="color:#94a3b8;font-size:0.75rem">(CI: ${_fmtMoeda(ci)})</span>` : '';
-        const jatem = jaAdicionados.has(prod.nome);
-
-        html += `<div class="precif-picker-row" data-nome="${_escapeHtml(prod.nome)}" style="padding:7px 12px;display:flex;align-items:center;gap:8px;cursor:pointer;border-radius:0;border-bottom:1px solid #f1f5f9" onclick="precifPickerToggleItem(this)">
-            <input type="checkbox" class="precif-picker-cb" value="${_escapeHtml(prod.nome)}" ${jatem ? 'checked' : ''} style="width:15px;height:15px;accent-color:#1e3a5f;flex-shrink:0;pointer-events:none">
-            <span style="font-size:0.85rem;color:#1e293b;font-weight:500;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${_escapeHtml(prod.nome)}${ciTxt}</span>
-            ${filhas.length ? `<span class="precif-picker-expand" data-pai="${_escapeHtml(nomeUp)}" onclick="precifPickerExpandirPai(event, this)" style="cursor:pointer;font-size:0.72rem;color:#475569;flex-shrink:0;padding:2px 6px;border-radius:4px;background:#e2e8f0">&#9658; ${filhas.length} pe&#231;a${filhas.length > 1 ? 's' : ''}</span>` : ''}
-        </div>`;
-
-        filhas.forEach(peca => {
-            const ciP = parseFloat(precificacao[peca.nome]?.ci || peca.ci || 0);
-            const ciPTxt = ciP > 0 ? ` <span style="color:#94a3b8;font-size:0.75rem">(CI: ${_fmtMoeda(ciP)})</span>` : '';
-            const jatemP = jaAdicionados.has(peca.nome);
-            html += `<div class="precif-picker-row precif-picker-filha" data-nome="${_escapeHtml(peca.nome)}" data-pai-filha="${_escapeHtml(nomeUp)}" style="display:none;padding:5px 12px 5px 32px;align-items:center;gap:8px;cursor:pointer;background:#f8fafc;border-left:3px solid #cbd5e1;border-bottom:1px solid #f1f5f9" onclick="precifPickerToggleItem(this)">
-                <input type="checkbox" class="precif-picker-cb" value="${_escapeHtml(peca.nome)}" ${jatemP ? 'checked' : ''} style="width:14px;height:14px;accent-color:#475569;flex-shrink:0;pointer-events:none">
-                <span style="font-size:0.82rem;color:#334155;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">&#8618; ${_escapeHtml(peca.nome)}${ciPTxt}</span>
-            </div>`;
-        });
-    });
-
-    lista.innerHTML = html || '<div style="padding:14px;color:#94a3b8;font-size:0.85rem;text-align:center">Nenhum produto cadastrado.</div>';
-
-    const buscaEl = document.getElementById('precifPickerBusca');
+    // Limpa busca e renderiza
+    const buscaEl = document.getElementById('selModalBusca');
     if (buscaEl) buscaEl.value = '';
 
-    dropdown.style.display = 'flex';
-    _precifPickerAberto = true;
+    _selModalRenderizar();
 
-    setTimeout(() => {
-        if (buscaEl) buscaEl.focus();
-        document.addEventListener('mousedown', _precifPickerClickFora, true);
-    }, 50);
+    modal.style.display = 'flex';
+    setTimeout(() => { if (buscaEl) buscaEl.focus(); }, 60);
 }
 
-function _precifPickerClickFora(e) {
-    const dropdown = document.getElementById('precifPickerDropdown');
-    if (dropdown && !dropdown.contains(e.target) && !e.target.closest('[onclick*="precifAbrirPickerProdutos"]')) {
-        precifFecharPickerProdutos();
-    }
+function _selModalMontarCats() {
+    const catsEl = document.getElementById('selModalCats');
+    if (!catsEl) return;
+
+    // Coleta NCMs presentes
+    const principais = _selMod.todosCache.filter(p =>
+        !p.componente || p.componente.trim() === '' || p.componente.trim() === '-');
+
+    const ncmsPresentes = [...new Set(principais.map(p => p.ncm || ''))];
+
+    // Monta pílulas: Todos + uma por NCM
+    const cats = [{ key: 'todos', label: 'Todos' }];
+    ncmsPresentes.filter(n => n).forEach(ncm => {
+        cats.push({ key: ncm, label: _selNcmLabel(ncm) });
+    });
+
+    catsEl.innerHTML = cats.map(c =>
+        `<button class="sel-cat-pill${_selMod.catAtiva === c.key ? ' ativo' : ''}"
+            data-cat="${_escapeHtml(c.key)}"
+            onclick="selModalSetCat(this,'${_escapeHtml(c.key)}')">${_escapeHtml(c.label)}</button>`
+    ).join('');
 }
 
-function precifFecharPickerProdutos() {
-    const dropdown = document.getElementById('precifPickerDropdown');
-    if (dropdown) dropdown.style.display = 'none';
-    _precifPickerAberto = false;
-    document.removeEventListener('mousedown', _precifPickerClickFora, true);
+function selModalSetCat(btn, cat) {
+    _selMod.catAtiva = cat;
+    document.querySelectorAll('.sel-cat-pill').forEach(b => b.classList.remove('ativo'));
+    btn.classList.add('ativo');
+    _selModalRenderizar();
 }
 
-function precifPickerToggleItem(row) {
-    const cb = row.querySelector('.precif-picker-cb');
-    if (cb) cb.checked = !cb.checked;
+function selModalFiltrar() {
+    const buscaEl = document.getElementById('selModalBusca');
+    _selMod.busca = buscaEl ? buscaEl.value : '';
+    _selModalRenderizar();
 }
 
-function precifPickerExpandirPai(event, spanBtn) {
-    event.stopPropagation();
-    const pai = spanBtn.dataset.pai;
-    const lista = document.getElementById('precifPickerLista');
-    if (!lista || !pai) return;
-    const filhas = lista.querySelectorAll(`.precif-picker-filha[data-pai-filha="${(CSS.escape ? CSS.escape(pai) : pai.replace(/"/g, '\\"'))}"]`);
-    const expandido = spanBtn.dataset.expandido === '1';
-    filhas.forEach(f => { f.style.display = expandido ? 'none' : 'flex'; });
-    spanBtn.dataset.expandido = expandido ? '0' : '1';
-    spanBtn.innerHTML = expandido ? `&#9658; ${filhas.length} pe&#231;a${filhas.length > 1 ? 's' : ''}` : `&#9660; ${filhas.length} pe&#231;a${filhas.length > 1 ? 's' : ''}`;
-}
+function _selModalFiltrado() {
+    const q = (_selMod.busca || '').trim().toLowerCase();
+    const cat = _selMod.catAtiva;
 
-function precifPickerFiltrar(termo) {
-    const lista = document.getElementById('precifPickerLista');
-    if (!lista) return;
-    const t = termo.trim().toLowerCase();
-    if (!t) {
-        // Sem filtro: restaurar estado original (filhas ocultas, principais visíveis)
-        lista.querySelectorAll('.precif-picker-row:not(.precif-picker-filha)').forEach(r => { r.style.display = 'flex'; });
-        lista.querySelectorAll('.precif-picker-filha').forEach(f => {
-            const span = lista.querySelector(`.precif-picker-expand[data-pai="${CSS.escape(f.dataset.paiFilha)}"]`);
-            f.style.display = (span && span.dataset.expandido === '1') ? 'flex' : 'none';
-        });
-        return;
-    }
-    // Com filtro: mostrar qualquer produto cujo nome corresponda
-    lista.querySelectorAll('.precif-picker-row').forEach(row => {
-        const nome = (row.dataset.nome || '').toLowerCase();
-        row.style.display = nome.includes(t) ? 'flex' : 'none';
+    const principais = _selMod.todosCache.filter(p =>
+        !p.componente || p.componente.trim() === '' || p.componente.trim() === '-');
+
+    return principais.filter(p => {
+        if (cat !== 'todos' && (p.ncm || '') !== cat) return false;
+        if (!q) return true;
+        return (p.nome || '').toLowerCase().includes(q) ||
+               (p.pn || '').toLowerCase().includes(q) ||
+               (p.ncm || '').toLowerCase().includes(q) ||
+               (p.nomeFabrica || '').toLowerCase().includes(q);
     });
 }
 
-function precifPickerMarcarTodos() {
-    const lista = document.getElementById('precifPickerLista');
-    if (!lista) return;
-    lista.querySelectorAll('.precif-picker-cb').forEach(cb => { cb.checked = true; });
+function _selModalRenderizar() {
+    const tbody = document.getElementById('selModalBody');
+    const vazioEl = document.getElementById('selModalVazio');
+    if (!tbody) return;
+
+    const filtrados = _selModalFiltrado();
+
+    if (filtrados.length === 0) {
+        tbody.innerHTML = '';
+        if (vazioEl) vazioEl.style.display = '';
+        _selModalAtualizarRodape();
+        return;
+    }
+    if (vazioEl) vazioEl.style.display = 'none';
+
+    // Agrupa por NCM
+    const grupos = {};
+    filtrados.forEach(p => {
+        const ncm = p.ncm || '';
+        if (!grupos[ncm]) grupos[ncm] = [];
+        grupos[ncm].push(p);
+    });
+
+    let html = '';
+    for (const [ncm, prods] of Object.entries(grupos)) {
+        const label = _selNcmLabel(ncm);
+        const todosDoGrupoSel = prods.every(p => _selMod.selecionados.has(p.nome));
+        html += `<tr class="sel-grp">
+            <td colspan="7">
+                ${_escapeHtml(label)}
+                <span class="sel-grp-ncm">${_escapeHtml(ncm)}</span>
+                <button class="sel-grp-sel" onclick="selModalToggleGrupo(event,'${_escapeHtml(ncm)}')">
+                    ${todosDoGrupoSel ? 'Desmarcar grupo' : 'Selecionar grupo'}
+                </button>
+            </td>
+        </tr>`;
+
+        prods.forEach(prod => {
+            const nomeUp = (prod.nome || '').toUpperCase();
+            const pecas = _selMod.pecasPorPai[nomeUp] || [];
+            const temPecas = pecas.length > 0;
+            const sel = _selMod.selecionados.has(prod.nome);
+            const expandido = _selMod.expandidos.has(prod.nome);
+            const ci = parseFloat(precificacao[prod.nome]?.ci || prod.ci || 0);
+            const catTag = prod.categoria ? `<span class="sel-cat-tag">${_escapeHtml(prod.categoria)}</span>` : '';
+            const pecasBadge = temPecas ? `<span class="sel-pecas-badge">${pecas.length} peça${pecas.length > 1 ? 's' : ''}</span>` : '';
+
+            html += `<tr class="sel-prod${sel ? ' on' : ''}" onclick="selModalToggleItem(event,'${_escapeHtml(prod.nome)}')">
+                <td class="sel-td-expand">
+                    ${temPecas ? `<button class="sel-exp-btn${expandido ? ' aberto' : ''}" onclick="selModalToggleExpand(event,'${_escapeHtml(prod.nome)}')">&#9658;</button>` : ''}
+                </td>
+                <td class="sel-td-chk"><span class="sel-cbox">${sel ? '✓' : ''}</span></td>
+                <td class="sel-td-pn">${_escapeHtml(prod.pn || '—')}</td>
+                <td class="sel-td-ncm">${_escapeHtml(prod.ncm || '—')}</td>
+                <td class="sel-td-fab">${_escapeHtml(prod.nomeFabrica || '—')}</td>
+                <td class="sel-td-nome">${_escapeHtml(prod.nome)}${catTag}${pecasBadge}</td>
+                <td class="sel-td-ci">${ci > 0 ? _fmtMoeda(ci) : '—'}</td>
+            </tr>`;
+
+            // Peças aninhadas (visíveis apenas se expandido)
+            if (temPecas && expandido) {
+                pecas.forEach(peca => {
+                    const selP = _selMod.selecionados.has(peca.nome);
+                    const ciP = parseFloat(precificacao[peca.nome]?.ci || peca.ci || 0);
+                    html += `<tr class="sel-prod sel-peca${selP ? ' on' : ''}" onclick="selModalToggleItem(event,'${_escapeHtml(peca.nome)}')">
+                        <td class="sel-td-expand"></td>
+                        <td class="sel-td-chk"><span class="sel-cbox">${selP ? '✓' : ''}</span></td>
+                        <td class="sel-td-pn peca-pn">${_escapeHtml(peca.pn || '—')}</td>
+                        <td class="sel-td-ncm">${_escapeHtml(peca.ncm || '—')}</td>
+                        <td class="sel-td-fab"><span class="sel-peca-hier">└</span>${_escapeHtml(peca.nomeFabrica || '—')}</td>
+                        <td class="sel-td-nome">${_escapeHtml(peca.nome)}<span class="sel-peca-tag">peça</span></td>
+                        <td class="sel-td-ci">${ciP > 0 ? _fmtMoeda(ciP) : '—'}</td>
+                    </tr>`;
+                });
+            }
+        });
+    }
+
+    tbody.innerHTML = html;
+    _selModalAtualizarRodape();
 }
 
-function precifPickerDesmarcarTodos() {
-    const lista = document.getElementById('precifPickerLista');
-    if (!lista) return;
-    lista.querySelectorAll('.precif-picker-cb').forEach(cb => { cb.checked = false; });
+function selModalToggleItem(event, nome) {
+    if (event.target.closest('.sel-exp-btn') || event.target.closest('.sel-grp-sel')) return;
+    if (_selMod.selecionados.has(nome)) {
+        _selMod.selecionados.delete(nome);
+    } else {
+        _selMod.selecionados.add(nome);
+    }
+    _selModalRenderizar();
 }
 
-function precifConfirmarPickerProdutos() {
-    const lista = document.getElementById('precifPickerLista');
-    if (!lista) return;
+function selModalToggleExpand(event, nome) {
+    event.stopPropagation();
+    if (_selMod.expandidos.has(nome)) {
+        _selMod.expandidos.delete(nome);
+    } else {
+        _selMod.expandidos.add(nome);
+    }
+    _selModalRenderizar();
+}
 
+function selModalToggleGrupo(event, ncm) {
+    event.stopPropagation();
+    const filtrados = _selModalFiltrado();
+    const doGrupo = filtrados.filter(p => (p.ncm || '') === ncm);
+    const todosSelec = doGrupo.every(p => _selMod.selecionados.has(p.nome));
+    doGrupo.forEach(p => {
+        if (todosSelec) _selMod.selecionados.delete(p.nome);
+        else _selMod.selecionados.add(p.nome);
+    });
+    _selModalRenderizar();
+}
+
+function selModalMarcarTodos() {
+    _selModalFiltrado().forEach(p => _selMod.selecionados.add(p.nome));
+    _selModalRenderizar();
+}
+
+function selModalDesmarcarTodos() {
+    _selModalFiltrado().forEach(p => _selMod.selecionados.delete(p.nome));
+    _selModalRenderizar();
+}
+
+function _selModalAtualizarRodape() {
+    const nomes = [..._selMod.selecionados];
+    const total = nomes.length;
+
+    // Contagem
+    const countEl = document.getElementById('selFootCount');
+    if (countEl) countEl.textContent = total;
+
+    // Soma CI
+    let somaCI = 0;
+    nomes.forEach(nome => {
+        const prod = _selMod.todosCache.find(p => p.nome === nome);
+        if (prod) somaCI += parseFloat(precificacao[nome]?.ci || prod.ci || 0);
+    });
+    const ciEl = document.getElementById('selFootCI');
+    if (ciEl) ciEl.textContent = _fmtMoeda(somaCI);
+
+    // Chips (máx 4 + "+N mais")
+    const chipsEl = document.getElementById('selFootChips');
+    if (chipsEl) {
+        const MAX = 4;
+        let html = nomes.slice(0, MAX).map(nome =>
+            `<span class="sel-foot-chip">
+                <span>${_escapeHtml(nome)}</span>
+                <button class="sel-chip-rm" onclick="selModalRemoverChip(event,'${_escapeHtml(nome)}')" title="Remover">✕</button>
+            </span>`
+        ).join('');
+        if (nomes.length > MAX) {
+            html += `<span class="sel-chip-mais">+${nomes.length - MAX} mais</span>`;
+        }
+        chipsEl.innerHTML = html;
+    }
+
+    // Botão adicionar
+    const btnEl = document.getElementById('selBtnAdicionar');
+    if (btnEl) {
+        btnEl.textContent = total > 0 ? `Adicionar ${total} produto${total > 1 ? 's' : ''}` : 'Adicionar';
+        btnEl.disabled = total === 0;
+    }
+}
+
+function selModalRemoverChip(event, nome) {
+    event.stopPropagation();
+    _selMod.selecionados.delete(nome);
+    _selModalRenderizar();
+}
+
+function selModalClickFora(event) {
+    if (event.target === document.getElementById('selProdModal')) {
+        precifFecharModalProdutos();
+    }
+}
+
+function precifFecharModalProdutos() {
+    const modal = document.getElementById('selProdModal');
+    if (modal) modal.style.display = 'none';
+}
+
+function precifConfirmarModalProdutos() {
     const jaAdicionados = new Set(
-        Array.from(document.querySelectorAll('.precif-linha-produto')).map(l => l.dataset.nomeProduto).filter(Boolean)
+        Array.from(document.querySelectorAll('.precif-linha-produto'))
+            .map(l => l.dataset.nomeProduto).filter(Boolean)
     );
 
-    const marcados = Array.from(lista.querySelectorAll('.precif-picker-cb:checked'))
-        .map(cb => cb.value)
-        .filter(nome => nome && !jaAdicionados.has(nome));
+    const novos = [..._selMod.selecionados].filter(nome => !jaAdicionados.has(nome));
 
-    precifFecharPickerProdutos();
+    precifFecharModalProdutos();
 
-    if (marcados.length === 0) {
+    if (novos.length === 0) {
         mostrarNotificacao('Nenhum produto novo selecionado.', 'info');
         return;
     }
 
-    marcados.forEach(nome => precifAdicionarProdutoLinha(nome));
-    mostrarNotificacao(`${marcados.length} produto(s) adicionado(s).`, 'success');
+    novos.forEach(nome => precifAdicionarProdutoLinha(nome));
+    mostrarNotificacao(`${novos.length} produto(s) adicionado(s).`, 'success');
 }
+
+// Compat: mantém nome antigo apontando para o novo modal
+function precifAbrirPickerProdutos() { precifAbrirModalProdutos(); }
+function precifFecharPickerProdutos() { precifFecharModalProdutos(); }
 
 // ==========================================
 // UX: Lista de produtos individual na precificação

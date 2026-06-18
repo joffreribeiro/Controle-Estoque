@@ -1010,21 +1010,7 @@
             <div class="pc-produtos-header">
                 <span class="pc-produtos-title">PRODUTOS <span class="pc-produtos-hint">— Taxa/ROI individuais por linha</span></span>
                 <div style="display:flex;gap:6px;align-items:center">
-                    <div style="position:relative;display:inline-block">
-                        <button class="pc-btn sm" onclick="precifAbrirPickerProdutos(this)">+ PRODUTO</button>
-                        <div id="precifPickerDropdown" style="display:none;position:absolute;top:calc(100% + 4px);right:0;z-index:9999;background:#fff;border:1px solid #cbd5e1;border-radius:6px;box-shadow:0 8px 32px rgba(0,0,0,0.18);width:380px;max-height:480px;flex-direction:column">
-                            <div style="padding:10px 12px;border-bottom:1px solid #e2e8f0;display:flex;gap:8px;align-items:center">
-                                <input id="precifPickerBusca" type="text" placeholder="Buscar produto..." oninput="precifPickerFiltrar(this.value)" class="pc-picker-search">
-                                <button class="pc-btn sm" onclick="precifPickerMarcarTodos()">TODOS</button>
-                                <button class="pc-btn sm" onclick="precifPickerDesmarcarTodos()">NENHUM</button>
-                            </div>
-                            <div id="precifPickerLista" style="overflow-y:auto;flex:1;padding:6px 0"></div>
-                            <div style="padding:10px 12px;border-top:1px solid #e2e8f0;display:flex;justify-content:flex-end;gap:8px">
-                                <button class="pc-btn sm" onclick="precifFecharPickerProdutos()">CANCELAR</button>
-                                <button class="pc-btn primary sm" onclick="precifConfirmarPickerProdutos()">ADICIONAR</button>
-                            </div>
-                        </div>
-                    </div>
+                    <button class="pc-btn sm" onclick="precifAbrirModalProdutos()">+ PRODUTO</button>
                 </div>
             </div>
 
@@ -4387,5 +4373,66 @@
         }
     })();
     </script>
+
+    <!-- ══════════════════════════════════════════════════════════
+         MODAL SELETOR DE PRODUTOS — Precificação
+    ══════════════════════════════════════════════════════════ -->
+    <div id="selProdModal" class="sel-overlay" style="display:none" onclick="selModalClickFora(event)">
+        <div class="sel-modal">
+            <!-- Cabeçalho -->
+            <div class="sel-modal-head">
+                <div style="flex:1;min-width:0">
+                    <div style="font-family:var(--font-display);font-size:0.75rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:rgba(255,255,255,.5);margin-bottom:2px">Adicionar produtos</div>
+                    <div id="selModalSubtitle" style="font-size:0.92rem;font-weight:600;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">—</div>
+                </div>
+                <button class="sel-close-btn" onclick="precifFecharModalProdutos()" title="Fechar">✕</button>
+            </div>
+
+            <!-- Barra de busca + filtros de categoria -->
+            <div class="sel-toolbar">
+                <div class="sel-search-wrap">
+                    <svg class="sel-search-icon" viewBox="0 0 20 20" fill="none"><circle cx="8.5" cy="8.5" r="5.5" stroke="currentColor" stroke-width="1.6"/><path d="M13 13l3.5 3.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+                    <input id="selModalBusca" type="text" placeholder="Buscar nome, PN, NCM ou descrição…" class="sel-search-input" oninput="selModalFiltrar()">
+                </div>
+                <div id="selModalCats" class="sel-cats"></div>
+                <div style="display:flex;gap:6px;margin-left:auto">
+                    <button class="sel-pill-btn" onclick="selModalMarcarTodos()">Todos</button>
+                    <button class="sel-pill-btn" onclick="selModalDesmarcarTodos()">Nenhum</button>
+                </div>
+            </div>
+
+            <!-- Tabela de produtos -->
+            <div class="sel-table-wrap">
+                <table class="sel-table">
+                    <thead>
+                        <tr>
+                            <th style="width:26px"></th>
+                            <th style="width:16px"></th>
+                            <th style="min-width:110px">PN</th>
+                            <th style="min-width:90px">NCM</th>
+                            <th style="min-width:200px">Descrição de Fábrica</th>
+                            <th style="min-width:160px">Nome</th>
+                            <th style="min-width:90px;text-align:right">CI</th>
+                        </tr>
+                    </thead>
+                    <tbody id="selModalBody"></tbody>
+                </table>
+                <div id="selModalVazio" class="sel-vazio" style="display:none">Nenhum produto encontrado.</div>
+            </div>
+
+            <!-- Rodapé com contagem, CI total, chips e botões -->
+            <div class="sel-foot">
+                <div class="foot-count">
+                    <span id="selFootCount">0</span> selecionados
+                    &nbsp;·&nbsp; Σ CI <b id="selFootCI">R$ 0,00</b>
+                </div>
+                <div id="selFootChips" class="sel-foot-chips"></div>
+                <div style="display:flex;gap:8px;margin-left:auto;flex-shrink:0">
+                    <button class="pc-btn sm" onclick="precifFecharModalProdutos()">Cancelar</button>
+                    <button class="pc-btn primary" id="selBtnAdicionar" onclick="precifConfirmarModalProdutos()">Adicionar</button>
+                </div>
+            </div>
+        </div>
+    </div>
 </body>
 </html>
