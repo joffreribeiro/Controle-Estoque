@@ -6431,6 +6431,8 @@ textarea:focus-visible {
     margin-bottom: 8px;
     flex-wrap: wrap;
     box-shadow: var(--tv-shadow-sm);
+    position: relative;
+    z-index: 50;
 }
 
 .tv-search-box {

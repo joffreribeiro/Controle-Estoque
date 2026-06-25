@@ -17275,6 +17275,7 @@ function trocarSubabaPrecif(subaba) {
     if (subaba === 'tabelaci') {
         try { renderizarTabelaCI(); } catch (e) {}
         try { atualizarKPIsCI(); } catch (e) {}
+        try { popularSelectProdutosCI(); } catch (e) {}
     }
 }
 
@@ -18633,9 +18634,9 @@ function renderizarTabelaPrecoVenda() {
         let row = `<tr class="tv-data-row${isPeca?' tv-peca-row':''}" style="${isPeca?'display:none;background:#fafbfd':'background:'+bg}"${isPeca ? ` data-tv-peca-filha="${_escapeHtml((prod.componente||'').trim())}"` : ''}>
             <td class="tv-td-fixed" style="background:${_rowBg};border-right:${_bdr}">${_escapeHtml(ncm)}</td>
             <td class="tv-td-pn" style="background:${_rowBg};padding:0 8px;border-right:${_bdr}">${pnCell}</td>
-            <td class="tv-td-nomefab" style="background:${_rowBg};padding:0 8px;color:#94a3b8;font-size:0.72rem;max-width:160px;overflow:hidden;text-overflow:ellipsis;border-right:${_bdr}" title="${_escapeHtml(nomeFab)}">${_escapeHtml(nomeFab)}</td>
+            <td class="tv-td-nomefab" style="background:${_rowBg};padding:0 8px;color:#94a3b8;font-size:0.72rem;max-width:220px;overflow:hidden;text-overflow:ellipsis;border-right:${_bdr}" title="${_escapeHtml(nomeFab)}">${_escapeHtml(nomeFab)}</td>
             <td class="tv-td-comp" style="background:${_rowBg};padding:0 8px;color:#94a3b8;font-size:0.72rem;text-align:center;border-right:${_bdr}">${_escapeHtml(isPeca ? comp : '—')}</td>
-            <td class="tv-td-nome" style="background:${_rowBg};padding:0 8px;max-width:180px;overflow:hidden;text-overflow:ellipsis;border-right:${_bdr}" title="${_escapeHtml(prod.nome)}">${isPeca?'<span style="color:#94a3b8">↳ </span>':''}<span style="font-weight:${isPeca?'400':'600'};color:${isPeca?'#64748b':'var(--tv-navy-900)'}">${_escapeHtml(prod.nome)}</span></td>
+            <td class="tv-td-nome" style="background:${_rowBg};padding:0 8px;max-width:280px;overflow:hidden;text-overflow:ellipsis;border-right:${_bdr}" title="${_escapeHtml(prod.nome)}">${isPeca?'<span style="color:#94a3b8">↳ </span>':''}<span style="font-weight:${isPeca?'400':'600'};color:${isPeca?'#64748b':'var(--tv-navy-900)'}">${_escapeHtml(prod.nome)}</span></td>
             <td class="tv-ci-cell tv-td-ci" style="background:${_rowBg};border-right:2px solid #cbd5e1">${ciStr}</td>`;
 
         ufs.forEach(uf => {
@@ -18923,9 +18924,9 @@ function renderizarTabelaPrecoVenda() {
         let thead2 = `<tr class="tv-thead-cols">
             ${thFixed('ncm', 'NCM', '110px')}
             <th class="tv-col-fixed tv-col-pn${sc==='pn'?' sort-active':''}" onclick="window._tvSetSort('pn')" style="min-width:110px;cursor:pointer">PN<span class="tv-sort-caret">▲</span></th>
-            <th class="tv-col-fixed tv-col-nomefab" style="min-width:160px;cursor:default">Nome Fábrica</th>
+            <th class="tv-col-fixed tv-col-nomefab" style="min-width:220px;cursor:default">Nome Fábrica</th>
             <th class="tv-col-fixed tv-col-comp" style="min-width:70px;cursor:default">Comp.</th>
-            <th class="tv-col-fixed tv-col-nome${sc==='nome'?' sort-active':''}" onclick="window._tvSetSort('nome')" style="min-width:160px;cursor:pointer">Nome<span class="tv-sort-caret">▲</span></th>
+            <th class="tv-col-fixed tv-col-nome${sc==='nome'?' sort-active':''}" onclick="window._tvSetSort('nome')" style="min-width:280px;cursor:pointer">Nome<span class="tv-sort-caret">▲</span></th>
             ${thSort('ci', 'CI', 'tv-ci-cell tv-col-fixed tv-col-ci')}`;
         gruposRegiao.forEach(gr => {
             gr.ufs.forEach(uf => {
@@ -25113,19 +25114,23 @@ renderizarRegistroDistribuicao = function() {
     renderizarPaginacao('paginacaoDistribuicao', _paginaDistribuicao, totalLinhas, _itensPorPaginaDistribuicao, 'mudarPaginaDistribuicao', 'mudarItensPaginaDistribuicao');
 };
 
-// Hook limparFiltrosVendas to clear date fields
-const _limparFiltrosVendasOriginal = limparFiltrosVendas;
+// Hook limparFiltrosVendas to clear all filter fields
 limparFiltrosVendas = function() {
-    const filtroRep = document.getElementById('filtroRepresentante');
-    const filtroProduto = document.getElementById('filtroProduto');
-    const dataInicio = document.getElementById('filtroVendasDataInicio');
-    const dataFim = document.getElementById('filtroVendasDataFim');
-
-    if (filtroRep) filtroRep.value = '';
-    if (filtroProduto) filtroProduto.value = '';
-    if (dataInicio) dataInicio.value = '';
-    if (dataFim) dataFim.value = '';
-
+    [
+        'filtroRepresentante',
+        'filtroProduto',
+        'filtroVendasDataInicio',
+        'filtroVendasDataFim',
+        'filtroVendasBusca',
+        'filtroVendasSistema',
+        'filtroVendasAssinado',
+        'filtroVendasEnviado',
+        'filtroVendasProgresso'
+    ].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.value = '';
+    });
+    document.querySelectorAll('.periodo-pill').forEach(el => el.classList.remove('active'));
     _paginaVendas = 1;
     renderizarRegistroVendas();
 };
