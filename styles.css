@@ -6196,13 +6196,33 @@ textarea:focus-visible {
     border-color: #fca5a5;
 }
 
+/* ── Tabela Vendas/Envio — header padronizado igual às demais tabelas ── */
+#tabelaRegistroVendas thead th {
+    position: sticky;
+    top: 0;
+    z-index: 3;
+    background: #0a1828 !important;
+    color: #ffffff !important;
+    font-weight: 600;
+    font-size: 10px;
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+    padding: 0 10px;
+    height: 32px;
+    text-align: left;
+    white-space: nowrap;
+    border-right: 1px solid #1e3a5f;
+    border-bottom: 1px solid #1e3a5f;
+    vertical-align: middle;
+}
+
 /* Sort icons na tabela de vendas */
 #tabelaRegistroVendas th.sortable {
     cursor: pointer;
     user-select: none;
     white-space: nowrap;
 }
-#tabelaRegistroVendas th.sortable:hover { background: var(--primary-light) !important; }
+#tabelaRegistroVendas th.sortable:hover { background: #1e3a5f !important; }
 #tabelaRegistroVendas th.sortable .sort-icon {
     display: inline-block;
     margin-left: 4px;
@@ -6211,7 +6231,7 @@ textarea:focus-visible {
     transition: opacity 0.15s;
 }
 #tabelaRegistroVendas th.sort-asc .sort-icon,
-#tabelaRegistroVendas th.sort-desc .sort-icon { opacity: 1; color: var(--accent-bright); }
+#tabelaRegistroVendas th.sort-desc .sort-icon { opacity: 1; color: #f6c84c; }
 
 /* ════════════════════════════════════════════
    ABA IMBEL — melhorias v2
