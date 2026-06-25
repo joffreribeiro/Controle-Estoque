@@ -1021,9 +1021,24 @@
             <div id="precifProdutoContador" class="pc-contador"></div>
             <div id="precifProdutosChecklist" style="display:none"></div>
 
-            <!-- Botão calcular -->
-            <div style="display:flex;justify-content:flex-end;padding:10px 0 4px 0">
-                <button class="pc-btn primary" onclick="calcularPrecificacaoPorCliente({forcarAtual:true})" style="font-size:0.95rem;padding:9px 28px;letter-spacing:0.04em">&#9881; CALCULAR</button>
+            <!-- Frete global + Botão calcular -->
+            <div style="display:flex;align-items:center;gap:16px;padding:10px 0 4px 0;flex-wrap:wrap">
+                <div style="display:flex;align-items:center;gap:8px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:7px;padding:6px 12px">
+                    <span style="font-size:0.75rem;font-weight:700;color:#64748b;white-space:nowrap;letter-spacing:0.04em">FRETE DO PEDIDO (R$)</span>
+                    <input type="number" id="precifFreteGlobal" min="0" step="0.01" placeholder="0,00"
+                        style="width:110px;padding:5px 8px;border:1px solid #cbd5e1;border-radius:5px;font-size:0.9rem;font-weight:600;color:#1e3a5f;text-align:right"
+                        oninput="window._pcAtualizarFreteGlobal()"
+                        title="Frete único rateado proporcionalmente entre todos os produtos">
+                    <select id="precifFreteModo" onchange="window._pcAtualizarFreteGlobal()"
+                        style="padding:5px 6px;border:1px solid #cbd5e1;border-radius:5px;font-size:0.75rem;color:#475569;background:#fff">
+                        <option value="proporcional">Rateio proporcional</option>
+                        <option value="igualitario">Rateio igualitário</option>
+                        <option value="total">Só no total geral</option>
+                    </select>
+                </div>
+                <div style="margin-left:auto">
+                    <button class="pc-btn primary" onclick="calcularPrecificacaoPorCliente({forcarAtual:true})" style="font-size:0.95rem;padding:9px 28px;letter-spacing:0.04em">&#9881; CALCULAR</button>
+                </div>
             </div>
 
             <!-- Benefício Fiscal -->

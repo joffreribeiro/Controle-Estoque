@@ -4632,9 +4632,25 @@ th.sortable.sort-desc .sort-icon::after { content: ' ▼'; opacity: 1; }
 
 /* Correções para a aba Precificação (evita colapso da tabela em viewports menores) */
 #tab-precificacao,
-#tab-precificacao .content-area,
 #tab-precificacao .table-container {
     overflow: visible !important;
+}
+
+/* Permite que a coluna de clientes role independente do restante da página */
+#tab-precificacao .content-area {
+    overflow: hidden !important;
+    display: flex;
+    flex-direction: column;
+    height: calc(100vh - 110px);
+    padding-bottom: 0;
+}
+
+#subaba-precif-porcliente {
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
 }
 
 #tab-precificacao .table-wrapper {
@@ -5731,6 +5747,7 @@ textarea:focus-visible {
     align-items: flex-end;
     gap: 0;
     margin-bottom: 20px;
+    flex-shrink: 0;
     background: var(--bg-white);
     border-radius: var(--radius-md, 8px) var(--radius-md, 8px) 0 0;
     border: 1px solid var(--border-color);
@@ -9279,9 +9296,6 @@ table.rastr-detail-table tbody td {
 
 #subaba-precif-porcliente {
     padding: 0 !important;
-    display: flex;
-    flex-direction: column;
-    height: 100%;
 }
 
 .pc-root {

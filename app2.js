@@ -20817,6 +20817,14 @@ window._pcAtualizarKpiTaxaROI = function() {
     if (el) el.textContent = taxa + '% / ' + roi + '%';
 };
 
+// Recalcula quando frete global ou modo é alterado
+window._pcAtualizarFreteGlobal = function() {
+    // Só recalcula se já existir resultado calculado
+    if (document.getElementById('precifClienteResultado')?.style.display !== 'none') {
+        calcularPrecificacaoPorCliente({ forcarAtual: true });
+    }
+};
+
 window._pcAtualizarFootbar = function(cliente, uf) {
     const cliCount = (document.getElementById('pcCliCount')?.textContent || '').split(' ')[0];
     const fbCli = document.getElementById('pcFootbarCli');
@@ -21356,8 +21364,9 @@ function precifAdicionarProdutoLinha(nomeProduto = '', taxaOvr = null, roiOvr = 
                 style="width:100%;padding:6px 8px;border:1px solid #e2e8f0;border-radius:5px;font-size:0.85rem">
         </div>
         <div>
-            <label style="font-size:0.75rem;font-weight:600;color:#64748b;display:block;margin-bottom:3px">Frete (R$)</label>
+            <label style="font-size:0.75rem;font-weight:600;color:#64748b;display:block;margin-bottom:3px">Frete individual (R$)</label>
             <input type="number" class="precif-linha-frete" min="0" step="0.01" value="${(typeof freteVal !== 'undefined' && freteVal !== null) ? freteVal : ''}" placeholder="0,00"
+                title="Frete exclusivo deste item. Use o campo 'Frete do Pedido' para repartir um frete único entre todos os produtos."
                 style="width:100%;padding:6px 8px;border:1px solid #e2e8f0;border-radius:5px;font-size:0.85rem">
         </div>
         <div>
@@ -21519,6 +21528,8 @@ function aplicarEstadoPrecificacaoSalva(registro) {
         const roiOverride = document.getElementById('precifROIOverride'); if (roiOverride) roiOverride.value = registro.roi ?? '';
         const comOverride = document.getElementById('precifComissaoOverride'); if (comOverride) comOverride.value = registro.comissao ?? '';
         const validadeEl = document.getElementById('precifValidadeDias'); if (validadeEl) validadeEl.value = registro.validadeDias ?? 30;
+        const freteGlobalEl = document.getElementById('precifFreteGlobal'); if (freteGlobalEl) freteGlobalEl.value = registro.freteGlobal > 0 ? registro.freteGlobal : '';
+        const freteModoEl = document.getElementById('precifFreteModo'); if (freteModoEl && registro.freteModo) freteModoEl.value = registro.freteModo;
 
         const filtros = registro.filtros || {};
         const filtroProduto = document.getElementById('precifFiltroProduto'); if (filtroProduto) filtroProduto.value = filtros.filtroProduto || '';
@@ -21713,6 +21724,36 @@ function calcularPrecificacaoPorCliente(opcoes = {}) {
         contEl.textContent = `${produtosFiltrados.length} produto(s) sendo calculado(s)`;
     }
 
+    // Frete global do pedido
+    const freteGlobal = parseFloat(document.getElementById('precifFreteGlobal')?.value) || 0;
+    const freteModo = document.getElementById('precifFreteModo')?.value || 'proporcional';
+    const nProdutos = produtosFiltrados.length || 1;
+
+    // Pré-passagem para rateio proporcional: soma o subtotal (precoFinal * qtd) de cada produto
+    let somaSubtotalProporcional = 0;
+    if (freteGlobal > 0 && freteModo === 'proporcional') {
+        produtosFiltrados.forEach(p => {
+            const pPrec = precificacao[p.nome] || {};
+            const pAliq = tabelaAliquotas[p.nome] || {};
+            const pTaxa  = parseFloat(pPrec.taxa)  ?? taxaFinal;
+            const pRoi   = parseFloat(pPrec.roi)   ?? roiFinal;
+            const pCi    = pPrec.ci != null ? parseCurrencyBRLToNumber(String(pPrec.ci)) : 0;
+            if (!pCi || pCi <= 0) return;
+            const pValBase = pCi / (1 - (pTaxa + pRoi) / 100);
+            const pIcms = parseFloat(pAliq.icms ?? (icmsTabela[uf]?.[tipoPessoa] ?? icmsTabela[uf]?.lojista ?? 0));
+            const pPis  = parseFloat(pAliq.pis ?? 0.65);
+            const pCof  = parseFloat(pAliq.cofins ?? 3);
+            const pIpi  = parseFloat(pAliq.ipi ?? 0);
+            const pValImp = pValBase + pValBase*pIcms/100 + pValBase*pPis/100 + pValBase*pCof/100;
+            const pIpiR   = pValImp * pIpi / 100;
+            const pPrecoFinal = pValImp + pIpiR;
+            const pLinha = Array.from(document.querySelectorAll('.precif-linha-produto')).find(l => l.dataset.nomeProduto === p.nome);
+            const pQtd = parseInt(pLinha?.querySelector('.precif-linha-quant')?.value, 10) || 1;
+            somaSubtotalProporcional += pPrecoFinal * pQtd;
+        });
+        if (somaSubtotalProporcional <= 0) somaSubtotalProporcional = 1;
+    }
+
     const itensCalculados = [];
     const rows = produtosFiltrados.map(produto => {
         const prec = precificacao[produto.nome] || {};
@@ -21788,23 +21829,23 @@ function calcularPrecificacaoPorCliente(opcoes = {}) {
         const comissaoR = valorImpostos * comissaoProd / 100;
         const precoFinal = valorImpostos + ipiR;
 
-        // Frete e Quantidade (pode vir da linha individual, do item salvo ou default)
-        let freteVal = 0;
+        // Frete (linha individual) e Quantidade
+        let freteLinhaVal = 0;
         let quantidade = 1;
         try {
             if (linhaIndividual) {
                 const fRaw = parseFloat(linhaIndividual.querySelector('.precif-linha-frete')?.value);
                 const qRaw = parseInt(linhaIndividual.querySelector('.precif-linha-quant')?.value, 10);
-                freteVal = Number.isFinite(fRaw) ? fRaw : 0;
+                freteLinhaVal = Number.isFinite(fRaw) ? fRaw : 0;
                 quantidade = Number.isFinite(qRaw) && qRaw > 0 ? qRaw : 1;
             } else if (exibindoPrecifSalva && precifSalvaCarregada) {
                 const itemSalvo = (precifSalvaCarregada.itens || []).find(i => i.produto === produto.nome);
                 if (itemSalvo) {
-                    freteVal = Number(itemSalvo.frete || itemSalvo.freteR || 0) || 0;
+                    freteLinhaVal = Number(itemSalvo.frete || itemSalvo.freteR || 0) || 0;
                     quantidade = Number(itemSalvo.quantidade || itemSalvo.qtd || 1) || 1;
                 }
             }
-        } catch (e) { freteVal = 0; quantidade = 1; }
+        } catch (e) { freteLinhaVal = 0; quantidade = 1; }
 
         const margem = precoFinal > 0 ? ((precoFinal - ci) / precoFinal) * 100 : 0;
         const margemMinima = parseFloat(precificacao[produto.nome]?.margemMinima) || null;
@@ -21818,7 +21859,22 @@ function calcularPrecificacaoPorCliente(opcoes = {}) {
         const valorSemIPI = valorImpostos;
         const valorComIPI = valorSemIPI + ipiR;
         const valorFinalCalc = valorComIPI;
-        const valorTotalCalc = (valorFinalCalc * quantidade) + freteVal;
+        const subtotalProduto = valorFinalCalc * quantidade;
+
+        // Frete global rateado por produto (complementa o frete individual da linha)
+        let freteGlobalRateado = 0;
+        if (freteGlobal > 0 && freteModo !== 'total') {
+            if (freteModo === 'igualitario') {
+                freteGlobalRateado = freteGlobal / nProdutos;
+            } else {
+                // proporcional ao subtotal de cada produto
+                freteGlobalRateado = somaSubtotalProporcional > 0
+                    ? (subtotalProduto / somaSubtotalProporcional) * freteGlobal
+                    : freteGlobal / nProdutos;
+            }
+        }
+        const freteVal = freteLinhaVal + freteGlobalRateado;
+        const valorTotalCalc = subtotalProduto + freteVal;
 
         itensCalculados.push({
             produto: produto.nome,
@@ -21940,6 +21996,7 @@ function calcularPrecificacaoPorCliente(opcoes = {}) {
         <div style="margin-left:auto; text-align:right">
             <div style="font-size:0.75rem; color:#64748b; text-transform:uppercase; letter-spacing:0.5px">Total da tabela</div>
             <div style="font-size:1.3rem; font-weight:800; color:#16a34a">${fmt(totalFaturamento)}</div>
+            ${freteGlobal > 0 ? `<div style="font-size:0.72rem;color:#64748b;margin-top:2px">+ Frete ${fmt(freteGlobal)} = <strong style="color:#1e3a5f">${fmt(totalFaturamento + (freteModo === 'total' ? freteGlobal : 0))}</strong></div>` : ''}
         </div>
     `;
     if (abaixoCount > 0) {
@@ -21972,7 +22029,9 @@ function calcularPrecificacaoPorCliente(opcoes = {}) {
         filtros: { filtroProduto: filtroProdutoTexto, produtosSelecionados },
         dataCriacao: new Date().toISOString(),
         itens: itensCalculados,
-        totalFaturamento
+        totalFaturamento,
+        freteGlobal,
+        freteModo
     };
     atualizarAvisoCIDivergente(exibindoPrecifSalva ? precifSalvaCarregada : obterUltimaPrecificacaoCliente(cliente.id));
     try { atualizarStatusPropostaNaPrecif(ultimaPrecificacaoCalculada.clienteId); } catch (e) {}
