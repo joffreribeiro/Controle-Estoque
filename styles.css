@@ -13170,3 +13170,64 @@ table.est-v2-table tfoot td.est-saldo-neg { color: #f87171 !important; }
 .est-sort-caret { display: inline-block; margin-left: 3px; font-size: 0.6rem; opacity: 0.4; vertical-align: middle; transition: transform .12s; }
 .sort-active .est-sort-caret { opacity: 1; color: var(--tv-amber-400); }
 .sort-desc .est-sort-caret { transform: rotate(180deg); }
+
+
+/* ════════════════════════════════════════════════════════════════
+   PADRONIZAÇÃO GLOBAL DE CABEÇALHOS DE TABELA
+   Estilo base: tabela Vendas/Envio — navy #0a1828, 10px uppercase
+   ════════════════════════════════════════════════════════════════ */
+
+table.dashboard-table thead th,
+table.est-v2-table thead th,
+table.cq-table thead th,
+table.pc-table thead th,
+table.pc-beneficio-table thead th,
+table.cmp-table thead th,
+table.sel-table thead th,
+table.imbel-table thead th,
+table.rastr-detail-table thead th,
+table.imp-fed-table thead th,
+table.imp-matrix thead th {
+    position: sticky !important;
+    top: 0 !important;
+    z-index: 3 !important;
+    background: #0a1828 !important;
+    color: #ffffff !important;
+    font-weight: 600 !important;
+    font-size: 10px !important;
+    letter-spacing: 0.8px !important;
+    text-transform: uppercase !important;
+    padding: 0 10px !important;
+    height: 32px !important;
+    text-align: left !important;
+    white-space: nowrap !important;
+    border-right: 1px solid #1e3a5f !important;
+    border-bottom: 1px solid #1e3a5f !important;
+    vertical-align: middle !important;
+}
+
+/* Exceções de z-index para tabelas com sticky columns */
+#tabelaEstoque thead th,
+table.est-v2-table thead th { z-index: 1300 !important; }
+
+/* Hover em colunas sortáveis */
+table.dashboard-table thead th.sortable:hover,
+table.est-v2-table thead th:hover,
+table.cq-table thead th:hover,
+table.pc-table thead th:hover,
+table.cmp-table thead th:hover,
+table.imbel-table thead th:hover,
+table.imp-matrix thead th:hover {
+    background: #1e3a5f !important;
+    color: #f6c84c !important;
+}
+
+/* Ícone de sort ativo */
+table.dashboard-table thead th.sort-asc .sort-icon,
+table.dashboard-table thead th.sort-desc .sort-icon,
+.sort-active .est-sort-caret,
+table.cq-table thead th.sort-active,
+table.pc-table thead th.sort-active {
+    color: #f6c84c !important;
+    opacity: 1 !important;
+}
