@@ -13,9 +13,9 @@
 
 :root {
     /* ── Paleta primária: Azul-ardósia profundo ── */
-    --primary-color: #1a3050;
-    --primary-dark: #0c1a2b;
-    --primary-light: #284d7a;
+    --primary-color: #0a1828;
+    --primary-dark: #060f18;
+    --primary-light: #1e3a5f;
 
     /* ── Acento: Bronze quente (mais elegante que ouro amarelo) ── */
     --accent-color: #b8922a;
