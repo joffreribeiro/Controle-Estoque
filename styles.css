@@ -6197,23 +6197,24 @@ textarea:focus-visible {
 }
 
 /* ── Tabela Vendas/Envio — header padronizado igual às demais tabelas ── */
-#tabelaRegistroVendas thead th {
-    position: sticky;
-    top: 0;
-    z-index: 3;
+table#tabelaRegistroVendas thead th,
+table#tabelaRegistroVendas.dashboard-table thead th {
+    position: sticky !important;
+    top: 0 !important;
+    z-index: 3 !important;
     background: #0a1828 !important;
     color: #ffffff !important;
-    font-weight: 600;
-    font-size: 10px;
-    letter-spacing: 0.8px;
-    text-transform: uppercase;
-    padding: 0 10px;
-    height: 32px;
-    text-align: left;
-    white-space: nowrap;
-    border-right: 1px solid #1e3a5f;
-    border-bottom: 1px solid #1e3a5f;
-    vertical-align: middle;
+    font-weight: 600 !important;
+    font-size: 10px !important;
+    letter-spacing: 0.8px !important;
+    text-transform: uppercase !important;
+    padding: 0 10px !important;
+    height: 32px !important;
+    text-align: left !important;
+    white-space: nowrap !important;
+    border-right: 1px solid #1e3a5f !important;
+    border-bottom: 1px solid #1e3a5f !important;
+    vertical-align: middle !important;
 }
 
 /* Sort icons na tabela de vendas */
@@ -6222,7 +6223,7 @@ textarea:focus-visible {
     user-select: none;
     white-space: nowrap;
 }
-#tabelaRegistroVendas th.sortable:hover { background: #1e3a5f !important; }
+table#tabelaRegistroVendas th.sortable:hover { background: #1e3a5f !important; }
 #tabelaRegistroVendas th.sortable .sort-icon {
     display: inline-block;
     margin-left: 4px;
