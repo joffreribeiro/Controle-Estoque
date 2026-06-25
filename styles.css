@@ -1437,10 +1437,34 @@ table {
     font-variant-numeric: tabular-nums;
 }
 
-/* Garantir cabeçalho escuro e legível para tabelas de dashboard (Distribuição, Vendas, Controle de Envio) */
-.dashboard-table thead th {
-    background: var(--primary-color) !important;
+/* Padrão global de cabeçalho — todas as tabelas do sistema */
+.dashboard-table thead th,
+.est-v2-table thead th,
+.cq-table thead th,
+.pc-table thead th,
+.pc-beneficio-table thead th,
+.cmp-table thead th,
+.sel-table thead th,
+.imbel-table thead th,
+.rastr-detail-table thead th,
+.imp-fed-table thead th,
+.imp-matrix thead th {
+    background: #0a1828 !important;
     color: #ffffff !important;
+    font-weight: 600 !important;
+    font-size: 10px !important;
+    letter-spacing: 0.8px !important;
+    text-transform: uppercase !important;
+    padding: 0 10px !important;
+    height: 32px !important;
+    text-align: left !important;
+    white-space: nowrap !important;
+    border-right: 1px solid #1e3a5f !important;
+    border-bottom: 1px solid #1e3a5f !important;
+    vertical-align: middle !important;
+    position: sticky !important;
+    top: 0 !important;
+    z-index: 3 !important;
 }
 
 thead {
