@@ -19069,7 +19069,7 @@ function renderizarTabelaPrecoVenda() {
 
         ${kpiHtml}
 
-        <div class="tv-main-layout" id="tvMainLayout">
+        <div class="tv-main-layout${tvState.whatIfAberto ? ' whatif-aberto' : ''}" id="tvMainLayout">
             <div class="tv-table-area" id="tvTableArea">
                 ${tvState.viewMode === 'tabela' ? `
                 <div class="tv-table-wrap">

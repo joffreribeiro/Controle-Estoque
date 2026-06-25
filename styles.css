@@ -6645,6 +6645,10 @@ textarea:focus-visible {
     display: flex;
     gap: 8px;
     align-items: flex-start;
+    position: relative;
+}
+.tv-main-layout.whatif-aberto .tv-table-area {
+    padding-right: 356px;
 }
 .tv-table-area {
     flex: 1;
@@ -6897,8 +6901,12 @@ table.tv-table tbody tr.tv-peca-row td { color: #64748b; font-size: 0.75rem; }
     box-shadow: var(--tv-shadow-md);
     display: flex;
     flex-direction: column;
-    max-height: 80vh;
+    max-height: calc(100vh - 120px);
     overflow: hidden;
+    position: fixed;
+    top: 80px;
+    right: 24px;
+    z-index: 200;
 }
 .tv-whatif-header {
     display: flex;
