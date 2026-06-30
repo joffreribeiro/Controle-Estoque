@@ -9357,6 +9357,8 @@ function renderControleImbelMovimentacao() {
     populateTbody = function() { _origPopulate(); _aplicarBordasMovGrid(); };
 
     // 5. FOOTBAR
+    const totalEntradas = (data.movimentacoes||[]).filter(m => imbelTipoAumentaEstoque(m.tipo)).reduce((s,m)=>s+(Number(m.quantidade)||0),0);
+    const totalSaidas = (data.movimentacoes||[]).filter(m => !imbelTipoAumentaEstoque(m.tipo)).reduce((s,m)=>s+(Number(m.quantidade)||0),0);
     const footbarMov = document.createElement('div');
     footbarMov.className = 'imbel-footbar';
     footbarMov.innerHTML = `
@@ -21792,7 +21794,7 @@ function calcularPrecificacaoPorCliente(opcoes = {}) {
             return `
                 <tr id="precif_row_${nomeId}" style="opacity:0.45">
                     <td style="text-align:left; padding-left:15px; font-weight:500; position:sticky; left:0; background:#fff; z-index:1">${_escapeHtml(produto.nome)}<span style="font-size:0.7rem; color:#94a3b8; margin-left:6px">sem CI</span></td>
-                    <td colspan="6" style="text-align:center; color:#94a3b8; font-size:0.85rem">CI não configurado — informe o CI na linha ou acesse a Tabela de CI</td>
+                    <td colspan="7" style="text-align:center; color:#94a3b8; font-size:0.85rem">CI não configurado — informe o CI na linha ou acesse a Tabela de CI</td>
                 </tr>
             `;
         }
@@ -21838,9 +21840,9 @@ function calcularPrecificacaoPorCliente(opcoes = {}) {
         const cofinsR = valorBase * cofinsEfetivo / 100;
         const valorImpostos = valorBase + icmsR + pisR + cofinsR;
         const ipiR = valorImpostos * ipiEfetivo / 100;
-        // comissão sobre valorImpostos (sem IPI) — calculada mas não incluída no preço
+        // comissão sobre valorImpostos (sem IPI) — incluída no preço final
         const comissaoR = valorImpostos * comissaoProd / 100;
-        const precoFinal = valorImpostos + ipiR;
+        const precoFinal = valorImpostos + ipiR + comissaoR;
 
         // Frete (linha individual) e Quantidade
         let freteLinhaVal = 0;
@@ -21870,7 +21872,7 @@ function calcularPrecificacaoPorCliente(opcoes = {}) {
 
         // valores adicionais: valorSemIPI (valorImpostos), valorComIPI, valorFinal, valorTotal
         const valorSemIPI = valorImpostos;
-        const valorComIPI = valorSemIPI + ipiR;
+        const valorComIPI = valorSemIPI + ipiR + comissaoR;
         const valorFinalCalc = valorComIPI;
         const subtotalProduto = valorFinalCalc * quantidade;
 
@@ -21971,6 +21973,10 @@ function calcularPrecificacaoPorCliente(opcoes = {}) {
                 <td style="text-align:center; min-width:70px; font-weight:600">${quantidade}</td>
                 <td style="font-weight:600; color:#1e3a5f; text-align:right">${fmt(ci)}</td>
                 ${impostosCell}
+                <td style="text-align:right; color:#d97706">
+                    <div style="font-size:0.85rem">${fmt(comissaoR)}</div>
+                    <div style="font-size:0.7rem;color:#94a3b8">${Number(comissaoProd).toFixed(2)}%</div>
+                </td>
                 <td style="font-weight:800; color:#c9a227; background:#fffbf0; font-size:1rem; text-align:right">${fmt(valorFinalCalc)}${abaixo ? `<div style="font-size:0.68rem;color:#dc2626;margin-top:2px">↑ R$ ${Math.abs(delta).toFixed(2)} abaixo do mín.</div>` : ''}</td>
                 <td style="text-align:right; font-weight:600;">${fmt(freteVal)}</td>
                 <td style="text-align:right; font-weight:700; color:#1e3a5f">${fmt(valorTotalCalc)}</td>
