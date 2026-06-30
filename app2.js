@@ -21313,7 +21313,7 @@ function restaurarPadraoPrecif() {
     } catch (e) { console.warn('restaurarPadraoPrecif', e); mostrarNotificacao && mostrarNotificacao('Erro ao restaurar padrões.', 'error'); }
 }
 
-function precifAdicionarProdutoLinha(nomeProduto = '', taxaOvr = null, roiOvr = null, freteVal = null, quantidade = 1) {
+function precifAdicionarProdutoLinha(nomeProduto = '', taxaOvr = null, roiOvr = null, freteVal = null, quantidade = 1, comOvr = null) {
     const container = document.getElementById('precifLinhasProdutos');
     if (!container) return;
 
@@ -21329,7 +21329,7 @@ function precifAdicionarProdutoLinha(nomeProduto = '', taxaOvr = null, roiOvr = 
     div.className = 'precif-linha-produto';
     div.dataset.nomeProduto = nomeProduto;
     div.id = linhaId;
-    div.style.cssText = 'display:grid;grid-template-columns:2fr 1fr 0.9fr 0.9fr 0.9fr 0.8fr auto;gap:8px;align-items:center;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:10px 12px';
+    div.style.cssText = 'display:grid;grid-template-columns:2fr 1fr 0.9fr 0.9fr 0.9fr 0.9fr 0.8fr auto;gap:8px;align-items:center;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:10px 12px';
 
     // Opções de produto
     const optsHtml = produtos.map(p => {
@@ -21362,6 +21362,11 @@ function precifAdicionarProdutoLinha(nomeProduto = '', taxaOvr = null, roiOvr = 
         <div>
             <label style="font-size:0.75rem;font-weight:600;color:#64748b;display:block;margin-bottom:3px">ROI (%)</label>
             <input type="number" class="precif-linha-roi" min="0" step="0.01" value="${roiOvr !== null ? roiOvr : glob.roi}" placeholder="${glob.roi}"
+                style="width:100%;padding:6px 8px;border:1px solid #e2e8f0;border-radius:5px;font-size:0.85rem">
+        </div>
+        <div>
+            <label style="font-size:0.75rem;font-weight:600;color:#64748b;display:block;margin-bottom:3px">Comissão (%)</label>
+            <input type="number" class="precif-linha-comissao" min="0" step="0.01" value="${comOvr !== null ? comOvr : glob.com}" placeholder="${glob.com}"
                 style="width:100%;padding:6px 8px;border:1px solid #e2e8f0;border-radius:5px;font-size:0.85rem">
         </div>
         <div>
@@ -21429,6 +21434,7 @@ function precifGetLinhasProdutos() {
         ci: parseCurrencyBRLToNumber(linha.querySelector('.precif-linha-ci')?.value) || 0,
         taxa: parseFloat(linha.querySelector('.precif-linha-taxa')?.value),
         roi: parseFloat(linha.querySelector('.precif-linha-roi')?.value),
+        comissao: parseFloat(linha.querySelector('.precif-linha-comissao')?.value),
         frete: parseFloat(linha.querySelector('.precif-linha-frete')?.value) || 0,
         quantidade: parseInt(linha.querySelector('.precif-linha-quant')?.value, 10) || 1
     })).filter(l => l.nomeProduto);
@@ -21552,7 +21558,7 @@ function aplicarEstadoPrecificacaoSalva(registro) {
             } else {
                 itens.forEach(it => {
                     try {
-                        precifAdicionarProdutoLinha(it.produto || it.produtoNome || it.nome || '', it.taxa || it.taxaPct || null, it.roi || it.roiPct || null, it.frete || it.freteR || 0, it.quantidade || it.qtd || 1);
+                        precifAdicionarProdutoLinha(it.produto || it.produtoNome || it.nome || '', it.taxa || it.taxaPct || null, it.roi || it.roiPct || null, it.frete || it.freteR || 0, it.quantidade || it.qtd || 1, it.comissao || it.comissaoPct || null);
                     } catch (e) {}
                 });
             }
@@ -21809,7 +21815,13 @@ function calcularPrecificacaoPorCliente(opcoes = {}) {
             taxaProd = (prec.taxa !== null && prec.taxa !== undefined && prec.taxa !== '') ? parseFloat(prec.taxa) : taxaFinal;
             roiProd  = (prec.roi !== null && prec.roi !== undefined && prec.roi !== '') ? parseFloat(prec.roi) : roiFinal;
         }
-        const comissaoProd = (prec.comissao !== null && prec.comissao !== undefined && prec.comissao !== '') ? parseFloat(prec.comissao) : comFinal;
+        let comissaoProd;
+        if (linhaIndividual) {
+            const comissaoLinha = parseFloat(linhaIndividual.querySelector('.precif-linha-comissao')?.value);
+            comissaoProd = !isNaN(comissaoLinha) ? comissaoLinha : comFinal;
+        } else {
+            comissaoProd = (prec.comissao !== null && prec.comissao !== undefined && prec.comissao !== '') ? parseFloat(prec.comissao) : comFinal;
+        }
 
         // resolver alíquotas com benefícios/RETID
         const pisEfetivo = resolverAliquota(produto.nome, 'pis', pisPadrao);

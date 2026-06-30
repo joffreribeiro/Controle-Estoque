@@ -58,7 +58,9 @@
       "Bash(node _fix4.js)",
       "Bash(del \"e:\\\\MEUS DOCUMENTOS\\\\OneDrive\\\\Documentos\\\\Sistemas\\\\Estoque\\\\Controle-Estoque\\\\_fix4.js\")",
       "Bash(node --input-type=module --eval ' *)",
-      "Bash(node _fixdash.js)"
+      "Bash(node _fixdash.js)",
+      "Skill(run)",
+      "Skill(run:*)"
     ],
     "additionalDirectories": [
       "\\tmp"
