@@ -1172,6 +1172,7 @@ function removerRepresentante(nome) {
 
 async function inicializar() {
     carregarDados();
+    try { if (window.CrmStore) window.CrmStore.ensureCrmDefault(); } catch (e) { console.error('CRM ensureCrmDefault:', e); }
     try { renderizarListaRepresentantesConfig(); } catch (e) {}
     try { carregarPrecificacoesSalvas(); } catch (e) {}
     // Load contract config into Configurações tab
@@ -2759,6 +2760,7 @@ async function carregarDoCloud({confirmOverwrite=true} = {}) {
             if (!ok) { window._carregandoDoCloud = false; return false; }
         }
         estoque = data.estado;
+        try { if (window.CrmStore) window.CrmStore.ensureCrmDefault(); } catch (e) { console.error('CRM ensureCrmDefault (cloud):', e); }
         // Sincronizar _localUpdatedAt com o timestamp remoto para evitar re-trigger do onSnapshot
         try {
             const tsRemoto = data.updatedAt ? data.updatedAt.toDate().toISOString() : new Date().toISOString();
@@ -2885,6 +2887,7 @@ async function carregarDoCloudAuto() {
         if (remoteUpdated && remoteUpdated > localUpdated + 1000) {
             // substituir local automaticamente
             estoque = data.estado;
+            try { if (window.CrmStore) window.CrmStore.ensureCrmDefault(); } catch (e) { console.error('CRM ensureCrmDefault (cloud auto):', e); }
             // Sincronizar _localUpdatedAt com o timestamp remoto
             try { estoque._localUpdatedAt = data.updatedAt.toDate().toISOString(); } catch(e) {}
             // Restaurar dados IMBEL salvos no backup principal (se existirem)
@@ -3670,6 +3673,8 @@ function trocarAba(aba) {
             try { renderizarClientes(); } catch (e) { if (window.__showRuntimeErrorOverlay) window.__showRuntimeErrorOverlay(e); }
         } else if (aba === 'propostas') {
             try { renderizarPropostas(); } catch (e) { if (window.__showRuntimeErrorOverlay) window.__showRuntimeErrorOverlay(e); }
+        } else if (aba === 'relacionamento') {
+            try { if (window.Crm) Crm.renderizar(); } catch (e) { console.error('relacionamento:', e); if (window.__showRuntimeErrorOverlay) window.__showRuntimeErrorOverlay(e); }
         } else if (aba === 'estoque') {
             try { renderizarTabela(); } catch (e) { if (window.__showRuntimeErrorOverlay) window.__showRuntimeErrorOverlay(e); }
         } else if (aba === 'configuracoes') {

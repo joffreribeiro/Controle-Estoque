@@ -100,6 +100,10 @@
 
                 <div class="nav-group">
                     <div class="nav-group-label">Comercial</div>
+                    <button class="nav-item" data-tab="relacionamento" onclick="trocarAba('relacionamento')">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                        <span class="nav-text">Relacionamento</span>
+                    </button>
                     <button class="nav-item" data-tab="precificacao" onclick="trocarAba('precificacao')">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
                         <span class="nav-text">Precificação</span>
@@ -562,6 +566,52 @@
                     </div>
                 </div>
                 <div class="pagination-container" id="paginacaoClientes"></div>
+            </div>
+        </div>
+
+        <!-- ========================================
+             ABA: RELACIONAMENTO (CRM)
+             ======================================== -->
+        <div class="tab-content" id="tab-relacionamento">
+            <div class="content-area">
+                <div class="crm-topo">
+                    <div class="crm-topo-titulo">
+                        <h2 class="section-title">Relacionamento</h2>
+                        <select id="crmFunilSelect" class="crm-funil-select" onchange="Crm.trocarFunil(this.value)"></select>
+                        <button type="button" class="crm-btn-icone" title="Gerenciar funil" onclick="Crm.abrirModalFunil()">⚙</button>
+                    </div>
+                    <div class="header-actions">
+                        <button type="button" class="crm-btn-negocio" onclick="Crm.abrirModalNegocio()">+ Negócio</button>
+                    </div>
+                </div>
+
+                <div class="crm-barra-visoes">
+                    <div class="crm-visao-toggle">
+                        <button type="button" class="crm-visao-btn" data-valor="kanban" data-crm-action="setVisao" title="Quadro">▦</button>
+                        <button type="button" class="crm-visao-btn" data-valor="lista" data-crm-action="setVisao" title="Lista">☰</button>
+                        <button type="button" class="crm-visao-btn" data-valor="previsao" data-crm-action="setVisao" title="Previsão">📅</button>
+                        <button type="button" class="crm-visao-btn" data-valor="excluidos" data-crm-action="setVisao" title="Excluídos">🗑</button>
+                    </div>
+                    <input type="text" id="crmBusca" class="crm-busca" placeholder="Buscar negócio..." oninput="Crm.setBusca(this.value)">
+                    <label class="crm-check-fechados">
+                        <input type="checkbox" id="crmMostrarFechados" onchange="Crm.setMostrarFechados(this.checked)">
+                        Mostrar negócios fechados
+                    </label>
+                    <select id="crmOrdenarPor" class="crm-ordenar" onchange="Crm.setOrdenarPor(this.value)">
+                        <option value="ordem">Ordem manual</option>
+                        <option value="proxima">Próxima atividade</option>
+                        <option value="valor">Valor</option>
+                        <option value="previsao">Previsão</option>
+                        <option value="atualizado">Atualizado</option>
+                    </select>
+                    <span id="crmContagem" class="crm-contagem"></span>
+                </div>
+
+                <div id="crmKanban" class="crm-kanban"></div>
+                <div id="crmListaNegocios" class="crm-lista" style="display:none"></div>
+                <div id="crmPrevisao" class="crm-previsao" style="display:none"></div>
+                <div id="crmExcluidos" class="crm-excluidos" style="display:none"></div>
+                <div id="crmViewDetalhe" class="crm-detalhe" style="display:none"></div>
             </div>
         </div>
 
@@ -4349,7 +4399,148 @@
         </div>
     </div>
 
+    <!-- ========================================
+         MODAIS: RELACIONAMENTO (CRM)
+         ======================================== -->
+    <div id="modalNegocio" class="modal crm-modal-negocio">
+        <div class="modal-content" style="max-width:820px">
+            <div class="modal-header">
+                <h3 id="crmModalNegocioTitulo">Novo negócio</h3>
+                <button class="modal-close" onclick="fecharModal('modalNegocio')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="crmNegocioId">
+
+                <div class="crm-modal-grid">
+                    <div class="crm-modal-esq">
+                        <div class="form-group">
+                            <label for="crmNegocioTitulo">Título *</label>
+                            <input type="text" id="crmNegocioTitulo" placeholder="Ex: Venda de armamento - Cliente X">
+                        </div>
+
+                        <div class="form-group crm-autocomplete">
+                            <label for="crmNegocioClienteBusca">Cliente</label>
+                            <input type="text" id="crmNegocioClienteBusca" autocomplete="off" placeholder="Buscar cliente..."
+                                   oninput="Crm.buscarCliente(this.value)" onfocus="Crm.buscarCliente(this.value)">
+                            <input type="hidden" id="crmNegocioClienteId">
+                            <div id="crmClienteLista" class="crm-ac-lista" style="display:none"></div>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Etapa</label>
+                            <div id="crmNegocioEtapaChevrons" class="crm-chevrons"></div>
+                            <input type="hidden" id="crmNegocioEtapaId">
+                        </div>
+
+                        <div class="form-group">
+                            <label>Itens de produto</label>
+                            <div id="crmItensLista" class="crm-itens-lista"></div>
+                            <div class="crm-item-add">
+                                <select id="crmItemProdutoSelect"><option value="">Selecione um produto...</option></select>
+                                <input type="number" id="crmItemQtd" min="1" value="1" style="width:70px" placeholder="Qtd">
+                                <input type="number" id="crmItemPreco" min="0" step="0.01" style="width:110px" placeholder="Preço unit.">
+                                <button type="button" class="btn-secondary crm-btn-mini" onclick="Crm.adicionarItem()">+ Adicionar</button>
+                            </div>
+                            <div class="crm-item-total">Total: <strong id="crmItensTotal">R$ 0,00</strong></div>
+                        </div>
+
+                        <div class="form-group" id="crmValorManualWrap">
+                            <label for="crmNegocioValor">Valor (sem itens)</label>
+                            <input type="number" id="crmNegocioValor" min="0" step="0.01" placeholder="0,00">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="crmNegocioTags">Etiquetas (separadas por vírgula)</label>
+                            <input type="text" id="crmNegocioTags" placeholder="Ex: urgente, licitação">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="crmNegocioDescricao">Descrição</label>
+                            <textarea id="crmNegocioDescricao" rows="3"></textarea>
+                        </div>
+                    </div>
+
+                    <div class="crm-modal-dir">
+                        <div class="crm-modal-dir-titulo">DETALHES</div>
+
+                        <div class="form-group">
+                            <label for="crmNegocioResponsavel">Proprietário</label>
+                            <select id="crmNegocioResponsavel"></select>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="crmNegocioProposta">Proposta vinculada (opcional)</label>
+                            <select id="crmNegocioProposta"><option value="">Nenhuma</option></select>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="crmNegocioPrevisao">Fechamento esperado</label>
+                            <input type="date" id="crmNegocioPrevisao">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="crmNegocioRecebimento">Data de recebimento</label>
+                            <input type="date" id="crmNegocioRecebimento">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="crmNegocioOrigem">Canal de origem</label>
+                            <input type="text" id="crmNegocioOrigem" placeholder="Ex: E-mail, licitação, indicação">
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline" onclick="fecharModal('modalNegocio')">Cancelar</button>
+                <button class="btn btn-primary" onclick="Crm.salvarNegocio()">Salvar negócio</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="modalFunil" class="modal">
+        <div class="modal-content" style="max-width:640px">
+            <div class="modal-header">
+                <h3>Gerenciar funil</h3>
+                <button class="modal-close" onclick="fecharModal('modalFunil')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="crmFunilNome">Nome do funil</label>
+                    <input type="text" id="crmFunilNome">
+                </div>
+                <div class="form-group">
+                    <label>Etapas (nome, uma por linha; a última é "Perdido")</label>
+                    <div id="crmFunilEtapasLista" class="crm-funil-etapas"></div>
+                    <button type="button" class="btn-secondary crm-btn-mini" onclick="Crm.adicionarEtapaFunil()">+ Etapa</button>
+                </div>
+                <div class="form-group">
+                    <label for="crmFunilNovoTemplate">Criar novo funil a partir de um modelo</label>
+                    <div style="display:flex;gap:8px">
+                        <select id="crmFunilNovoTemplate">
+                            <option value="vendas">Comercial (com valor)</option>
+                            <option value="demandas">Demandas (sem valor)</option>
+                            <option value="projetos">Projetos (com valor)</option>
+                        </select>
+                        <button type="button" class="btn-secondary" onclick="Crm.criarFunilDeTemplate()">Criar</button>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline" onclick="fecharModal('modalFunil')">Fechar</button>
+                <button class="btn btn-primary" onclick="Crm.salvarFunil()">Salvar etapas</button>
+            </div>
+        </div>
+    </div>
+
     <script src="app2.js?v=36"></script>
+
+    <script src="crm-model.js?v=1"></script>
+    <script src="crm-calculos.js?v=1"></script>
+    <script src="crm-compat.js?v=1"></script>
+    <script src="crm-store.js?v=1"></script>
+    <script src="crm-kanban.js?v=1"></script>
+    <script src="crm-ui.js?v=1"></script>
+    <link rel="stylesheet" href="crm.css?v=1">
 
     <script>
     (function matchSubtitleWidth(){
