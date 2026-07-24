@@ -1,0 +1,228 @@
+/* ════════════════════════════════════════════════════════════════
+   NAVEGAÇÃO EM FLUXO DE TRABALHO
+   Barra global + esteira de etapas (Operação) + faixa de referência
+   + workspace IMBEL separado.
+   Estilo: navy/âmbar, densidade Bloomberg-terminal.
+   Isolado do resto do sistema — só entra em ação com body.flow-nav-on.
+   ════════════════════════════════════════════════════════════════ */
+
+:root {
+    /* Paleta do fluxo (não sobrescreve as vars existentes do sistema) */
+    --fn-navy-950: #050e1a;
+    --fn-navy-900: #0a1828;
+    --fn-navy-800: #0f2438;
+    --fn-navy-700: #1a3450;
+    --fn-navy-600: #274866;
+    --fn-navy-500: #3a5f80;
+    --fn-navy-400: #5c7d9c;
+    --fn-navy-300: #8fa9c2;
+    --fn-navy-200: #c2d2e2;
+    --fn-amber-500: #e5a128;
+    --fn-amber-400: #f0b94f;
+    --fn-amber-300: #f5cd7a;
+    --fn-amber-100: #fdf3dc;
+    --fn-header-h: 108px;   /* barra global + esteira + faixa de referência */
+    --font-mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, 'Courier New', monospace;
+}
+
+/* Esconde a sidebar antiga e remove o deslocamento do body quando o fluxo está ativo */
+body.flow-nav-on { padding-left: 0 !important; padding-top: var(--fn-header-h); }
+body.flow-nav-on .sidebar { display: none !important; }
+
+/* Container fixo do cabeçalho novo */
+.flow-header {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    z-index: 2100;
+    font-family: var(--font-primary, 'Inter', system-ui, sans-serif);
+    box-shadow: 0 6px 20px rgba(0,0,0,0.35);
+}
+
+/* ── Barra global ─────────────────────────────────────────── */
+.flow-globalbar {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    background: linear-gradient(180deg, var(--fn-navy-950), var(--fn-navy-900));
+    border-bottom: 1px solid var(--fn-navy-800);
+    padding: 0 14px;
+    height: 46px;
+}
+.flow-brand {
+    display: flex; align-items: center; gap: 9px;
+    font-weight: 700; font-size: 14px; letter-spacing: .2px;
+    color: #fff; white-space: nowrap;
+}
+.flow-brand .flow-brand-mark {
+    width: 26px; height: 26px; flex: none;
+    border-radius: 6px; overflow: hidden;
+    border: 1px solid rgba(229,161,40,.4);
+    background: linear-gradient(145deg,#0d1e30,#162840);
+    display: flex; align-items: center; justify-content: center;
+}
+.flow-brand .flow-brand-mark svg { width: 100%; height: 100%; }
+.flow-brand .flow-brand-sub {
+    font-family: var(--font-mono); font-size: 9px; letter-spacing: 1.2px;
+    text-transform: uppercase; color: var(--fn-navy-400); font-weight: 600;
+    margin-left: 2px;
+}
+
+/* Seletor de workspace */
+.ws-switch { display: flex; gap: 4px; background: var(--fn-navy-900); padding: 3px; border-radius: 5px; box-shadow: inset 0 0 0 1px var(--fn-navy-800); }
+.ws-btn {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 12px; font-weight: 600; padding: 6px 14px;
+    border-radius: 3px; color: var(--fn-navy-300);
+    background: transparent; border: none; cursor: pointer;
+    transition: background .12s, color .12s; white-space: nowrap;
+}
+.ws-btn:hover { color: #fff; }
+.ws-btn svg { width: 14px; height: 14px; flex: none; }
+.ws-btn.active { background: var(--fn-navy-700); color: #fff; }
+.ws-btn.imbel.active { background: var(--fn-amber-500); color: var(--fn-navy-950); }
+
+/* Cluster de status/ações à direita (recebe #firestoreStatus e #authPanel realocados) */
+.flow-status { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+.flow-status .cloud-status { margin: 0; }
+.flow-status .auth-panel,
+.flow-status .sidebar-footer-actions { margin: 0; }
+.flow-actions-menu { position: relative; }
+.flow-actions-toggle {
+    display: flex; align-items: center; gap: 6px;
+    background: var(--fn-navy-800); color: var(--fn-navy-200);
+    border: 1px solid var(--fn-navy-700); border-radius: 4px;
+    padding: 6px 11px; font-size: 12px; font-weight: 600; cursor: pointer;
+}
+.flow-actions-toggle:hover { color: #fff; border-color: var(--fn-navy-600); }
+.flow-actions-toggle svg { width: 14px; height: 14px; }
+.flow-actions-drop {
+    position: absolute; right: 0; top: calc(100% + 6px);
+    background: var(--fn-navy-900); border: 1px solid var(--fn-navy-700);
+    border-radius: 6px; padding: 6px; min-width: 210px;
+    box-shadow: 0 12px 30px rgba(0,0,0,.45); display: none; flex-direction: column; gap: 2px;
+    z-index: 2200;
+}
+.flow-actions-menu.open .flow-actions-drop { display: flex; }
+/* Botões de ação (cloud/backup/login) realocados para o dropdown */
+.flow-actions-drop .sidebar-action-btn,
+.flow-actions-drop .sidebar-login-btn {
+    display: flex; align-items: center; gap: 8px; width: 100%;
+    background: transparent; border: none; color: var(--fn-navy-200);
+    padding: 8px 10px; border-radius: 4px; font-size: 12.5px; font-weight: 500;
+    cursor: pointer; text-align: left;
+}
+.flow-actions-drop .sidebar-action-btn:hover { background: var(--fn-navy-800); color: #fff; }
+.flow-actions-drop .sidebar-action-btn svg { width: 15px; height: 15px; flex: none; opacity: .85; }
+.flow-actions-drop .nav-text { display: inline !important; }
+.flow-actions-drop .auth-panel { display: block; margin-top: 4px; padding-top: 6px; border-top: 1px solid var(--fn-navy-800); }
+
+/* ── Esteira de etapas (Operação) ─────────────────────────── */
+.pipebar {
+    background: linear-gradient(180deg, var(--fn-navy-900), var(--fn-navy-800));
+    padding: 11px 14px; display: flex; align-items: stretch; gap: 2px;
+}
+.pstep {
+    flex: 1; display: flex; align-items: center; gap: 11px;
+    padding: 9px 12px; border-radius: 5px; min-width: 0;
+    background: transparent; border: none; cursor: pointer; text-align: left;
+    transition: background .12s, box-shadow .12s;
+}
+.pstep:hover { background: rgba(255,255,255,.04); }
+.pstep.active { background: rgba(229,161,40,.14); box-shadow: inset 0 0 0 1px rgba(229,161,40,.5); }
+.pstep.active:hover { background: rgba(229,161,40,.18); }
+.pstep .pn {
+    width: 30px; height: 30px; flex: none; border-radius: 50%;
+    border: 1.5px solid var(--fn-navy-500);
+    display: flex; align-items: center; justify-content: center;
+    color: var(--fn-navy-300); font-family: var(--font-mono);
+    font-size: 13px; font-weight: 600; transition: all .12s;
+}
+.pstep.active .pn { background: var(--fn-amber-500); border-color: var(--fn-amber-500); color: var(--fn-navy-950); }
+.pstep.done .pn { background: var(--fn-navy-600); border-color: var(--fn-navy-600); color: #fff; }
+.pstep .picon { flex: none; color: var(--fn-navy-400); display: flex; }
+.pstep .picon svg { width: 17px; height: 17px; }
+.pstep.active .picon { color: var(--fn-amber-400); }
+.pstep .pl { flex: 1; min-width: 0; overflow: hidden; }
+.pstep .pl .t {
+    display: block; font-size: 13px; font-weight: 600; color: var(--fn-navy-200);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.pstep.active .pl .t { color: #fff; }
+.pstep .pl .s {
+    display: block; font-size: 10.5px; color: var(--fn-navy-400);
+    white-space: nowrap; font-family: var(--font-mono);
+    overflow: hidden; text-overflow: ellipsis;
+}
+.pstep.active .pl .s { color: var(--fn-amber-300); }
+.parrow { flex: none; align-self: center; color: var(--fn-navy-600); display: flex; }
+.parrow svg { width: 16px; height: 16px; }
+
+/* Botão "Próximo passo" no fim da esteira */
+.pnext {
+    flex: none; align-self: center; margin-left: 6px;
+    display: flex; align-items: center; gap: 7px;
+    background: var(--fn-amber-500); color: var(--fn-navy-950);
+    border: none; border-radius: 5px; padding: 8px 13px;
+    font-size: 12px; font-weight: 700; cursor: pointer; white-space: nowrap;
+    transition: background .12s;
+}
+.pnext:hover { background: var(--fn-amber-400); }
+.pnext:disabled { opacity: .35; cursor: default; }
+.pnext svg { width: 14px; height: 14px; }
+
+/* ── Faixa de Referência ──────────────────────────────────── */
+.refbar {
+    background: var(--fn-navy-950); display: flex; align-items: center;
+    gap: 2px; padding: 0 14px; height: 38px;
+    border-top: 1px solid var(--fn-navy-800); overflow-x: auto; scrollbar-width: thin;
+}
+.refbar::-webkit-scrollbar { height: 4px; }
+.refbar::-webkit-scrollbar-thumb { background: var(--fn-navy-700); border-radius: 2px; }
+.refbar-lbl {
+    font-family: var(--font-mono); font-size: 9.5px; letter-spacing: 1.4px;
+    text-transform: uppercase; color: var(--fn-navy-500); margin-right: 12px;
+    flex: none; white-space: nowrap;
+}
+.ref-btn {
+    display: flex; align-items: center; gap: 7px; font-size: 12px;
+    color: var(--fn-navy-300); padding: 6px 12px; border-radius: 3px;
+    background: transparent; border: none; cursor: pointer; white-space: nowrap; flex: none;
+    transition: background .12s, color .12s;
+}
+.ref-btn svg { width: 14px; height: 14px; flex: none; }
+.ref-btn:hover, .ref-btn.active { background: var(--fn-navy-800); color: var(--fn-amber-400); }
+.refbar-sep { width: 1px; align-self: center; height: 18px; background: var(--fn-navy-800); margin: 0 6px; flex: none; }
+
+/* Em telas de referência que reaproveitam a Precificação, esconder a barra de sub-abas */
+body.flow-ref-precif .precif-subnav { display: none !important; }
+
+/* ── Tela placeholder (Envio em desenvolvimento) ──────────── */
+#tab-envio .flow-placeholder {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    text-align: center; padding: 80px 20px; color: var(--text-secondary, #5a6d82);
+    min-height: 55vh;
+}
+#tab-envio .flow-placeholder .fp-icon { font-size: 3.4rem; margin-bottom: 16px; opacity: .8; }
+#tab-envio .flow-placeholder h2 { font-size: 1.25rem; font-weight: 700; color: var(--text-primary, #111a27); margin-bottom: 8px; }
+#tab-envio .flow-placeholder p { font-size: .9rem; max-width: 440px; line-height: 1.5; }
+#tab-envio .flow-placeholder .fp-badge {
+    margin-top: 18px; font-family: var(--font-mono); font-size: 11px; letter-spacing: 1px;
+    text-transform: uppercase; color: var(--fn-amber-500); font-weight: 700;
+    border: 1px solid var(--fn-amber-500); border-radius: 20px; padding: 5px 14px;
+}
+
+/* ── Responsivo ───────────────────────────────────────────── */
+@media (max-width: 1100px) {
+    .pstep .pl .s { display: none; }
+    .flow-brand .flow-brand-sub { display: none; }
+}
+@media (max-width: 860px) {
+    :root { --fn-header-h: 150px; }
+    .pipebar { flex-wrap: wrap; }
+    .pstep { flex: 1 1 40%; }
+    .parrow, .pnext { display: none; }
+}
+@media (max-width: 560px) {
+    .flow-globalbar { flex-wrap: wrap; height: auto; padding: 8px 10px; gap: 8px; }
+    .flow-brand .flow-brand-sub { display: none; }
+}
