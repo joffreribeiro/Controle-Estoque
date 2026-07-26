@@ -483,6 +483,104 @@ function agruparAtividadesPorDiaDaSemana(atividades, domingoIso) {
 }
 
 /**
+ * Data da Páscoa (domingo) de um ano, calculada localmente — algoritmo
+ * "anônimo gregoriano" (Meeus/Jones/Butcher). Usada para derivar os feriados
+ * móveis (Carnaval, Sexta-feira Santa, Corpus Christi).
+ */
+function calcularPascoa(ano) {
+    const a = ano % 19;
+    const b = Math.floor(ano / 100);
+    const c = ano % 100;
+    const d = Math.floor(b / 4);
+    const e = b % 4;
+    const f = Math.floor((b + 8) / 25);
+    const g = Math.floor((b - f + 1) / 3);
+    const h = (19 * a + b - d - g + 15) % 30;
+    const i = Math.floor(c / 4);
+    const k = c % 4;
+    const l = (32 + 2 * e + 2 * i - h - k) % 7;
+    const m = Math.floor((a + 11 * h + 22 * l) / 451);
+    const mes = Math.floor((h + l - 7 * m + 114) / 31);
+    const dia = ((h + l - 7 * m + 114) % 31) + 1;
+    return new Date(Date.UTC(ano, mes - 1, dia));
+}
+
+/**
+ * Feriados nacionais do Brasil de um ano (fixos + móveis, calculados a partir
+ * da Páscoa). Não inclui feriados estaduais/municipais. Devolve lista
+ * ordenada de { data: 'YYYY-MM-DD', nome }.
+ */
+function feriadosNacionais(ano) {
+    const pascoa = calcularPascoa(ano);
+    const comData = (offsetDias) => {
+        const d = new Date(pascoa);
+        d.setUTCDate(d.getUTCDate() + offsetDias);
+        return d.toISOString().slice(0, 10);
+    };
+
+    const fixos = [
+        ['01-01', 'Confraternização Universal'],
+        ['04-21', 'Tiradentes'],
+        ['05-01', 'Dia do Trabalho'],
+        ['09-07', 'Independência do Brasil'],
+        ['10-12', 'Nossa Senhora Aparecida'],
+        ['11-02', 'Finados'],
+        ['11-15', 'Proclamação da República'],
+        ['11-20', 'Dia Nacional de Zumbi e da Consciência Negra'],
+        ['12-25', 'Natal']
+    ].map(([md, nome]) => ({ data: ano + '-' + md, nome }));
+
+    const moveis = [
+        { data: comData(-47), nome: 'Carnaval' },
+        { data: comData(-2), nome: 'Sexta-feira Santa' },
+        { data: comData(0), nome: 'Páscoa' },
+        { data: comData(60), nome: 'Corpus Christi' }
+    ];
+
+    return fixos.concat(moveis).sort((x, y) => x.data.localeCompare(y.data));
+}
+
+/**
+ * Domingo (YYYY-MM-DD) da primeira semana exibida na grade mensal (a semana
+ * que contém o dia 1 do mês de `mesRefIso`, seja qual for o dia informado).
+ */
+function inicioGradeMes(mesRefIso) {
+    const d = new Date(String(mesRefIso).slice(0, 7) + '-01T00:00:00Z');
+    if (isNaN(d)) return mesRefIso;
+    d.setUTCDate(d.getUTCDate() - d.getUTCDay());
+    return d.toISOString().slice(0, 10);
+}
+
+/**
+ * Soma/subtrai meses a uma referência 'YYYY-MM' (ou 'YYYY-MM-DD'), sempre
+ * devolvendo o dia 1 do mês resultante ('YYYY-MM-01').
+ */
+function somarMeses(mesRefIso, qtd) {
+    const d = new Date(String(mesRefIso).slice(0, 7) + '-01T00:00:00Z');
+    if (isNaN(d)) return mesRefIso;
+    d.setUTCMonth(d.getUTCMonth() + qtd);
+    return d.toISOString().slice(0, 7) + '-01';
+}
+
+/**
+ * Agrupa atividades numa grade mensal de 6 semanas (42 dias, dom→sáb),
+ * começando no domingo que contém o dia 1 do mês de `mesRefIso`. Devolve
+ * mapa 'YYYY-MM-DD' -> [atividades], sempre com as 42 chaves presentes.
+ */
+function agruparAtividadesPorGradeMes(atividades, mesRefIso) {
+    const inicio = inicioGradeMes(mesRefIso);
+    const mapa = {};
+    for (let i = 0; i < 42; i++) mapa[somarDias(inicio, i)] = [];
+    (atividades || []).forEach(a => {
+        if (Object.prototype.hasOwnProperty.call(mapa, a.data)) mapa[a.data].push(a);
+    });
+    Object.keys(mapa).forEach(k => {
+        mapa[k].sort((a, b) => String(a.horaInicio || '99:99').localeCompare(String(b.horaInicio || '99:99')));
+    });
+    return mapa;
+}
+
+/**
  * Itens de histórico de uma entidade específica, mais recentes primeiro.
  */
 function timelineDe(historico, entidade, entidadeId) {
@@ -523,7 +621,12 @@ const CrmCalculos = {
     filtrarAtividadesBusca,
     ordenarAtividadesPorData,
     duracaoAtividade,
-    agruparAtividadesPorDiaDaSemana
+    agruparAtividadesPorDiaDaSemana,
+    inicioGradeMes,
+    somarMeses,
+    agruparAtividadesPorGradeMes,
+    calcularPascoa,
+    feriadosNacionais
 };
 
 if (typeof window !== 'undefined') {

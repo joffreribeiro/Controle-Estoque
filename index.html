@@ -4663,50 +4663,53 @@
     </div>
 
     <div id="modalAtividadeCal" class="modal">
-        <div class="modal-content" style="max-width:520px">
+        <div class="modal-content" style="max-width:860px">
             <div class="modal-header">
                 <h3 id="crmModalAtvCalTitulo">Nova atividade</h3>
                 <button class="modal-close" onclick="fecharModal('modalAtividadeCal')">&times;</button>
             </div>
-            <div class="modal-body">
-                <input type="hidden" id="crmAtvCalId">
-                <input type="hidden" id="crmAtvCalTipo" value="tarefa">
+            <div class="crm-atv-cal-modal-grid">
+                <div class="modal-body crm-atv-cal-modal-form">
+                    <input type="hidden" id="crmAtvCalId">
+                    <input type="hidden" id="crmAtvCalTipo" value="tarefa">
 
-                <div class="form-group crm-autocomplete">
-                    <label for="crmAtvCalNegocioBusca">Negócio vinculado *</label>
-                    <input type="text" id="crmAtvCalNegocioBusca" autocomplete="off" placeholder="Buscar negócio por título ou cliente..."
-                           oninput="Crm.buscarNegocioParaAtividadeCal(this.value)" onfocus="Crm.buscarNegocioParaAtividadeCal(this.value)">
-                    <div id="crmAtvCalNegocioLista" class="crm-ac-lista" style="display:none"></div>
-                </div>
+                    <div class="form-group crm-autocomplete">
+                        <label for="crmAtvCalNegocioBusca">Negócio vinculado *</label>
+                        <input type="text" id="crmAtvCalNegocioBusca" autocomplete="off" placeholder="Buscar negócio por título ou cliente..."
+                               oninput="Crm.buscarNegocioParaAtividadeCal(this.value)" onfocus="Crm.buscarNegocioParaAtividadeCal(this.value)">
+                        <div id="crmAtvCalNegocioLista" class="crm-ac-lista" style="display:none"></div>
+                    </div>
 
-                <div class="form-group">
-                    <label>Tipo</label>
-                    <div class="crm-atv-tipos" id="crmAtvCalTipos"></div>
-                </div>
+                    <div class="form-group">
+                        <label>Tipo</label>
+                        <div class="crm-atv-tipos" id="crmAtvCalTipos"></div>
+                    </div>
 
-                <div class="form-group">
-                    <label for="crmAtvCalAssunto">Assunto *</label>
-                    <input type="text" id="crmAtvCalAssunto" placeholder="Assunto da atividade">
-                </div>
+                    <div class="form-group">
+                        <label for="crmAtvCalAssunto">Assunto *</label>
+                        <input type="text" id="crmAtvCalAssunto" placeholder="Assunto da atividade">
+                    </div>
 
-                <div class="crm-atv-linha">
-                    <input type="date" id="crmAtvCalData">
-                    <input type="time" id="crmAtvCalHoraInicio">
-                    <span>–</span>
-                    <input type="time" id="crmAtvCalHoraFim">
-                </div>
+                    <div class="crm-atv-linha">
+                        <input type="date" id="crmAtvCalData" onchange="Crm.atualizarMiniAgendaCal()">
+                        <input type="time" id="crmAtvCalHoraInicio" onchange="Crm.atualizarMiniAgendaCal()">
+                        <span>–</span>
+                        <input type="time" id="crmAtvCalHoraFim" onchange="Crm.atualizarMiniAgendaCal()">
+                    </div>
 
-                <div class="form-group">
-                    <label for="crmAtvCalDescricao">Descrição</label>
-                    <textarea id="crmAtvCalDescricao" rows="2" placeholder="Descrição (opcional)"></textarea>
-                </div>
+                    <div class="form-group">
+                        <label for="crmAtvCalDescricao">Descrição</label>
+                        <textarea id="crmAtvCalDescricao" rows="2" placeholder="Descrição (opcional)"></textarea>
+                    </div>
 
-                <div class="form-group">
-                    <label class="crm-check">
-                        <input type="checkbox" id="crmAtvCalFeito">
-                        Concluída
-                    </label>
+                    <div class="form-group">
+                        <label class="crm-check">
+                            <input type="checkbox" id="crmAtvCalFeito">
+                            Concluída
+                        </label>
+                    </div>
                 </div>
+                <div class="crm-atv-cal-modal-agenda" id="crmAtvCalMiniAgenda"></div>
             </div>
             <div class="modal-footer">
                 <button class="btn btn-outline" id="crmAtvCalBtnExcluir" style="display:none;margin-right:auto" onclick="Crm.excluirAtividadeCal()">Excluir</button>
@@ -4751,18 +4754,59 @@
         </div>
     </div>
 
+    <div id="modalTiposAtividade" class="modal">
+        <div class="modal-content" style="max-width:560px">
+            <div class="modal-header">
+                <h3>Tipos de atividade</h3>
+                <button class="modal-close" onclick="fecharModal('modalTiposAtividade')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p class="crm-tipos-atv-ajuda">Personalize os tipos de atividade da empresa. Tipos desativados não aparecem para novas atividades, mas continuam vinculados às já existentes.</p>
+                <button type="button" class="btn btn-primary crm-btn-mini" onclick="Crm.abrirFormTipoAtividade()">+ Tipo de atividade</button>
+                <div id="crmTiposAtividadeLista" class="crm-tipos-atv-lista"></div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline" onclick="fecharModal('modalTiposAtividade')">Fechar</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="modalTipoAtividadeForm" class="modal">
+        <div class="modal-content" style="max-width:420px">
+            <div class="modal-header">
+                <h3 id="crmTipoAtvFormTitulo">Novo tipo de atividade</h3>
+                <button class="modal-close" onclick="fecharModal('modalTipoAtividadeForm')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="crmTipoAtvChave">
+                <input type="hidden" id="crmTipoAtvIconeEscolhido">
+                <div class="form-group">
+                    <label>Ícone</label>
+                    <div class="crm-tipo-icone-grid" id="crmTipoAtvIconeGrid"></div>
+                </div>
+                <div class="form-group">
+                    <label for="crmTipoAtvNome">Nome do tipo de atividade</label>
+                    <input type="text" id="crmTipoAtvNome" placeholder="Ex: Visita técnica">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline" onclick="fecharModal('modalTipoAtividadeForm')">Cancelar</button>
+                <button class="btn btn-primary" onclick="Crm.salvarTipoAtividade()">Salvar</button>
+            </div>
+        </div>
+    </div>
+
     <script src="app2.js?v=36"></script>
 
-    <script src="crm-model.js?v=2"></script>
-    <script src="crm-calculos.js?v=2"></script>
+    <script src="crm-model.js?v=5"></script>
+    <script src="crm-calculos.js?v=4"></script>
     <script src="crm-compat.js?v=1"></script>
-    <script src="crm-store.js?v=1"></script>
+    <script src="crm-store.js?v=2"></script>
     <script src="crm-kanban.js?v=1"></script>
-    <script src="crm-ui.js?v=5"></script>
+    <script src="crm-ui.js?v=18"></script>
     <script src="https://accounts.google.com/gsi/client" async defer></script>
-    <script src="google-calendar-sync.js?v=2"></script>
-    <script src="crm-zimbra-import.js?v=1"></script>
-    <link rel="stylesheet" href="crm.css?v=5">
+    <script src="google-calendar-sync.js?v=9"></script>
+    <link rel="stylesheet" href="crm.css?v=14">
     <script src="fluxo-nav.js?v=2"></script>
 
     <script>

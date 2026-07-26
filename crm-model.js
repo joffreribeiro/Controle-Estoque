@@ -25,7 +25,10 @@ const TIPOS_ATIVIDADE = {
     tarefa: { rotulo: 'Tarefa', icone: '✔️' },
     prazo: { rotulo: 'Prazo', icone: '🚩' },
     email: { rotulo: 'E-mail', icone: '✉️' },
-    almoco: { rotulo: 'Almoço', icone: '🍽️' }
+    viagem: { rotulo: 'Viagem', icone: '🧳' },
+    ferias: { rotulo: 'Férias', icone: '🏖️' },
+    recesso: { rotulo: 'Recesso', icone: '📴' },
+    particular: { rotulo: 'Particular', icone: '👤' }
 };
 
 const TEMPLATES_FUNIL = {
@@ -74,6 +77,31 @@ function normalizarEtapa(eBruta, idx) {
         tipo,
         probabilidade: Number.isFinite(e.probabilidade) ? e.probabilidade : probabilidadeDefault
     };
+}
+
+function normalizarTipoAtividade(tBruto, idx) {
+    const t = ehObjeto(tBruto) ? tBruto : {};
+    return {
+        chave: (typeof t.chave === 'string' && t.chave.trim()) ? t.chave.trim() : novoId('tpa'),
+        nome: (typeof t.nome === 'string' && t.nome.trim()) ? t.nome.trim() : ('Tipo ' + (idx + 1)),
+        icone: (typeof t.icone === 'string' && t.icone) ? t.icone : '📌',
+        ativo: t.ativo !== false,
+        ordem: Number.isFinite(t.ordem) ? t.ordem : idx
+    };
+}
+
+/**
+ * Seed inicial dos tipos de atividade (primeira vez que o CRM é usado, antes
+ * de qualquer customização) — a partir do conjunto padrão fixo TIPOS_ATIVIDADE.
+ */
+function tiposAtividadePadrao() {
+    return Object.keys(TIPOS_ATIVIDADE).map((chave, idx) => ({
+        chave,
+        nome: TIPOS_ATIVIDADE[chave].rotulo,
+        icone: TIPOS_ATIVIDADE[chave].icone,
+        ativo: true,
+        ordem: idx
+    }));
 }
 
 function normalizarFunil(fBruto) {
@@ -152,7 +180,9 @@ function normalizarNegocio(nBruto) {
 
 function normalizarAtividade(aBruta) {
     const a = ehObjeto(aBruta) ? aBruta : {};
-    const tipo = Object.prototype.hasOwnProperty.call(TIPOS_ATIVIDADE, a.tipo) ? a.tipo : 'tarefa';
+    // O tipo é validado contra a lista de tipos configurados (dinâmica, ver
+    // CrmStore.listarTiposAtividade) — aqui só garante que é uma string não vazia.
+    const tipo = (typeof a.tipo === 'string' && a.tipo.trim()) ? a.tipo : 'tarefa';
     return {
         id: a.id || novoId('atv'),
         negocioId: a.negocioId || null,
@@ -165,6 +195,8 @@ function normalizarAtividade(aBruta) {
         feito: !!a.feito,
         feitoEm: a.feitoEm || null,
         googleEventId: typeof a.googleEventId === 'string' ? a.googleEventId : null,
+        origemGoogle: !!a.origemGoogle,
+        origemFeriado: !!a.origemFeriado,
         criadoEm: a.criadoEm || nowIso(),
         atualizadoEm: a.atualizadoEm || nowIso()
     };
@@ -280,7 +312,7 @@ function normalizarCrm(crmBruto) {
     negocios.forEach(n => { idsNegocioValidos[n.id] = true; });
     const atividades = (Array.isArray(crm.atividades) ? crm.atividades : [])
         .map(normalizarAtividade)
-        .filter(a => a.negocioId && idsNegocioValidos[a.negocioId]);
+        .filter(a => !a.negocioId || idsNegocioValidos[a.negocioId]);
 
     const anotacoesValidas = (Array.isArray(crm.anotacoes) ? crm.anotacoes : [])
         .map(normalizarAnotacao)
@@ -295,6 +327,11 @@ function normalizarCrm(crmBruto) {
 
     const config = normalizarConfig(crm.config, funis);
 
+    const tiposAtividadeBrutos = Array.isArray(crm.tiposAtividade) ? crm.tiposAtividade : null;
+    const tiposAtividade = (tiposAtividadeBrutos && tiposAtividadeBrutos.length ? tiposAtividadeBrutos : tiposAtividadePadrao())
+        .map(normalizarTipoAtividade)
+        .sort((a, b) => a.ordem - b.ordem);
+
     return {
         versao: 1,
         funis,
@@ -302,6 +339,7 @@ function normalizarCrm(crmBruto) {
         atividades,
         anotacoes,
         historico,
+        tiposAtividade,
         config
     };
 }
@@ -423,6 +461,8 @@ const CrmModel = {
     normalizarAnotacao,
     normalizarHistoricoItem,
     normalizarConfig,
+    normalizarTipoAtividade,
+    tiposAtividadePadrao,
 
     criarFunil,
     criarNegocio,

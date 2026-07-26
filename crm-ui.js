@@ -48,10 +48,13 @@
     var _anotacaoRelacionadaId = null; // anotação-pai (thread) selecionada no modal
 
     // ── Estado da vista Calendário (Atividades, todos os negócios) ──
-    var _calModo = 'lista'; // 'lista' | 'semana'
+    var _calModo = 'lista'; // 'lista' | 'semana' | 'mes'
     var _calPeriodo = 'todos'; // todos|paraFazer|vencido|hoje|amanha|semana|proximaSemana
+    var _calTipo = ''; // '' (todos) | chamada|reuniao|tarefa|prazo|email|viagem|ferias|recesso|particular
     var _calBusca = '';
     var _calSemanaRef = CrmCalculos.inicioSemana(hojeIsoLocal()); // domingo da semana exibida na vista Calendário
+    var _calMesRef = hojeIsoLocal().slice(0, 7) + '-01'; // 1º dia do mês exibido na vista Mês
+    var _calMostrarFeriados = false; // filtro da Lista: mostrar/ocultar feriados nacionais
     var _calAtvNegocioId = null; // negócio selecionado no modal de atividade global
 
     var ICONES_HISTORICO = { criacao: '✨', campo: '✎', etapa: '➡️', exclusao: '🗑', atividade: '📅', nota: '📝', anotacao: '🗒️' };
@@ -80,9 +83,6 @@
         document.addEventListener('click', aoClicar);
         if (window.GoogleCalendarSync) {
             GoogleCalendarSync.aoMudarStatus(function () { if (_secao === 'calendario') renderizarCalendarioView(); });
-        }
-        if (window.ZimbraImport) {
-            ZimbraImport.aoMudar(function () { if (_secao === 'calendario') renderizarCalendarioView(); });
         }
     }
 
@@ -165,7 +165,6 @@
     function setSecao(v) {
         _secao = v;
         _detalheId = null;
-        if (v === 'calendario' && window.ZimbraImport) ZimbraImport.carregarDoFirestore();
         renderizarConteudoAtivo();
     }
 
@@ -324,7 +323,8 @@
     }
 
     function hojeIsoLocal() {
-        return new Date().toISOString().slice(0, 10);
+        var d = new Date();
+        return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
     }
 
     function popularSelectPreservandoValor(sel, opcoes, valorAtual) {
@@ -471,32 +471,87 @@
         return { negocios: negocios, clientes: clientes, negocioPorId: negocioPorId, clientePorId: clientePorId };
     }
 
+    /**
+     * Feriados nacionais, calculados localmente (sem depender de conta do
+     * Google nem de conexão) — sempre presentes no Calendário, como itens
+     * somente leitura (nunca viram atividade de verdade no CRM).
+     */
+    /**
+     * Migração: em versões anteriores, feriados importados do Google chegaram
+     * a ser salvos como atividades reais (origemFeriado:true) no CRM. Feriados
+     * agora são só calculados na hora (nunca persistidos) — remove qualquer
+     * resquício real, senão o filtro "Mostrar feriados" não tem efeito sobre
+     * eles. Roda a cada render (os dados do Firestore chegam de forma
+     * assíncrona, então uma trava de "só uma vez" arriscaria rodar antes dos
+     * dados reais carregarem e nunca mais tentar de novo); uma vez limpos, o
+     * filtro em CrmStore.listarAtividades() já não acha nada, então o custo
+     * cai a praticamente zero nos renders seguintes.
+     */
+    function limparFeriadosOrfaos() {
+        var orfaos = CrmStore.listarAtividades().filter(function (a) { return a.origemFeriado; });
+        if (!orfaos.length) return;
+        orfaos.forEach(function (a) { CrmStore.removerAtividade(a.id); });
+    }
+
+    function gerarFeriadosPseudoAtividades() {
+        var anoAtual = Number(hojeIsoLocal().slice(0, 4));
+        var lista = [];
+        for (var ano = anoAtual - 1; ano <= anoAtual + 2; ano++) {
+            CrmCalculos.feriadosNacionais(ano).forEach(function (f) {
+                lista.push({
+                    id: 'feriado_' + f.data,
+                    negocioId: null,
+                    tipo: 'prazo',
+                    assunto: f.nome,
+                    descricao: '',
+                    data: f.data,
+                    horaInicio: '',
+                    horaFim: '',
+                    feito: false,
+                    origemFeriado: true
+                });
+            });
+        }
+        return lista;
+    }
+
     function renderizarCalendarioView() {
         var ctx = atividadesCalContexto();
-        var zimbra = window.ZimbraImport ? ZimbraImport.listar() : [];
-        var todas = CrmStore.listarAtividades().concat(zimbra);
+        limparFeriadosOrfaos(); // migração: remove feriados que ficaram salvos como atividade real (fase antiga, via Google)
+        var reais = CrmStore.listarAtividades();
+        var feriados = _calMostrarFeriados ? gerarFeriadosPseudoAtividades() : [];
+        var todas = reais.concat(feriados);
         var porPeriodo = CrmCalculos.filtrarAtividadesPeriodo(todas, _calPeriodo, hojeIsoLocal());
-        var filtradas = CrmCalculos.filtrarAtividadesBusca(porPeriodo, _calBusca, ctx);
+        var porBusca = CrmCalculos.filtrarAtividadesBusca(porPeriodo, _calBusca, ctx);
+        var filtradas = _calTipo ? porBusca.filter(function (a) { return a.tipo === _calTipo; }) : porBusca;
 
         var chips = CAL_PERIODOS.map(function (p) {
             return '<button type="button" class="crm-cal-chip' + (p[0] === _calPeriodo ? ' active' : '') + '" data-crm-action="setCalPeriodo" data-valor="' + p[0] + '">' + esc(p[1]) + '</button>';
         }).join('');
+
+        var chipsTipo = '<button type="button" class="crm-cal-chip' + (!_calTipo ? ' active' : '') + '" data-crm-action="setCalTipo" data-valor="">Tudo</button>' +
+            CrmStore.listarTiposAtividadeAtivos().map(function (t) {
+                return '<button type="button" class="crm-cal-chip' + (_calTipo === t.chave ? ' active' : '') + '" data-crm-action="setCalTipo" data-valor="' + esc(t.chave) + '">' + t.icone + ' ' + esc(t.nome) + '</button>';
+            }).join('') +
+            '<button type="button" class="crm-cal-chip crm-cal-chip-config" data-crm-action="abrirModalTiposAtividade" title="Gerenciar tipos de atividade">⚙</button>';
 
         var toolbar = '' +
             '<div class="crm-cal-toolbar">' +
                 '<button type="button" class="btn btn-primary crm-cal-btn-nova" data-crm-action="abrirModalAtividadeCal">+ Atividade</button>' +
                 '<div class="crm-cal-modos">' +
                     '<button type="button" class="crm-cal-modo-btn' + (_calModo === 'lista' ? ' active' : '') + '" data-crm-action="setCalModo" data-valor="lista" title="Lista">☰</button>' +
-                    '<button type="button" class="crm-cal-modo-btn' + (_calModo === 'semana' ? ' active' : '') + '" data-crm-action="setCalModo" data-valor="semana" title="Calendário">🗓</button>' +
+                    '<button type="button" class="crm-cal-modo-btn' + (_calModo === 'semana' ? ' active' : '') + '" data-crm-action="setCalModo" data-valor="semana" title="Semana">🗓</button>' +
+                    '<button type="button" class="crm-cal-modo-btn' + (_calModo === 'mes' ? ' active' : '') + '" data-crm-action="setCalModo" data-valor="mes" title="Mês">📆</button>' +
                 '</div>' +
                 '<input type="text" class="crm-busca" placeholder="Buscar atividade, negócio ou contato..." value="' + esc(_calBusca) + '" oninput="Crm.setCalBusca(this.value)">' +
                 '<span class="crm-contagem">' + filtradas.length + (filtradas.length !== 1 ? ' atividades' : ' atividade') + '</span>' +
             '</div>' +
             renderizarGoogleStatus() +
-            renderizarZimbraStatus() +
+            '<div class="crm-cal-tipos-filtro">' + chipsTipo + '</div>' +
             '<div class="crm-cal-periodos">' + chips + '</div>';
 
-        var corpo = _calModo === 'semana' ? renderizarCalendarioSemana(filtradas) : renderizarCalendarioLista(filtradas, ctx);
+        var corpo = _calModo === 'semana' ? renderizarCalendarioSemana(filtradas)
+            : (_calModo === 'mes' ? renderizarCalendarioMes(filtradas) : renderizarCalendarioLista(filtradas, ctx));
 
         document.getElementById('crmCalendario').innerHTML = toolbar + corpo;
     }
@@ -521,32 +576,26 @@
         '</div>';
     }
 
-    function renderizarZimbraStatus() {
-        var zi = window.ZimbraImport;
-        if (!zi) return '';
-        var total = zi.listar().length;
-        var rotulo = zi.carregando() ? 'Importando…' : ('Importar do Zimbra' + (total ? (' (' + total + ' importado' + (total !== 1 ? 's' : '') + ')') : ''));
-        return '<div class="crm-cal-google">' +
-            '<span class="crm-cal-google-off">📥 Zimbra' + (total ? (': ' + total + ' evento(s) importado(s)') : ': nenhum evento importado ainda') + '</span>' +
-            '<button type="button" class="btn-secondary crm-btn-mini" data-crm-action="zimbraImportar" ' + (zi.carregando() ? 'disabled' : '') + '>' + esc(rotulo) + '</button>' +
-        '</div>';
-    }
-
     function renderizarCalendarioLista(atividades, ctx) {
         var ordenadas = CrmCalculos.ordenarAtividadesPorData(atividades);
+        var mapaTipos = CrmStore.mapaTiposAtividade();
         var linhas = ordenadas.map(function (a) {
             var negocio = ctx.negocioPorId[a.negocioId];
             var cliente = negocio ? ctx.clientePorId[negocio.clienteId] : null;
-            var tipoInfo = CrmModel.TIPOS_ATIVIDADE[a.tipo] || { icone: '📌', rotulo: a.tipo };
+            var tipoInfo = mapaTipos[a.tipo] || { icone: '📌', rotulo: a.tipo };
             var vencida = (!a.feito && a.data && a.data < hojeIsoLocal()) ? ' class="crm-lista-vencida"' : (a.feito ? ' class="crm-cal-linha-feita"' : '');
             var duracao = CrmCalculos.duracaoAtividade(a.horaInicio, a.horaFim);
             var horaTxt = a.horaInicio ? (a.horaInicio + (a.horaFim ? ('–' + a.horaFim) : '')) : '';
-
-            var celAssunto = tipoInfo.icone + ' ' + esc(a.assunto || '(sem assunto)') + (a.origemZimbra ? ' <span class="crm-cal-badge-zimbra" title="Importado do Zimbra — somente leitura">📥 Zimbra</span>' : '');
+            var selo = a.origemFeriado
+                ? ' <span class="crm-cal-badge-feriado" title="Feriado nacional — somente leitura">🎉 Feriado</span>'
+                : (a.origemGoogle ? ' <span class="crm-cal-badge-google" title="Importado da Google Agenda">📥 Google</span>' : '');
+            var celAssunto = tipoInfo.icone + ' ' + esc(a.assunto || '(sem assunto)') + selo;
 
             return '<tr' + vencida + '>' +
-                '<td class="crm-cal-td-check"><input type="checkbox" ' + (a.feito ? 'checked' : '') + ' ' + (a.origemZimbra ? 'disabled title="Evento importado do Zimbra — não editável aqui"' : ('data-crm-action="concluirAtividadeCal" data-id="' + esc(a.id) + '" data-feito="' + a.feito + '"')) + ' onclick="event.stopPropagation()"></td>' +
-                (a.origemZimbra
+                '<td class="crm-cal-td-check">' + (a.origemFeriado
+                    ? '<input type="checkbox" disabled title="Feriado — não editável">'
+                    : '<input type="checkbox" ' + (a.feito ? 'checked' : '') + ' data-crm-action="concluirAtividadeCal" data-id="' + esc(a.id) + '" data-feito="' + a.feito + '" onclick="event.stopPropagation()">') + '</td>' +
+                (a.origemFeriado
                     ? '<td>' + celAssunto + '</td>'
                     : '<td data-crm-action="abrirModalAtividadeCal" data-id="' + esc(a.id) + '">' + celAssunto + '</td>') +
                 '<td>' + (negocio ? esc(negocio.titulo || '-') : '-') + '</td>' +
@@ -559,7 +608,15 @@
             '</tr>';
         }).join('');
 
-        return '<div class="crm-lista-wrapper"><table class="crm-lista-table crm-cal-table"><thead><tr>' +
+        var filtroFeriados = '<div class="crm-cal-lista-filtros">' +
+            '<label class="crm-check">' +
+                '<input type="checkbox" ' + (_calMostrarFeriados ? 'checked' : '') + ' onchange="Crm.setMostrarFeriadosCal(this.checked)">' +
+                'Mostrar feriados' +
+            '</label>' +
+        '</div>';
+
+        return filtroFeriados +
+            '<div class="crm-lista-wrapper"><table class="crm-lista-table crm-cal-table"><thead><tr>' +
             '<th></th><th>Assunto</th><th>Negócio</th><th>Pessoa de contato</th><th>E-mail</th><th>Telefone</th>' +
             '<th>Data de vencimento</th><th>Duração</th><th>Atribuído a</th>' +
             '</tr></thead><tbody>' +
@@ -593,12 +650,13 @@
             Object.keys(porDia).map(function (dataIso) {
                 var d = new Date(dataIso + 'T00:00:00Z');
                 var ehHoje = dataIso === hoje;
-                return '<div class="crm-cal-cab-dia' + (ehHoje ? ' crm-cal-cab-hoje' : '') + '">' + DIAS_SEMANA_ABREV[d.getUTCDay()] + ' ' + d.getUTCDate() + '</div>';
+                var numero = ehHoje ? '<span class="crm-cal-cab-numero-hoje">' + d.getUTCDate() + '</span>' : d.getUTCDate();
+                return '<div class="crm-cal-cab-dia' + (ehHoje ? ' crm-cal-cab-hoje' : '') + '">' + DIAS_SEMANA_ABREV[d.getUTCDay()] + ' ' + numero + '</div>';
             }).join('') + '</div>';
 
         var diaSemHora = Object.keys(porDia).map(function (dataIso) {
             var semHora = porDia[dataIso].filter(function (a) { return !a.horaInicio; });
-            return '<div class="crm-cal-allday-col">' + semHora.map(function (a) { return renderizarEventoCard(a); }).join('') + '</div>';
+            return '<div class="crm-cal-allday-col" data-crm-action="novaAtividadeNoDia" data-data="' + esc(dataIso) + '" title="Clique para agendar uma atividade neste dia">' + semHora.map(function (a) { return renderizarEventoCard(a); }).join('') + '</div>';
         }).join('');
         var linhaSemHora = '<div class="crm-cal-grade-allday"><div class="crm-cal-cab-gutter"></div>' + diaSemHora + '</div>';
 
@@ -618,11 +676,26 @@
                 var alturaPct = Math.max(3, (fimMin - inicioMin) / totalMin * 100);
                 return renderizarEventoCard(a, 'position:absolute;left:2px;right:2px;top:' + topPct.toFixed(2) + '%;height:' + alturaPct.toFixed(2) + '%');
             }).join('');
-            return '<div class="crm-cal-dia-col">' + eventos + '</div>';
+            var linhaAgoraCol = (dataIso === hoje) ? renderizarLinhaAgora(totalMin) : '';
+            return '<div class="crm-cal-dia-col" data-crm-action="novaAtividadeNoDia" data-data="' + esc(dataIso) + '" title="Clique para agendar uma atividade neste dia">' + eventos + linhaAgoraCol + '</div>';
         }).join('');
         var grade = '<div class="crm-cal-grade-corpo">' + gutter + '<div class="crm-cal-dias-wrap">' + colunas + '</div></div>';
 
         return nav + '<div class="crm-cal-grade">' + cabecalho + linhaSemHora + grade + '</div>';
+    }
+
+    /**
+     * Linha do horário atual (marcador vermelho), usada tanto na visão de
+     * Semana quanto na mini-agenda do modal de atividade. Sempre aparece
+     * quando o dia em questão é hoje — se a hora estiver fora da faixa
+     * exibida (06h-21h), fica "grudada" no topo ou no rodapé da grade.
+     */
+    function renderizarLinhaAgora(totalMin) {
+        var agora = new Date();
+        var minAgora = agora.getHours() * 60 + agora.getMinutes();
+        var topAgora = Math.max(0, Math.min(100, (minAgora - CAL_GRADE_INICIO_MIN) / totalMin * 100));
+        var hh = String(agora.getHours()).padStart(2, '0'), mm = String(agora.getMinutes()).padStart(2, '0');
+        return '<div class="crm-atv-mini-agora" style="top:' + topAgora.toFixed(2) + '%"><span class="crm-atv-mini-agora-hora">' + hh + ':' + mm + '</span></div>';
     }
 
     function horaParaMin(hhmm) {
@@ -631,27 +704,136 @@
         return (isNaN(h) ? 0 : h) * 60 + (isNaN(m) ? 0 : m);
     }
 
+    /**
+     * Mini-agenda do dia exibida ao lado do modal de atividade (Calendário),
+     * pra mostrar de cara o que já está marcado naquele dia — e, se for hoje,
+     * a linha do horário atual. Atualiza sozinha quando a data/hora do form muda.
+     */
+    function atualizarMiniAgendaCal() {
+        var el = document.getElementById('crmAtvCalMiniAgenda');
+        if (!el) return;
+        var dataIso = document.getElementById('crmAtvCalData').value;
+        if (!dataIso) {
+            el.innerHTML = '<div class="crm-atv-mini-vazio">Escolha uma data para ver a agenda do dia.</div>';
+            return;
+        }
+
+        var idAtual = document.getElementById('crmAtvCalId').value;
+        var doDia = CrmStore.listarAtividades().filter(function (a) { return a.data === dataIso && a.id !== idAtual; });
+        var semHora = doDia.filter(function (a) { return !a.horaInicio; });
+        var comHora = doDia.filter(function (a) { return a.horaInicio; });
+
+        var d = new Date(dataIso + 'T00:00:00Z');
+        var diaAbrev = DIAS_SEMANA_ABREV[d.getUTCDay()];
+        var rotuloDia = diaAbrev.charAt(0).toUpperCase() + diaAbrev.slice(1) + ', ' + Number(dataIso.slice(8, 10)) + ' de ' + MESES[Number(dataIso.slice(5, 7)) - 1];
+
+        var totalMin = CAL_GRADE_FIM_MIN - CAL_GRADE_INICIO_MIN;
+        var horas = [];
+        for (var m = CAL_GRADE_INICIO_MIN; m < CAL_GRADE_FIM_MIN; m += 60) {
+            horas.push('<div class="crm-cal-hora-linha">' + String(Math.floor(m / 60)).padStart(2, '0') + ':00</div>');
+        }
+
+        var eventos = comHora.map(function (a) {
+            var inicioMin = horaParaMin(a.horaInicio);
+            var fimMin = a.horaFim ? horaParaMin(a.horaFim) : (inicioMin + 30);
+            if (fimMin <= inicioMin) fimMin = inicioMin + 30;
+            var topPct = Math.max(0, (inicioMin - CAL_GRADE_INICIO_MIN) / totalMin * 100);
+            var alturaPct = Math.max(3, (fimMin - inicioMin) / totalMin * 100);
+            return renderizarEventoCard(a, 'position:absolute;left:2px;right:2px;top:' + topPct.toFixed(2) + '%;height:' + alturaPct.toFixed(2) + '%');
+        }).join('');
+
+        // Prévia (fantasma) do horário que está sendo digitado no formulário agora.
+        var horaInicioForm = document.getElementById('crmAtvCalHoraInicio').value;
+        var previewHtml = '';
+        if (horaInicioForm) {
+            var inicioMinP = horaParaMin(horaInicioForm);
+            var horaFimForm = document.getElementById('crmAtvCalHoraFim').value;
+            var fimMinP = horaFimForm ? horaParaMin(horaFimForm) : (inicioMinP + 30);
+            if (fimMinP <= inicioMinP) fimMinP = inicioMinP + 30;
+            var topP = Math.max(0, (inicioMinP - CAL_GRADE_INICIO_MIN) / totalMin * 100);
+            var altP = Math.max(3, (fimMinP - inicioMinP) / totalMin * 100);
+            previewHtml = '<div class="crm-atv-mini-preview" style="top:' + topP.toFixed(2) + '%;height:' + altP.toFixed(2) + '%"></div>';
+        }
+
+        // Linha do horário atual — só quando a data escolhida é hoje.
+        var linhaAgora = (dataIso === hojeIsoLocal()) ? renderizarLinhaAgora(totalMin) : '';
+
+        var semHoraHtml = semHora.map(function (a) { return renderizarEventoCard(a); }).join('');
+
+        el.innerHTML =
+            '<div class="crm-atv-mini-titulo">' + esc(rotuloDia) + '</div>' +
+            (semHoraHtml ? '<div class="crm-atv-mini-allday">' + semHoraHtml + '</div>' : '') +
+            '<div class="crm-atv-mini-grade">' +
+                '<div class="crm-atv-mini-gutter">' + horas.join('') + '</div>' +
+                '<div class="crm-atv-mini-coluna">' + eventos + previewHtml + linhaAgora + '</div>' +
+            '</div>';
+    }
+
     function renderizarEventoCard(a, estiloExtra) {
-        var tipoInfo = CrmModel.TIPOS_ATIVIDADE[a.tipo] || { icone: '📌', rotulo: a.tipo };
-        var acao = a.origemZimbra ? '' : ('data-crm-action="abrirModalAtividadeCal" data-id="' + esc(a.id) + '"');
-        return '<div class="crm-cal-evento' + (a.feito ? ' crm-cal-evento-feito' : '') + (a.origemZimbra ? ' crm-cal-evento-zimbra' : '') + '" ' + acao + ' data-tipo="' + esc(a.tipo) + '"' +
+        var tipoInfo = CrmStore.mapaTiposAtividade()[a.tipo] || { icone: '📌', rotulo: a.tipo };
+        var classeOrigem = a.origemFeriado ? ' crm-cal-evento-feriado' : (a.origemGoogle ? ' crm-cal-evento-google' : '');
+        var icone = a.origemFeriado ? '🎉' : tipoInfo.icone;
+        var acao = a.origemFeriado ? '' : ('data-crm-action="abrirModalAtividadeCal" data-id="' + esc(a.id) + '"');
+        return '<div class="crm-cal-evento' + (a.feito ? ' crm-cal-evento-feito' : '') + classeOrigem + '" ' + acao + ' data-tipo="' + esc(a.tipo) + '"' +
             (estiloExtra ? (' style="' + estiloExtra + '"') : '') +
-            (a.origemZimbra ? ' title="Importado do Zimbra — somente leitura"' : '') + '>' +
-            '<span class="crm-cal-evento-icone">' + (a.origemZimbra ? '📥' : tipoInfo.icone) + '</span>' +
+            (a.origemFeriado ? ' title="Feriado nacional — somente leitura"' : '') + '>' +
+            '<span class="crm-cal-evento-icone">' + icone + '</span>' +
             '<span class="crm-cal-evento-txt">' + esc(a.assunto || '(sem assunto)') + '</span>' +
         '</div>';
+    }
+
+    function renderizarCalendarioMes(atividades) {
+        var mesRef = _calMesRef;
+        var porDia = CrmCalculos.agruparAtividadesPorGradeMes(atividades, mesRef);
+        var dias = Object.keys(porDia);
+        var hoje = hojeIsoLocal();
+        var mesAtual = mesRef.slice(0, 7);
+
+        var nav = '<div class="crm-cal-nav">' +
+            '<button type="button" class="btn-secondary crm-btn-mini" data-crm-action="calMesHoje">Hoje</button>' +
+            '<button type="button" class="crm-cal-seta" data-crm-action="calMesAnterior">‹</button>' +
+            '<button type="button" class="crm-cal-seta" data-crm-action="calMesProximo">›</button>' +
+            '<span class="crm-cal-faixa">' + esc(MESES[Number(mesAtual.slice(5, 7)) - 1]) + ' de ' + mesAtual.slice(0, 4) + '</span>' +
+        '</div>';
+
+        var cabecalho = '<div class="crm-cal-mes-cab">' +
+            DIAS_SEMANA_ABREV.map(function (d) { return '<div class="crm-cal-mes-cab-dia">' + d + '</div>'; }).join('') +
+        '</div>';
+
+        var MAX_VISIVEIS = 4;
+        var celulas = dias.map(function (dataIso) {
+            var itens = porDia[dataIso];
+            var foraDoMes = dataIso.slice(0, 7) !== mesAtual;
+            var ehHoje = dataIso === hoje;
+            var visiveis = itens.slice(0, MAX_VISIVEIS);
+            var extras = itens.length - visiveis.length;
+            var eventosHtml = visiveis.map(function (a) { return renderizarEventoCard(a); }).join('') +
+                (extras > 0 ? '<div class="crm-cal-mes-mais">+' + extras + ' mais</div>' : '');
+            var numeroMes = ehHoje ? '<span class="crm-cal-cab-numero-hoje">' + Number(dataIso.slice(8, 10)) + '</span>' : Number(dataIso.slice(8, 10));
+            return '<div class="crm-cal-mes-dia' + (foraDoMes ? ' crm-cal-mes-dia-fora' : '') + (ehHoje ? ' crm-cal-mes-dia-hoje' : '') + '" data-crm-action="novaAtividadeNoDia" data-data="' + esc(dataIso) + '" title="Clique para agendar uma atividade neste dia">' +
+                '<div class="crm-cal-mes-numero">' + numeroMes + '</div>' +
+                '<div class="crm-cal-mes-eventos">' + eventosHtml + '</div>' +
+            '</div>';
+        }).join('');
+
+        return nav + '<div class="crm-cal-mes-grade">' + cabecalho + '<div class="crm-cal-mes-corpo">' + celulas + '</div></div>';
     }
 
     function setCalModo(v) { _calModo = v; renderizarCalendarioView(); }
     function setCalPeriodo(v) { _calPeriodo = v; renderizarCalendarioView(); }
     function setCalBusca(v) { _calBusca = v; renderizarCalendarioView(); }
+    function setMostrarFeriadosCal(v) { _calMostrarFeriados = v; renderizarCalendarioView(); }
+    function setCalTipo(v) { _calTipo = v; renderizarCalendarioView(); }
     function calHoje() { _calSemanaRef = CrmCalculos.inicioSemana(hojeIsoLocal()); renderizarCalendarioView(); }
     function calSemanaAnterior() { _calSemanaRef = CrmCalculos.somarDias(_calSemanaRef, -7); renderizarCalendarioView(); }
     function calSemanaProxima() { _calSemanaRef = CrmCalculos.somarDias(_calSemanaRef, 7); renderizarCalendarioView(); }
+    function calMesHoje() { _calMesRef = hojeIsoLocal().slice(0, 7) + '-01'; renderizarCalendarioView(); }
+    function calMesAnterior() { _calMesRef = CrmCalculos.somarMeses(_calMesRef, -1); renderizarCalendarioView(); }
+    function calMesProximo() { _calMesRef = CrmCalculos.somarMeses(_calMesRef, 1); renderizarCalendarioView(); }
 
     // ── Modal de Atividade global (vinculada a um negócio, aberto a partir do Calendário) ──
 
-    function abrirModalAtividadeCal(id) {
+    function abrirModalAtividadeCal(id, dataPreenchida) {
         var atividade = id ? CrmStore.listarAtividades().filter(function (a) { return a.id === id; })[0] : null;
         document.getElementById('crmModalAtvCalTitulo').textContent = id ? 'Editar atividade' : 'Nova atividade';
         document.getElementById('crmAtvCalId').value = id || '';
@@ -669,14 +851,13 @@
         document.getElementById('crmAtvCalTipo').value = tipo;
         var tiposEl = document.getElementById('crmAtvCalTipos');
         if (tiposEl) {
-            tiposEl.innerHTML = Object.keys(CrmModel.TIPOS_ATIVIDADE).map(function (chave) {
-                var t = CrmModel.TIPOS_ATIVIDADE[chave];
-                return '<button type="button" class="crm-atv-tipo crm-atv-cal-tipo' + (chave === tipo ? ' active' : '') + '" data-crm-action="escolherTipoAtividadeCal" data-valor="' + chave + '">' + t.icone + ' ' + esc(t.rotulo) + '</button>';
+            tiposEl.innerHTML = CrmStore.listarTiposAtividadeAtivos().map(function (t) {
+                return '<button type="button" class="crm-atv-tipo crm-atv-cal-tipo' + (t.chave === tipo ? ' active' : '') + '" data-crm-action="escolherTipoAtividadeCal" data-valor="' + esc(t.chave) + '">' + t.icone + ' ' + esc(t.nome) + '</button>';
             }).join('');
         }
 
         document.getElementById('crmAtvCalAssunto').value = atividade ? (atividade.assunto || '') : '';
-        document.getElementById('crmAtvCalData').value = atividade ? (atividade.data || '') : hojeIsoLocal();
+        document.getElementById('crmAtvCalData').value = atividade ? (atividade.data || '') : (dataPreenchida || hojeIsoLocal());
         document.getElementById('crmAtvCalHoraInicio').value = atividade ? (atividade.horaInicio || '') : '';
         document.getElementById('crmAtvCalHoraFim').value = atividade ? (atividade.horaFim || '') : '';
         document.getElementById('crmAtvCalDescricao').value = atividade ? (atividade.descricao || '') : '';
@@ -686,6 +867,7 @@
         if (btnExcluir) btnExcluir.style.display = id ? '' : 'none';
 
         document.getElementById('modalAtividadeCal').style.display = 'flex';
+        atualizarMiniAgendaCal();
     }
 
     function escolherTipoAtividadeCal(el) {
@@ -1101,9 +1283,8 @@
     function renderizarComposerAtividade(negocio) {
         var editando = _atividadeEditandoId ? CrmStore.listarAtividades(negocio.id).filter(function (a) { return a.id === _atividadeEditandoId; })[0] : null;
         var tipo = editando ? editando.tipo : 'tarefa';
-        var pills = Object.keys(CrmModel.TIPOS_ATIVIDADE).map(function (chave) {
-            var t = CrmModel.TIPOS_ATIVIDADE[chave];
-            return '<button type="button" class="crm-atv-tipo' + (chave === tipo ? ' active' : '') + '" data-crm-action="escolherTipoAtividade" data-valor="' + chave + '">' + t.icone + ' ' + esc(t.rotulo) + '</button>';
+        var pills = CrmStore.listarTiposAtividadeAtivos().map(function (t) {
+            return '<button type="button" class="crm-atv-tipo' + (t.chave === tipo ? ' active' : '') + '" data-crm-action="escolherTipoAtividade" data-valor="' + esc(t.chave) + '">' + t.icone + ' ' + esc(t.nome) + '</button>';
         }).join('');
 
         return '' +
@@ -1198,9 +1379,10 @@
             return '<div class="crm-bloco-titulo">Foco</div><p>Nenhum item de foco. Agende uma atividade acima.</p>';
         }
         var hoje = CrmCalculos.hojeIso();
+        var mapaTipos = CrmStore.mapaTiposAtividade();
         var itens = pendentes.map(function (a) {
             var atrasada = a.data && a.data < hoje;
-            var t = CrmModel.TIPOS_ATIVIDADE[a.tipo] || { icone: '', rotulo: a.tipo };
+            var t = mapaTipos[a.tipo] || { icone: '', rotulo: a.tipo };
             return '' +
                 '<div class="crm-foco-item' + (atrasada ? ' crm-foco-atrasada' : '') + '">' +
                     '<button type="button" class="crm-foco-check" data-crm-action="concluirAtividade" data-id="' + esc(a.id) + '" data-feito="' + a.feito + '">✓</button>' +
@@ -1442,6 +1624,105 @@
     }
 
     // ──────────────────────────────────────────────
+    //  MODAL: TIPOS DE ATIVIDADE (personalizáveis)
+    // ──────────────────────────────────────────────
+
+    var ICONES_TIPO_ATIVIDADE = [
+        '📞', '👥', '✔️', '🚩', '✉️', '🧳', '🏖️', '📴', '👤', '⏰',
+        '📸', '✂️', '🔧', '🔒', '📋', '📱', '🎯', '💰', '📊', '🚗',
+        '🌐', '🔍', '🔊', '🔑', '📎', '💼', '🏆', '🚀', '📡', '🎓',
+        '🍽️', '🎉', '🩺', '⚖️', '📚', '🖥️'
+    ];
+
+    function abrirModalTiposAtividade() {
+        renderizarListaTiposAtividadeModal();
+        document.getElementById('modalTiposAtividade').style.display = 'flex';
+    }
+
+    function renderizarListaTiposAtividadeModal() {
+        var lista = document.getElementById('crmTiposAtividadeLista');
+        if (!lista) return;
+        var tipos = CrmStore.listarTiposAtividade();
+        lista.innerHTML = tipos.map(function (t, idx) {
+            return '<div class="crm-tipo-atv-linha' + (!t.ativo ? ' crm-tipo-atv-inativo' : '') + '">' +
+                '<div class="crm-tipo-atv-setas">' +
+                    '<button type="button" class="crm-tipo-atv-seta" data-crm-action="moverTipoAtividade" data-chave="' + esc(t.chave) + '" data-dir="-1"' + (idx === 0 ? ' disabled' : '') + '>▲</button>' +
+                    '<button type="button" class="crm-tipo-atv-seta" data-crm-action="moverTipoAtividade" data-chave="' + esc(t.chave) + '" data-dir="1"' + (idx === tipos.length - 1 ? ' disabled' : '') + '>▼</button>' +
+                '</div>' +
+                '<span class="crm-tipo-atv-icone">' + t.icone + '</span>' +
+                '<span class="crm-tipo-atv-nome" data-crm-action="abrirFormTipoAtividade" data-chave="' + esc(t.chave) + '">' + esc(t.nome) + '</span>' +
+                '<label class="crm-switch">' +
+                    '<input type="checkbox"' + (t.ativo ? ' checked' : '') + ' data-crm-action="toggleAtivoTipoAtividade" data-chave="' + esc(t.chave) + '">' +
+                    '<span class="crm-switch-track"></span>' +
+                '</label>' +
+            '</div>';
+        }).join('');
+    }
+
+    function moverTipoAtividade(chave, dir) {
+        if (!requireAdminOrNotify()) return;
+        var tipos = CrmStore.listarTiposAtividade();
+        var idx = -1;
+        tipos.forEach(function (t, i) { if (t.chave === chave) idx = i; });
+        var novoIdx = idx + dir;
+        if (idx === -1 || novoIdx < 0 || novoIdx >= tipos.length) return;
+        var chaves = tipos.map(function (t) { return t.chave; });
+        var tmp = chaves[idx];
+        chaves[idx] = chaves[novoIdx];
+        chaves[novoIdx] = tmp;
+        CrmStore.reordenarTiposAtividade(chaves);
+        renderizarListaTiposAtividadeModal();
+        renderizarConteudoAtivo();
+    }
+
+    function toggleAtivoTipoAtividade(chave, ativo) {
+        if (!requireAdminOrNotify()) return;
+        CrmStore.atualizarTipoAtividade(chave, { ativo: ativo });
+        renderizarListaTiposAtividadeModal();
+        renderizarConteudoAtivo();
+    }
+
+    function renderizarGradeIconesTipoAtividade(selecionado) {
+        var grid = document.getElementById('crmTipoAtvIconeGrid');
+        if (!grid) return;
+        grid.innerHTML = ICONES_TIPO_ATIVIDADE.map(function (ic) {
+            return '<button type="button" class="crm-tipo-icone-opcao' + (ic === selecionado ? ' active' : '') + '" data-crm-action="escolherIconeTipoAtividade" data-valor="' + ic + '">' + ic + '</button>';
+        }).join('');
+    }
+
+    function escolherIconeTipoAtividade(icone) {
+        document.getElementById('crmTipoAtvIconeEscolhido').value = icone;
+        renderizarGradeIconesTipoAtividade(icone);
+    }
+
+    function abrirFormTipoAtividade(chave) {
+        var t = chave ? CrmStore.listarTiposAtividade().filter(function (x) { return x.chave === chave; })[0] : null;
+        document.getElementById('crmTipoAtvFormTitulo').textContent = t ? 'Editar tipo de atividade' : 'Novo tipo de atividade';
+        document.getElementById('crmTipoAtvChave').value = t ? t.chave : '';
+        document.getElementById('crmTipoAtvNome').value = t ? t.nome : '';
+        var iconeEscolhido = t ? t.icone : ICONES_TIPO_ATIVIDADE[0];
+        document.getElementById('crmTipoAtvIconeEscolhido').value = iconeEscolhido;
+        renderizarGradeIconesTipoAtividade(iconeEscolhido);
+        document.getElementById('modalTipoAtividadeForm').style.display = 'flex';
+    }
+
+    function salvarTipoAtividade() {
+        if (!requireAdminOrNotify()) return;
+        var nome = document.getElementById('crmTipoAtvNome').value.trim();
+        if (!nome) { Notifications.error('Nome é obrigatório.'); return; }
+        var icone = document.getElementById('crmTipoAtvIconeEscolhido').value || '📌';
+        var chave = document.getElementById('crmTipoAtvChave').value;
+        if (chave) {
+            CrmStore.atualizarTipoAtividade(chave, { nome: nome, icone: icone });
+        } else {
+            CrmStore.criarTipoAtividade({ nome: nome, icone: icone });
+        }
+        fecharModal('modalTipoAtividadeForm');
+        renderizarListaTiposAtividadeModal();
+        renderizarConteudoAtivo();
+    }
+
+    // ──────────────────────────────────────────────
     //  MODAL: FUNIL
     // ──────────────────────────────────────────────
 
@@ -1619,9 +1900,13 @@
 
         setCalModo: function (el) { setCalModo(el.dataset.valor); },
         setCalPeriodo: function (el) { setCalPeriodo(el.dataset.valor); },
+        setCalTipo: function (el) { setCalTipo(el.dataset.valor); },
         calHoje: function () { calHoje(); },
         calSemanaAnterior: function () { calSemanaAnterior(); },
         calSemanaProxima: function () { calSemanaProxima(); },
+        calMesHoje: function () { calMesHoje(); },
+        calMesAnterior: function () { calMesAnterior(); },
+        calMesProximo: function () { calMesProximo(); },
         concluirAtividadeCal: function (el) {
             if (!requireAdminOrNotify()) return;
             CrmStore.concluirAtividade(el.dataset.id, el.dataset.feito !== 'true');
@@ -1629,13 +1914,19 @@
             renderizarCalendarioView();
         },
         abrirModalAtividadeCal: function (el) { abrirModalAtividadeCal(el.dataset.id || null); },
+        novaAtividadeNoDia: function (el) { abrirModalAtividadeCal(null, el.dataset.data); },
         escolherTipoAtividadeCal: function (el) { escolherTipoAtividadeCal(el); },
         selecionarNegocioAtividadeCal: function (el) { selecionarNegocioAtividadeCal(el.dataset.id); },
 
         googleConectar: function () { if (window.GoogleCalendarSync) GoogleCalendarSync.conectar(); },
         googleDesconectar: function () { if (window.GoogleCalendarSync) GoogleCalendarSync.desconectar(); },
         googleSincronizarTudo: function () { if (window.GoogleCalendarSync) GoogleCalendarSync.sincronizarTudo(); },
-        zimbraImportar: function () { if (window.ZimbraImport) ZimbraImport.importarAgora(); }
+
+        abrirModalTiposAtividade: function () { abrirModalTiposAtividade(); },
+        moverTipoAtividade: function (el) { moverTipoAtividade(el.dataset.chave, Number(el.dataset.dir)); },
+        toggleAtivoTipoAtividade: function (el) { toggleAtivoTipoAtividade(el.dataset.chave, el.checked); },
+        abrirFormTipoAtividade: function (el) { abrirFormTipoAtividade(el && el.dataset ? el.dataset.chave : null); },
+        escolherIconeTipoAtividade: function (el) { escolherIconeTipoAtividade(el.dataset.valor); }
     };
 
     function aoClicar(e) {
@@ -1688,9 +1979,13 @@
         salvarFunil: salvarFunil,
 
         setCalBusca: setCalBusca,
+        setMostrarFeriadosCal: setMostrarFeriadosCal,
+        abrirFormTipoAtividade: abrirFormTipoAtividade,
+        salvarTipoAtividade: salvarTipoAtividade,
         abrirModalAtividadeCal: abrirModalAtividadeCal,
         salvarAtividadeCal: salvarAtividadeCal,
         excluirAtividadeCal: excluirAtividadeCal,
-        buscarNegocioParaAtividadeCal: buscarNegocioParaAtividadeCal
+        buscarNegocioParaAtividadeCal: buscarNegocioParaAtividadeCal,
+        atualizarMiniAgendaCal: atualizarMiniAgendaCal
     };
 })();

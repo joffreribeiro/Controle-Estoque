@@ -308,7 +308,8 @@
 /* Etapas do funil (modal Gerenciar funil) */
 .crm-funil-etapas { display: flex; flex-direction: column; gap: 6px; margin-bottom: 8px; }
 .crm-funil-etapa-linha { display: flex; gap: 6px; align-items: center; }
-.crm-funil-etapa-linha input[type="text"] { flex: 1; }
+.crm-funil-etapa-linha input[type="text"] { flex: 1 1 auto; width: auto; min-width: 0; }
+.crm-funil-etapa-linha select { flex: 0 0 130px; width: 130px; }
 
 /* ── Detalhe do negócio ── */
 .crm-det-header { margin-bottom: 14px; }
@@ -699,7 +700,7 @@
 .crm-cal-google-on { color: var(--success-color); font-weight: 700; }
 .crm-cal-google-off { color: var(--text-muted); font-weight: 600; }
 
-.crm-cal-periodos {
+.crm-cal-periodos, .crm-cal-tipos-filtro {
     display: flex;
     gap: 6px;
     flex-wrap: wrap;
@@ -720,6 +721,7 @@
 .crm-cal-chip.active { background: var(--info-color); border-color: var(--info-color); color: #fff; }
 
 /* Lista de atividades */
+.crm-cal-lista-filtros { margin-bottom: 8px; }
 .crm-cal-table .crm-cal-td-check { width: 34px; text-align: center; }
 .crm-cal-hora { color: var(--text-muted); font-size: 11.5px; }
 .crm-cal-linha-feita td { opacity: .55; text-decoration: line-through; }
@@ -766,11 +768,21 @@
     font-size: 12px;
     font-weight: 700;
     color: var(--text-secondary);
-    text-transform: uppercase;
     border-right: 1px solid var(--border-color);
 }
 .crm-cal-cab-dia:last-child { border-right: none; }
-.crm-cal-cab-hoje { color: var(--info-color); background: var(--info-bg); }
+.crm-cal-cab-hoje { color: var(--info-color); }
+.crm-cal-cab-numero-hoje {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: var(--info-color);
+    color: #fff;
+    font-weight: 700;
+}
 
 .crm-cal-grade-allday { min-height: 30px; }
 .crm-cal-allday-col {
@@ -800,6 +812,7 @@
 }
 .crm-cal-dia-col {
     position: relative;
+    cursor: pointer;
     border-right: 1px solid var(--border-color);
     background-image: repeating-linear-gradient(to bottom, transparent, transparent 47px, var(--border-color) 47px, var(--border-color) 48px);
 }
@@ -821,17 +834,221 @@
 }
 .crm-cal-evento:hover { filter: brightness(0.96); }
 .crm-cal-evento-feito { opacity: .5; text-decoration: line-through; }
-.crm-cal-evento-zimbra { background: var(--bg-light); color: var(--text-secondary); border-left-color: var(--text-muted); cursor: default; }
-.crm-cal-badge-zimbra {
+.crm-cal-evento-google { background: #eef2ff; color: #4338ca; border-left-color: #4338ca; }
+.crm-cal-evento-feriado { background: #fff7ed; color: #c2410c; border-left-color: #c2410c; cursor: default; }
+.crm-cal-badge-google, .crm-cal-badge-feriado {
     display: inline-block;
     font-size: 10px;
     font-weight: 700;
-    background: var(--bg-light);
-    color: var(--text-muted);
     border-radius: 999px;
     padding: 1px 8px;
     margin-left: 6px;
 }
+.crm-cal-badge-google { background: #eef2ff; color: #4338ca; }
+.crm-cal-badge-feriado { background: #fff7ed; color: #c2410c; }
 .crm-cal-evento-icone { flex: none; }
 .crm-cal-evento-txt { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .crm-timeline-item:last-child { border-bottom: none; }
+
+/* Grade mensal */
+.crm-cal-mes-grade {
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    background: var(--bg-white);
+    overflow: hidden;
+}
+.crm-cal-mes-cab {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    border-bottom: 1px solid var(--border-color);
+}
+.crm-cal-mes-cab-dia {
+    padding: 8px 6px;
+    text-align: center;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    border-right: 1px solid var(--border-color);
+}
+.crm-cal-mes-cab-dia:last-child { border-right: none; }
+
+.crm-cal-mes-corpo {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    grid-auto-rows: minmax(90px, auto);
+}
+.crm-cal-mes-dia {
+    border-right: 1px solid var(--border-color);
+    border-bottom: 1px solid var(--border-color);
+    padding: 4px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+.crm-cal-mes-dia:nth-child(7n) { border-right: none; }
+.crm-cal-mes-dia:nth-last-child(-n+7) { border-bottom: none; }
+.crm-cal-mes-dia { cursor: pointer; }
+.crm-cal-mes-dia:hover { background: var(--bg-light); }
+.crm-cal-mes-dia-fora { background: var(--bg-light); opacity: .55; }
+.crm-cal-mes-dia-hoje { background: var(--info-bg); }
+.crm-cal-mes-dia-hoje:hover { background: var(--info-bg); filter: brightness(0.97); }
+.crm-cal-mes-numero { font-size: 11.5px; font-weight: 700; color: var(--text-secondary); margin-bottom: 2px; }
+.crm-cal-mes-eventos { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.crm-cal-mes-mais { font-size: 10.5px; color: var(--text-muted); font-weight: 600; padding: 1px 4px; }
+
+/* ════════════════════════════════════════════════
+   Mini-agenda do dia (painel lateral do modal de atividade)
+   ════════════════════════════════════════════════ */
+.crm-atv-cal-modal-grid {
+    display: flex;
+    align-items: stretch;
+    min-height: 0;
+}
+.crm-atv-cal-modal-form {
+    flex: 1 1 340px;
+    min-width: 0;
+    max-height: 70vh;
+    overflow-y: auto;
+}
+.crm-atv-cal-modal-agenda {
+    flex: 1 1 300px;
+    min-width: 260px;
+    border-left: 1px solid var(--border-color);
+    padding: 14px;
+    max-height: 70vh;
+    overflow-y: auto;
+    background: var(--bg-light);
+}
+@media (max-width: 720px) {
+    .crm-atv-cal-modal-grid { flex-direction: column; }
+    .crm-atv-cal-modal-agenda { border-left: none; border-top: 1px solid var(--border-color); }
+}
+
+.crm-atv-mini-vazio { color: var(--text-muted); font-size: 13px; padding: 10px 0; }
+.crm-atv-mini-titulo { font-weight: 700; font-size: 13px; color: var(--text-primary); margin-bottom: 8px; }
+.crm-atv-mini-allday { display: flex; flex-direction: column; gap: 3px; margin-bottom: 8px; }
+
+.crm-atv-mini-grade { display: flex; border: 1px solid var(--border-color); border-radius: var(--radius-sm); background: var(--bg-white); overflow: hidden; }
+.crm-atv-mini-gutter { width: 46px; flex: none; border-right: 1px solid var(--border-color); }
+.crm-atv-mini-coluna {
+    position: relative;
+    flex: 1;
+    background-image: repeating-linear-gradient(to bottom, transparent, transparent 47px, var(--border-color) 47px, var(--border-color) 48px);
+}
+.crm-atv-mini-preview {
+    position: absolute;
+    left: 2px;
+    right: 2px;
+    background: rgba(124, 58, 237, .18);
+    border: 1px dashed #7c3aed;
+    border-radius: 3px;
+    pointer-events: none;
+}
+.crm-atv-mini-agora {
+    position: absolute;
+    left: 0;
+    right: 0;
+    border-top: 2px solid var(--danger-color, #dc2626);
+    pointer-events: none;
+}
+.crm-atv-mini-agora::before {
+    content: '';
+    position: absolute;
+    left: -4px;
+    top: -4px;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--danger-color, #dc2626);
+}
+.crm-atv-mini-agora-hora {
+    position: absolute;
+    left: 6px;
+    top: -8px;
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--danger-color, #dc2626);
+    background: var(--bg-white);
+    padding: 0 3px;
+}
+
+/* ════════════════════════════════════════════════
+   Tipos de atividade (personalizáveis)
+   ════════════════════════════════════════════════ */
+.crm-cal-chip-config { font-size: 14px; padding: 5px 10px; }
+
+.crm-tipos-atv-ajuda { font-size: 12.5px; color: var(--text-muted); margin-bottom: 12px; }
+
+.crm-tipos-atv-lista { margin-top: 12px; display: flex; flex-direction: column; gap: 2px; }
+
+.crm-tipo-atv-linha {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 6px;
+    border-bottom: 1px solid var(--border-color);
+}
+.crm-tipo-atv-linha:last-child { border-bottom: none; }
+.crm-tipo-atv-inativo { opacity: .5; }
+
+.crm-tipo-atv-setas { display: flex; flex-direction: column; gap: 0; }
+.crm-tipo-atv-seta {
+    border: none;
+    background: none;
+    cursor: pointer;
+    color: var(--text-muted);
+    font-size: 9px;
+    line-height: 1.1;
+    padding: 0 4px;
+}
+.crm-tipo-atv-seta:hover:not(:disabled) { color: var(--text-primary); }
+.crm-tipo-atv-seta:disabled { opacity: .3; cursor: default; }
+
+.crm-tipo-atv-icone { font-size: 16px; flex: none; width: 22px; text-align: center; }
+.crm-tipo-atv-nome { flex: 1; font-size: 13.5px; font-weight: 600; color: var(--text-primary); cursor: pointer; }
+.crm-tipo-atv-nome:hover { text-decoration: underline; }
+
+/* Toggle switch (ativo/inativo) */
+.crm-switch { position: relative; display: inline-block; width: 36px; height: 20px; flex: none; }
+.crm-switch input { opacity: 0; width: 0; height: 0; }
+.crm-switch-track {
+    position: absolute;
+    cursor: pointer;
+    inset: 0;
+    background: var(--border-color);
+    border-radius: 999px;
+    transition: var(--transition);
+}
+.crm-switch-track::before {
+    content: '';
+    position: absolute;
+    height: 14px;
+    width: 14px;
+    left: 3px;
+    bottom: 3px;
+    background: #fff;
+    border-radius: 50%;
+    transition: var(--transition);
+}
+.crm-switch input:checked + .crm-switch-track { background: var(--success-color); }
+.crm-switch input:checked + .crm-switch-track::before { transform: translateX(16px); }
+
+/* Grade de ícones (form de tipo de atividade) */
+.crm-tipo-icone-grid {
+    display: grid;
+    grid-template-columns: repeat(8, 1fr);
+    gap: 4px;
+}
+.crm-tipo-icone-opcao {
+    border: 1px solid var(--border-color);
+    background: var(--bg-white);
+    border-radius: var(--radius-sm);
+    font-size: 17px;
+    padding: 6px 0;
+    cursor: pointer;
+    transition: var(--transition);
+}
+.crm-tipo-icone-opcao:hover { background: var(--bg-light); }
+.crm-tipo-icone-opcao.active { background: var(--info-bg); border-color: var(--info-color); }

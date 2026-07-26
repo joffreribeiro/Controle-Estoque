@@ -1,6 +1,6 @@
 /**
- * google-calendar-sync.js - Sincronização unidirecional (CRM → Google Agenda)
- * das atividades do Relacionamento (CRM) com o Google Calendar.
+ * google-calendar-sync.js - Sincronização bidirecional entre as atividades do
+ * Relacionamento (CRM) e o Google Calendar.
  *
  * Requer:
  *  - A biblioteca "Google Identity Services" carregada antes deste arquivo
@@ -14,18 +14,28 @@
  * O token de acesso obtido fica só em memória (nunca é persistido) e expira
  * em ~1h; a cada sessão do navegador é preciso conectar de novo.
  *
- * Política de sincronização (uma via, CRM é a fonte da verdade):
- *  - atividade criada/editada (não concluída, com data) → cria/atualiza evento no Google;
- *  - atividade marcada concluída → evento é removido do Google (mantém a agenda limpa);
- *  - atividade excluída no CRM → evento é removido do Google;
- *  - edições feitas direto no Google Agenda NÃO retornam ao CRM.
+ * Política de sincronização:
+ *  CRM → Google:
+ *   - atividade criada/editada (não concluída, com data) → cria/atualiza evento no Google;
+ *   - atividade marcada concluída → evento é removido do Google (mantém a agenda limpa);
+ *   - atividade excluída no CRM → evento é removido do Google.
+ *  Google → CRM:
+ *   - ao conectar e ao clicar "Sincronizar tudo", eventos criados direto no
+ *     Google Agenda (que ainda não têm uma atividade correspondente no CRM)
+ *     são importados como novas atividades (sem negócio vinculado — quem
+ *     importou pode depois associar a um negócio pela tela normal);
+ *   - eventos que o próprio CRM criou não são reimportados (identificados
+ *     pela marca extendedProperties.private.crmAtividadeId);
+ *   - depois de importado uma vez, o evento vira uma atividade normal do CRM
+ *     e passa a seguir a política CRM → Google acima (fonte da verdade passa
+ *     a ser o CRM a partir daí, para evitar loops/edições divergentes).
  */
 (function () {
     'use strict';
 
     // ── CONFIGURAÇÃO — troque pelo Client ID gerado no Google Cloud Console ──
     var CLIENT_ID = '339770116384-ng8nr2da6lla6sgk0enti1vd02b8j14q.apps.googleusercontent.com';
-    var SCOPE = 'https://www.googleapis.com/auth/calendar.events';
+    var SCOPE = 'https://www.googleapis.com/auth/calendar.events https://www.googleapis.com/auth/calendar.readonly';
     var TIMEZONE = 'America/Sao_Paulo';
     var EVENTS_URL = 'https://www.googleapis.com/calendar/v3/calendars/primary/events';
     // colorId dos eventos criados pelo CRM, para diferenciar visualmente na Google Agenda
@@ -70,10 +80,15 @@
                     _accessToken = resp.access_token;
                     _tokenExpiraEm = Date.now() + ((resp.expires_in || 3500) * 1000);
                     if (window.Notifications) Notifications.success('Google Agenda conectado.');
-                } else if (window.Notifications) {
-                    Notifications.error('Não foi possível conectar ao Google Agenda.');
+                    notificar();
+                    importarNovosDoGoogle().then(function (novos) {
+                        if (novos && window.Notifications) Notifications.success(novos + ' evento(s) importado(s) do Google Agenda.');
+                        notificar();
+                    });
+                } else {
+                    if (window.Notifications) Notifications.error('Não foi possível conectar ao Google Agenda.');
+                    notificar();
                 }
-                notificar();
             }
         });
         return _tokenClient;
@@ -112,7 +127,9 @@
         }).then(function (resp) {
             if (!resp.ok) {
                 return resp.text().then(function (t) {
-                    throw new Error('Google Calendar API (' + resp.status + '): ' + t);
+                    var erro = new Error('Google Calendar API (' + resp.status + '): ' + t);
+                    erro.status = resp.status;
+                    throw erro;
                 });
             }
             if (resp.status === 204) return null;
@@ -174,7 +191,13 @@
 
         if (atividade.googleEventId) {
             return chamarApi('PATCH', EVENTS_URL + '/' + atividade.googleEventId, corpo)
-                .catch(function () { return chamarApi('POST', EVENTS_URL, corpo); })
+                .catch(function (e) {
+                    // Só recria se o Google confirmar que o evento não existe mais (404).
+                    // Qualquer outra falha (403, evento gerenciado por outra fonte, rede, etc.)
+                    // é reportada como erro de verdade — nunca cria um duplicado às cegas.
+                    if (e && e.status === 404) return chamarApi('POST', EVENTS_URL, corpo);
+                    throw e;
+                })
                 .then(function (ev) {
                     if (ev && ev.id && ev.id !== atividade.googleEventId && window.CrmStore) {
                         CrmStore.atualizarAtividade(atividade.id, { googleEventId: ev.id });
@@ -199,9 +222,97 @@
             });
     }
 
+    // ── Google → CRM (importação de eventos criados direto na Google Agenda) ──
+
+    var JANELA_IMPORT_DIAS_PASSADO = 7;
+    var JANELA_IMPORT_DIAS_FUTURO = 60;
+
+    function googleDataHora(pontoEvento) {
+        if (!pontoEvento) return null;
+        if (pontoEvento.date) return { allDay: true, data: pontoEvento.date };
+        if (pontoEvento.dateTime) {
+            var d = new Date(pontoEvento.dateTime);
+            if (isNaN(d.getTime())) return null;
+            var local = d.toLocaleString('sv-SE', { timeZone: TIMEZONE }); // "2026-08-01 11:00:00"
+            var partes = local.split(' ');
+            return { allDay: false, data: partes[0], hora: (partes[1] || '00:00:00').slice(0, 5) };
+        }
+        return null;
+    }
+
     /**
-     * Varre todas as atividades do CRM e sincroniza uma a uma (sequencial,
-     * para respeitar limites de taxa da API). Usado pelo botão "Sincronizar tudo".
+     * Reservas de voo/hotel etc. que o Gmail detecta e injeta automaticamente
+     * na Google Agenda não são eventos "de verdade" — não aceitam edição via
+     * PATCH normal (causou duplicidade quando o CRM tentou reenviar). Detecta
+     * pela assinatura típica desses itens (campo `source` apontando pro Gmail).
+     */
+    function ehEventoAutoDetectadoPeloGmail(ev) {
+        var origem = ev && ev.source && ev.source.url;
+        return !!(origem && /mail\.google\.com/i.test(origem));
+    }
+
+    function mapearEventoGoogleParaAtividade(ev) {
+        if (!ev || ev.status === 'cancelled') return null;
+        var ini = googleDataHora(ev.start);
+        if (!ini) return null;
+        var fim = googleDataHora(ev.end);
+        return {
+            tipo: 'reuniao',
+            assunto: ev.summary || '(sem assunto)',
+            descricao: ev.description || '',
+            data: ini.data,
+            horaInicio: ini.allDay ? '' : (ini.hora || ''),
+            horaFim: (fim && !fim.allDay) ? (fim.hora || '') : '',
+            googleEventId: ev.id,
+            origemGoogle: true
+        };
+    }
+
+    /**
+     * Busca eventos do Google (janela de -7 a +60 dias) e cria como novas
+     * atividades no CRM os que ainda não existem por lá — pulando tanto os
+     * que o próprio CRM criou (marca crmAtividadeId) quanto os já importados
+     * antes (já existe uma atividade com esse googleEventId).
+     */
+    function importarNovosDoGoogle() {
+        if (!configurado() || !conectado() || !window.CrmStore) return Promise.resolve(0);
+
+        var agora = new Date();
+        var min = new Date(agora.getTime() - JANELA_IMPORT_DIAS_PASSADO * 86400000).toISOString();
+        var max = new Date(agora.getTime() + JANELA_IMPORT_DIAS_FUTURO * 86400000).toISOString();
+        var url = EVENTS_URL + '?singleEvents=true&orderBy=startTime&maxResults=250' +
+            '&timeMin=' + encodeURIComponent(min) + '&timeMax=' + encodeURIComponent(max);
+
+        return chamarApi('GET', url).then(function (resp) {
+            var itens = (resp && resp.items) || [];
+            var googleIdsExistentes = {};
+            CrmStore.listarAtividades().forEach(function (a) {
+                if (a.googleEventId) googleIdsExistentes[a.googleEventId] = true;
+            });
+
+            var novos = 0;
+            itens.forEach(function (ev) {
+                var props = ev.extendedProperties && ev.extendedProperties.private;
+                if (props && props.crmAtividadeId) return; // criado pelo próprio CRM
+                if (googleIdsExistentes[ev.id]) return; // já importado antes
+                if (ehEventoAutoDetectadoPeloGmail(ev)) return; // reserva de voo/hotel etc. detectada pelo Gmail — não é editável de verdade
+
+                var dados = mapearEventoGoogleParaAtividade(ev);
+                if (!dados) return;
+                CrmStore.criarAtividade(dados);
+                novos++;
+            });
+            return novos;
+        }).catch(function (e) {
+            if (window.Notifications) Notifications.error('Falha ao importar eventos do Google Agenda: ' + e.message);
+            return 0;
+        });
+    }
+
+    /**
+     * Importa novidades do Google e depois varre todas as atividades do CRM,
+     * sincronizando uma a uma (sequencial, para respeitar limites de taxa da
+     * API). Usado pelo botão "Sincronizar tudo".
      */
     function sincronizarTudo() {
         if (!configurado()) {
@@ -211,30 +322,34 @@
         if (!conectado()) { conectar(); return; }
         if (!window.CrmStore) return;
 
-        var atividades = CrmStore.listarAtividades().filter(function (a) { return a.data; });
-        var negocios = CrmStore.listarNegocios();
-        var negocioPorId = {};
-        negocios.forEach(function (n) { negocioPorId[n.id] = n; });
+        importarNovosDoGoogle().then(function (novosImportados) {
+            var atividades = CrmStore.listarAtividades().filter(function (a) { return a.data; });
+            var negocios = CrmStore.listarNegocios();
+            var negocioPorId = {};
+            negocios.forEach(function (n) { negocioPorId[n.id] = n; });
 
-        var fila = atividades.slice();
-        var ok = 0, falha = 0;
+            var fila = atividades.slice();
+            var ok = 0, falha = 0;
 
-        function proximo() {
-            if (!fila.length) {
-                if (window.Notifications) {
-                    Notifications.success('Sincronização com o Google Agenda concluída: ' + ok + ' atividade(s)' + (falha ? (', ' + falha + ' falha(s)') : '') + '.');
+            function proximo() {
+                if (!fila.length) {
+                    if (window.Notifications) {
+                        Notifications.success('Sincronização com o Google Agenda concluída: ' + ok + ' enviada(s)' +
+                            (novosImportados ? (', ' + novosImportados + ' importada(s)') : '') +
+                            (falha ? (', ' + falha + ' falha(s)') : '') + '.');
+                    }
+                    notificar();
+                    return;
                 }
-                notificar();
-                return;
+                var a = fila.shift();
+                var negocio = negocioPorId[a.negocioId];
+                var cliente = negocio ? CrmStore.getCliente(negocio.clienteId) : null;
+                sincronizarAtividade(a, negocio, cliente)
+                    .then(function () { ok++; proximo(); })
+                    .catch(function () { falha++; proximo(); });
             }
-            var a = fila.shift();
-            var negocio = negocioPorId[a.negocioId];
-            var cliente = negocio ? CrmStore.getCliente(negocio.clienteId) : null;
-            sincronizarAtividade(a, negocio, cliente)
-                .then(function () { ok++; proximo(); })
-                .catch(function () { falha++; proximo(); });
-        }
-        proximo();
+            proximo();
+        });
     }
 
     window.GoogleCalendarSync = {
@@ -245,6 +360,7 @@
         aoMudarStatus: aoMudarStatus,
         sincronizarAtividade: sincronizarAtividade,
         removerEvento: removerEvento,
-        sincronizarTudo: sincronizarTudo
+        sincronizarTudo: sincronizarTudo,
+        importarNovosDoGoogle: importarNovosDoGoogle
     };
 })();

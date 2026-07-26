@@ -494,7 +494,7 @@
         emLote(function () {
             if (!crm.atividades) crm.atividades = [];
             crm.atividades.push(atividade);
-            var rotulo = (CrmModel.TIPOS_ATIVIDADE[atividade.tipo] || {}).rotulo || atividade.tipo;
+            var rotulo = (mapaTiposAtividade()[atividade.tipo] || {}).rotulo || atividade.tipo;
             registrarHistorico('negocio', atividade.negocioId, 'atividade',
                 rotulo + ' agendada: ' + atividade.assunto,
                 { atividadeId: atividade.id, acao: 'criada' });
@@ -527,7 +527,7 @@
             a.feito = marcar;
             a.feitoEm = marcar ? new Date().toISOString() : null;
             a.atualizadoEm = new Date().toISOString();
-            var rotulo = (CrmModel.TIPOS_ATIVIDADE[a.tipo] || {}).rotulo || a.tipo;
+            var rotulo = (mapaTiposAtividade()[a.tipo] || {}).rotulo || a.tipo;
             registrarHistorico('negocio', a.negocioId, 'atividade',
                 rotulo + (marcar ? ' concluída: ' : ' reaberta: ') + a.assunto,
                 { atividadeId: a.id, acao: marcar ? 'concluida' : 'reaberta' });
@@ -543,6 +543,79 @@
         if (idx === -1) return false;
         emLote(function () { crm.atividades.splice(idx, 1); });
         return true;
+    }
+
+    // ──────────────────────────────────────────────
+    //  TIPOS DE ATIVIDADE (personalizáveis pelo usuário)
+    // ──────────────────────────────────────────────
+
+    function listarTiposAtividade() {
+        var crm = getCrm();
+        if (!crm) return [];
+        if (!crm.tiposAtividade || !crm.tiposAtividade.length) {
+            emLote(function () { crm.tiposAtividade = CrmModel.tiposAtividadePadrao().map(CrmModel.normalizarTipoAtividade); });
+        }
+        return (crm.tiposAtividade || []).slice().sort(function (a, b) { return a.ordem - b.ordem; });
+    }
+
+    function listarTiposAtividadeAtivos() {
+        return listarTiposAtividade().filter(function (t) { return t.ativo; });
+    }
+
+    /**
+     * Mapa chave -> { rotulo, icone }, no formato usado pelo restante do CRM
+     * (compatível com o antigo CrmModel.TIPOS_ATIVIDADE). Inclui inativos, para
+     * que atividades antigas continuem resolvendo ícone/rótulo corretamente.
+     */
+    function mapaTiposAtividade() {
+        var mapa = {};
+        listarTiposAtividade().forEach(function (t) { mapa[t.chave] = { rotulo: t.nome, icone: t.icone }; });
+        return mapa;
+    }
+
+    function criarTipoAtividade(dados) {
+        var crm = getCrm();
+        if (!crm) return null;
+        var tipos = listarTiposAtividade();
+        var novo = CrmModel.normalizarTipoAtividade(Object.assign({}, dados, { ordem: tipos.length }), tipos.length);
+        emLote(function () {
+            if (!crm.tiposAtividade) crm.tiposAtividade = tipos;
+            crm.tiposAtividade.push(novo);
+        });
+        return novo;
+    }
+
+    function atualizarTipoAtividade(chave, patch) {
+        var crm = getCrm();
+        if (!crm) return null;
+        listarTiposAtividade(); // garante que crm.tiposAtividade existe (seed se necessário)
+        var t = (crm.tiposAtividade || []).filter(function (x) { return x.chave === chave; })[0];
+        if (!t) return null;
+        emLote(function () {
+            Object.keys(patch || {}).forEach(function (campo) {
+                if (campo === 'chave') return;
+                t[campo] = patch[campo];
+            });
+        });
+        return t;
+    }
+
+    /**
+     * Reordena os tipos de atividade a partir de uma lista de chaves na nova
+     * ordem desejada. Chaves não incluídas mantêm a posição relativa ao final.
+     */
+    function reordenarTiposAtividade(chavesNaOrdem) {
+        var crm = getCrm();
+        if (!crm) return;
+        var tipos = listarTiposAtividade();
+        var porChave = {};
+        tipos.forEach(function (t) { porChave[t.chave] = t; });
+        var ordenados = (chavesNaOrdem || []).map(function (c) { return porChave[c]; }).filter(Boolean);
+        tipos.forEach(function (t) { if (ordenados.indexOf(t) === -1) ordenados.push(t); });
+        emLote(function () {
+            ordenados.forEach(function (t, idx) { t.ordem = idx; });
+            crm.tiposAtividade = ordenados;
+        });
     }
 
     // ──────────────────────────────────────────────
@@ -730,6 +803,13 @@
         atualizarAtividade: atualizarAtividade,
         concluirAtividade: concluirAtividade,
         removerAtividade: removerAtividade,
+
+        listarTiposAtividade: listarTiposAtividade,
+        listarTiposAtividadeAtivos: listarTiposAtividadeAtivos,
+        mapaTiposAtividade: mapaTiposAtividade,
+        criarTipoAtividade: criarTipoAtividade,
+        atualizarTipoAtividade: atualizarTipoAtividade,
+        reordenarTiposAtividade: reordenarTiposAtividade,
 
         criarFunil: criarFunil,
         atualizarFunil: atualizarFunil,
