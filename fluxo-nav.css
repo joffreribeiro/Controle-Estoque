@@ -85,6 +85,7 @@ body.flow-nav-on .content-area { max-width: none !important; }
 .ws-btn svg { width: 14px; height: 14px; flex: none; }
 .ws-btn.active { background: var(--fn-navy-700); color: #fff; }
 .ws-btn.imbel.active { background: var(--fn-amber-500); color: var(--fn-navy-950); }
+.ws-btn.relacionamento.active { background: #7c3aed; color: #fff; }
 
 /* Cluster de status/ações à direita (recebe #firestoreStatus e #authPanel realocados) */
 .flow-status { margin-left: auto; display: flex; align-items: center; gap: 10px; }

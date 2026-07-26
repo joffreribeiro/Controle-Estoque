@@ -55,7 +55,6 @@
         { sep: true },
         { label: 'Produtos', tab: 'cadastro-produtos', icon: I.file },
         { label: 'Distribuição', tab: 'distribuicao', icon: I.truck },
-        { label: 'Relacionamento', tab: 'relacionamento', icon: I.heart },
         { label: 'Relatórios', tab: 'relatorios', icon: I.chart },
         { label: 'Configurações', tab: 'configuracoes', icon: I.gear }
     ];
@@ -89,6 +88,7 @@
                 '</div>' +
                 '<div class="ws-switch" role="tablist" aria-label="Workspace">' +
                     '<button class="ws-btn operacao active" data-ws="operacao" type="button">' + I.box + '<span>Operação</span></button>' +
+                    '<button class="ws-btn relacionamento" data-ws="relacionamento" type="button">' + I.heart + '<span>Relacionamento</span></button>' +
                     '<button class="ws-btn imbel" data-ws="imbel" type="button">' + I.shield + '<span>IMBEL</span></button>' +
                 '</div>' +
                 '<div class="flow-status"></div>' +
@@ -277,14 +277,19 @@
         workspace = ws;
         els.wsBtns.forEach(function (b) { b.classList.toggle('active', b.getAttribute('data-ws') === ws); });
         var imbel = (ws === 'imbel');
-        els.pipebar.style.display = imbel ? 'none' : '';
-        els.refbar.style.display = imbel ? 'none' : '';
+        var relacionamento = (ws === 'relacionamento');
+        els.pipebar.style.display = (imbel || relacionamento) ? 'none' : '';
+        els.refbar.style.display = (imbel || relacionamento) ? 'none' : '';
         try { localStorage.setItem(LS_WS, ws); } catch (e) {}
 
         if (imbel) {
             clearRefActive();
             stepBtns.forEach(function (b) { b.classList.remove('active'); });
             try { if (typeof window.trocarAba === 'function') window.trocarAba('controleimbel'); } catch (e) {}
+        } else if (relacionamento) {
+            clearRefActive();
+            stepBtns.forEach(function (b) { b.classList.remove('active'); });
+            try { if (typeof window.trocarAba === 'function') window.trocarAba('relacionamento'); } catch (e) {}
         } else {
             goStep(currentStep);
         }
@@ -321,7 +326,8 @@
             var s = parseInt(localStorage.getItem(LS_STEP), 10);
             if (!isNaN(s) && s >= 0 && s < STEPS.length) savedStep = s;
             var w = localStorage.getItem(LS_WS);
-            if (w === 'imbel' || w === 'operacao') savedWs = w;
+            if (w === 'imbel' || w === 'operacao' || w === 'relacionamento') savedWs = w;
+            if (w === 'negocio') savedWs = 'relacionamento'; // migração do nome antigo do workspace
         } catch (e) {}
         currentStep = savedStep;
 

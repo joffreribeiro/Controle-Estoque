@@ -546,6 +546,79 @@
     }
 
     // ──────────────────────────────────────────────
+    //  ANOTAÇÕES (demandas/solicitações vinculadas a um negócio)
+    // ──────────────────────────────────────────────
+
+    function listarAnotacoes(negocioId) {
+        var crm = getCrm();
+        if (!crm) return [];
+        var todas = crm.anotacoes || [];
+        return negocioId ? todas.filter(function (a) { return a.negocioId === negocioId; }) : todas.slice();
+    }
+
+    function getAnotacao(id) {
+        var crm = getCrm();
+        if (!crm) return null;
+        return (crm.anotacoes || []).filter(function (a) { return a.id === id; })[0] || null;
+    }
+
+    function criarAnotacao(dados) {
+        var crm = getCrm();
+        if (!crm) return null;
+        var anotacao = CrmModel.criarAnotacao(dados);
+        emLote(function () {
+            if (!crm.anotacoes) crm.anotacoes = [];
+            crm.anotacoes.push(anotacao);
+            registrarHistorico('negocio', anotacao.negocioId, 'anotacao',
+                'Anotação criada: ' + anotacao.assunto,
+                { anotacaoId: anotacao.id, acao: 'criada' });
+        });
+        return anotacao;
+    }
+
+    function atualizarAnotacao(id, patch) {
+        var crm = getCrm();
+        if (!crm) return null;
+        var a = (crm.anotacoes || []).filter(function (x) { return x.id === id; })[0];
+        if (!a) return null;
+        emLote(function () {
+            Object.keys(patch || {}).forEach(function (campo) {
+                if (campo === 'id') return;
+                a[campo] = patch[campo];
+            });
+            a.atualizadoEm = new Date().toISOString();
+        });
+        return a;
+    }
+
+    function concluirAnotacao(id, finalizado) {
+        var crm = getCrm();
+        if (!crm) return false;
+        var a = (crm.anotacoes || []).filter(function (x) { return x.id === id; })[0];
+        if (!a) return false;
+        var marcar = (finalizado !== false);
+        emLote(function () {
+            a.finalizado = marcar;
+            a.dataConclusao = marcar ? new Date().toISOString().slice(0, 10) : null;
+            a.atualizadoEm = new Date().toISOString();
+            registrarHistorico('negocio', a.negocioId, 'anotacao',
+                (marcar ? 'Anotação finalizada: ' : 'Anotação reaberta: ') + a.assunto,
+                { anotacaoId: a.id, acao: marcar ? 'finalizada' : 'reaberta' });
+        });
+        return true;
+    }
+
+    function removerAnotacao(id) {
+        var crm = getCrm();
+        if (!crm) return false;
+        var idx = -1;
+        (crm.anotacoes || []).forEach(function (a, i) { if (a.id === id) idx = i; });
+        if (idx === -1) return false;
+        emLote(function () { crm.anotacoes.splice(idx, 1); });
+        return true;
+    }
+
+    // ──────────────────────────────────────────────
     //  FUNIS
     // ──────────────────────────────────────────────
 
@@ -616,6 +689,13 @@
         listarNegociosExcluidos: listarNegociosExcluidos,
         listarAtividades: listarAtividades,
         historicoDe: historicoDe,
+
+        listarAnotacoes: listarAnotacoes,
+        getAnotacao: getAnotacao,
+        criarAnotacao: criarAnotacao,
+        atualizarAnotacao: atualizarAnotacao,
+        concluirAnotacao: concluirAnotacao,
+        removerAnotacao: removerAnotacao,
 
         listarClientes: listarClientes,
         getCliente: getCliente,

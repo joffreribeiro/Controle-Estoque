@@ -90,34 +90,167 @@ function resumoFunil(negocios) {
  * Filtra negócios por busca textual (sem acento, case-insensitive, no título),
  * responsável, status e funil. Qualquer filtro ausente/vazio é ignorado.
  */
-function filtrarNegocios(negocios, filtros) {
+function filtrarNegocios(negocios, filtros, extra) {
     const f = filtros || {};
     const busca = normalizarParaBusca(f.busca);
+    const clientes = (extra && extra.clientes) || [];
     return (negocios || []).filter(n => {
         if (f.funilId && n.funilId !== f.funilId) return false;
         if (f.responsavel && n.responsavel !== f.responsavel) return false;
         if (f.status && n.status !== f.status) return false;
-        if (busca && normalizarParaBusca(n.titulo).indexOf(busca) === -1) return false;
+        if (f.origem && n.origem !== f.origem) return false;
+        if (f.clienteId && n.clienteId !== f.clienteId) return false;
+        if (f.dataRecebimentoInicio && String(n.dataRecebimento || '') < f.dataRecebimentoInicio) return false;
+        if (f.dataRecebimentoFim && String(n.dataRecebimento || '') > f.dataRecebimentoFim) return false;
+        if (f.dataPrevisaoInicio && String(n.dataPrevisao || '') < f.dataPrevisaoInicio) return false;
+        if (f.dataPrevisaoFim && String(n.dataPrevisao || '') > f.dataPrevisaoFim) return false;
+        if (f.mostrarConcluidas === false && n.status === 'ganho') return false;
+        if (busca) {
+            const cliente = clientes.find(c => c.id === n.clienteId);
+            const alvo = normalizarParaBusca(n.titulo) + ' ' + normalizarParaBusca(cliente && cliente.nome);
+            if (alvo.indexOf(busca) === -1) return false;
+        }
         return true;
     });
 }
 
 /**
- * Ordena negócios sem mutar a entrada. Critérios: 'valor' (desc), 'previsao' (asc,
- * sem previsão por último), 'atualizado' (mais recente primeiro), ou por 'ordem' (default).
+ * Ordena negócios sem mutar a entrada. Critério pode ser uma string simples
+ * ('valor', 'previsao', 'atualizado', 'ordem') ou uma coluna da vista Lista
+ * ('id', 'recebimento', 'titulo', 'cliente', 'origem', 'responsavel', 'prazo',
+ * 'status', 'concluido', 'funil', 'ultima_atividade'), combinada com `direcao`
+ * ('asc'|'desc', default 'asc' para colunas da Lista).
  */
-function ordenarNegocios(negocios, criterio) {
+function ordenarNegocios(negocios, criterio, direcao, extra) {
     const lista = (negocios || []).slice();
-    if (criterio === 'valor') {
+    if (criterio === 'valor' && !direcao) {
         return lista.sort((a, b) => (Number(b.valor) || 0) - (Number(a.valor) || 0));
     }
-    if (criterio === 'previsao') {
+    if (criterio === 'previsao' && !direcao) {
         return lista.sort((a, b) => String(a.dataPrevisao || '9999-99-99').localeCompare(String(b.dataPrevisao || '9999-99-99')));
     }
-    if (criterio === 'atualizado') {
+    if (criterio === 'atualizado' && !direcao) {
         return lista.sort((a, b) => String(b.atualizadoEm || '').localeCompare(String(a.atualizadoEm || '')));
     }
-    return lista.sort((a, b) => (a.ordem || 0) - (b.ordem || 0));
+    if (!criterio || criterio === 'ordem') {
+        return lista.sort((a, b) => (a.ordem || 0) - (b.ordem || 0));
+    }
+
+    const clientes = (extra && extra.clientes) || [];
+    const funis = (extra && extra.funis) || [];
+    const atividades = (extra && extra.atividades) || [];
+    const nomeCliente = id => { const c = clientes.find(x => x.id === id); return c ? c.nome : ''; };
+    const nomeFunil = id => { const f = funis.find(x => x.id === id); return f ? f.nome : ''; };
+    const ultimaAtividadeData = n => {
+        const dasDele = atividades.filter(a => a.negocioId === n.id);
+        const at = dasDele.length ? dasDele.slice().sort((a, b) => String(b.data || '').localeCompare(String(a.data || '')))[0] : null;
+        return (at && at.data) || n.atualizadoEm || '';
+    };
+
+    const chave = n => {
+        switch (criterio) {
+            case 'id': return String(n.id || '');
+            case 'recebimento': return String(n.dataRecebimento || '');
+            case 'titulo': return normalizarParaBusca(n.titulo);
+            case 'cliente': return normalizarParaBusca(nomeCliente(n.clienteId));
+            case 'origem': return normalizarParaBusca(n.origem);
+            case 'responsavel': return normalizarParaBusca(n.responsavel);
+            case 'prazo': return String(n.dataPrevisao || '');
+            case 'status': return String(n.status || '');
+            case 'concluido': return n.status === 'ganho' ? 1 : 0;
+            case 'valor': return Number(n.valor) || 0;
+            case 'funil': return normalizarParaBusca(nomeFunil(n.funilId));
+            case 'ultima_atividade': return String(ultimaAtividadeData(n));
+            default: return String(n.ordem || 0);
+        }
+    };
+
+    const dir = direcao === 'desc' ? -1 : 1;
+    return lista.sort((a, b) => {
+        const va = chave(a), vb = chave(b);
+        if (va < vb) return -1 * dir;
+        if (va > vb) return 1 * dir;
+        return 0;
+    });
+}
+
+/**
+ * Filtra anotações. `extra.negocios` é usado para resolver funilId/clienteId
+ * (Relacionamento/Cliente) a partir do negócio pai de cada anotação.
+ */
+function filtrarAnotacoes(anotacoes, filtros, extra) {
+    const f = filtros || {};
+    const busca = normalizarParaBusca(f.busca);
+    const negocios = (extra && extra.negocios) || [];
+    const negocioPorId = {};
+    negocios.forEach(n => { negocioPorId[n.id] = n; });
+
+    return (anotacoes || []).filter(a => {
+        const negocio = negocioPorId[a.negocioId];
+        if (f.funilId && (!negocio || negocio.funilId !== f.funilId)) return false;
+        if (f.clienteId && (!negocio || negocio.clienteId !== f.clienteId)) return false;
+        if (f.prioridade && a.prioridade !== f.prioridade) return false;
+        if (f.origemDemanda && a.origemDemanda !== f.origemDemanda) return false;
+        if (f.prazoInicio && String(a.prazo || '') < f.prazoInicio) return false;
+        if (f.prazoFim && String(a.prazo || '') > f.prazoFim) return false;
+        if (f.dataSolicitacaoInicio && String(a.dataSolicitacao || '') < f.dataSolicitacaoInicio) return false;
+        if (f.dataSolicitacaoFim && String(a.dataSolicitacao || '') > f.dataSolicitacaoFim) return false;
+        if (f.mostrarFinalizadas === false && a.finalizado) return false;
+        if (busca) {
+            const alvo = normalizarParaBusca(a.assunto) + ' ' + normalizarParaBusca(a.remetente) + ' ' +
+                normalizarParaBusca(a.acaoRealizar) + ' ' + normalizarParaBusca(a.observacoes);
+            if (alvo.indexOf(busca) === -1) return false;
+        }
+        return true;
+    });
+}
+
+const PRIORIDADE_PESO = { baixa: 0, media: 1, alta: 2, critico: 3 };
+
+/**
+ * Ordena anotações sem mutar a entrada. Critérios: 'assunto', 'remetente',
+ * 'origemDemanda', 'dataSolicitacao', 'tipoDoc', 'numeroDocumento',
+ * 'destinatario', 'acaoRealizar', 'prioridade', 'prazo', 'finalizado',
+ * 'dataConclusao', 'funil', 'cliente' (via negócio pai). `direcao`: 'asc'|'desc'.
+ */
+function ordenarAnotacoes(anotacoes, criterio, direcao, extra) {
+    const lista = (anotacoes || []).slice();
+    const negocios = (extra && extra.negocios) || [];
+    const clientes = (extra && extra.clientes) || [];
+    const funis = (extra && extra.funis) || [];
+    const negocioPorId = {};
+    negocios.forEach(n => { negocioPorId[n.id] = n; });
+    const nomeCliente = id => { const c = clientes.find(x => x.id === id); return c ? c.nome : ''; };
+    const nomeFunil = id => { const f = funis.find(x => x.id === id); return f ? f.nome : ''; };
+
+    const chave = a => {
+        const negocio = negocioPorId[a.negocioId];
+        switch (criterio) {
+            case 'funil': return normalizarParaBusca(negocio ? nomeFunil(negocio.funilId) : '');
+            case 'cliente': return normalizarParaBusca(negocio ? nomeCliente(negocio.clienteId) : '');
+            case 'assunto': return normalizarParaBusca(a.assunto);
+            case 'remetente': return normalizarParaBusca(a.remetente);
+            case 'origemDemanda': return normalizarParaBusca(a.origemDemanda);
+            case 'dataSolicitacao': return String(a.dataSolicitacao || '');
+            case 'tipoDoc': return normalizarParaBusca(a.tipoDoc);
+            case 'numeroDocumento': return normalizarParaBusca(a.numeroDocumento);
+            case 'destinatario': return normalizarParaBusca(a.destinatario);
+            case 'acaoRealizar': return normalizarParaBusca(a.acaoRealizar);
+            case 'prioridade': return PRIORIDADE_PESO[a.prioridade] || 0;
+            case 'prazo': return String(a.prazo || '');
+            case 'finalizado': return a.finalizado ? 1 : 0;
+            case 'dataConclusao': return String(a.dataConclusao || '');
+            default: return String(a.criadoEm || '');
+        }
+    };
+
+    const dir = direcao === 'desc' ? -1 : 1;
+    return lista.sort((a, b) => {
+        const va = chave(a), vb = chave(b);
+        if (va < vb) return -1 * dir;
+        if (va > vb) return 1 * dir;
+        return 0;
+    });
 }
 
 /**
@@ -239,6 +372,116 @@ function agruparPorMesFechamento(negocios) {
     return grupos;
 }
 
+// ──────────────────────────────────────────────
+//  CALENDÁRIO DE ATIVIDADES (visão global, todas os negócios)
+// ──────────────────────────────────────────────
+
+/**
+ * Domingo (YYYY-MM-DD) da semana que contém `dataIso`. Semana dom→sáb.
+ */
+function inicioSemana(dataIso) {
+    const d = new Date(String(dataIso).slice(0, 10) + 'T00:00:00Z');
+    if (isNaN(d)) return dataIso;
+    d.setUTCDate(d.getUTCDate() - d.getUTCDay());
+    return d.toISOString().slice(0, 10);
+}
+
+function somarDias(dataIso, dias) {
+    const d = new Date(String(dataIso).slice(0, 10) + 'T00:00:00Z');
+    if (isNaN(d)) return dataIso;
+    d.setUTCDate(d.getUTCDate() + dias);
+    return d.toISOString().slice(0, 10);
+}
+
+/**
+ * Filtra atividades por período nomeado (padrão Pipedrive), relativo a `hoje`.
+ * Períodos: 'todos' | 'paraFazer' | 'vencido' | 'hoje' | 'amanha' | 'semana' | 'proximaSemana'.
+ */
+function filtrarAtividadesPeriodo(atividades, periodo, hoje) {
+    const h = hojeIso(hoje);
+    const lista = atividades || [];
+    switch (periodo) {
+        case 'paraFazer': return lista.filter(a => !a.feito);
+        case 'vencido': return lista.filter(a => !a.feito && a.data && a.data < h);
+        case 'hoje': return lista.filter(a => a.data === h);
+        case 'amanha': return lista.filter(a => a.data === somarDias(h, 1));
+        case 'semana': {
+            const ini = inicioSemana(h), fim = somarDias(ini, 6);
+            return lista.filter(a => a.data && a.data >= ini && a.data <= fim);
+        }
+        case 'proximaSemana': {
+            const ini = somarDias(inicioSemana(h), 7), fim = somarDias(ini, 6);
+            return lista.filter(a => a.data && a.data >= ini && a.data <= fim);
+        }
+        default: return lista.slice();
+    }
+}
+
+/**
+ * Filtra atividades por texto livre (assunto) e, via `extra`, pelo negócio/cliente pai.
+ */
+function filtrarAtividadesBusca(atividades, busca, extra) {
+    const termo = normalizarParaBusca(busca);
+    if (!termo) return atividades || [];
+    const negocios = (extra && extra.negocios) || [];
+    const clientes = (extra && extra.clientes) || [];
+    const negocioPorId = {};
+    negocios.forEach(n => { negocioPorId[n.id] = n; });
+    const clientePorId = {};
+    clientes.forEach(c => { clientePorId[c.id] = c; });
+
+    return (atividades || []).filter(a => {
+        const negocio = negocioPorId[a.negocioId];
+        const cliente = negocio ? clientePorId[negocio.clienteId] : null;
+        const alvo = normalizarParaBusca(a.assunto) + ' ' +
+            normalizarParaBusca(negocio ? negocio.titulo : '') + ' ' +
+            normalizarParaBusca(cliente ? cliente.nome : '');
+        return alvo.indexOf(termo) !== -1;
+    });
+}
+
+/**
+ * Ordena atividades por data + hora de início (ascendente); sem data vai por último.
+ */
+function ordenarAtividadesPorData(atividades) {
+    return (atividades || []).slice().sort((a, b) =>
+        String(a.data || '9999-99-99').localeCompare(String(b.data || '9999-99-99')) ||
+        String(a.horaInicio || '99:99').localeCompare(String(b.horaInicio || '99:99'))
+    );
+}
+
+/**
+ * Duração formatada 'Hh Mmin' entre horaInicio e horaFim (HH:MM); null se não houver ambos.
+ */
+function duracaoAtividade(horaInicio, horaFim) {
+    if (!horaInicio || !horaFim) return null;
+    const [h1, m1] = horaInicio.split(':').map(Number);
+    const [h2, m2] = horaFim.split(':').map(Number);
+    if ([h1, m1, h2, m2].some(n => isNaN(n))) return null;
+    let min = (h2 * 60 + m2) - (h1 * 60 + m1);
+    if (min < 0) return null;
+    const hh = Math.floor(min / 60), mm = min % 60;
+    if (hh && mm) return hh + 'h ' + mm + 'min';
+    if (hh) return hh + 'h';
+    return mm + 'min';
+}
+
+/**
+ * Agrupa atividades de uma semana (dom→sáb) por dia. Devolve mapa 'YYYY-MM-DD' -> [atividades],
+ * sempre com as 7 chaves presentes (mesmo vazias), ordenadas por hora dentro do dia.
+ */
+function agruparAtividadesPorDiaDaSemana(atividades, domingoIso) {
+    const mapa = {};
+    for (let i = 0; i < 7; i++) mapa[somarDias(domingoIso, i)] = [];
+    (atividades || []).forEach(a => {
+        if (Object.prototype.hasOwnProperty.call(mapa, a.data)) mapa[a.data].push(a);
+    });
+    Object.keys(mapa).forEach(k => {
+        mapa[k].sort((a, b) => String(a.horaInicio || '99:99').localeCompare(String(b.horaInicio || '99:99')));
+    });
+    return mapa;
+}
+
 /**
  * Itens de histórico de uma entidade específica, mais recentes primeiro.
  */
@@ -256,6 +499,8 @@ const CrmCalculos = {
     resumoFunil,
     filtrarNegocios,
     ordenarNegocios,
+    filtrarAnotacoes,
+    ordenarAnotacoes,
     reordenarNaEtapa,
     taxaConversao,
     formatarMoeda,
@@ -270,7 +515,15 @@ const CrmCalculos = {
     diasNaEtapa,
     idadeEmDias,
     diasInativo,
-    agruparPorMesFechamento
+    agruparPorMesFechamento,
+
+    inicioSemana,
+    somarDias,
+    filtrarAtividadesPeriodo,
+    filtrarAtividadesBusca,
+    ordenarAtividadesPorData,
+    duracaoAtividade,
+    agruparAtividadesPorDiaDaSemana
 };
 
 if (typeof window !== 'undefined') {
