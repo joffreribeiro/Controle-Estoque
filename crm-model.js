@@ -15,6 +15,7 @@ const CAMPOS_AUDITAVEIS_NEGOCIO = ['titulo', 'valor', 'etapaId', 'responsavel', 
 const TIPOS_FUNIL = ['vendas', 'demandas', 'projetos'];
 const TIPOS_ETAPA = ['aberta', 'ganho', 'perdido'];
 const STATUS_NEGOCIO = ['aberto', 'ganho', 'perdido'];
+const PRIORIDADES_ANOTACAO = ['baixa', 'media', 'alta', 'critico'];
 
 // Tipos de atividade agendável (padrão Pipedrive). O ícone é um emoji para
 // não depender de bibliotecas de ícone nos módulos puros.
@@ -163,6 +164,40 @@ function normalizarAtividade(aBruta) {
         horaFim: typeof a.horaFim === 'string' ? a.horaFim : '',
         feito: !!a.feito,
         feitoEm: a.feitoEm || null,
+        googleEventId: typeof a.googleEventId === 'string' ? a.googleEventId : null,
+        criadoEm: a.criadoEm || nowIso(),
+        atualizadoEm: a.atualizadoEm || nowIso()
+    };
+}
+
+/**
+ * Anotação: registro de demanda/solicitação vinculado a um negócio (via
+ * negocioId). Relacionamento (funil) e Cliente são derivados do negócio
+ * pai pelo store/UI — não são armazenados na própria anotação.
+ */
+function normalizarAnotacao(aBruta) {
+    const a = ehObjeto(aBruta) ? aBruta : {};
+    return {
+        id: a.id || novoId('ant'),
+        negocioId: a.negocioId || null,
+        anotacaoRelacionadaId: (a.anotacaoRelacionadaId && a.anotacaoRelacionadaId !== a.id) ? a.anotacaoRelacionadaId : null,
+        assunto: typeof a.assunto === 'string' ? a.assunto : '',
+        remetente: typeof a.remetente === 'string' ? a.remetente : '',
+        origemDemanda: typeof a.origemDemanda === 'string' ? a.origemDemanda : '',
+        dataSolicitacao: a.dataSolicitacao || null,
+        tipoDoc: typeof a.tipoDoc === 'string' ? a.tipoDoc : '',
+        numeroDocumento: typeof a.numeroDocumento === 'string' ? a.numeroDocumento : '',
+        destinatario: typeof a.destinatario === 'string' ? a.destinatario : '',
+        acaoRealizar: typeof a.acaoRealizar === 'string' ? a.acaoRealizar : '',
+        prioridade: PRIORIDADES_ANOTACAO.indexOf(a.prioridade) !== -1 ? a.prioridade : 'media',
+        prazo: a.prazo || null,
+        lembrarDiasAntes: (typeof a.lembrarDiasAntes === 'string') ? a.lembrarDiasAntes
+            : (Number.isFinite(a.lembrarDiasAntes) ? String(a.lembrarDiasAntes) : ''),
+        tags: Array.isArray(a.tags) ? a.tags.slice() : [],
+        observacoes: typeof a.observacoes === 'string' ? a.observacoes : '',
+        finalizado: !!a.finalizado,
+        dataConclusao: a.dataConclusao || null,
+        oQueFoiFeito: typeof a.oQueFoiFeito === 'string' ? a.oQueFoiFeito : '',
         criadoEm: a.criadoEm || nowIso(),
         atualizadoEm: a.atualizadoEm || nowIso()
     };
@@ -247,6 +282,17 @@ function normalizarCrm(crmBruto) {
         .map(normalizarAtividade)
         .filter(a => a.negocioId && idsNegocioValidos[a.negocioId]);
 
+    const anotacoesValidas = (Array.isArray(crm.anotacoes) ? crm.anotacoes : [])
+        .map(normalizarAnotacao)
+        .filter(a => a.negocioId && idsNegocioValidos[a.negocioId]);
+    const idsAnotacaoValidos = {};
+    anotacoesValidas.forEach(a => { idsAnotacaoValidos[a.id] = true; });
+    const anotacoes = anotacoesValidas.map(a => (
+        a.anotacaoRelacionadaId && idsAnotacaoValidos[a.anotacaoRelacionadaId]
+            ? a
+            : Object.assign({}, a, { anotacaoRelacionadaId: null })
+    ));
+
     const config = normalizarConfig(crm.config, funis);
 
     return {
@@ -254,6 +300,7 @@ function normalizarCrm(crmBruto) {
         funis,
         negocios,
         atividades,
+        anotacoes,
         historico,
         config
     };
@@ -266,6 +313,7 @@ function normalizarCrm(crmBruto) {
 function criarFunil(dados) { return normalizarFunil(dados); }
 function criarNegocio(dados) { return normalizarNegocio(dados); }
 function criarAtividade(dados) { return normalizarAtividade(dados); }
+function criarAnotacao(dados) { return normalizarAnotacao(dados); }
 
 function funilDeTemplate(chave) {
     const tpl = TEMPLATES_FUNIL[chave];
@@ -310,6 +358,27 @@ function validarNegocio(negocio, funil) {
     return erros;
 }
 
+function validarAnotacao(anotacao) {
+    const erros = [];
+    if (!ehObjeto(anotacao)) {
+        erros.push('Anotação deve ser um objeto válido');
+        return erros;
+    }
+    if (!anotacao.negocioId) {
+        erros.push('Anotação precisa estar vinculada a um negócio');
+    }
+    if (!anotacao.assunto || !String(anotacao.assunto).trim()) {
+        erros.push('Assunto é obrigatório');
+    }
+    if (anotacao.prazo && !/^\d{4}-\d{2}-\d{2}$/.test(anotacao.prazo)) {
+        erros.push('Prazo inválido (use formato YYYY-MM-DD)');
+    }
+    if (anotacao.dataSolicitacao && !/^\d{4}-\d{2}-\d{2}$/.test(anotacao.dataSolicitacao)) {
+        erros.push('Data de solicitação inválida (use formato YYYY-MM-DD)');
+    }
+    return erros;
+}
+
 function validarAtividade(atividade) {
     const erros = [];
     if (!ehObjeto(atividade)) {
@@ -340,6 +409,7 @@ const CrmModel = {
     TIPOS_ETAPA,
     STATUS_NEGOCIO,
     TIPOS_ATIVIDADE,
+    PRIORIDADES_ANOTACAO,
     TEMPLATES_FUNIL,
 
     novoId,
@@ -350,16 +420,19 @@ const CrmModel = {
     normalizarNegocio,
     normalizarItem,
     normalizarAtividade,
+    normalizarAnotacao,
     normalizarHistoricoItem,
     normalizarConfig,
 
     criarFunil,
     criarNegocio,
     criarAtividade,
+    criarAnotacao,
     funilDeTemplate,
 
     validarNegocio,
-    validarAtividade
+    validarAtividade,
+    validarAnotacao
 };
 
 if (typeof window !== 'undefined') {
