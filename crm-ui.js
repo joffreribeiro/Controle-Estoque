@@ -465,7 +465,9 @@
 
     function salvarTrocaFunilNegocio(negocioId, novoFunilId) {
         if (!requireAdminOrNotify()) return;
-        CrmStore.atualizarNegocio(negocioId, { funilId: novoFunilId });
+        var novoFunil = CrmStore.listarFunis().filter(function (f) { return f.id === novoFunilId; })[0];
+        var novaEtapa = novoFunil ? (novoFunil.etapas.filter(function (e) { return e.tipo === 'aberta'; })[0] || novoFunil.etapas[0]) : null;
+        CrmStore.atualizarNegocio(negocioId, { funilId: novoFunilId, etapaId: novaEtapa ? novaEtapa.id : null });
         var container = document.getElementById('crmSeletorFunil');
         if (container) container.style.display = 'none';
         renderizarConteudoAtivo();
