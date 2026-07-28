@@ -498,9 +498,18 @@
 .crm-foco-check:hover { border-color: var(--success-color); color: var(--success-color); }
 
 /* Lista — Tabela */
+.crm-lista-table thead {
+    background: #1e293b;
+    color: white;
+}
 .crm-lista-table thead th {
     text-align: center;
     font-weight: 700;
+    font-size: 13.5px;
+    padding: 12px 8px;
+    border-bottom: 2px solid #0f172a;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
 }
 
 .crm-lista-btn-funil {
