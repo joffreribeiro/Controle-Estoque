@@ -267,7 +267,7 @@
             var assuntoCel = (pai ? '<span class="crm-anot-link-icone" title="Vinculada a: ' + esc(pai.assunto || '(sem assunto)') + '">🗒️</span> ' : '') + esc(a.assunto || '-');
 
             return '<tr' + vencida + ' data-crm-action="abrirModalAnotacao" data-id="' + esc(a.id) + '">' +
-                '<td><button type="button" class="crm-lista-btn-funil" data-crm-action="trocarFunilNegocio" data-negocio-id="' + esc(a.negocioId) + '" onclick="event.stopPropagation()">' + esc(funilObj ? funilObj.nome : '-') + '</button></td>' +
+                '<td><button type="button" class="crm-lista-btn-funil" data-crm-action="trocarFunilNegocio" data-negocio-id="' + esc(a.negocioId) + '">' + esc(funilObj ? funilObj.nome : '-') + '</button></td>' +
                 '<td>' + esc(clienteObj ? clienteObj.nome : '-') + '</td>' +
                 '<td>' + assuntoCel + '</td>' +
                 '<td>' + esc(a.remetente || '-') + '</td>' +
