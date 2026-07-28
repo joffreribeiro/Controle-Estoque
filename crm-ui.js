@@ -46,6 +46,7 @@
     var _crmListaPaginaSize = 50;
     var _anotacaoNegocioId = null; // negócio selecionado no modal de anotação
     var _anotacaoRelacionadaId = null; // anotação-pai (thread) selecionada no modal
+    var _negocioTrocandoFunil = null; // negócio cuja troca de funil está em progresso
 
     // ── Estado da vista Calendário (Atividades, todos os negócios) ──
     var _calModo = 'lista'; // 'lista' | 'semana' | 'mes'
@@ -266,7 +267,7 @@
             var assuntoCel = (pai ? '<span class="crm-anot-link-icone" title="Vinculada a: ' + esc(pai.assunto || '(sem assunto)') + '">🗒️</span> ' : '') + esc(a.assunto || '-');
 
             return '<tr' + vencida + ' data-crm-action="abrirModalAnotacao" data-id="' + esc(a.id) + '">' +
-                '<td>' + esc(funilObj ? funilObj.nome : '-') + '</td>' +
+                '<td><button type="button" class="crm-lista-btn-funil" data-crm-action="trocarFunilNegocio" data-negocio-id="' + esc(a.negocioId) + '" onclick="event.stopPropagation()">' + esc(funilObj ? funilObj.nome : '-') + '</button></td>' +
                 '<td>' + esc(clienteObj ? clienteObj.nome : '-') + '</td>' +
                 '<td>' + assuntoCel + '</td>' +
                 '<td>' + esc(a.remetente || '-') + '</td>' +
@@ -424,6 +425,49 @@
 
     function setListaPagina(p) {
         _crmListaPagina = Math.max(1, p);
+        renderizarConteudoAtivo();
+    }
+
+    function abrirSeletorFunilNegocio(negocioId) {
+        var negocio = CrmStore.listarNegocios().filter(function (n) { return n.id === negocioId; })[0];
+        if (!negocio) return;
+
+        var funis = CrmStore.listarFunis();
+        var opcoes = funis.map(function (f) {
+            return '<button type="button" class="crm-funil-opcao' + (f.id === negocio.funilId ? ' ativo' : '') + '" data-funil-id="' + esc(f.id) + '" onclick="Crm.salvarTrocaFunilNegocio(\'' + esc(negocioId) + '\', this.dataset.funilId)">' + esc(f.nome) + '</button>';
+        }).join('');
+
+        var html = '<div class="crm-seletor-funil">' +
+            '<div class="crm-seletor-funil-titulo">Trocar relacionamento para:</div>' +
+            '<div class="crm-seletor-funil-opcoes">' + opcoes + '</div>' +
+            '</div>';
+
+        var container = document.getElementById('crmSeletorFunil');
+        if (!container) {
+            container = document.createElement('div');
+            container.id = 'crmSeletorFunil';
+            document.body.appendChild(container);
+        }
+        container.innerHTML = html;
+        container.style.display = 'block';
+
+        _negocioTrocandoFunil = negocioId;
+
+        // Fecha ao clicar fora
+        var fecharSeletor = function (e) {
+            if (!container.contains(e.target) && e.target.getAttribute('data-crm-action') !== 'trocarFunilNegocio') {
+                container.style.display = 'none';
+                document.removeEventListener('click', fecharSeletor);
+            }
+        };
+        setTimeout(function () { document.addEventListener('click', fecharSeletor); }, 0);
+    }
+
+    function salvarTrocaFunilNegocio(negocioId, novoFunilId) {
+        if (!requireAdminOrNotify()) return;
+        CrmStore.atualizarNegocio(negocioId, { funilId: novoFunilId });
+        var container = document.getElementById('crmSeletorFunil');
+        if (container) container.style.display = 'none';
         renderizarConteudoAtivo();
     }
 
@@ -1855,6 +1899,7 @@
             renderizarConteudoAtivo();
         },
         trocarAbaDetalhe: function (el) { _abaDetalhe = el.dataset.valor; _atividadeEditandoId = null; renderizarConteudoAtivo(); },
+        trocarFunilNegocio: function (el) { abrirSeletorFunilNegocio(el.dataset.negocioId); },
         filtroHistorico: function (el) { _filtroHistorico = el.dataset.valor; renderizarConteudoAtivo(); },
 
         escolherTipoAtividade: function (el) {
@@ -1986,6 +2031,8 @@
         salvarAtividadeCal: salvarAtividadeCal,
         excluirAtividadeCal: excluirAtividadeCal,
         buscarNegocioParaAtividadeCal: buscarNegocioParaAtividadeCal,
-        atualizarMiniAgendaCal: atualizarMiniAgendaCal
+        atualizarMiniAgendaCal: atualizarMiniAgendaCal,
+
+        salvarTrocaFunilNegocio: salvarTrocaFunilNegocio
     };
 })();
