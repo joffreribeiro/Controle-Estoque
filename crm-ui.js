@@ -39,6 +39,11 @@
         dataSolicitacaoInicio: null,
         dataSolicitacaoFim: null,
         mostrarFinalizadas: true,
+        situacao: null,
+        responsavel: null,
+        encaminhadoPara: null,
+        somenteVencidas: false,
+        somenteAtrasoTerceiro: false,
         ordenarPor: 'prazo',
         ordenarDireccao: 'asc'
     };
@@ -46,7 +51,11 @@
     var _crmListaPaginaSize = 50;
     var _anotacaoNegocioId = null; // negócio selecionado no modal de anotação
     var _anotacaoRelacionadaId = null; // anotação-pai (thread) selecionada no modal
+    var _encaminhamentosTemp = []; // encaminhamentos em edição no modal (só gravados ao salvar)
     var _negocioTrocandoFunil = null; // negócio cuja troca de funil está em progresso
+
+    // ── Estado da Caixa de Demandas ──
+    var _demandaAba = 'comigo'; // comigo | aguardando | consolidar | concluidas | todas
 
     // ── Estado da vista Calendário (Atividades, todos os negócios) ──
     var _calModo = 'lista'; // 'lista' | 'semana' | 'mes'
@@ -56,10 +65,21 @@
     var _calSemanaRef = CrmCalculos.inicioSemana(hojeIsoLocal()); // domingo da semana exibida na vista Calendário
     var _calMesRef = hojeIsoLocal().slice(0, 7) + '-01'; // 1º dia do mês exibido na vista Mês
     var _calMostrarFeriados = false; // filtro da Lista: mostrar/ocultar feriados nacionais
+    var _calMostrarPonto = true; // filtro: mostrar/ocultar Eventos/Férias importados do Ponto
+    var _pontoAutoFetchFeito = false; // garante no máx. 1 busca automática por carregamento de página
     var _calAtvNegocioId = null; // negócio selecionado no modal de atividade global
 
     var ICONES_HISTORICO = { criacao: '✨', campo: '✎', etapa: '➡️', exclusao: '🗑', atividade: '📅', nota: '📝', anotacao: '🗒️' };
     var PRIORIDADE_ROTULO = { baixa: 'Baixa', media: 'Média', alta: 'Alta', critico: 'Crítico' };
+    var SITUACAO_ROTULO = {
+        recebida: 'Recebida', comigo: 'Comigo', aguardando_terceiro: 'Aguardando terceiro',
+        consolidando: 'Consolidando', respondida: 'Respondida'
+    };
+    var STATUS_ENC_ROTULO = { pendente: 'Pendente', respondido: 'Respondido', cancelado: 'Cancelado' };
+    var DEMANDA_ABAS = [
+        ['comigo', 'Comigo'], ['aguardando', 'Aguardando terceiros'],
+        ['consolidar', 'Para consolidar'], ['concluidas', 'Concluídas'], ['todas', 'Todas']
+    ];
     var MESES = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
 
     // ──────────────────────────────────────────────
@@ -82,8 +102,15 @@
         if (window.__crmListenersLigados) return;
         window.__crmListenersLigados = true;
         document.addEventListener('click', aoClicar);
+        document.addEventListener('cliente:salvo', aoSalvarClienteExterno);
         if (window.GoogleCalendarSync) {
             GoogleCalendarSync.aoMudarStatus(function () { if (_secao === 'calendario') renderizarCalendarioView(); });
+        }
+        if (window.PontoBridge) {
+            PontoBridge.aoMudarStatus(function () {
+                if (!PontoBridge.conectado()) _pontoAutoFetchFeito = false;
+                if (_secao === 'calendario') renderizarCalendarioView();
+            });
         }
     }
 
@@ -126,6 +153,7 @@
 
         var kanban = document.getElementById('crmKanban');
         var lista = document.getElementById('crmListaNegocios');
+        var demandas = document.getElementById('crmDemandas');
         var previsao = document.getElementById('crmPrevisao');
         var excluidos = document.getElementById('crmExcluidos');
         var detalhe = document.getElementById('crmViewDetalhe');
@@ -133,7 +161,7 @@
         if (!kanban) return;
 
         if (_detalheId) {
-            [kanban, lista, previsao, excluidos].forEach(function (el) { if (el) el.style.display = 'none'; });
+            [kanban, lista, demandas, previsao, excluidos].forEach(function (el) { if (el) el.style.display = 'none'; });
             if (barra) barra.style.display = 'none';
             detalhe.style.display = 'block';
             renderizarDetalhe(_detalheId);
@@ -144,11 +172,14 @@
         detalhe.style.display = 'none';
         kanban.style.display = _visao === 'kanban' ? '' : 'none';
         lista.style.display = _visao === 'lista' ? '' : 'none';
+        if (demandas) demandas.style.display = _visao === 'demandas' ? '' : 'none';
         previsao.style.display = _visao === 'previsao' ? '' : 'none';
         excluidos.style.display = _visao === 'excluidos' ? '' : 'none';
 
+        // A barra de filtros de demandas serve tanto à Caixa quanto à Lista completa.
+        var ehVisaoDemanda = (_visao === 'lista' || _visao === 'demandas');
         var crmListaFiltros = document.getElementById('crmListaFiltros');
-        if (crmListaFiltros) crmListaFiltros.style.display = _visao === 'lista' ? '' : 'none';
+        if (crmListaFiltros) crmListaFiltros.style.display = ehVisaoDemanda ? '' : 'none';
 
         document.querySelectorAll('.crm-visao-btn').forEach(function (b) {
             b.classList.toggle('active', b.dataset.valor === _visao);
@@ -158,6 +189,7 @@
         if (!funil) return;
 
         if (_visao === 'kanban') renderizarKanban(funil);
+        else if (_visao === 'demandas') renderizarDemandasView();
         else if (_visao === 'lista') renderizarListaView();
         else if (_visao === 'previsao') renderizarPrevisaoView(funil);
         else if (_visao === 'excluidos') renderizarExcluidosView(funil);
@@ -227,85 +259,246 @@
         });
     }
 
+    // ── Caixa de Demandas ──
+
+    /**
+     * Contexto compartilhado pelas visões de demanda: índices de negócio/cliente/
+     * funil e a lista já filtrada e ordenada pelos filtros da barra.
+     */
+    function contextoDemandas() {
+        var anotacoes = CrmStore.listarAnotacoes();
+        var negocios = CrmStore.listarNegocios();
+        var clientes = CrmStore.listarClientes();
+        var funis = CrmStore.listarFunis();
+        var extra = { negocios: negocios, clientes: clientes, funis: funis, hoje: hojeIsoLocal() };
+
+        var idx = { negocio: {}, cliente: {}, funil: {}, anotacao: {} };
+        negocios.forEach(function (n) { idx.negocio[n.id] = n; });
+        clientes.forEach(function (c) { idx.cliente[c.id] = c; });
+        funis.forEach(function (f) { idx.funil[f.id] = f; });
+        anotacoes.forEach(function (a) { idx.anotacao[a.id] = a; });
+
+        var filtradas = CrmCalculos.filtrarAnotacoes(anotacoes, _crmListaFiltros, extra);
+        var ordenadas = CrmCalculos.ordenarAnotacoes(filtradas, _crmListaFiltros.ordenarPor, _crmListaFiltros.ordenarDireccao, extra);
+        return { anotacoes: anotacoes, extra: extra, idx: idx, ordenadas: ordenadas };
+    }
+
+    function nomeFunilDaDemanda(a, idx) {
+        var vinculo = CrmCalculos.vinculoDaAnotacao(a, idx.negocio);
+        var f = vinculo.funilId ? idx.funil[vinculo.funilId] : null;
+        return f ? f.nome : '-';
+    }
+
+    function nomeClienteDaDemanda(a, idx) {
+        var vinculo = CrmCalculos.vinculoDaAnotacao(a, idx.negocio);
+        var c = vinculo.clienteId ? idx.cliente[vinculo.clienteId] : null;
+        return c ? c.nome : '-';
+    }
+
+    /**
+     * Nome do cliente como atalho para o cadastro. O `data-crm-action` próprio
+     * tem precedência sobre o da linha (aoClicar usa closest), então clicar aqui
+     * abre o cliente em vez da demanda.
+     */
+    function linkClienteDaDemanda(a, idx) {
+        var vinculo = CrmCalculos.vinculoDaAnotacao(a, idx.negocio);
+        var c = vinculo.clienteId ? idx.cliente[vinculo.clienteId] : null;
+        if (!c) return '-';
+        return '<button type="button" class="crm-link-cliente" data-crm-action="editarCliente" ' +
+            'data-id="' + esc(c.id) + '" data-origem="demandas" title="Abrir cadastro do cliente">' +
+            esc(c.nome) + '</button>';
+    }
+
+    function badgeSituacao(a) {
+        return '<span class="crm-situacao-badge" data-situacao="' + esc(a.situacao) + '">' +
+            esc(SITUACAO_ROTULO[a.situacao] || a.situacao) + '</span>';
+    }
+
+    function celulaPrazo(a, hoje) {
+        if (!a.prazo) return '<td>-</td>';
+        var sem = CrmCalculos.semaforoPrazo(a, hoje);
+        var dias = CrmCalculos.diasAte(a.prazo, hoje);
+        var sufixo = '';
+        if (!a.finalizado) {
+            if (dias < 0) sufixo = ' (' + Math.abs(dias) + 'd atrás)';
+            else if (dias === 0) sufixo = ' (hoje)';
+            else sufixo = ' (em ' + dias + 'd)';
+        }
+        return '<td class="crm-prazo-cel" data-semaforo="' + esc(sem) + '">' +
+            esc(dataOuTraco(a.prazo)) + '<span class="crm-prazo-sufixo">' + esc(sufixo) + '</span></td>';
+    }
+
+    function renderizarDemandasView() {
+        popularFiltrosLista();
+
+        var ctx = contextoDemandas();
+        var hoje = ctx.extra.hoje;
+        var grupos = CrmCalculos.agruparPorSituacao(ctx.ordenadas);
+        var doGrupo = {
+            comigo: grupos.comigo, aguardando: grupos.aguardando,
+            consolidar: grupos.consolidar, concluidas: grupos.concluidas, todas: ctx.ordenadas
+        };
+
+        // Alertas: prazo estourando (consumo real de lembrarDiasAntes) e terceiro atrasado.
+        var emAlerta = 0, comTerceiroAtrasado = 0;
+        ctx.ordenadas.forEach(function (a) {
+            if (CrmCalculos.semaforoPrazo(a, hoje) !== 'ok') emAlerta++;
+            if (CrmCalculos.resumoEncaminhamentos(a, hoje).algumVencido) comTerceiroAtrasado++;
+        });
+
+        var abas = DEMANDA_ABAS.map(function (par) {
+            var chave = par[0];
+            var lista = doGrupo[chave] || [];
+            var atrasadas = lista.filter(function (a) {
+                return CrmCalculos.semaforoPrazo(a, hoje) === 'vencida' ||
+                    CrmCalculos.resumoEncaminhamentos(a, hoje).algumVencido;
+            }).length;
+            return '<button type="button" class="crm-demanda-aba' + (_demandaAba === chave ? ' active' : '') + '" ' +
+                'data-crm-action="setDemandaAba" data-valor="' + esc(chave) + '">' +
+                esc(par[1]) + ' <span class="crm-demanda-contador">' + lista.length + '</span>' +
+                (atrasadas ? '<span class="crm-demanda-alerta" title="' + atrasadas + ' em atraso">!' + atrasadas + '</span>' : '') +
+                '</button>';
+        }).join('');
+
+        var visiveis = doGrupo[_demandaAba] || [];
+
+        var linhas = visiveis.map(function (a) {
+            var resumo = CrmCalculos.resumoEncaminhamentos(a, hoje);
+            var comQuem = resumo.comQuem.length
+                ? resumo.comQuem.map(function (p) { return '<span class="crm-tag">' + esc(p) + '</span>'; }).join(' ')
+                : (resumo.respondidos ? '<span class="crm-tag crm-tag-ok">' + resumo.respondidos + ' respondido(s)</span>' : '-');
+            var espera = resumo.diasAguardando === null ? '-' :
+                (resumo.diasAguardando + 'd' + (resumo.algumVencido ? ' ⚠' : ''));
+
+            return '<tr data-crm-action="abrirModalAnotacao" data-id="' + esc(a.id) + '">' +
+                '<td class="crm-cel-assunto">' + esc(a.assunto || '(sem assunto)') +
+                    '<div class="crm-cel-sub">' + esc(nomeFunilDaDemanda(a, ctx.idx)) +
+                    ' · ' + linkClienteDaDemanda(a, ctx.idx) + '</div></td>' +
+                '<td>' + esc(a.origemDemanda || '-') + '</td>' +
+                '<td>' + esc(a.remetente || '-') + '</td>' +
+                celulaPrazo(a, hoje) +
+                '<td>' + badgeSituacao(a) + '</td>' +
+                '<td>' + comQuem + '</td>' +
+                '<td class="crm-cel-espera"' + (resumo.algumVencido ? ' data-atraso="1"' : '') + '>' + esc(espera) + '</td>' +
+                '<td><span class="crm-prioridade-badge" data-prioridade="' + esc(a.prioridade) + '">' +
+                    esc(PRIORIDADE_ROTULO[a.prioridade] || a.prioridade) + '</span></td>' +
+                '<td>' + esc(a.responsavel || '-') + '</td>' +
+            '</tr>';
+        }).join('');
+
+        var cabecalhos = [
+            ['assunto', 'Assunto'], ['origemDemanda', 'Origem'], ['remetente', 'Solicitante'],
+            ['prazo', 'Prazo'], ['situacao', 'Situação'], [null, 'Com quem está'],
+            ['diasAguardando', 'Aguardando'], ['prioridade', 'Prioridade'], ['responsavel', 'Responsável']
+        ].map(function (c) {
+            if (!c[0]) return '<th>' + esc(c[1]) + '</th>';
+            var seta = _crmListaFiltros.ordenarPor === c[0] ? (_crmListaFiltros.ordenarDireccao === 'asc' ? ' ▲' : ' ▼') : '';
+            return '<th onclick="Crm.setOrdenacaoLista(\'' + c[0] + '\')">' + esc(c[1]) + seta + '</th>';
+        }).join('');
+
+        var avisos = '';
+        if (emAlerta || comTerceiroAtrasado) {
+            var partes = [];
+            if (emAlerta) partes.push(emAlerta + ' com prazo próximo ou vencido');
+            if (comTerceiroAtrasado) partes.push(comTerceiroAtrasado + ' com terceiro atrasado');
+            avisos = '<div class="crm-demanda-avisos">⚠ ' + esc(partes.join(' · ')) + '</div>';
+        }
+
+        var html = '<div class="crm-demanda-topo">' +
+                '<div class="crm-demanda-abas">' + abas + '</div>' +
+                '<button type="button" class="crm-btn-negocio" onclick="Crm.abrirModalAnotacao()">+ Nova Demanda</button>' +
+            '</div>' +
+            avisos +
+            '<div class="crm-lista-wrapper"><table class="crm-lista-table crm-demanda-table"><thead><tr>' + cabecalhos + '</tr></thead><tbody>' +
+            (visiveis.length ? linhas : '<tr><td colspan="9" style="text-align:center;padding:20px;color:#94a3b8;">Nenhuma demanda nesta caixa.</td></tr>') +
+            '</tbody></table></div>';
+
+        var el = document.getElementById('crmDemandas');
+        if (el) el.innerHTML = html;
+        atualizarContagem(visiveis.length, 'demanda', 'demandas');
+    }
+
+    function setDemandaAba(valor) {
+        _demandaAba = valor;
+        renderizarConteudoAtivo();
+    }
+
     // ── Lista (Anotações) ──
 
     function renderizarListaView() {
         popularFiltrosLista();
 
-        var todasAnotacoes = CrmStore.listarAnotacoes();
-        var negocios = CrmStore.listarNegocios();
-        var clientes = CrmStore.listarClientes();
-        var funis = CrmStore.listarFunis();
-        var extra = { negocios: negocios, clientes: clientes, funis: funis };
-
-        var negocioPorId = {};
-        negocios.forEach(function (n) { negocioPorId[n.id] = n; });
-        var clientePorId = {};
-        clientes.forEach(function (c) { clientePorId[c.id] = c; });
-        var funilPorId = {};
-        funis.forEach(function (f) { funilPorId[f.id] = f; });
-        var anotacaoPorId = {};
-        todasAnotacoes.forEach(function (a) { anotacaoPorId[a.id] = a; });
-
-        var filtradas = CrmCalculos.filtrarAnotacoes(todasAnotacoes, _crmListaFiltros, extra);
-        var ordenadas = CrmCalculos.ordenarAnotacoes(filtradas, _crmListaFiltros.ordenarPor, _crmListaFiltros.ordenarDireccao, extra);
+        var ctx = contextoDemandas();
+        var hoje = ctx.extra.hoje;
+        var ordenadas = ctx.ordenadas;
 
         var inicio = (_crmListaPagina - 1) * _crmListaPaginaSize;
         var fim = inicio + _crmListaPaginaSize;
         var pagina = ordenadas.slice(inicio, fim);
 
         var linhas = pagina.map(function (a) {
-            var negocio = negocioPorId[a.negocioId];
-            var funilObj = negocio ? funilPorId[negocio.funilId] : null;
-            var clienteObj = negocio ? clientePorId[negocio.clienteId] : null;
-            var vencida = (!a.finalizado && a.prazo && a.prazo < hojeIsoLocal()) ? ' class="crm-lista-vencida"' : '';
+            var vencida = (CrmCalculos.semaforoPrazo(a, hoje) === 'vencida') ? ' class="crm-lista-vencida"' : '';
             var finalizadoIcone = a.finalizado ? '✓' : '✗';
             var prioridadeBadge = '<span class="crm-prioridade-badge" data-prioridade="' + esc(a.prioridade) + '">' +
                 esc(PRIORIDADE_ROTULO[a.prioridade] || a.prioridade) + '</span>';
             var tags = (a.tags || []).map(function (t) { return '<span class="crm-tag">' + esc(t) + '</span>'; }).join(' ');
-            var pai = a.anotacaoRelacionadaId ? anotacaoPorId[a.anotacaoRelacionadaId] : null;
+            var pai = a.anotacaoRelacionadaId ? ctx.idx.anotacao[a.anotacaoRelacionadaId] : null;
             var assuntoCel = (pai ? '<span class="crm-anot-link-icone" title="Vinculada a: ' + esc(pai.assunto || '(sem assunto)') + '">🗒️</span> ' : '') + esc(a.assunto || '-');
+            var resumo = CrmCalculos.resumoEncaminhamentos(a, hoje);
+            var encaminhadoPara = (a.encaminhamentos || []).map(function (e) { return e.para; }).filter(Boolean).join(', ');
+
+            // Demanda avulsa não tem negócio para trocar de funil: mostra texto simples.
+            var celFunil = a.negocioId
+                ? '<button type="button" class="crm-lista-btn-funil" data-crm-action="trocarFunilNegocio" data-negocio-id="' + esc(a.negocioId) + '">' + esc(nomeFunilDaDemanda(a, ctx.idx)) + '</button>'
+                : esc(nomeFunilDaDemanda(a, ctx.idx));
 
             return '<tr' + vencida + ' data-crm-action="abrirModalAnotacao" data-id="' + esc(a.id) + '">' +
-                '<td><button type="button" class="crm-lista-btn-funil" data-crm-action="trocarFunilNegocio" data-negocio-id="' + esc(a.negocioId) + '">' + esc(funilObj ? funilObj.nome : '-') + '</button></td>' +
-                '<td>' + esc(clienteObj ? clienteObj.nome : '-') + '</td>' +
+                '<td>' + celFunil + '</td>' +
+                '<td>' + linkClienteDaDemanda(a, ctx.idx) + '</td>' +
                 '<td>' + assuntoCel + '</td>' +
+                '<td>' + badgeSituacao(a) + '</td>' +
+                '<td>' + esc(a.responsavel || '-') + '</td>' +
                 '<td>' + esc(a.remetente || '-') + '</td>' +
                 '<td>' + esc(a.origemDemanda || '-') + '</td>' +
                 '<td>' + esc(dataOuTraco(a.dataSolicitacao)) + '</td>' +
                 '<td>' + esc(a.tipoDoc || '-') + '</td>' +
                 '<td>' + esc(a.numeroDocumento || '-') + '</td>' +
-                '<td>' + esc(a.destinatario || '-') + '</td>' +
+                '<td>' + esc(encaminhadoPara || '-') + '</td>' +
+                '<td>' + (resumo.pendentes ? esc(resumo.pendentes + ' pendente(s)') : (resumo.total ? 'todos responderam' : '-')) + '</td>' +
                 '<td>' + esc(a.acaoRealizar || '-') + '</td>' +
                 '<td>' + prioridadeBadge + '</td>' +
                 '<td>' + esc(dataOuTraco(a.prazo)) + '</td>' +
-                '<td>' + esc(a.lembrarDiasAntes || '-') + '</td>' +
+                '<td>' + esc(a.lembrarDiasAntes === null ? '-' : String(a.lembrarDiasAntes)) + '</td>' +
                 '<td>' + (tags || '-') + '</td>' +
                 '<td>' + esc(a.observacoes || '-') + '</td>' +
                 '<td>' + finalizadoIcone + '</td>' +
                 '<td>' + esc(dataOuTraco(a.dataConclusao)) + '</td>' +
                 '<td>' + esc(a.oQueFoiFeito || '-') + '</td>' +
+                '<td>' + esc(a.respostaNumeroDocumento || '-') + '</td>' +
             '</tr>';
         }).join('');
 
         var totalPaginas = Math.max(1, Math.ceil(ordenadas.length / _crmListaPaginaSize));
         var colunas = [
-            ['funil', 'Relacionamento'], ['cliente', 'Cliente'], ['assunto', 'Assunto'], ['remetente', 'Remetente'],
+            ['funil', 'Relacionamento'], ['cliente', 'Cliente'], ['assunto', 'Assunto'],
+            ['situacao', 'Situação'], ['responsavel', 'Responsável'], ['remetente', 'Solicitante'],
             ['origemDemanda', 'Origem da Demanda'], ['dataSolicitacao', 'Data Solicitação'], ['tipoDoc', 'Tipo Doc'],
-            ['numeroDocumento', 'Nº Documento'], ['destinatario', 'Destinatário'], ['acaoRealizar', 'Ação a Realizar'],
-            ['prioridade', 'Prioridade'], ['prazo', 'Prazo'], [null, 'Lembra (dias antes)'], [null, 'Tags'],
-            [null, 'Observações'], ['finalizado', 'Finalizado'], ['dataConclusao', 'Data Conclusão'], [null, 'O que foi feito']
+            ['numeroDocumento', 'Nº Documento'], [null, 'Encaminhado para'], [null, 'Respostas'],
+            ['acaoRealizar', 'Ação a Realizar'],
+            ['prioridade', 'Prioridade'], ['prazo', 'Prazo'], [null, 'Avisar (dias antes)'], [null, 'Tags'],
+            [null, 'Observações'], ['finalizado', 'Finalizado'], ['dataConclusao', 'Data Conclusão'],
+            [null, 'O que foi feito'], [null, 'Nº Doc saída']
         ];
         var thead = colunas.map(function (c) {
             if (!c[0]) return '<th>' + esc(c[1]) + '</th>';
             var seta = _crmListaFiltros.ordenarPor === c[0] ? (_crmListaFiltros.ordenarDireccao === 'asc' ? ' ▲' : ' ▼') : '';
             return '<th onclick="Crm.setOrdenacaoLista(\'' + c[0] + '\')">' + esc(c[1]) + seta + '</th>';
         }).join('');
-        var html = '<div class="crm-lista-topo"><button type="button" class="crm-btn-negocio" onclick="Crm.abrirModalAnotacao()">+ Nova Anotação</button></div>' +
+        var html = '<div class="crm-lista-topo"><button type="button" class="crm-btn-negocio" onclick="Crm.abrirModalAnotacao()">+ Nova Demanda</button></div>' +
             '<div class="crm-lista-wrapper"><table class="crm-lista-table"><thead><tr>' +
             thead +
             '</tr></thead><tbody>' +
-            (pagina.length ? linhas : '<tr><td colspan="18" style="text-align:center;padding:20px;color:#94a3b8;">Nenhuma anotação encontrada.</td></tr>') +
+            (pagina.length ? linhas : '<tr><td colspan="' + colunas.length + '" style="text-align:center;padding:20px;color:#94a3b8;">Nenhuma demanda encontrada.</td></tr>') +
             '</tbody></table></div>' +
             '<div class="crm-paginacao">' +
             '<button type="button" onclick="Crm.setListaPagina(' + Math.max(1, _crmListaPagina - 1) + ')" ' + (_crmListaPagina === 1 ? 'disabled' : '') + '>← Anterior</button>' +
@@ -315,7 +508,7 @@
 
         var listEl = document.getElementById('crmListaNegocios');
         if (listEl) listEl.innerHTML = html;
-        atualizarContagem(ordenadas.length, 'anotação', 'anotações');
+        atualizarContagem(ordenadas.length, 'demanda', 'demandas');
     }
 
     function dataOuTraco(iso) {
@@ -341,11 +534,19 @@
         var clientes = CrmStore.listarClientes();
         var anotacoes = CrmStore.listarAnotacoes();
 
-        var origens = [];
+        // Origem, responsável e destinatários dos encaminhamentos são texto livre:
+        // as opções saem dos valores efetivamente usados.
+        var origens = [], responsaveis = [], destinos = [];
         anotacoes.forEach(function (a) {
             if (a.origemDemanda && origens.indexOf(a.origemDemanda) === -1) origens.push(a.origemDemanda);
+            if (a.responsavel && responsaveis.indexOf(a.responsavel) === -1) responsaveis.push(a.responsavel);
+            (a.encaminhamentos || []).forEach(function (e) {
+                if (e.para && destinos.indexOf(e.para) === -1) destinos.push(e.para);
+            });
         });
         origens.sort();
+        responsaveis.sort();
+        destinos.sort();
 
         popularSelectPreservandoValor(
             document.getElementById('crmListaFunil'),
@@ -363,10 +564,27 @@
             _crmListaFiltros.origemDemanda
         );
 
+        popularSelectPreservandoValor(
+            document.getElementById('crmListaResponsavel'),
+            [{ valor: '', rotulo: 'Responsável' }].concat(responsaveis.map(function (r) { return { valor: r, rotulo: r }; })),
+            _crmListaFiltros.responsavel
+        );
+        popularSelectPreservandoValor(
+            document.getElementById('crmListaEncaminhadoPara'),
+            [{ valor: '', rotulo: 'Encaminhado para' }].concat(destinos.map(function (d) { return { valor: d, rotulo: d }; })),
+            _crmListaFiltros.encaminhadoPara
+        );
+
         var inpBusca = document.getElementById('crmListaBusca');
         if (inpBusca && document.activeElement !== inpBusca) inpBusca.value = _crmListaFiltros.busca;
         var prioridade = document.getElementById('crmListaPrioridade');
         if (prioridade) prioridade.value = _crmListaFiltros.prioridade || '';
+        var situacao = document.getElementById('crmListaSituacao');
+        if (situacao) situacao.value = _crmListaFiltros.situacao || '';
+        var soVencidas = document.getElementById('crmListaSomenteVencidas');
+        if (soVencidas) soVencidas.checked = !!_crmListaFiltros.somenteVencidas;
+        var soAtraso = document.getElementById('crmListaSomenteAtrasoTerceiro');
+        if (soAtraso) soAtraso.checked = !!_crmListaFiltros.somenteAtrasoTerceiro;
         var mostrarFinalizadas = document.getElementById('crmListaMostrarConcluidas');
         if (mostrarFinalizadas) mostrarFinalizadas.checked = _crmListaFiltros.mostrarFinalizadas !== false;
         var prazoInicio = document.getElementById('crmListaDataPrazoInicio');
@@ -396,6 +614,11 @@
         _crmListaFiltros.prazoFim = el('crmListaDataPrazoFim') ? (el('crmListaDataPrazoFim').value || null) : null;
         _crmListaFiltros.dataSolicitacaoInicio = el('crmListaDataRecInicio') ? (el('crmListaDataRecInicio').value || null) : null;
         _crmListaFiltros.dataSolicitacaoFim = el('crmListaDataRecFim') ? (el('crmListaDataRecFim').value || null) : null;
+        _crmListaFiltros.situacao = el('crmListaSituacao') ? (el('crmListaSituacao').value || null) : null;
+        _crmListaFiltros.responsavel = el('crmListaResponsavel') ? (el('crmListaResponsavel').value || null) : null;
+        _crmListaFiltros.encaminhadoPara = el('crmListaEncaminhadoPara') ? (el('crmListaEncaminhadoPara').value || null) : null;
+        _crmListaFiltros.somenteVencidas = el('crmListaSomenteVencidas') ? el('crmListaSomenteVencidas').checked : false;
+        _crmListaFiltros.somenteAtrasoTerceiro = el('crmListaSomenteAtrasoTerceiro') ? el('crmListaSomenteAtrasoTerceiro').checked : false;
         _crmListaPagina = 1;
         renderizarConteudoAtivo();
     }
@@ -404,7 +627,9 @@
         _crmListaFiltros = {
             busca: '', funilId: null, clienteId: null, prioridade: null, origemDemanda: null,
             prazoInicio: null, prazoFim: null, dataSolicitacaoInicio: null, dataSolicitacaoFim: null,
-            mostrarFinalizadas: true, ordenarPor: 'prazo', ordenarDireccao: 'asc'
+            mostrarFinalizadas: true, situacao: null, responsavel: null, encaminhadoPara: null,
+            somenteVencidas: false, somenteAtrasoTerceiro: false,
+            ordenarPor: 'prazo', ordenarDireccao: 'asc'
         };
         _crmListaPagina = 1;
         var inpBusca = document.getElementById('crmListaBusca');
@@ -561,12 +786,109 @@
         return lista;
     }
 
+    // ── Ponte com o sistema Ponto (PontoBridge, ponto-calendar-bridge.js) ──
+    // Eventos e Férias do Ponto viram pseudo-atividades somente leitura, no
+    // mesmo espírito dos feriados nacionais (gerarFeriadosPseudoAtividades):
+    // geradas na hora a partir do cache do PontoBridge, nunca gravadas aqui.
+
+    var PONTO_TIPO_META = {
+        feriado: { icone: '🏖️', cor: '#dc2626', corTexto: '#ffffff', rotulo: 'Feriado' },
+        ferias: { icone: '🏝️', cor: '#d97706', corTexto: '#ffffff', rotulo: 'Férias' },
+        viagem: { icone: '✈️', cor: '#7c3aed', corTexto: '#ffffff', rotulo: 'Viagem' },
+        abono: { icone: '📋', cor: '#10b981', corTexto: '#ffffff', rotulo: 'Abono' },
+        abono_acordo: { icone: '🤝', cor: '#059669', corTexto: '#ffffff', rotulo: 'Abono (acordo)' },
+        pagar_hora_acordo: { icone: '⏱️', cor: '#db2777', corTexto: '#ffffff', rotulo: 'Pagar hora (acordo)' },
+        outro: { icone: '📌', cor: '#64748b', corTexto: '#ffffff', rotulo: 'Outro' }
+    };
+    var PONTO_MAX_DIAS_POR_EVENTO = 400; // trava de segurança contra datas absurdas
+
+    /** Lista de datas ISO de `inicio` a `fim`, inclusive, capada em `max`. */
+    function expandirIntervaloDias(inicio, fim, max) {
+        var out = [];
+        var d = new Date(inicio + 'T00:00:00Z');
+        var fimD = new Date((fim || inicio) + 'T00:00:00Z');
+        if (isNaN(d) || isNaN(fimD)) return [inicio];
+        if (fimD < d) fimD = d;
+        var i = 0;
+        while (d <= fimD && i < max) {
+            out.push(d.toISOString().slice(0, 10));
+            d.setUTCDate(d.getUTCDate() + 1);
+            i++;
+        }
+        return out.length ? out : [inicio];
+    }
+
+    function gerarPontoPseudoAtividades() {
+        if (!window.PontoBridge || !PontoBridge.conectado()) return [];
+        var eventos = PontoBridge.getEventosCache();
+        var lista = [];
+        eventos.forEach(function (ev, idx) {
+            var ini = ev.dataInicioEvento || ev.dataFimEvento;
+            if (!ini) return;
+            var meta = PONTO_TIPO_META[ev.tipoEvento] || PONTO_TIPO_META.outro;
+            var dias = expandirIntervaloDias(ini, ev.dataFimEvento || ini, PONTO_MAX_DIAS_POR_EVENTO);
+            dias.forEach(function (dataIso, i) {
+                lista.push({
+                    id: 'ponto_' + idx + '_' + dataIso,
+                    negocioId: null,
+                    tipo: 'prazo',
+                    assunto: (ev.descricaoEvento || meta.rotulo) + (dias.length > 1 ? ' (' + (i + 1) + '/' + dias.length + ')' : ''),
+                    descricao: '',
+                    data: dataIso,
+                    horaInicio: '',
+                    horaFim: '',
+                    feito: false,
+                    origemPonto: true,
+                    pontoTipoRotulo: meta.rotulo,
+                    pontoCor: ev.corFundo || meta.cor,
+                    pontoCorTexto: ev.corTexto || meta.corTexto,
+                    pontoIcone: meta.icone
+                });
+            });
+        });
+        return lista;
+    }
+
+    /** No máximo 1 busca automática por carregamento de página; o resto é sob demanda (conectar/atualizar). */
+    function garantirEventosPontoCarregados() {
+        if (!window.PontoBridge || !PontoBridge.conectado() || _pontoAutoFetchFeito) return;
+        _pontoAutoFetchFeito = true;
+        PontoBridge.atualizarEventos().then(function () {
+            if (_secao === 'calendario') renderizarCalendarioView();
+        });
+    }
+
+    function renderizarPontoStatus() {
+        var pb = window.PontoBridge;
+        if (!pb || !pb.configurado()) return '';
+        if (pb.conectado()) {
+            return '<div class="crm-cal-ponto">' +
+                '<span class="crm-cal-ponto-on">🟢 Ponto conectado (' + esc(pb.usuarioEmail()) + ')</span>' +
+                '<label class="crm-check"><input type="checkbox" ' + (_calMostrarPonto ? 'checked' : '') +
+                    ' onchange="Crm.setMostrarPontoCal(this.checked)"> Mostrar no calendário</label>' +
+                '<button type="button" class="btn-secondary crm-btn-mini" data-crm-action="pontoAtualizar">Atualizar</button>' +
+                '<button type="button" class="btn-secondary crm-btn-mini" data-crm-action="pontoDesconectar">Desconectar</button>' +
+            '</div>';
+        }
+        return '<div class="crm-cal-ponto">' +
+            '<span class="crm-cal-ponto-off">📅 Ponto: desconectado</span>' +
+            '<input type="email" id="crmPontoEmail" class="crm-filtro-input crm-cal-ponto-input" placeholder="e-mail do Ponto" autocomplete="username">' +
+            '<input type="password" id="crmPontoSenha" class="crm-filtro-input crm-cal-ponto-input" placeholder="senha" autocomplete="current-password" ' +
+                'onkeydown="if(event.key===\'Enter\'){event.preventDefault();Crm.pontoConectar();}">' +
+            '<button type="button" class="btn-secondary crm-btn-mini" data-crm-action="pontoConectar">Conectar Ponto</button>' +
+        '</div>';
+    }
+
+    function setMostrarPontoCal(v) { _calMostrarPonto = v; renderizarCalendarioView(); }
+
     function renderizarCalendarioView() {
         var ctx = atividadesCalContexto();
         limparFeriadosOrfaos(); // migração: remove feriados que ficaram salvos como atividade real (fase antiga, via Google)
+        garantirEventosPontoCarregados();
         var reais = CrmStore.listarAtividades();
         var feriados = _calMostrarFeriados ? gerarFeriadosPseudoAtividades() : [];
-        var todas = reais.concat(feriados);
+        var doPonto = _calMostrarPonto ? gerarPontoPseudoAtividades() : [];
+        var todas = reais.concat(feriados).concat(doPonto);
         var porPeriodo = CrmCalculos.filtrarAtividadesPeriodo(todas, _calPeriodo, hojeIsoLocal());
         var porBusca = CrmCalculos.filtrarAtividadesBusca(porPeriodo, _calBusca, ctx);
         var filtradas = _calTipo ? porBusca.filter(function (a) { return a.tipo === _calTipo; }) : porBusca;
@@ -593,6 +915,7 @@
                 '<span class="crm-contagem">' + filtradas.length + (filtradas.length !== 1 ? ' atividades' : ' atividade') + '</span>' +
             '</div>' +
             renderizarGoogleStatus() +
+            renderizarPontoStatus() +
             '<div class="crm-cal-tipos-filtro">' + chipsTipo + '</div>' +
             '<div class="crm-cal-periodos">' + chips + '</div>';
 
@@ -632,16 +955,18 @@
             var vencida = (!a.feito && a.data && a.data < hojeIsoLocal()) ? ' class="crm-lista-vencida"' : (a.feito ? ' class="crm-cal-linha-feita"' : '');
             var duracao = CrmCalculos.duracaoAtividade(a.horaInicio, a.horaFim);
             var horaTxt = a.horaInicio ? (a.horaInicio + (a.horaFim ? ('–' + a.horaFim) : '')) : '';
+            var somenteLeitura = a.origemFeriado || a.origemPonto;
             var selo = a.origemFeriado
                 ? ' <span class="crm-cal-badge-feriado" title="Feriado nacional — somente leitura">🎉 Feriado</span>'
-                : (a.origemGoogle ? ' <span class="crm-cal-badge-google" title="Importado da Google Agenda">📥 Google</span>' : '');
-            var celAssunto = tipoInfo.icone + ' ' + esc(a.assunto || '(sem assunto)') + selo;
+                : (a.origemPonto ? ' <span class="crm-cal-badge-ponto" title="Do sistema Ponto (' + esc(a.pontoTipoRotulo || '') + ') — somente leitura">' + esc(a.pontoIcone || '📅') + ' Ponto</span>'
+                    : (a.origemGoogle ? ' <span class="crm-cal-badge-google" title="Importado da Google Agenda">📥 Google</span>' : ''));
+            var celAssunto = (a.origemPonto ? '' : (tipoInfo.icone + ' ')) + esc(a.assunto || '(sem assunto)') + selo;
 
             return '<tr' + vencida + '>' +
-                '<td class="crm-cal-td-check">' + (a.origemFeriado
-                    ? '<input type="checkbox" disabled title="Feriado — não editável">'
+                '<td class="crm-cal-td-check">' + (somenteLeitura
+                    ? '<input type="checkbox" disabled title="Somente leitura — não editável aqui">'
                     : '<input type="checkbox" ' + (a.feito ? 'checked' : '') + ' data-crm-action="concluirAtividadeCal" data-id="' + esc(a.id) + '" data-feito="' + a.feito + '" onclick="event.stopPropagation()">') + '</td>' +
-                (a.origemFeriado
+                (somenteLeitura
                     ? '<td>' + celAssunto + '</td>'
                     : '<td data-crm-action="abrirModalAtividadeCal" data-id="' + esc(a.id) + '">' + celAssunto + '</td>') +
                 '<td>' + (negocio ? esc(negocio.titulo || '-') : '-') + '</td>' +
@@ -817,12 +1142,17 @@
 
     function renderizarEventoCard(a, estiloExtra) {
         var tipoInfo = CrmStore.mapaTiposAtividade()[a.tipo] || { icone: '📌', rotulo: a.tipo };
-        var classeOrigem = a.origemFeriado ? ' crm-cal-evento-feriado' : (a.origemGoogle ? ' crm-cal-evento-google' : '');
-        var icone = a.origemFeriado ? '🎉' : tipoInfo.icone;
-        var acao = a.origemFeriado ? '' : ('data-crm-action="abrirModalAtividadeCal" data-id="' + esc(a.id) + '"');
+        var classeOrigem = a.origemFeriado ? ' crm-cal-evento-feriado' : (a.origemPonto ? ' crm-cal-evento-ponto' : (a.origemGoogle ? ' crm-cal-evento-google' : ''));
+        var icone = a.origemFeriado ? '🎉' : (a.origemPonto ? (a.pontoIcone || '📅') : tipoInfo.icone);
+        var somenteLeitura = a.origemFeriado || a.origemPonto;
+        var acao = somenteLeitura ? '' : ('data-crm-action="abrirModalAtividadeCal" data-id="' + esc(a.id) + '"');
+        var estiloPonto = a.origemPonto ? ('background:' + esc(a.pontoCor || '#64748b') + ';color:' + esc(a.pontoCorTexto || '#fff') + ';border-left-color:' + esc(a.pontoCor || '#64748b') + ';') : '';
+        var estiloFinal = estiloPonto + (estiloExtra || '');
+        var titulo = a.origemFeriado ? 'Feriado nacional — somente leitura'
+            : (a.origemPonto ? ('Do sistema Ponto (' + (a.pontoTipoRotulo || '') + ') — somente leitura') : '');
         return '<div class="crm-cal-evento' + (a.feito ? ' crm-cal-evento-feito' : '') + classeOrigem + '" ' + acao + ' data-tipo="' + esc(a.tipo) + '"' +
-            (estiloExtra ? (' style="' + estiloExtra + '"') : '') +
-            (a.origemFeriado ? ' title="Feriado nacional — somente leitura"' : '') + '>' +
+            (estiloFinal ? (' style="' + estiloFinal + '"') : '') +
+            (titulo ? (' title="' + esc(titulo) + '"') : '') + '>' +
             '<span class="crm-cal-evento-icone">' + icone + '</span>' +
             '<span class="crm-cal-evento-txt">' + esc(a.assunto || '(sem assunto)') + '</span>' +
         '</div>';
@@ -1037,12 +1367,246 @@
         document.getElementById('crmAnotacaoNegocioLista').style.display = 'none';
         document.getElementById('crmAnotacaoRelacionamento').textContent = funil ? funil.nome : '-';
         document.getElementById('crmAnotacaoClienteNome').textContent = cliente ? cliente.nome : '-';
+        alternarModoVinculo();
+    }
+
+    function desvincularNegocioAnotacao() {
+        _anotacaoNegocioId = null;
+        var busca = document.getElementById('crmAnotacaoNegocioBusca');
+        if (busca) { busca.value = ''; busca.disabled = false; }
+        alternarModoVinculo();
+    }
+
+    /**
+     * Com negócio, funil/cliente vêm dele (só leitura). Sem negócio, a demanda é
+     * avulsa e escolhe funil/etapa/cliente por conta própria.
+     */
+    function alternarModoVinculo() {
+        var temNegocio = !!_anotacaoNegocioId;
+        var avulsa = document.getElementById('crmAnotacaoAvulsa');
+        var info = document.getElementById('crmAnotacaoVinculoInfo');
+        var btnDesvincular = document.getElementById('crmAnotacaoBtnDesvincular');
+        if (avulsa) avulsa.style.display = temNegocio ? 'none' : '';
+        if (info) info.style.display = temNegocio ? '' : 'none';
+        if (btnDesvincular) btnDesvincular.style.display = temNegocio ? '' : 'none';
+    }
+
+    function popularSelectsAvulsa(funilId, etapaId, clienteId) {
+        var funis = CrmStore.listarFunis();
+        var alvoFunil = funilId || (CrmStore.getFunilAtivo() ? CrmStore.getFunilAtivo().id : (funis[0] ? funis[0].id : ''));
+        popularSelectPreservandoValor(
+            document.getElementById('crmAnotacaoFunil'),
+            funis.map(function (f) { return { valor: f.id, rotulo: f.nome }; }),
+            alvoFunil
+        );
+        popularSelectEtapaAnotacao(alvoFunil, etapaId);
+        popularSelectPreservandoValor(
+            document.getElementById('crmAnotacaoCliente'),
+            [{ valor: '', rotulo: '(sem cliente)' }].concat(CrmStore.listarClientes().map(function (c) {
+                return { valor: c.id, rotulo: c.nome };
+            })),
+            clienteId || ''
+        );
+    }
+
+    function popularSelectEtapaAnotacao(funilId, etapaId) {
+        var funil = CrmStore.listarFunis().filter(function (f) { return f.id === funilId; })[0];
+        var etapas = funil ? funil.etapas : [];
+        var alvo = etapaId && etapas.some(function (e) { return e.id === etapaId; })
+            ? etapaId
+            : ((etapas.filter(function (e) { return e.tipo === 'aberta'; })[0] || etapas[0] || {}).id || '');
+        popularSelectPreservandoValor(
+            document.getElementById('crmAnotacaoEtapa'),
+            etapas.map(function (e) { return { valor: e.id, rotulo: e.nome }; }),
+            alvo
+        );
+    }
+
+    function aoTrocarFunilAnotacao() {
+        var sel = document.getElementById('crmAnotacaoFunil');
+        popularSelectEtapaAnotacao(sel ? sel.value : null, null);
+    }
+
+    function popularSelectResponsavelAnotacao(valorAtual) {
+        var reps = (window.estoque && Array.isArray(estoque.representantes)) ? estoque.representantes : [];
+        popularSelectPreservandoValor(
+            document.getElementById('crmAnotacaoResponsavel'),
+            [{ valor: '', rotulo: '(sem responsável)' }].concat(reps.map(function (r) { return { valor: r, rotulo: r }; })),
+            valorAtual || ''
+        );
+    }
+
+    // ── Encaminhamentos dentro do modal ──
+
+    /**
+     * Os encaminhamentos são editados em memória (`_encaminhamentosTemp`) e só
+     * vão para o store ao salvar a demanda — mesmo padrão de `_itensTemp`.
+     */
+    function renderizarEncaminhamentosModal() {
+        var cont = document.getElementById('crmAnotacaoEncaminhamentos');
+        if (!cont) return;
+        var hoje = hojeIsoLocal();
+
+        if (!_encaminhamentosTemp.length) {
+            cont.innerHTML = '<div class="crm-enc-vazio">Nenhum encaminhamento. Use "+ Encaminhar" quando pedir informação a outra pessoa.</div>';
+            renderizarRespostasResumo();
+            return;
+        }
+
+        cont.innerHTML = _encaminhamentosTemp.map(function (e, i) {
+            var atrasado = (e.status === 'pendente' && e.prazoResposta && CrmCalculos.diasAte(e.prazoResposta, hoje) < 0);
+            var respondido = e.status === 'respondido';
+            return '<div class="crm-enc-linha' + (atrasado ? ' crm-enc-atrasada' : '') + '" data-idx="' + i + '">' +
+                '<div class="crm-enc-cabecalho">' +
+                    '<span class="crm-enc-num">#' + (i + 1) + '</span>' +
+                    '<span class="crm-enc-status" data-status="' + esc(e.status) + '">' + esc(STATUS_ENC_ROTULO[e.status] || e.status) + '</span>' +
+                    (atrasado ? '<span class="crm-enc-atraso">⚠ prazo vencido</span>' : '') +
+                    '<button type="button" class="crm-btn-mini" data-crm-action="marcarEncRespondido" data-idx="' + i + '"' +
+                        (respondido ? ' disabled' : '') + '>✓ Marcar respondida</button>' +
+                    '<button type="button" class="crm-btn-mini crm-btn-mini-perigo" data-crm-action="removerEncTemp" data-idx="' + i + '">Remover</button>' +
+                '</div>' +
+                '<div class="crm-form-linha">' +
+                    campoEnc(i, 'para', 'Para quem *', 'text', e.para, 'Ex: Setor Jurídico') +
+                    campoEnc(i, 'canal', 'Canal', 'text', e.canal, 'Ex: E-mail, SEI') +
+                    campoEnc(i, 'numeroDocumentoEnvio', 'Nº doc enviado', 'text', e.numeroDocumentoEnvio, '') +
+                '</div>' +
+                '<div class="crm-form-linha">' +
+                    campoEnc(i, 'dataEnvio', 'Enviado em', 'date', e.dataEnvio, '') +
+                    campoEnc(i, 'prazoResposta', 'Prazo p/ responder', 'date', e.prazoResposta, '') +
+                    campoEnc(i, 'dataResposta', 'Respondido em', 'date', e.dataResposta, '') +
+                '</div>' +
+                '<div class="form-group">' +
+                    '<label>O que foi pedido</label>' +
+                    '<textarea rows="2" data-enc-idx="' + i + '" data-enc-campo="oQuePedido">' + esc(e.oQuePedido || '') + '</textarea>' +
+                '</div>' +
+                '<div class="form-group">' +
+                    '<label>Resposta recebida</label>' +
+                    '<textarea rows="2" data-enc-idx="' + i + '" data-enc-campo="resposta">' + esc(e.resposta || '') + '</textarea>' +
+                '</div>' +
+            '</div>';
+        }).join('');
+
+        renderizarRespostasResumo();
+    }
+
+    function campoEnc(idx, campo, rotulo, tipo, valor, placeholder) {
+        return '<div class="form-group">' +
+            '<label>' + esc(rotulo) + '</label>' +
+            '<input type="' + tipo + '" data-enc-idx="' + idx + '" data-enc-campo="' + campo + '"' +
+                ' value="' + esc(valor || '') + '"' +
+                (placeholder ? ' placeholder="' + esc(placeholder) + '"' : '') + '>' +
+        '</div>';
+    }
+
+    /** Lê de volta o que foi digitado nos campos dos encaminhamentos. */
+    function coletarEncaminhamentosDoDom() {
+        var cont = document.getElementById('crmAnotacaoEncaminhamentos');
+        if (!cont) return;
+        cont.querySelectorAll('[data-enc-idx]').forEach(function (input) {
+            var idx = Number(input.dataset.encIdx);
+            var alvo = _encaminhamentosTemp[idx];
+            if (!alvo) return;
+            var campo = input.dataset.encCampo;
+            var valor = input.value;
+            var ehData = (campo === 'dataEnvio' || campo === 'prazoResposta' || campo === 'dataResposta');
+            alvo[campo] = ehData ? (valor || null) : valor.trim();
+        });
+    }
+
+    function adicionarEncaminhamento() {
+        coletarEncaminhamentosDoDom();
+        _encaminhamentosTemp.push(CrmModel.criarEncaminhamento({
+            dataEnvio: hojeIsoLocal(),
+            status: 'pendente'
+        }));
+        renderizarEncaminhamentosModal();
+        sugerirSituacaoNoModal();
+    }
+
+    function removerEncTemp(idx) {
+        coletarEncaminhamentosDoDom();
+        _encaminhamentosTemp.splice(idx, 1);
+        renderizarEncaminhamentosModal();
+        sugerirSituacaoNoModal();
+    }
+
+    function marcarEncRespondido(idx) {
+        coletarEncaminhamentosDoDom();
+        var e = _encaminhamentosTemp[idx];
+        if (!e) return;
+        e.status = 'respondido';
+        if (!e.dataResposta) e.dataResposta = hojeIsoLocal();
+        renderizarEncaminhamentosModal();
+        sugerirSituacaoNoModal();
+    }
+
+    /** Reflete no select de situação o que os encaminhamentos indicam. */
+    function sugerirSituacaoNoModal() {
+        var sel = document.getElementById('crmAnotacaoSituacao');
+        if (!sel) return;
+        var sugerida = CrmCalculos.situacaoSugerida({
+            situacao: sel.value,
+            encaminhamentos: _encaminhamentosTemp
+        }, hojeIsoLocal());
+        if (sugerida !== sel.value) sel.value = sugerida;
+    }
+
+    function renderizarRespostasResumo() {
+        var el = document.getElementById('crmAnotacaoRespostasResumo');
+        if (!el) return;
+        var respondidos = _encaminhamentosTemp.filter(function (e) { return e.status === 'respondido' && e.resposta; });
+        var pendentes = _encaminhamentosTemp.filter(function (e) { return e.status === 'pendente'; });
+
+        if (!_encaminhamentosTemp.length) {
+            el.innerHTML = '<div class="crm-enc-vazio">Sem encaminhamentos — nada a consolidar.</div>';
+            return;
+        }
+        var html = '';
+        if (pendentes.length) {
+            html += '<div class="crm-resumo-aviso">⏳ Ainda aguardando: ' +
+                esc(pendentes.map(function (e) { return e.para || '(?)'; }).join(', ')) + '</div>';
+        }
+        html += respondidos.length
+            ? respondidos.map(function (e) {
+                return '<div class="crm-resposta-item"><strong>' + esc(e.para || '(?)') + '</strong>' +
+                    (e.dataResposta ? ' <span class="crm-resposta-data">' + esc(dataOuTraco(e.dataResposta)) + '</span>' : '') +
+                    '<div>' + esc(e.resposta) + '</div></div>';
+            }).join('')
+            : '<div class="crm-enc-vazio">Nenhuma resposta com conteúdo ainda.</div>';
+        el.innerHTML = html;
+    }
+
+    /**
+     * Anexa as respostas recebidas ao campo de resposta consolidada, sem
+     * sobrescrever o que já estava escrito e sem repetir o que já foi colado.
+     */
+    function consolidarRespostas() {
+        coletarEncaminhamentosDoDom();
+        var campo = document.getElementById('crmAnotacaoOQueFoiFeito');
+        if (!campo) return;
+        var respondidos = _encaminhamentosTemp.filter(function (e) { return e.status === 'respondido' && e.resposta; });
+        if (!respondidos.length) {
+            Notifications.error('Nenhuma resposta recebida para consolidar.');
+            return;
+        }
+        var atual = campo.value;
+        var novos = respondidos
+            .map(function (e) { return '— ' + (e.para || '(?)') + ': ' + e.resposta; })
+            .filter(function (bloco) { return atual.indexOf(bloco) === -1; });
+
+        if (!novos.length) {
+            Notifications.error('As respostas já estão consolidadas no texto.');
+            return;
+        }
+        campo.value = (atual ? atual.replace(/\s*$/, '') + '\n' : '') + novos.join('\n');
+        Notifications.success(novos.length + ' resposta(s) adicionada(s).');
     }
 
     function abrirModalAnotacao(id, negocioForcado, relacionadaForcada) {
         var anotacao = id ? CrmStore.getAnotacao(id) : null;
-        document.getElementById('crmModalAnotacaoTitulo').textContent = id ? 'Editar anotação' : 'Nova anotação';
-        document.getElementById('crmAnotacaoId').value = id || '';
+        var val = function (campo, v) { document.getElementById(campo).value = v; };
+        document.getElementById('crmModalAnotacaoTitulo').textContent = id ? 'Editar demanda' : 'Nova demanda';
+        val('crmAnotacaoId', id || '');
 
         _anotacaoRelacionadaId = anotacao ? anotacao.anotacaoRelacionadaId : (relacionadaForcada || null);
         var pai = _anotacaoRelacionadaId ? CrmStore.getAnotacao(_anotacaoRelacionadaId) : null;
@@ -1053,32 +1617,46 @@
         }
 
         _anotacaoNegocioId = anotacao ? anotacao.negocioId : (negocioForcado || null);
+        document.getElementById('crmAnotacaoNegocioLista').style.display = 'none';
+        document.getElementById('crmAnotacaoNegocioBusca').disabled = false;
         if (_anotacaoNegocioId) {
             selecionarNegocioAnotacao(_anotacaoNegocioId);
         } else {
-            document.getElementById('crmAnotacaoNegocioBusca').value = '';
+            val('crmAnotacaoNegocioBusca', '');
             document.getElementById('crmAnotacaoRelacionamento').textContent = '-';
             document.getElementById('crmAnotacaoClienteNome').textContent = '-';
         }
-        document.getElementById('crmAnotacaoNegocioLista').style.display = 'none';
-        document.getElementById('crmAnotacaoNegocioBusca').disabled = !!_anotacaoNegocioId;
+        popularSelectsAvulsa(
+            anotacao ? anotacao.funilId : null,
+            anotacao ? anotacao.etapaId : null,
+            anotacao ? anotacao.clienteId : null
+        );
+        alternarModoVinculo();
 
-        document.getElementById('crmAnotacaoAssunto').value = anotacao ? (anotacao.assunto || '') : '';
-        document.getElementById('crmAnotacaoRemetente').value = anotacao ? (anotacao.remetente || '') : '';
-        document.getElementById('crmAnotacaoOrigemDemanda').value = anotacao ? (anotacao.origemDemanda || '') : '';
-        document.getElementById('crmAnotacaoDataSolicitacao').value = anotacao ? (anotacao.dataSolicitacao || '') : '';
-        document.getElementById('crmAnotacaoTipoDoc').value = anotacao ? (anotacao.tipoDoc || '') : '';
-        document.getElementById('crmAnotacaoNumeroDocumento').value = anotacao ? (anotacao.numeroDocumento || '') : '';
-        document.getElementById('crmAnotacaoDestinatario').value = anotacao ? (anotacao.destinatario || '') : '';
-        document.getElementById('crmAnotacaoAcaoRealizar').value = anotacao ? (anotacao.acaoRealizar || '') : '';
-        document.getElementById('crmAnotacaoPrioridade').value = anotacao ? anotacao.prioridade : 'media';
-        document.getElementById('crmAnotacaoPrazo').value = anotacao ? (anotacao.prazo || '') : '';
-        document.getElementById('crmAnotacaoLembrarDias').value = anotacao ? (anotacao.lembrarDiasAntes || '') : '';
-        document.getElementById('crmAnotacaoTags').value = anotacao ? (anotacao.tags || []).join(', ') : '';
-        document.getElementById('crmAnotacaoObservacoes').value = anotacao ? (anotacao.observacoes || '') : '';
-        document.getElementById('crmAnotacaoFinalizado').checked = anotacao ? !!anotacao.finalizado : false;
-        document.getElementById('crmAnotacaoDataConclusao').value = anotacao ? (anotacao.dataConclusao || '') : '';
-        document.getElementById('crmAnotacaoOQueFoiFeito').value = anotacao ? (anotacao.oQueFoiFeito || '') : '';
+        val('crmAnotacaoAssunto', anotacao ? (anotacao.assunto || '') : '');
+        val('crmAnotacaoRemetente', anotacao ? (anotacao.remetente || '') : '');
+        val('crmAnotacaoOrigemDemanda', anotacao ? (anotacao.origemDemanda || '') : '');
+        val('crmAnotacaoDataSolicitacao', anotacao ? (anotacao.dataSolicitacao || '') : '');
+        val('crmAnotacaoTipoDoc', anotacao ? (anotacao.tipoDoc || '') : '');
+        val('crmAnotacaoNumeroDocumento', anotacao ? (anotacao.numeroDocumento || '') : '');
+        val('crmAnotacaoAcaoRealizar', anotacao ? (anotacao.acaoRealizar || '') : '');
+        val('crmAnotacaoSituacao', anotacao ? anotacao.situacao : 'recebida');
+        popularSelectResponsavelAnotacao(anotacao ? anotacao.responsavel : '');
+        val('crmAnotacaoPrioridade', anotacao ? anotacao.prioridade : 'media');
+        val('crmAnotacaoPrazo', anotacao ? (anotacao.prazo || '') : '');
+        val('crmAnotacaoLembrarDias', (anotacao && anotacao.lembrarDiasAntes !== null) ? String(anotacao.lembrarDiasAntes) : '');
+        val('crmAnotacaoTags', anotacao ? (anotacao.tags || []).join(', ') : '');
+        val('crmAnotacaoObservacoes', anotacao ? (anotacao.observacoes || '') : '');
+        val('crmAnotacaoDataConclusao', anotacao ? (anotacao.dataConclusao || '') : '');
+        val('crmAnotacaoOQueFoiFeito', anotacao ? (anotacao.oQueFoiFeito || '') : '');
+        val('crmAnotacaoRespostaTipoDoc', anotacao ? (anotacao.respostaTipoDoc || '') : '');
+        val('crmAnotacaoRespostaNumeroDocumento', anotacao ? (anotacao.respostaNumeroDocumento || '') : '');
+
+        // Cópia profunda: editar no modal não deve tocar o store antes de salvar.
+        _encaminhamentosTemp = anotacao
+            ? (anotacao.encaminhamentos || []).map(function (e) { return Object.assign({}, e); })
+            : [];
+        renderizarEncaminhamentosModal();
 
         var btnExcluir = document.getElementById('crmAnotacaoBtnExcluir');
         if (btnExcluir) btnExcluir.style.display = id ? '' : 'none';
@@ -1088,38 +1666,57 @@
 
     function salvarAnotacao() {
         if (!requireAdminOrNotify()) return;
-        if (!_anotacaoNegocioId) { Notifications.error('Selecione o negócio (Relacionamento/Cliente) desta anotação.'); return; }
+        coletarEncaminhamentosDoDom();
 
-        var assunto = document.getElementById('crmAnotacaoAssunto').value.trim();
-        if (!assunto) { Notifications.error('Assunto é obrigatório.'); return; }
+        var el = function (campo) { return document.getElementById(campo); };
+        var avulsa = !_anotacaoNegocioId;
+        var tagsRaw = el('crmAnotacaoTags').value || '';
+        var lembrarRaw = el('crmAnotacaoLembrarDias').value.trim();
 
-        var tagsRaw = document.getElementById('crmAnotacaoTags').value || '';
         var dados = {
             negocioId: _anotacaoNegocioId,
+            funilId: avulsa ? (el('crmAnotacaoFunil').value || null) : null,
+            etapaId: avulsa ? (el('crmAnotacaoEtapa').value || null) : null,
+            clienteId: avulsa ? (el('crmAnotacaoCliente').value || null) : null,
             anotacaoRelacionadaId: _anotacaoRelacionadaId,
-            assunto: assunto,
-            remetente: document.getElementById('crmAnotacaoRemetente').value.trim(),
-            origemDemanda: document.getElementById('crmAnotacaoOrigemDemanda').value.trim(),
-            dataSolicitacao: document.getElementById('crmAnotacaoDataSolicitacao').value || null,
-            tipoDoc: document.getElementById('crmAnotacaoTipoDoc').value.trim(),
-            numeroDocumento: document.getElementById('crmAnotacaoNumeroDocumento').value.trim(),
-            destinatario: document.getElementById('crmAnotacaoDestinatario').value.trim(),
-            acaoRealizar: document.getElementById('crmAnotacaoAcaoRealizar').value.trim(),
-            prioridade: document.getElementById('crmAnotacaoPrioridade').value,
-            prazo: document.getElementById('crmAnotacaoPrazo').value || null,
-            lembrarDiasAntes: document.getElementById('crmAnotacaoLembrarDias').value.trim(),
+            assunto: el('crmAnotacaoAssunto').value.trim(),
+            remetente: el('crmAnotacaoRemetente').value.trim(),
+            origemDemanda: el('crmAnotacaoOrigemDemanda').value.trim(),
+            dataSolicitacao: el('crmAnotacaoDataSolicitacao').value || null,
+            tipoDoc: el('crmAnotacaoTipoDoc').value.trim(),
+            numeroDocumento: el('crmAnotacaoNumeroDocumento').value.trim(),
+            acaoRealizar: el('crmAnotacaoAcaoRealizar').value.trim(),
+            situacao: el('crmAnotacaoSituacao').value,
+            responsavel: el('crmAnotacaoResponsavel').value,
+            encaminhamentos: _encaminhamentosTemp,
+            prioridade: el('crmAnotacaoPrioridade').value,
+            prazo: el('crmAnotacaoPrazo').value || null,
+            lembrarDiasAntes: lembrarRaw === '' ? null : Number(lembrarRaw),
             tags: tagsRaw.split(',').map(function (t) { return t.trim(); }).filter(Boolean),
-            observacoes: document.getElementById('crmAnotacaoObservacoes').value.trim(),
-            finalizado: document.getElementById('crmAnotacaoFinalizado').checked,
-            dataConclusao: document.getElementById('crmAnotacaoDataConclusao').value || null,
-            oQueFoiFeito: document.getElementById('crmAnotacaoOQueFoiFeito').value.trim()
+            observacoes: el('crmAnotacaoObservacoes').value.trim(),
+            dataConclusao: el('crmAnotacaoDataConclusao').value || null,
+            oQueFoiFeito: el('crmAnotacaoOQueFoiFeito').value.trim(),
+            respostaTipoDoc: el('crmAnotacaoRespostaTipoDoc').value.trim(),
+            respostaNumeroDocumento: el('crmAnotacaoRespostaNumeroDocumento').value.trim()
         };
 
-        var id = document.getElementById('crmAnotacaoId').value || null;
+        // Validação central do model — antes isto era feito à mão aqui e os
+        // formatos de data escapavam.
+        var erros = CrmModel.validarAnotacao(dados);
+        if (erros.length) { Notifications.error(erros[0]); return; }
+
+        // Normaliza antes de gravar para que os derivados (finalizado,
+        // dataConclusao, tipos) fiquem coerentes já na criação.
+        var normalizada = CrmModel.normalizarAnotacao(dados);
+
+        var id = el('crmAnotacaoId').value || null;
         if (id) {
-            CrmStore.atualizarAnotacao(id, dados);
+            delete normalizada.id;
+            delete normalizada.criadoEm;
+            delete normalizada.excluidoEm; // salvar não deve ressuscitar uma demanda excluída
+            CrmStore.atualizarAnotacao(id, normalizada);
         } else {
-            CrmStore.criarAnotacao(dados);
+            CrmStore.criarAnotacao(normalizada);
         }
         fecharModal('modalAnotacao');
         renderizarConteudoAtivo();
@@ -1129,7 +1726,7 @@
         if (!requireAdminOrNotify()) return;
         var id = document.getElementById('crmAnotacaoId').value;
         if (!id) return;
-        if (!confirm('Excluir esta anotação? Esta ação não pode ser desfeita.')) return;
+        if (!confirm('Excluir esta demanda? Ela sai das listas, mas o registro é preservado.')) return;
         CrmStore.removerAnotacao(id);
         fecharModal('modalAnotacao');
         renderizarConteudoAtivo();
@@ -1292,7 +1889,9 @@
                '<div>' + esc(cliente.telefone || '—') + '</div>' +
                '<div>' + esc(cliente.email || '—') + '</div>' +
                '<div>' + esc(cliente.cnpj || '—') + '</div>' +
-               '<div>' + esc([cliente.endereco, cliente.cidade, cliente.uf].filter(Boolean).join(', ') || '—') + '</div>')
+               '<div>' + esc([cliente.endereco, cliente.cidade, cliente.uf].filter(Boolean).join(', ') || '—') + '</div>' +
+               '<button type="button" class="crm-btn-mini" style="margin-top:8px" data-crm-action="editarCliente" ' +
+                   'data-id="' + esc(cliente.id) + '" data-origem="detalhe">✎ Editar cadastro</button>')
             : '<div class="crm-coluna-vazia">Nenhum cliente vinculado.</div>';
 
         var visaoGeral = '' +
@@ -1366,14 +1965,20 @@
         var prioridadeBadge = '<span class="crm-prioridade-badge" data-prioridade="' + esc(a.prioridade) + '">' +
             esc(PRIORIDADE_ROTULO[a.prioridade] || a.prioridade) + '</span>';
         var prazoTxt = a.prazo ? DateUtils.formatBR(a.prazo) : '';
+        var resumo = CrmCalculos.resumoEncaminhamentos(a, hojeIsoLocal());
+        var aguardando = resumo.comQuem.length
+            ? '<div class="crm-anot-nota-aguardando' + (resumo.algumVencido ? ' crm-atrasado' : '') + '">⏳ Aguardando: ' +
+                esc(resumo.comQuem.join(', ')) + (resumo.algumVencido ? ' ⚠' : '') + '</div>'
+            : '';
         return '' +
             '<div class="crm-anot-linha">' +
-                '<span class="crm-anot-icone" title="Anotação">🗒️</span>' +
+                '<span class="crm-anot-icone" title="Demanda">🗒️</span>' +
                 '<div class="crm-anot-nota' + (a.finalizado ? ' crm-anot-finalizada' : '') + '">' +
                     '<div data-crm-action="abrirModalAnotacao" data-id="' + esc(a.id) + '">' +
                         '<div class="crm-anot-nota-data">' + esc(formatarDataHora(a.criadoEm)) + (a.finalizado ? ' · ✓ Finalizado' : '') + '</div>' +
                         '<div class="crm-anot-nota-assunto">' + esc(a.assunto || '(sem assunto)') + '</div>' +
-                        '<div class="crm-anot-nota-meta">' + prioridadeBadge + (prazoTxt ? ('<span>Prazo: ' + esc(prazoTxt) + '</span>') : '') + '</div>' +
+                        '<div class="crm-anot-nota-meta">' + badgeSituacao(a) + prioridadeBadge + (prazoTxt ? ('<span>Prazo: ' + esc(prazoTxt) + '</span>') : '') + '</div>' +
+                        aguardando +
                         (a.observacoes ? '<div class="crm-anot-nota-obs">' + esc(a.observacoes) + '</div>' : '') +
                     '</div>' +
                     '<button type="button" class="crm-anot-btn-vincular" data-crm-action="novaAnotacaoNegocio" ' +
@@ -1587,10 +2192,63 @@
         lista.style.display = 'block';
     }
 
+    // ── Cadastro de cliente aberto de dentro do CRM ──
+
+    /**
+     * De onde o cadastro de cliente foi aberto, para saber o que atualizar
+     * quando ele for salvo. Null quando a edição veio da própria aba Clientes.
+     */
+    var _clienteEditadoDe = null;
+
+    /**
+     * Abre o cadastro de cliente (modal do app2) empilhado sobre a tela atual,
+     * sem trocar de aba — assim nada do que estiver sendo preenchido se perde.
+     * O retorno é automático: ao salvar, o modal fecha e a tela de baixo continua
+     * onde estava, já atualizada (ver aoSalvarClienteExterno).
+     */
+    function abrirCadastroCliente(clienteId, origem) {
+        if (typeof abrirModalCliente !== 'function') {
+            Notifications.error('Cadastro de clientes indisponível nesta tela.');
+            return;
+        }
+        _clienteEditadoDe = origem || null;
+        abrirModalCliente(clienteId || null);
+        // Todos os modais compartilham z-index 3100; sem isto o modal de Negócio,
+        // que vem depois no DOM, ficaria por cima do cadastro de cliente.
+        var m = document.getElementById('modalCliente');
+        if (m) m.classList.add('crm-modal-empilhado');
+    }
+
+    function aoSalvarClienteExterno(ev) {
+        if (!_clienteEditadoDe) return; // edição feita pela aba Clientes: não é conosco
+        var origem = _clienteEditadoDe;
+        _clienteEditadoDe = null;
+
+        var m = document.getElementById('modalCliente');
+        if (m) m.classList.remove('crm-modal-empilhado');
+
+        var id = (ev && ev.detail) ? ev.detail.id : null;
+        var modalNegocio = document.getElementById('modalNegocio');
+        var negocioAberto = modalNegocio && modalNegocio.style.display !== 'none' && modalNegocio.style.display !== '';
+        if (origem === 'negocio' && id && negocioAberto) {
+            var c = CrmStore.getCliente(id);
+            if (c) selecionarCliente(c.id, c.nome);
+        }
+        renderizarConteudoAtivo();
+    }
+
+    function editarClienteDoNegocio() {
+        var id = document.getElementById('crmNegocioClienteId').value;
+        if (!id) { Notifications.error('Selecione um cliente primeiro.'); return; }
+        abrirCadastroCliente(id, 'negocio');
+    }
+
     function selecionarCliente(id, nome) {
         document.getElementById('crmNegocioClienteId').value = id;
         document.getElementById('crmNegocioClienteBusca').value = nome;
         document.getElementById('crmClienteLista').style.display = 'none';
+        var btn = document.getElementById('crmNegocioBtnEditarCliente');
+        if (btn) btn.disabled = !id;
     }
 
     function abrirModalNegocio(id) {
@@ -1624,6 +2282,8 @@
         document.getElementById('crmNegocioClienteId').value = negocio ? (negocio.clienteId || '') : '';
         document.getElementById('crmNegocioClienteBusca').value = clienteNome;
         document.getElementById('crmClienteLista').style.display = 'none';
+        var btnCli = document.getElementById('crmNegocioBtnEditarCliente');
+        if (btnCli) btnCli.disabled = !(negocio && negocio.clienteId);
 
         _itensTemp = (negocio && negocio.itens) ? negocio.itens.map(function (it) { return Object.assign({}, it); }) : [];
         renderizarItensModal();
@@ -1931,6 +2591,7 @@
 
         removerItem: function (el) { _itensTemp.splice(Number(el.dataset.idx), 1); renderizarItensModal(); },
         selecionarCliente: function (el) { selecionarCliente(el.dataset.id, el.dataset.nome); },
+        editarCliente: function (el) { abrirCadastroCliente(el.dataset.id, el.dataset.origem); },
         criarClienteInline: function (el) {
             if (!requireAdminOrNotify()) return;
             var c = CrmStore.criarCliente({ nome: el.dataset.nome });
@@ -1944,6 +2605,9 @@
         abrirModalAnotacao: function (el) { abrirModalAnotacao(el.dataset.id); },
         novaAnotacaoNegocio: function (el) { abrirModalAnotacao(null, el.dataset.negocioId, el.dataset.relacionadaId || null); },
         selecionarNegocioAnotacao: function (el) { selecionarNegocioAnotacao(el.dataset.id); },
+        setDemandaAba: function (el) { setDemandaAba(el.dataset.valor); },
+        removerEncTemp: function (el) { removerEncTemp(Number(el.dataset.idx)); },
+        marcarEncRespondido: function (el) { marcarEncRespondido(Number(el.dataset.idx)); },
 
         setCalModo: function (el) { setCalModo(el.dataset.valor); },
         setCalPeriodo: function (el) { setCalPeriodo(el.dataset.valor); },
@@ -1968,6 +2632,29 @@
         googleConectar: function () { if (window.GoogleCalendarSync) GoogleCalendarSync.conectar(); },
         googleDesconectar: function () { if (window.GoogleCalendarSync) GoogleCalendarSync.desconectar(); },
         googleSincronizarTudo: function () { if (window.GoogleCalendarSync) GoogleCalendarSync.sincronizarTudo(); },
+
+        pontoConectar: function () {
+            if (!window.PontoBridge) return;
+            var email = (document.getElementById('crmPontoEmail') || {}).value || '';
+            var senha = (document.getElementById('crmPontoSenha') || {}).value || '';
+            PontoBridge.conectar(email.trim(), senha).then(function () {
+                _pontoAutoFetchFeito = true; // já vamos buscar abaixo; evita disparo duplicado
+                if (window.Notifications) Notifications.success('Conectado ao Ponto.');
+                return PontoBridge.atualizarEventos(true);
+            }).then(function () {
+                renderizarCalendarioView();
+            }).catch(function (e) {
+                if (window.Notifications) Notifications.error('Falha ao conectar ao Ponto: ' + (e && e.message ? e.message : e));
+            });
+        },
+        pontoDesconectar: function () { if (window.PontoBridge) PontoBridge.desconectar(); },
+        pontoAtualizar: function () {
+            if (!window.PontoBridge) return;
+            PontoBridge.atualizarEventos(true).then(function () {
+                if (window.Notifications) Notifications.success('Eventos do Ponto atualizados.');
+                renderizarCalendarioView();
+            });
+        },
 
         abrirModalTiposAtividade: function () { abrirModalTiposAtividade(); },
         moverTipoAtividade: function (el) { moverTipoAtividade(el.dataset.chave, Number(el.dataset.dir)); },
@@ -2013,12 +2700,18 @@
         abrirModalNegocio: abrirModalNegocio,
         salvarNegocio: salvarNegocio,
         buscarCliente: buscarCliente,
+        abrirCadastroCliente: abrirCadastroCliente,
+        editarClienteDoNegocio: editarClienteDoNegocio,
         adicionarItem: adicionarItem,
 
         abrirModalAnotacao: abrirModalAnotacao,
         salvarAnotacao: salvarAnotacao,
         excluirAnotacao: excluirAnotacao,
         buscarNegocioParaAnotacao: buscarNegocioParaAnotacao,
+        desvincularNegocioAnotacao: desvincularNegocioAnotacao,
+        aoTrocarFunilAnotacao: aoTrocarFunilAnotacao,
+        adicionarEncaminhamento: adicionarEncaminhamento,
+        consolidarRespostas: consolidarRespostas,
 
         abrirModalFunil: abrirModalFunil,
         adicionarEtapaFunil: adicionarEtapaFunil,
@@ -2027,6 +2720,7 @@
 
         setCalBusca: setCalBusca,
         setMostrarFeriadosCal: setMostrarFeriadosCal,
+        setMostrarPontoCal: setMostrarPontoCal,
         abrirFormTipoAtividade: abrirFormTipoAtividade,
         salvarTipoAtividade: salvarTipoAtividade,
         abrirModalAtividadeCal: abrirModalAtividadeCal,

@@ -15949,6 +15949,7 @@ function salvarCliente(event) {
         return;
     }
 
+    let idSalvo = editId || null;
     if (editId) {
         const idx = clientes.findIndex(c => c.id === editId);
         if (idx !== -1) {
@@ -15962,6 +15963,7 @@ function salvarCliente(event) {
             dataCadastro: new Date().toISOString()
         };
         clientes.push(novo);
+        idSalvo = novo.id;
         registrarHistorico('cadastro', `Cliente cadastrado: ${dados.nome}`);
     }
 
@@ -15978,6 +15980,12 @@ function salvarCliente(event) {
         if (sub && sub.style.display === 'block') {
             popularSelectClientesPrecif();
         }
+    } catch (e) {}
+
+    // Avisa quem abriu este cadastro de outra tela (ex.: CRM) para atualizar a
+    // exibição sem precisar recarregar. Ver Crm.abrirCadastroCliente.
+    try {
+        document.dispatchEvent(new CustomEvent('cliente:salvo', { detail: { id: idSalvo } }));
     } catch (e) {}
 }
 

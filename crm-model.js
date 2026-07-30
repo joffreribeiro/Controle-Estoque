@@ -17,6 +17,14 @@ const TIPOS_ETAPA = ['aberta', 'ganho', 'perdido'];
 const STATUS_NEGOCIO = ['aberto', 'ganho', 'perdido'];
 const PRIORIDADES_ANOTACAO = ['baixa', 'media', 'alta', 'critico'];
 
+// Ciclo de vida de uma demanda: chega ('recebida'), é assumida ('comigo'),
+// depende de terceiros ('aguardando_terceiro'), volta para mim juntar as
+// respostas ('consolidando') e é devolvida ao solicitante ('respondida').
+const SITUACOES_ANOTACAO = ['recebida', 'comigo', 'aguardando_terceiro', 'consolidando', 'respondida'];
+const STATUS_ENCAMINHAMENTO = ['pendente', 'respondido', 'cancelado'];
+
+const CAMPOS_AUDITAVEIS_ANOTACAO = ['assunto', 'situacao', 'responsavel', 'prazo', 'prioridade', 'negocioId', 'funilId', 'etapaId', 'clienteId'];
+
 // Tipos de atividade agendável (padrão Pipedrive). O ícone é um emoji para
 // não depender de bibliotecas de ícone nos módulos puros.
 const TIPOS_ATIVIDADE = {
@@ -203,15 +211,84 @@ function normalizarAtividade(aBruta) {
 }
 
 /**
- * Anotação: registro de demanda/solicitação vinculado a um negócio (via
- * negocioId). Relacionamento (funil) e Cliente são derivados do negócio
- * pai pelo store/UI — não são armazenados na própria anotação.
+ * Encaminhamento: um pedido de informação feito a um terceiro dentro de uma
+ * demanda. Vive embutido em `anotacao.encaminhamentos[]` (mesmo padrão de
+ * `negocio.itens[]`) porque a mesma demanda costuma ser encaminhada a várias
+ * áreas em paralelo e as respostas precisam ser consolidadas na demanda-mãe.
+ */
+function normalizarEncaminhamento(eBruto) {
+    const e = ehObjeto(eBruto) ? eBruto : {};
+    return {
+        id: e.id || novoId('enc'),
+        para: typeof e.para === 'string' ? e.para : '',
+        canal: typeof e.canal === 'string' ? e.canal : '',
+        oQuePedido: typeof e.oQuePedido === 'string' ? e.oQuePedido : '',
+        numeroDocumentoEnvio: typeof e.numeroDocumentoEnvio === 'string' ? e.numeroDocumentoEnvio : '',
+        dataEnvio: e.dataEnvio || null,
+        prazoResposta: e.prazoResposta || null,
+        status: STATUS_ENCAMINHAMENTO.indexOf(e.status) !== -1 ? e.status : 'pendente',
+        dataResposta: e.dataResposta || null,
+        resposta: typeof e.resposta === 'string' ? e.resposta : '',
+        criadoEm: e.criadoEm || nowIso(),
+        atualizadoEm: e.atualizadoEm || nowIso()
+    };
+}
+
+/**
+ * Converte `lembrarDiasAntes` para number|null. O campo era gravado como string
+ * (e nunca lido); agora alimenta o semáforo de prazo em CrmCalculos.
+ */
+function normalizarDiasAntes(v) {
+    if (v === null || v === undefined || v === '') return null;
+    const n = Number(v);
+    return (Number.isFinite(n) && n >= 0) ? Math.floor(n) : null;
+}
+
+/**
+ * Anotação (demanda): unidade de trabalho da aba Relacionamento.
+ *
+ * O vínculo com negócio é OPCIONAL — uma demanda avulsa anda sozinha no funil
+ * pelos seus próprios `funilId`/`etapaId`/`clienteId`. Quando `negocioId` está
+ * preenchido, o store/UI derivam funil e cliente do negócio pai e os campos
+ * próprios ficam ociosos.
+ *
+ * Migração idempotente de registros legados (feita aqui por não haver
+ * migrations — ver normalizarCrm):
+ *  - `situacao` ausente é inferida de `finalizado`/`destinatario`;
+ *  - `destinatario` (texto livre, um único terceiro) vira o primeiro item de
+ *    `encaminhamentos[]`. O campo permanece no schema apenas como legado, para
+ *    não perder o dado histórico; saiu do formulário e da tabela.
  */
 function normalizarAnotacao(aBruta) {
     const a = ehObjeto(aBruta) ? aBruta : {};
+    const finalizado = !!a.finalizado;
+    const destinatario = typeof a.destinatario === 'string' ? a.destinatario : '';
+
+    let situacao = a.situacao;
+    if (SITUACOES_ANOTACAO.indexOf(situacao) === -1) {
+        situacao = finalizado ? 'respondida' : (destinatario ? 'aguardando_terceiro' : 'recebida');
+    }
+
+    let encaminhamentos;
+    if (Array.isArray(a.encaminhamentos)) {
+        encaminhamentos = a.encaminhamentos.map(normalizarEncaminhamento);
+    } else if (destinatario) {
+        encaminhamentos = [normalizarEncaminhamento({
+            para: destinatario,
+            status: finalizado ? 'respondido' : 'pendente',
+            dataResposta: finalizado ? (a.dataConclusao || null) : null,
+            criadoEm: a.criadoEm || nowIso()
+        })];
+    } else {
+        encaminhamentos = [];
+    }
+
     return {
         id: a.id || novoId('ant'),
         negocioId: a.negocioId || null,
+        funilId: a.funilId || null,
+        etapaId: a.etapaId || null,
+        clienteId: (a.clienteId !== undefined && a.clienteId !== null) ? a.clienteId : null,
         anotacaoRelacionadaId: (a.anotacaoRelacionadaId && a.anotacaoRelacionadaId !== a.id) ? a.anotacaoRelacionadaId : null,
         assunto: typeof a.assunto === 'string' ? a.assunto : '',
         remetente: typeof a.remetente === 'string' ? a.remetente : '',
@@ -219,17 +296,22 @@ function normalizarAnotacao(aBruta) {
         dataSolicitacao: a.dataSolicitacao || null,
         tipoDoc: typeof a.tipoDoc === 'string' ? a.tipoDoc : '',
         numeroDocumento: typeof a.numeroDocumento === 'string' ? a.numeroDocumento : '',
-        destinatario: typeof a.destinatario === 'string' ? a.destinatario : '',
+        destinatario,
         acaoRealizar: typeof a.acaoRealizar === 'string' ? a.acaoRealizar : '',
+        responsavel: typeof a.responsavel === 'string' ? a.responsavel : '',
+        situacao,
+        encaminhamentos,
         prioridade: PRIORIDADES_ANOTACAO.indexOf(a.prioridade) !== -1 ? a.prioridade : 'media',
         prazo: a.prazo || null,
-        lembrarDiasAntes: (typeof a.lembrarDiasAntes === 'string') ? a.lembrarDiasAntes
-            : (Number.isFinite(a.lembrarDiasAntes) ? String(a.lembrarDiasAntes) : ''),
+        lembrarDiasAntes: normalizarDiasAntes(a.lembrarDiasAntes),
         tags: Array.isArray(a.tags) ? a.tags.slice() : [],
         observacoes: typeof a.observacoes === 'string' ? a.observacoes : '',
-        finalizado: !!a.finalizado,
+        finalizado: situacao === 'respondida',
         dataConclusao: a.dataConclusao || null,
         oQueFoiFeito: typeof a.oQueFoiFeito === 'string' ? a.oQueFoiFeito : '',
+        respostaTipoDoc: typeof a.respostaTipoDoc === 'string' ? a.respostaTipoDoc : '',
+        respostaNumeroDocumento: typeof a.respostaNumeroDocumento === 'string' ? a.respostaNumeroDocumento : '',
+        excluidoEm: a.excluidoEm || null,
         criadoEm: a.criadoEm || nowIso(),
         atualizadoEm: a.atualizadoEm || nowIso()
     };
@@ -258,7 +340,7 @@ function normalizarConfig(cBruta, funis) {
     const filtrosBrutos = ehObjeto(c.filtros) ? c.filtros : {};
     return {
         funilAtivoId,
-        visao: ['kanban', 'lista', 'previsao', 'excluidos'].indexOf(c.visao) !== -1 ? c.visao : 'kanban',
+        visao: ['kanban', 'lista', 'demandas', 'previsao', 'excluidos'].indexOf(c.visao) !== -1 ? c.visao : 'kanban',
         subaba: 'negocios',
         detalheAbertoId: c.detalheAbertoId || null,
         filtros: {
@@ -314,9 +396,26 @@ function normalizarCrm(crmBruto) {
         .map(normalizarAtividade)
         .filter(a => !a.negocioId || idsNegocioValidos[a.negocioId]);
 
+    // Demandas NÃO são mais descartadas por falta de negócio: o vínculo é
+    // opcional. Um `negocioId` que aponta para negócio inexistente é zerado e a
+    // demanda é realocada num funil válido — mesmo tratamento dado aos negócios
+    // órfãos acima, em vez da perda silenciosa que havia antes.
     const anotacoesValidas = (Array.isArray(crm.anotacoes) ? crm.anotacoes : [])
         .map(normalizarAnotacao)
-        .filter(a => a.negocioId && idsNegocioValidos[a.negocioId]);
+        .map(a => {
+            if (a.negocioId && idsNegocioValidos[a.negocioId]) return a;
+            let funilId = a.funilId;
+            if (idsFunilValidos.indexOf(funilId) === -1) {
+                funilId = idsFunilValidos[0] || null;
+            }
+            const funil = funilId ? funis[idsFunilValidos.indexOf(funilId)] : null;
+            const idsEtapaDoFunil = funil ? funil.etapas.map(e => e.id) : [];
+            let etapaId = a.etapaId;
+            if (!etapaId || idsEtapaDoFunil.indexOf(etapaId) === -1) {
+                etapaId = funilId ? (primeiraEtapaAbertaPorFunil[funilId] || null) : null;
+            }
+            return Object.assign({}, a, { negocioId: null, funilId, etapaId });
+        });
     const idsAnotacaoValidos = {};
     anotacoesValidas.forEach(a => { idsAnotacaoValidos[a.id] = true; });
     const anotacoes = anotacoesValidas.map(a => (
@@ -352,6 +451,7 @@ function criarFunil(dados) { return normalizarFunil(dados); }
 function criarNegocio(dados) { return normalizarNegocio(dados); }
 function criarAtividade(dados) { return normalizarAtividade(dados); }
 function criarAnotacao(dados) { return normalizarAnotacao(dados); }
+function criarEncaminhamento(dados) { return normalizarEncaminhamento(dados); }
 
 function funilDeTemplate(chave) {
     const tpl = TEMPLATES_FUNIL[chave];
@@ -402,11 +502,16 @@ function validarAnotacao(anotacao) {
         erros.push('Anotação deve ser um objeto válido');
         return erros;
     }
-    if (!anotacao.negocioId) {
-        erros.push('Anotação precisa estar vinculada a um negócio');
+    // O vínculo com negócio é opcional, mas a demanda precisa de algum lugar no
+    // mundo: ou um negócio, ou um funil próprio.
+    if (!anotacao.negocioId && !anotacao.funilId) {
+        erros.push('Demanda precisa estar vinculada a um negócio ou a um funil');
     }
     if (!anotacao.assunto || !String(anotacao.assunto).trim()) {
         erros.push('Assunto é obrigatório');
+    }
+    if (anotacao.situacao && SITUACOES_ANOTACAO.indexOf(anotacao.situacao) === -1) {
+        erros.push('Situação inválida');
     }
     if (anotacao.prazo && !/^\d{4}-\d{2}-\d{2}$/.test(anotacao.prazo)) {
         erros.push('Prazo inválido (use formato YYYY-MM-DD)');
@@ -414,6 +519,15 @@ function validarAnotacao(anotacao) {
     if (anotacao.dataSolicitacao && !/^\d{4}-\d{2}-\d{2}$/.test(anotacao.dataSolicitacao)) {
         erros.push('Data de solicitação inválida (use formato YYYY-MM-DD)');
     }
+    (Array.isArray(anotacao.encaminhamentos) ? anotacao.encaminhamentos : []).forEach((e, i) => {
+        const ref = 'Encaminhamento ' + (i + 1) + ': ';
+        if (!e || !String(e.para || '').trim()) erros.push(ref + 'informe para quem foi encaminhado');
+        ['dataEnvio', 'prazoResposta', 'dataResposta'].forEach(campo => {
+            if (e && e[campo] && !/^\d{4}-\d{2}-\d{2}$/.test(e[campo])) {
+                erros.push(ref + campo + ' inválida (use formato YYYY-MM-DD)');
+            }
+        });
+    });
     return erros;
 }
 
@@ -443,11 +557,14 @@ function validarAtividade(atividade) {
 
 const CrmModel = {
     CAMPOS_AUDITAVEIS_NEGOCIO,
+    CAMPOS_AUDITAVEIS_ANOTACAO,
     TIPOS_FUNIL,
     TIPOS_ETAPA,
     STATUS_NEGOCIO,
     TIPOS_ATIVIDADE,
     PRIORIDADES_ANOTACAO,
+    SITUACOES_ANOTACAO,
+    STATUS_ENCAMINHAMENTO,
     TEMPLATES_FUNIL,
 
     novoId,
@@ -459,6 +576,7 @@ const CrmModel = {
     normalizarItem,
     normalizarAtividade,
     normalizarAnotacao,
+    normalizarEncaminhamento,
     normalizarHistoricoItem,
     normalizarConfig,
     normalizarTipoAtividade,
@@ -468,6 +586,7 @@ const CrmModel = {
     criarNegocio,
     criarAtividade,
     criarAnotacao,
+    criarEncaminhamento,
     funilDeTemplate,
 
     validarNegocio,

@@ -174,31 +174,159 @@ function ordenarNegocios(negocios, criterio, direcao, extra) {
     });
 }
 
+// ──────────────────────────────────────────────
+//  DEMANDAS (anotações) — derivações do ciclo encaminhar → aguardar → consolidar
+// ──────────────────────────────────────────────
+
 /**
- * Filtra anotações. `extra.negocios` é usado para resolver funilId/clienteId
- * (Relacionamento/Cliente) a partir do negócio pai de cada anotação.
+ * Diferença em dias COM SINAL: negativo = a data já passou.
+ * `diasEntre` trunca em zero, o que serve para idade mas não para prazo.
+ */
+function diasAte(dataIso, hoje) {
+    if (!dataIso) return null;
+    const alvo = new Date(String(dataIso).slice(0, 10) + 'T00:00:00Z');
+    const ref = new Date(hojeIso(hoje) + 'T00:00:00Z');
+    if (isNaN(alvo) || isNaN(ref)) return null;
+    return Math.round((alvo - ref) / 86400000);
+}
+
+function diasDesde(dataIso, hoje) {
+    const d = diasAte(dataIso, hoje);
+    return d === null ? null : -d;
+}
+
+/**
+ * Fotografia dos pedidos feitos a terceiros numa demanda. É o que responde
+ * "com quem isso está parado, e há quanto tempo".
+ */
+function resumoEncaminhamentos(anotacao, hoje) {
+    const lista = (anotacao && Array.isArray(anotacao.encaminhamentos)) ? anotacao.encaminhamentos : [];
+    const pendentes = lista.filter(e => e.status === 'pendente');
+    const respondidos = lista.filter(e => e.status === 'respondido');
+
+    let prazoTerceiroMaisProximo = null;
+    let algumVencido = false;
+    let maiorEspera = null;
+
+    pendentes.forEach(e => {
+        if (e.prazoResposta) {
+            if (!prazoTerceiroMaisProximo || e.prazoResposta < prazoTerceiroMaisProximo) {
+                prazoTerceiroMaisProximo = e.prazoResposta;
+            }
+            if (diasAte(e.prazoResposta, hoje) < 0) algumVencido = true;
+        }
+        const espera = diasDesde(e.dataEnvio, hoje);
+        if (espera !== null && (maiorEspera === null || espera > maiorEspera)) maiorEspera = espera;
+    });
+
+    return {
+        total: lista.length,
+        pendentes: pendentes.length,
+        respondidos: respondidos.length,
+        comQuem: pendentes.map(e => e.para).filter(Boolean),
+        prazoTerceiroMaisProximo,
+        algumVencido,
+        diasAguardando: maiorEspera
+    };
+}
+
+/**
+ * Situação que os encaminhamentos sugerem. Não decide sozinha: a UI/store usa
+ * como sugestão e o usuário mantém a palavra final. Uma demanda já respondida
+ * nunca é puxada de volta.
+ */
+function situacaoSugerida(anotacao, hoje) {
+    const atual = (anotacao && anotacao.situacao) || 'recebida';
+    if (atual === 'respondida') return atual;
+    const r = resumoEncaminhamentos(anotacao, hoje);
+    if (r.pendentes > 0) return 'aguardando_terceiro';
+    if (r.respondidos > 0) return 'consolidando';
+    return atual === 'aguardando_terceiro' ? 'comigo' : atual;
+}
+
+/**
+ * Semáforo de prazo da demanda. É o único consumidor de `lembrarDiasAntes` —
+ * até então o campo era gravado e nunca lido.
+ */
+function semaforoPrazo(anotacao, hoje) {
+    if (!anotacao || anotacao.finalizado || !anotacao.prazo) return 'ok';
+    const dias = diasAte(anotacao.prazo, hoje);
+    if (dias === null) return 'ok';
+    if (dias < 0) return 'vencida';
+    if (dias === 0) return 'hoje';
+    const antecedencia = Number.isFinite(anotacao.lembrarDiasAntes) ? anotacao.lembrarDiasAntes : null;
+    if (antecedencia !== null && dias <= antecedencia) return 'alerta';
+    return 'ok';
+}
+
+/**
+ * Buckets das abas da Caixa de Demandas. 'recebida' e 'comigo' caem juntas em
+ * `comigo` porque, do ponto de vista da fila de trabalho, ambas dependem de mim.
+ */
+function agruparPorSituacao(anotacoes) {
+    const out = { comigo: [], aguardando: [], consolidar: [], concluidas: [] };
+    (anotacoes || []).forEach(a => {
+        switch (a.situacao) {
+            case 'aguardando_terceiro': out.aguardando.push(a); break;
+            case 'consolidando': out.consolidar.push(a); break;
+            case 'respondida': out.concluidas.push(a); break;
+            default: out.comigo.push(a);
+        }
+    });
+    return out;
+}
+
+/**
+ * Resolve funil/cliente de uma demanda: pelo negócio pai quando existe, senão
+ * pelos campos próprios da demanda avulsa.
+ */
+function vinculoDaAnotacao(anotacao, negocioPorId) {
+    const negocio = anotacao.negocioId ? negocioPorId[anotacao.negocioId] : null;
+    return negocio
+        ? { funilId: negocio.funilId, clienteId: negocio.clienteId }
+        : { funilId: anotacao.funilId || null, clienteId: anotacao.clienteId || null };
+}
+
+/**
+ * Filtra demandas. `extra.negocios` resolve funil/cliente das que têm negócio
+ * pai; as avulsas usam os próprios campos.
  */
 function filtrarAnotacoes(anotacoes, filtros, extra) {
     const f = filtros || {};
     const busca = normalizarParaBusca(f.busca);
     const negocios = (extra && extra.negocios) || [];
+    const hoje = extra && extra.hoje;
     const negocioPorId = {};
     negocios.forEach(n => { negocioPorId[n.id] = n; });
 
     return (anotacoes || []).filter(a => {
-        const negocio = negocioPorId[a.negocioId];
-        if (f.funilId && (!negocio || negocio.funilId !== f.funilId)) return false;
-        if (f.clienteId && (!negocio || negocio.clienteId !== f.clienteId)) return false;
+        if (a.excluidoEm) return false;
+        const vinculo = vinculoDaAnotacao(a, negocioPorId);
+        if (f.funilId && vinculo.funilId !== f.funilId) return false;
+        if (f.clienteId && vinculo.clienteId !== f.clienteId) return false;
         if (f.prioridade && a.prioridade !== f.prioridade) return false;
+        if (f.situacao && a.situacao !== f.situacao) return false;
+        if (f.responsavel && a.responsavel !== f.responsavel) return false;
         if (f.origemDemanda && a.origemDemanda !== f.origemDemanda) return false;
         if (f.prazoInicio && String(a.prazo || '') < f.prazoInicio) return false;
         if (f.prazoFim && String(a.prazo || '') > f.prazoFim) return false;
         if (f.dataSolicitacaoInicio && String(a.dataSolicitacao || '') < f.dataSolicitacaoInicio) return false;
         if (f.dataSolicitacaoFim && String(a.dataSolicitacao || '') > f.dataSolicitacaoFim) return false;
         if (f.mostrarFinalizadas === false && a.finalizado) return false;
+
+        const encaminhamentos = Array.isArray(a.encaminhamentos) ? a.encaminhamentos : [];
+        if (f.encaminhadoPara) {
+            if (!encaminhamentos.some(e => e.para === f.encaminhadoPara)) return false;
+        }
+        if (f.somenteVencidas && semaforoPrazo(a, hoje) !== 'vencida') return false;
+        if (f.somenteAtrasoTerceiro && !resumoEncaminhamentos(a, hoje).algumVencido) return false;
+
         if (busca) {
+            const dosEncaminhamentos = encaminhamentos
+                .map(e => normalizarParaBusca(e.para) + ' ' + normalizarParaBusca(e.oQuePedido) + ' ' + normalizarParaBusca(e.resposta))
+                .join(' ');
             const alvo = normalizarParaBusca(a.assunto) + ' ' + normalizarParaBusca(a.remetente) + ' ' +
-                normalizarParaBusca(a.acaoRealizar) + ' ' + normalizarParaBusca(a.observacoes);
+                normalizarParaBusca(a.acaoRealizar) + ' ' + normalizarParaBusca(a.observacoes) + ' ' + dosEncaminhamentos;
             if (alvo.indexOf(busca) === -1) return false;
         }
         return true;
@@ -206,12 +334,15 @@ function filtrarAnotacoes(anotacoes, filtros, extra) {
 }
 
 const PRIORIDADE_PESO = { baixa: 0, media: 1, alta: 2, critico: 3 };
+const SITUACAO_PESO = { recebida: 0, comigo: 1, aguardando_terceiro: 2, consolidando: 3, respondida: 4 };
 
 /**
  * Ordena anotações sem mutar a entrada. Critérios: 'assunto', 'remetente',
  * 'origemDemanda', 'dataSolicitacao', 'tipoDoc', 'numeroDocumento',
  * 'destinatario', 'acaoRealizar', 'prioridade', 'prazo', 'finalizado',
- * 'dataConclusao', 'funil', 'cliente' (via negócio pai). `direcao`: 'asc'|'desc'.
+ * 'dataConclusao', 'situacao', 'responsavel', 'diasAguardando', 'funil',
+ * 'cliente' (do negócio pai, ou da própria demanda quando avulsa).
+ * `direcao`: 'asc'|'desc'.
  */
 function ordenarAnotacoes(anotacoes, criterio, direcao, extra) {
     const lista = (anotacoes || []).slice();
@@ -224,10 +355,16 @@ function ordenarAnotacoes(anotacoes, criterio, direcao, extra) {
     const nomeFunil = id => { const f = funis.find(x => x.id === id); return f ? f.nome : ''; };
 
     const chave = a => {
-        const negocio = negocioPorId[a.negocioId];
+        const vinculo = vinculoDaAnotacao(a, negocioPorId);
         switch (criterio) {
-            case 'funil': return normalizarParaBusca(negocio ? nomeFunil(negocio.funilId) : '');
-            case 'cliente': return normalizarParaBusca(negocio ? nomeCliente(negocio.clienteId) : '');
+            case 'funil': return normalizarParaBusca(nomeFunil(vinculo.funilId));
+            case 'cliente': return normalizarParaBusca(nomeCliente(vinculo.clienteId));
+            case 'situacao': return SITUACAO_PESO[a.situacao] || 0;
+            case 'responsavel': return normalizarParaBusca(a.responsavel);
+            case 'diasAguardando': {
+                const d = resumoEncaminhamentos(a, extra && extra.hoje).diasAguardando;
+                return d === null ? -1 : d;
+            }
             case 'assunto': return normalizarParaBusca(a.assunto);
             case 'remetente': return normalizarParaBusca(a.remetente);
             case 'origemDemanda': return normalizarParaBusca(a.origemDemanda);
@@ -599,6 +736,13 @@ const CrmCalculos = {
     ordenarNegocios,
     filtrarAnotacoes,
     ordenarAnotacoes,
+    diasAte,
+    diasDesde,
+    resumoEncaminhamentos,
+    situacaoSugerida,
+    semaforoPrazo,
+    agruparPorSituacao,
+    vinculoDaAnotacao,
     reordenarNaEtapa,
     taxaConversao,
     formatarMoeda,

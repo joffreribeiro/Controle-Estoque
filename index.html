@@ -595,7 +595,8 @@
                     <div class="crm-barra-visoes">
                         <div class="crm-visao-toggle">
                             <button type="button" class="crm-visao-btn" data-valor="kanban" data-crm-action="setVisao" title="Quadro">▦</button>
-                            <button type="button" class="crm-visao-btn" data-valor="lista" data-crm-action="setVisao" title="Lista">☰</button>
+                            <button type="button" class="crm-visao-btn" data-valor="demandas" data-crm-action="setVisao" title="Caixa de demandas">📥</button>
+                            <button type="button" class="crm-visao-btn" data-valor="lista" data-crm-action="setVisao" title="Lista completa">☰</button>
                             <button type="button" class="crm-visao-btn" data-valor="previsao" data-crm-action="setVisao" title="Previsão">📅</button>
                             <button type="button" class="crm-visao-btn" data-valor="excluidos" data-crm-action="setVisao" title="Excluídos">🗑</button>
                         </div>
@@ -652,15 +653,38 @@
                                 <option value="alta">Alta</option>
                                 <option value="critico">Crítico</option>
                             </select>
+                            <select id="crmListaSituacao" class="crm-filtro-select" onchange="Crm.setListaFiltro()">
+                                <option value="">Situação</option>
+                                <option value="recebida">Recebida</option>
+                                <option value="comigo">Comigo</option>
+                                <option value="aguardando_terceiro">Aguardando terceiro</option>
+                                <option value="consolidando">Consolidando</option>
+                                <option value="respondida">Respondida</option>
+                            </select>
+                            <select id="crmListaResponsavel" class="crm-filtro-select" onchange="Crm.setListaFiltro()">
+                                <option value="">Responsável</option>
+                            </select>
+                            <select id="crmListaEncaminhadoPara" class="crm-filtro-select" onchange="Crm.setListaFiltro()">
+                                <option value="">Encaminhado para</option>
+                            </select>
                             <label class="crm-check">
                                 <input type="checkbox" id="crmListaMostrarConcluidas" onchange="Crm.setListaFiltro()" checked>
                                 Mostrar finalizadas
+                            </label>
+                            <label class="crm-check">
+                                <input type="checkbox" id="crmListaSomenteVencidas" onchange="Crm.setListaFiltro()">
+                                Só vencidas
+                            </label>
+                            <label class="crm-check">
+                                <input type="checkbox" id="crmListaSomenteAtrasoTerceiro" onchange="Crm.setListaFiltro()">
+                                Só com terceiro atrasado
                             </label>
                             <button type="button" class="crm-btn-filtro" onclick="Crm.limparListaFiltros()">Limpar</button>
                         </div>
                     </div>
 
                     <div id="crmKanban" class="crm-kanban"></div>
+                    <div id="crmDemandas" class="crm-demandas" style="display:none"></div>
                     <div id="crmListaNegocios" class="crm-lista" style="display:none"></div>
                     <div id="crmPrevisao" class="crm-previsao" style="display:none"></div>
                     <div id="crmExcluidos" class="crm-excluidos" style="display:none"></div>
@@ -4474,8 +4498,12 @@
 
                         <div class="form-group crm-autocomplete">
                             <label for="crmNegocioClienteBusca">Cliente</label>
-                            <input type="text" id="crmNegocioClienteBusca" autocomplete="off" placeholder="Buscar cliente..."
-                                   oninput="Crm.buscarCliente(this.value)" onfocus="Crm.buscarCliente(this.value)">
+                            <div class="crm-campo-com-acao">
+                                <input type="text" id="crmNegocioClienteBusca" autocomplete="off" placeholder="Buscar cliente..."
+                                       oninput="Crm.buscarCliente(this.value)" onfocus="Crm.buscarCliente(this.value)">
+                                <button type="button" class="crm-btn-mini" id="crmNegocioBtnEditarCliente"
+                                        onclick="Crm.editarClienteDoNegocio()" title="Abrir cadastro do cliente" disabled>✎ Cadastro</button>
+                            </div>
                             <input type="hidden" id="crmNegocioClienteId">
                             <div id="crmClienteLista" class="crm-ac-lista" style="display:none"></div>
                         </div>
@@ -4560,28 +4588,17 @@
             <div class="modal-body">
                 <input type="hidden" id="crmAnotacaoId">
 
-                <div class="form-group crm-autocomplete">
-                    <label for="crmAnotacaoNegocioBusca">Negócio vinculado *</label>
-                    <input type="text" id="crmAnotacaoNegocioBusca" autocomplete="off" placeholder="Buscar negócio por título ou cliente..."
-                           oninput="Crm.buscarNegocioParaAnotacao(this.value)" onfocus="Crm.buscarNegocioParaAnotacao(this.value)">
-                    <div id="crmAnotacaoNegocioLista" class="crm-ac-lista" style="display:none"></div>
-                </div>
-
-                <div class="crm-filtros-row" style="margin:-4px 0 14px">
-                    <span class="crm-tag">Relacionamento: <strong id="crmAnotacaoRelacionamento">-</strong></span>
-                    <span class="crm-tag">Cliente: <strong id="crmAnotacaoClienteNome">-</strong></span>
-                    <span class="crm-tag crm-tag-vinculo" id="crmAnotacaoVinculo" style="display:none">🗒️ Vinculada a: -</span>
-                </div>
-
-                <div class="crm-modal-grid">
-                    <div class="crm-modal-esq">
+                <!-- ① ENTRADA — o que me chegou -->
+                <div class="crm-bloco">
+                    <div class="crm-bloco-titulo">① ENTRADA — o que me chegou</div>
+                    <div class="form-group">
+                        <label for="crmAnotacaoAssunto">Assunto *</label>
+                        <input type="text" id="crmAnotacaoAssunto" placeholder="Assunto da demanda">
+                    </div>
+                    <div class="crm-form-linha">
                         <div class="form-group">
-                            <label for="crmAnotacaoAssunto">Assunto *</label>
-                            <input type="text" id="crmAnotacaoAssunto" placeholder="Assunto da demanda">
-                        </div>
-                        <div class="form-group">
-                            <label for="crmAnotacaoRemetente">Remetente</label>
-                            <input type="text" id="crmAnotacaoRemetente">
+                            <label for="crmAnotacaoRemetente">Solicitante / Remetente</label>
+                            <input type="text" id="crmAnotacaoRemetente" placeholder="Quem pediu">
                         </div>
                         <div class="form-group">
                             <label for="crmAnotacaoOrigemDemanda">Origem da Demanda</label>
@@ -4591,27 +4608,41 @@
                             <label for="crmAnotacaoDataSolicitacao">Data Solicitação</label>
                             <input type="date" id="crmAnotacaoDataSolicitacao">
                         </div>
+                    </div>
+                    <div class="crm-form-linha">
                         <div class="form-group">
-                            <label for="crmAnotacaoTipoDoc">Tipo Doc</label>
-                            <input type="text" id="crmAnotacaoTipoDoc">
+                            <label for="crmAnotacaoTipoDoc">Tipo Doc de entrada</label>
+                            <input type="text" id="crmAnotacaoTipoDoc" placeholder="Ex: Ofício, Memorando">
                         </div>
                         <div class="form-group">
                             <label for="crmAnotacaoNumeroDocumento">Nº Documento</label>
                             <input type="text" id="crmAnotacaoNumeroDocumento">
                         </div>
-                        <div class="form-group">
-                            <label for="crmAnotacaoDestinatario">Destinatário</label>
-                            <input type="text" id="crmAnotacaoDestinatario">
-                        </div>
-                        <div class="form-group">
-                            <label for="crmAnotacaoAcaoRealizar">Ação a Realizar</label>
-                            <textarea id="crmAnotacaoAcaoRealizar" rows="2"></textarea>
-                        </div>
                     </div>
+                    <div class="form-group">
+                        <label for="crmAnotacaoAcaoRealizar">Ação a Realizar</label>
+                        <textarea id="crmAnotacaoAcaoRealizar" rows="2" placeholder="O que precisa ser feito"></textarea>
+                    </div>
+                </div>
 
-                    <div class="crm-modal-dir">
-                        <div class="crm-modal-dir-titulo">DETALHES</div>
-
+                <!-- ② CLASSIFICAÇÃO -->
+                <div class="crm-bloco">
+                    <div class="crm-bloco-titulo">② CLASSIFICAÇÃO</div>
+                    <div class="crm-form-linha">
+                        <div class="form-group">
+                            <label for="crmAnotacaoSituacao">Situação</label>
+                            <select id="crmAnotacaoSituacao">
+                                <option value="recebida">Recebida</option>
+                                <option value="comigo">Comigo</option>
+                                <option value="aguardando_terceiro">Aguardando terceiro</option>
+                                <option value="consolidando">Consolidando</option>
+                                <option value="respondida">Respondida</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="crmAnotacaoResponsavel">Responsável</label>
+                            <select id="crmAnotacaoResponsavel"></select>
+                        </div>
                         <div class="form-group">
                             <label for="crmAnotacaoPrioridade">Prioridade</label>
                             <select id="crmAnotacaoPrioridade">
@@ -4621,36 +4652,99 @@
                                 <option value="critico">Crítico</option>
                             </select>
                         </div>
+                    </div>
+                    <div class="crm-form-linha">
                         <div class="form-group">
                             <label for="crmAnotacaoPrazo">Prazo</label>
                             <input type="date" id="crmAnotacaoPrazo">
                         </div>
                         <div class="form-group">
-                            <label for="crmAnotacaoLembrarDias">Lembrar X dias antes do prazo</label>
-                            <input type="text" id="crmAnotacaoLembrarDias" placeholder="Ex: 3">
+                            <label for="crmAnotacaoLembrarDias">Avisar X dias antes</label>
+                            <input type="number" id="crmAnotacaoLembrarDias" min="0" step="1" placeholder="Ex: 3">
                         </div>
                         <div class="form-group">
                             <label for="crmAnotacaoTags">Tags (separadas por vírgula)</label>
                             <input type="text" id="crmAnotacaoTags">
                         </div>
+                    </div>
+
+                    <div class="crm-vinculo-box">
+                        <div class="crm-form-linha">
+                            <div class="form-group crm-autocomplete">
+                                <label for="crmAnotacaoNegocioBusca">Negócio vinculado (opcional)</label>
+                                <input type="text" id="crmAnotacaoNegocioBusca" autocomplete="off" placeholder="Buscar negócio por título ou cliente..."
+                                       oninput="Crm.buscarNegocioParaAnotacao(this.value)" onfocus="Crm.buscarNegocioParaAnotacao(this.value)">
+                                <div id="crmAnotacaoNegocioLista" class="crm-ac-lista" style="display:none"></div>
+                            </div>
+                            <div class="form-group" style="flex:0 0 auto;align-self:flex-end">
+                                <button type="button" class="btn btn-outline" id="crmAnotacaoBtnDesvincular"
+                                        onclick="Crm.desvincularNegocioAnotacao()" style="display:none">Desvincular</button>
+                            </div>
+                        </div>
+
+                        <!-- Demanda avulsa: sem negócio, escolhe funil/etapa/cliente direto -->
+                        <div class="crm-form-linha" id="crmAnotacaoAvulsa">
+                            <div class="form-group">
+                                <label for="crmAnotacaoFunil">Relacionamento (funil) *</label>
+                                <select id="crmAnotacaoFunil" onchange="Crm.aoTrocarFunilAnotacao()"></select>
+                            </div>
+                            <div class="form-group">
+                                <label for="crmAnotacaoEtapa">Etapa</label>
+                                <select id="crmAnotacaoEtapa"></select>
+                            </div>
+                            <div class="form-group">
+                                <label for="crmAnotacaoCliente">Cliente (opcional)</label>
+                                <select id="crmAnotacaoCliente"></select>
+                            </div>
+                        </div>
+
+                        <div class="crm-filtros-row" id="crmAnotacaoVinculoInfo" style="display:none">
+                            <span class="crm-tag">Relacionamento: <strong id="crmAnotacaoRelacionamento">-</strong></span>
+                            <span class="crm-tag">Cliente: <strong id="crmAnotacaoClienteNome">-</strong></span>
+                        </div>
+                        <div class="crm-filtros-row">
+                            <span class="crm-tag crm-tag-vinculo" id="crmAnotacaoVinculo" style="display:none">🗒️ Vinculada a: -</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ③ ENCAMINHAMENTOS — o que pedi a terceiros -->
+                <div class="crm-bloco">
+                    <div class="crm-bloco-titulo">
+                        ③ ENCAMINHAMENTOS — o que pedi a terceiros
+                        <button type="button" class="crm-btn-mini" onclick="Crm.adicionarEncaminhamento()">+ Encaminhar</button>
+                    </div>
+                    <div id="crmAnotacaoEncaminhamentos"></div>
+                </div>
+
+                <!-- ④ CONSOLIDAÇÃO E SAÍDA -->
+                <div class="crm-bloco">
+                    <div class="crm-bloco-titulo">
+                        ④ CONSOLIDAÇÃO E SAÍDA
+                        <button type="button" class="crm-btn-mini" onclick="Crm.consolidarRespostas()">⤵ Consolidar respostas</button>
+                    </div>
+                    <div id="crmAnotacaoRespostasResumo" class="crm-respostas-resumo"></div>
+                    <div class="form-group">
+                        <label for="crmAnotacaoOQueFoiFeito">O que foi feito / resposta consolidada</label>
+                        <textarea id="crmAnotacaoOQueFoiFeito" rows="4"></textarea>
+                    </div>
+                    <div class="crm-form-linha">
                         <div class="form-group">
-                            <label for="crmAnotacaoObservacoes">Observações</label>
-                            <textarea id="crmAnotacaoObservacoes" rows="2"></textarea>
+                            <label for="crmAnotacaoRespostaTipoDoc">Tipo Doc de saída</label>
+                            <input type="text" id="crmAnotacaoRespostaTipoDoc" placeholder="Ex: Ofício de resposta">
                         </div>
                         <div class="form-group">
-                            <label class="crm-check">
-                                <input type="checkbox" id="crmAnotacaoFinalizado">
-                                Finalizado
-                            </label>
+                            <label for="crmAnotacaoRespostaNumeroDocumento">Nº Documento de saída</label>
+                            <input type="text" id="crmAnotacaoRespostaNumeroDocumento">
                         </div>
                         <div class="form-group">
                             <label for="crmAnotacaoDataConclusao">Data de Conclusão</label>
                             <input type="date" id="crmAnotacaoDataConclusao">
                         </div>
-                        <div class="form-group">
-                            <label for="crmAnotacaoOQueFoiFeito">O que foi feito</label>
-                            <textarea id="crmAnotacaoOQueFoiFeito" rows="2"></textarea>
-                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="crmAnotacaoObservacoes">Observações</label>
+                        <textarea id="crmAnotacaoObservacoes" rows="2"></textarea>
                     </div>
                 </div>
             </div>
@@ -4796,17 +4890,18 @@
         </div>
     </div>
 
-    <script src="app2.js?v=36"></script>
+    <script src="app2.js?v=37"></script>
 
-    <script src="crm-model.js?v=6"></script>
-    <script src="crm-calculos.js?v=4"></script>
+    <script src="crm-model.js?v=7"></script>
+    <script src="crm-calculos.js?v=5"></script>
     <script src="crm-compat.js?v=1"></script>
-    <script src="crm-store.js?v=2"></script>
+    <script src="crm-store.js?v=3"></script>
     <script src="crm-kanban.js?v=1"></script>
-    <script src="crm-ui.js?v=21"></script>
+    <script src="crm-ui.js?v=24"></script>
     <script src="https://accounts.google.com/gsi/client" async defer></script>
     <script src="google-calendar-sync.js?v=9"></script>
-    <link rel="stylesheet" href="crm.css?v=15">
+    <script src="ponto-calendar-bridge.js?v=1"></script>
+    <link rel="stylesheet" href="crm.css?v=18">
     <script src="fluxo-nav.js?v=2"></script>
 
     <script>

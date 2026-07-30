@@ -214,6 +214,22 @@
     //  HISTÓRICO / NOTAS
     // ──────────────────────────────────────────────
 
+    /**
+     * E-mail do usuário logado, para a trilha de auditoria. Lê o `currentUser`
+     * que app2.js grava no localStorage no login; acesso defensivo porque o CRM
+     * não deve quebrar se rodar isolado (testes, página sem autenticação).
+     */
+    function autorAtual() {
+        try {
+            var raw = localStorage.getItem('currentUser');
+            if (!raw) return '';
+            var u = JSON.parse(raw);
+            return (u && u.email) ? u.email : '';
+        } catch (e) {
+            return '';
+        }
+    }
+
     function registrarHistorico(entidade, entidadeId, tipo, texto, dadosExtra) {
         var crm = getCrm();
         if (!crm) return null;
@@ -224,7 +240,7 @@
             tipo: tipo,
             texto: texto || '',
             dados: dadosExtra || null,
-            autor: '',
+            autor: autorAtual(),
             editavel: (tipo === 'nota'),
             criadoEm: new Date().toISOString()
         };
@@ -619,14 +635,42 @@
     }
 
     // ──────────────────────────────────────────────
-    //  ANOTAÇÕES (demandas/solicitações vinculadas a um negócio)
+    //  ANOTAÇÕES / DEMANDAS
+    //  O vínculo com negócio é opcional: uma demanda avulsa vive no funil pelos
+    //  próprios funilId/etapaId.
     // ──────────────────────────────────────────────
 
-    function listarAnotacoes(negocioId) {
+    /**
+     * O histórico da demanda é ancorado no negócio pai quando ele existe (para
+     * continuar aparecendo na timeline do negócio) e na própria demanda quando
+     * ela é avulsa.
+     */
+    function ancoraHistorico(anotacao) {
+        return anotacao.negocioId
+            ? { entidade: 'negocio', id: anotacao.negocioId }
+            : { entidade: 'anotacao', id: anotacao.id };
+    }
+
+    function registrarNaDemanda(anotacao, texto, dadosExtra) {
+        var ancora = ancoraHistorico(anotacao);
+        return registrarHistorico(ancora.entidade, ancora.id, 'anotacao', texto,
+            Object.assign({ anotacaoId: anotacao.id }, dadosExtra || {}));
+    }
+
+    /**
+     * `filtro` aceita uma string (negocioId, forma legada) ou
+     * { negocioId, funilId, incluirExcluidas }.
+     */
+    function listarAnotacoes(filtro) {
         var crm = getCrm();
         if (!crm) return [];
-        var todas = crm.anotacoes || [];
-        return negocioId ? todas.filter(function (a) { return a.negocioId === negocioId; }) : todas.slice();
+        var f = (typeof filtro === 'string') ? { negocioId: filtro } : (filtro || {});
+        return (crm.anotacoes || []).filter(function (a) {
+            if (!f.incluirExcluidas && a.excluidoEm) return false;
+            if (f.negocioId && a.negocioId !== f.negocioId) return false;
+            if (f.funilId && !a.negocioId && a.funilId !== f.funilId) return false;
+            return true;
+        });
     }
 
     function getAnotacao(id) {
@@ -642,9 +686,7 @@
         emLote(function () {
             if (!crm.anotacoes) crm.anotacoes = [];
             crm.anotacoes.push(anotacao);
-            registrarHistorico('negocio', anotacao.negocioId, 'anotacao',
-                'Anotação criada: ' + anotacao.assunto,
-                { anotacaoId: anotacao.id, acao: 'criada' });
+            registrarNaDemanda(anotacao, 'Demanda criada: ' + anotacao.assunto, { acao: 'criada' });
         });
         return anotacao;
     }
@@ -654,40 +696,176 @@
         if (!crm) return null;
         var a = (crm.anotacoes || []).filter(function (x) { return x.id === id; })[0];
         if (!a) return null;
+
+        var antes = {};
+        CrmModel.CAMPOS_AUDITAVEIS_ANOTACAO.forEach(function (campo) { antes[campo] = a[campo]; });
+
         emLote(function () {
             Object.keys(patch || {}).forEach(function (campo) {
                 if (campo === 'id') return;
                 a[campo] = patch[campo];
             });
+            // `finalizado` é consequência da situação, nunca fonte da verdade.
+            if (Object.prototype.hasOwnProperty.call(patch || {}, 'situacao')) {
+                aplicarSituacao(a, a.situacao);
+            }
             a.atualizadoEm = new Date().toISOString();
+
+            CrmModel.CAMPOS_AUDITAVEIS_ANOTACAO.forEach(function (campo) {
+                if (Object.prototype.hasOwnProperty.call(patch || {}, campo) && antes[campo] !== a[campo]) {
+                    registrarNaDemanda(a, 'Campo "' + campo + '" alterado',
+                        { campo: campo, de: antes[campo], para: a[campo] });
+                }
+            });
         });
         return a;
     }
 
-    function concluirAnotacao(id, finalizado) {
+    /** Sincroniza os derivados de situação. Não grava histórico nem salva. */
+    function aplicarSituacao(a, situacao) {
+        a.situacao = situacao;
+        a.finalizado = (situacao === 'respondida');
+        if (a.finalizado) {
+            if (!a.dataConclusao) a.dataConclusao = new Date().toISOString().slice(0, 10);
+        } else {
+            a.dataConclusao = null;
+        }
+    }
+
+    function setSituacaoAnotacao(id, situacao) {
         var crm = getCrm();
         if (!crm) return false;
         var a = (crm.anotacoes || []).filter(function (x) { return x.id === id; })[0];
         if (!a) return false;
-        var marcar = (finalizado !== false);
+        if (CrmModel.SITUACOES_ANOTACAO.indexOf(situacao) === -1) return false;
+        if (a.situacao === situacao) return true;
+        var de = a.situacao;
         emLote(function () {
-            a.finalizado = marcar;
-            a.dataConclusao = marcar ? new Date().toISOString().slice(0, 10) : null;
+            aplicarSituacao(a, situacao);
             a.atualizadoEm = new Date().toISOString();
-            registrarHistorico('negocio', a.negocioId, 'anotacao',
-                (marcar ? 'Anotação finalizada: ' : 'Anotação reaberta: ') + a.assunto,
-                { anotacaoId: a.id, acao: marcar ? 'finalizada' : 'reaberta' });
+            registrarNaDemanda(a, 'Situação: ' + de + ' → ' + situacao,
+                { campo: 'situacao', de: de, para: situacao });
         });
         return true;
     }
 
+    /** Wrapper legado sobre setSituacaoAnotacao. */
+    function concluirAnotacao(id, finalizado) {
+        return setSituacaoAnotacao(id, (finalizado !== false) ? 'respondida' : 'comigo');
+    }
+
+    /** Soft delete, alinhado ao tratamento dado aos negócios. */
     function removerAnotacao(id) {
         var crm = getCrm();
         if (!crm) return false;
+        var a = (crm.anotacoes || []).filter(function (x) { return x.id === id; })[0];
+        if (!a || a.excluidoEm) return false;
+        emLote(function () {
+            a.excluidoEm = new Date().toISOString();
+            a.atualizadoEm = a.excluidoEm;
+            registrarNaDemanda(a, 'Demanda excluída: ' + a.assunto, { acao: 'excluida' });
+        });
+        return true;
+    }
+
+    function restaurarAnotacao(id) {
+        var crm = getCrm();
+        if (!crm) return false;
+        var a = (crm.anotacoes || []).filter(function (x) { return x.id === id; })[0];
+        if (!a || !a.excluidoEm) return false;
+        emLote(function () {
+            a.excluidoEm = null;
+            a.atualizadoEm = new Date().toISOString();
+            registrarNaDemanda(a, 'Demanda restaurada: ' + a.assunto, { acao: 'restaurada' });
+        });
+        return true;
+    }
+
+    // ── Encaminhamentos (pedidos de informação a terceiros) ──
+
+    function getEncaminhamento(anotacao, encId) {
+        return (anotacao.encaminhamentos || []).filter(function (e) { return e.id === encId; })[0] || null;
+    }
+
+    /**
+     * Reavalia a situação a partir dos encaminhamentos. Só aplica quando muda,
+     * e nunca reabre uma demanda já respondida (ver CrmCalculos.situacaoSugerida).
+     */
+    function sincronizarSituacao(a) {
+        var sugerida = CrmCalculos.situacaoSugerida(a);
+        if (sugerida === a.situacao) return;
+        var de = a.situacao;
+        aplicarSituacao(a, sugerida);
+        registrarNaDemanda(a, 'Situação: ' + de + ' → ' + sugerida,
+            { campo: 'situacao', de: de, para: sugerida, automatico: true });
+    }
+
+    function adicionarEncaminhamento(anotacaoId, dados) {
+        var crm = getCrm();
+        if (!crm) return null;
+        var a = (crm.anotacoes || []).filter(function (x) { return x.id === anotacaoId; })[0];
+        if (!a) return null;
+        var enc = CrmModel.criarEncaminhamento(dados);
+        emLote(function () {
+            if (!Array.isArray(a.encaminhamentos)) a.encaminhamentos = [];
+            a.encaminhamentos.push(enc);
+            a.atualizadoEm = new Date().toISOString();
+            registrarNaDemanda(a, 'Encaminhado a ' + (enc.para || '(sem destinatário)'),
+                { encaminhamentoId: enc.id, acao: 'encaminhado', para: enc.para });
+            sincronizarSituacao(a);
+        });
+        return enc;
+    }
+
+    function atualizarEncaminhamento(anotacaoId, encId, patch) {
+        var crm = getCrm();
+        if (!crm) return null;
+        var a = (crm.anotacoes || []).filter(function (x) { return x.id === anotacaoId; })[0];
+        if (!a) return null;
+        var enc = getEncaminhamento(a, encId);
+        if (!enc) return null;
+        var statusAntes = enc.status;
+        emLote(function () {
+            Object.keys(patch || {}).forEach(function (campo) {
+                if (campo === 'id') return;
+                enc[campo] = patch[campo];
+            });
+            enc.atualizadoEm = new Date().toISOString();
+            a.atualizadoEm = enc.atualizadoEm;
+            if (enc.status !== statusAntes) {
+                registrarNaDemanda(a, 'Encaminhamento a ' + (enc.para || '?') + ': ' + statusAntes + ' → ' + enc.status,
+                    { encaminhamentoId: enc.id, de: statusAntes, para: enc.status });
+            }
+            sincronizarSituacao(a);
+        });
+        return enc;
+    }
+
+    function responderEncaminhamento(anotacaoId, encId, dados) {
+        var d = dados || {};
+        return atualizarEncaminhamento(anotacaoId, encId, {
+            status: 'respondido',
+            dataResposta: d.dataResposta || new Date().toISOString().slice(0, 10),
+            resposta: typeof d.resposta === 'string' ? d.resposta : ''
+        });
+    }
+
+    function removerEncaminhamento(anotacaoId, encId) {
+        var crm = getCrm();
+        if (!crm) return false;
+        var a = (crm.anotacoes || []).filter(function (x) { return x.id === anotacaoId; })[0];
+        if (!a) return false;
         var idx = -1;
-        (crm.anotacoes || []).forEach(function (a, i) { if (a.id === id) idx = i; });
+        (a.encaminhamentos || []).forEach(function (e, i) { if (e.id === encId) idx = i; });
         if (idx === -1) return false;
-        emLote(function () { crm.anotacoes.splice(idx, 1); });
+        var removido = a.encaminhamentos[idx];
+        emLote(function () {
+            a.encaminhamentos.splice(idx, 1);
+            a.atualizadoEm = new Date().toISOString();
+            registrarNaDemanda(a, 'Encaminhamento a ' + (removido.para || '?') + ' removido',
+                { encaminhamentoId: encId, acao: 'removido' });
+            sincronizarSituacao(a);
+        });
         return true;
     }
 
@@ -768,7 +946,13 @@
         criarAnotacao: criarAnotacao,
         atualizarAnotacao: atualizarAnotacao,
         concluirAnotacao: concluirAnotacao,
+        setSituacaoAnotacao: setSituacaoAnotacao,
         removerAnotacao: removerAnotacao,
+        restaurarAnotacao: restaurarAnotacao,
+        adicionarEncaminhamento: adicionarEncaminhamento,
+        atualizarEncaminhamento: atualizarEncaminhamento,
+        responderEncaminhamento: responderEncaminhamento,
+        removerEncaminhamento: removerEncaminhamento,
 
         listarClientes: listarClientes,
         getCliente: getCliente,
