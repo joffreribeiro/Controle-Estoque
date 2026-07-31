@@ -859,6 +859,30 @@
     font-weight: 700;
 }
 
+/* Sábado e domingo com um tom de fundo levemente diferente, nos dois
+   calendários (mês e semana) — só a cor de fundo; o resto (barras, texto)
+   permanece igual. */
+.crm-cal-fim-semana { background-color: var(--bg-light); }
+
+/* A trilha da grade semanal reusa a mesma div externa .crm-cal-mes-trilha do
+   mensal (só a "linha" interna muda de classe, ver crm-cal-grade-trilha-linha
+   abaixo) — aqui só acrescenta a borda de separação que faz sentido no
+   contexto da semana (no mês ela já fica implícita entre uma semana e outra). */
+.crm-cal-grade > .crm-cal-mes-trilha {
+    border-bottom: 1px solid var(--border-color);
+}
+.crm-cal-grade-trilha-linha {
+    display: grid;
+    grid-template-columns: 56px repeat(7, 1fr);
+    gap: 2px;
+}
+/* Preenchimento da coluna de sábado/domingo dentro da própria linha da
+   trilha — fica atrás de qualquer barra que passe por cima (ordem no DOM). */
+.crm-cal-trilha-fundo-fds {
+    background: var(--bg-light);
+    border-radius: 3px;
+}
+
 .crm-cal-grade-allday { min-height: 30px; }
 .crm-cal-allday-col {
     border-right: 1px solid var(--border-color);
@@ -979,6 +1003,30 @@
 .crm-cal-mes-semana-dias .crm-cal-mes-dia:last-child { border-right: none; }
 .crm-cal-mes-semana:last-child .crm-cal-mes-dia { border-bottom: none; }
 .crm-cal-mes-dia { cursor: pointer; }
+
+/* Segmentos de barra multi-dia DENTRO da célula do mês (logo abaixo do
+   número, junto com os demais cards) — cada célula ganha um segmento por
+   "faixa" ativa naquela semana; sangra o padding de 4px da célula nos lados
+   onde a barra continua pra próxima/anterior, dando a impressão de uma barra
+   contínua atravessando as células. */
+.crm-cal-mes-segmentos { display: flex; flex-direction: column; gap: 2px; }
+.crm-cal-mes-barra-seg, .crm-cal-mes-barra-vazia {
+    height: 16px;
+    flex: none;
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    font-size: 11px;
+    line-height: 1.2;
+    overflow: hidden;
+    padding: 0 4px;
+    box-sizing: border-box;
+}
+.crm-cal-mes-barra-vazia { background: transparent; padding: 0; }
+.crm-cal-mes-barra-seg-unica { border-radius: 3px; cursor: pointer; }
+.crm-cal-mes-barra-seg-inicio { border-radius: 3px 0 0 3px; margin-right: -4px; cursor: pointer; }
+.crm-cal-mes-barra-seg-fim { border-radius: 0 3px 3px 0; margin-left: -4px; cursor: pointer; }
+.crm-cal-mes-barra-seg-meio { border-radius: 0; margin-left: -4px; margin-right: -4px; cursor: pointer; }
 
 /* Trilha de eventos do Ponto que cobrem vários dias — uma barra contínua por
    evento, mesclando visualmente as células das datas que ele cobre. */

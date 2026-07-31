@@ -198,12 +198,20 @@ function normalizarAtividade(aBruta) {
         assunto: typeof a.assunto === 'string' ? a.assunto : '',
         descricao: typeof a.descricao === 'string' ? a.descricao : '',
         data: a.data || null,
+        // Só usado por atividades importadas do Google que cobrem vários dias
+        // (ex: reserva de hotel) — permite mesclar a célula nos calendários
+        // Mês/Semana em vez de mostrar só no dia de início. null = evento de 1 dia só.
+        dataFim: (typeof a.dataFim === 'string' && a.dataFim > a.data) ? a.dataFim : null,
         horaInicio: typeof a.horaInicio === 'string' ? a.horaInicio : '',
         horaFim: typeof a.horaFim === 'string' ? a.horaFim : '',
         feito: !!a.feito,
         feitoEm: a.feitoEm || null,
         googleEventId: typeof a.googleEventId === 'string' ? a.googleEventId : null,
         origemGoogle: !!a.origemGoogle,
+        // Reservas de voo/hotel detectadas pelo Gmail: importadas só pra
+        // aparecer no calendário — o app nunca escreve de volta nelas no
+        // Google (ver google-calendar-sync.js: sincronizarAtividade/removerEvento).
+        somenteLeituraGoogle: !!a.somenteLeituraGoogle,
         origemFeriado: !!a.origemFeriado,
         criadoEm: a.criadoEm || nowIso(),
         atualizadoEm: a.atualizadoEm || nowIso()

@@ -58,7 +58,7 @@
     var _demandaAba = 'comigo'; // comigo | aguardando | consolidar | concluidas | todas
 
     // ── Estado da vista Calendário (Atividades, todos os negócios) ──
-    var _calModo = 'lista'; // 'lista' | 'semana' | 'mes'
+    var _calModo = 'mes'; // 'lista' | 'semana' | 'mes'
     var _calPeriodo = 'todos'; // todos|paraFazer|vencido|hoje|amanha|semana|proximaSemana
     var _calTipo = ''; // '' (todos) | chamada|reuniao|tarefa|prazo|email|viagem|ferias|recesso|particular
     var _calBusca = '';
@@ -709,6 +709,11 @@
     var DIAS_SEMANA_ABREV = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'];
     var MESES_ABREV = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
 
+    function ehFimDeSemana(dataIso) {
+        var dia = new Date(dataIso + 'T00:00:00Z').getUTCDay();
+        return dia === 0 || dia === 6;
+    }
+
     // ── Ponte com o Google Agenda (GoogleCalendarSync, google-calendar-sync.js) ──
 
     function contextoNegocioCliente(negocioId) {
@@ -848,6 +853,31 @@
             i++;
         }
         return out.length ? out : [inicio];
+    }
+
+    /**
+     * Atividades reais que cobrem vários dias (hoje só acontece com reservas
+     * de hotel/viagem importadas do Google, ver dataFim em crm-model.js) viram
+     * um clone por dia coberto, todos com o mesmo `grupoBarraId` (o id da
+     * atividade original) — é o que permite às grades Mês/Semana mesclar a
+     * célula numa única barra contínua, no mesmo mecanismo já usado pros
+     * eventos multi-dia do Ponto (ver acharBarrasPontoNaSemana). Atividades de
+     * 1 dia só passam direto, sem clonar.
+     */
+    function expandirAtividadesMultidia(atividades) {
+        var out = [];
+        atividades.forEach(function (a) {
+            if (!a.dataFim || a.dataFim <= a.data) { out.push(a); return; }
+            var dias = expandirIntervaloDias(a.data, a.dataFim, PONTO_MAX_DIAS_POR_EVENTO);
+            dias.forEach(function (dataIso) {
+                var clone = {};
+                for (var k in a) { if (Object.prototype.hasOwnProperty.call(a, k)) clone[k] = a[k]; }
+                clone.data = dataIso;
+                clone.grupoBarraId = a.id;
+                out.push(clone);
+            });
+        });
+        return out;
     }
 
     /**
@@ -1002,9 +1032,9 @@
             '<div class="crm-cal-toolbar">' +
                 '<button type="button" class="btn btn-primary crm-cal-btn-nova" data-crm-action="abrirModalAtividadeCal">+ Atividade</button>' +
                 '<div class="crm-cal-modos">' +
-                    '<button type="button" class="crm-cal-modo-btn' + (_calModo === 'lista' ? ' active' : '') + '" data-crm-action="setCalModo" data-valor="lista" title="Lista">☰</button>' +
-                    '<button type="button" class="crm-cal-modo-btn' + (_calModo === 'semana' ? ' active' : '') + '" data-crm-action="setCalModo" data-valor="semana" title="Semana">🗓</button>' +
                     '<button type="button" class="crm-cal-modo-btn' + (_calModo === 'mes' ? ' active' : '') + '" data-crm-action="setCalModo" data-valor="mes" title="Mês">📆</button>' +
+                    '<button type="button" class="crm-cal-modo-btn' + (_calModo === 'semana' ? ' active' : '') + '" data-crm-action="setCalModo" data-valor="semana" title="Semana">🗓</button>' +
+                    '<button type="button" class="crm-cal-modo-btn' + (_calModo === 'lista' ? ' active' : '') + '" data-crm-action="setCalModo" data-valor="lista" title="Lista">☰</button>' +
                 '</div>' +
                 '<input type="text" class="crm-busca" placeholder="Buscar atividade, negócio ou contato..." value="' + esc(_calBusca) + '" oninput="Crm.setCalBusca(this.value)">' +
                 '<span class="crm-contagem">' + filtradas.length + (filtradas.length !== 1 ? ' atividades' : ' atividade') + '</span>' +
@@ -1054,7 +1084,7 @@
             var selo = a.origemFeriado
                 ? ' <span class="crm-cal-badge-feriado" title="Feriado nacional — somente leitura">🎉 Feriado</span>'
                 : (a.origemPonto ? ' <span class="crm-cal-badge-ponto" title="Do sistema Ponto (' + esc(a.pontoTipoRotulo || '') + ') — somente leitura">' + esc(a.pontoIcone || '📅') + ' Ponto</span>'
-                    : (a.origemGoogle ? ' <span class="crm-cal-badge-google" title="Importado da Google Agenda">📥 Google</span>' : ''));
+                    : (a.origemGoogle ? ' <span class="crm-cal-badge-google" title="' + (a.somenteLeituraGoogle ? 'Importado da Google Agenda (reserva de voo/hotel) — edições aqui não sincronizam de volta' : 'Importado da Google Agenda') + '">📥 Google' + (a.somenteLeituraGoogle ? ' 🔒' : '') + '</span>' : ''));
             var celAssunto = (a.origemPonto ? '' : (tipoInfo.icone + ' ')) + esc(a.assunto || '(sem assunto)') + selo;
 
             return '<tr' + vencida + '>' +
@@ -1101,7 +1131,8 @@
 
     function renderizarCalendarioSemana(atividades) {
         var domingo = _calSemanaRef;
-        var porDia = CrmCalculos.agruparAtividadesPorDiaDaSemana(atividades, domingo);
+        var porDia = CrmCalculos.agruparAtividadesPorDiaDaSemana(expandirAtividadesMultidia(atividades), domingo);
+        var diasSemana = Object.keys(porDia);
         var hoje = hojeIsoLocal();
 
         var nav = '<div class="crm-cal-nav">' +
@@ -1118,14 +1149,17 @@
                 var d = new Date(dataIso + 'T00:00:00Z');
                 var ehHoje = dataIso === hoje;
                 var numero = ehHoje ? '<span class="crm-cal-cab-numero-hoje">' + d.getUTCDate() + '</span>' : d.getUTCDate();
-                return '<div class="crm-cal-cab-dia' + (ehHoje ? ' crm-cal-cab-hoje' : '') + '">' + DIAS_SEMANA_ABREV[d.getUTCDay()] + ' ' + numero + '</div>';
+                return '<div class="crm-cal-cab-dia' + (ehHoje ? ' crm-cal-cab-hoje' : '') + (ehFimDeSemana(dataIso) ? ' crm-cal-fim-semana' : '') + '">' + DIAS_SEMANA_ABREV[d.getUTCDay()] + ' ' + numero + '</div>';
             }).join('') + '</div>';
 
-        var diaSemHora = Object.keys(porDia).map(function (dataIso) {
-            var semHora = porDia[dataIso].filter(function (a) { return !a.horaInicio; });
-            return '<div class="crm-cal-allday-col" data-crm-action="novaAtividadeNoDia" data-data="' + esc(dataIso) + '" title="Clique para agendar uma atividade neste dia">' + semHora.map(function (a) { return renderizarEventoCard(a); }).join('') + '</div>';
+        var trilhaHtml = renderizarTrilhaGrade(diasSemana, porDia, 2, 'crm-cal-grade-trilha-linha');
+
+        var diaSemHora = diasSemana.map(function (dataIso) {
+            // Itens multi-dia (Ponto ou reais) já viraram barra na trilha acima — não repetir aqui.
+            var semHora = porDia[dataIso].filter(function (a) { return !a.horaInicio && !a.origemPonto && !a.grupoBarraId; });
+            return '<div class="crm-cal-allday-col' + (ehFimDeSemana(dataIso) ? ' crm-cal-fim-semana' : '') + '" data-crm-action="novaAtividadeNoDia" data-data="' + esc(dataIso) + '" title="Clique para agendar uma atividade neste dia">' + semHora.map(function (a) { return renderizarEventoCard(a); }).join('') + '</div>';
         }).join('');
-        var linhaSemHora = '<div class="crm-cal-grade-allday"><div class="crm-cal-cab-gutter"></div>' + diaSemHora + '</div>';
+        var linhaSemHora = trilhaHtml + '<div class="crm-cal-grade-allday"><div class="crm-cal-cab-gutter"></div>' + diaSemHora + '</div>';
 
         var horas = [];
         for (var m = CAL_GRADE_INICIO_MIN; m < CAL_GRADE_FIM_MIN; m += 60) {
@@ -1144,7 +1178,7 @@
                 return renderizarEventoCard(a, 'position:absolute;left:2px;right:2px;top:' + topPct.toFixed(2) + '%;height:' + alturaPct.toFixed(2) + '%');
             }).join('');
             var linhaAgoraCol = (dataIso === hoje) ? renderizarLinhaAgora(totalMin) : '';
-            return '<div class="crm-cal-dia-col" data-crm-action="novaAtividadeNoDia" data-data="' + esc(dataIso) + '" title="Clique para agendar uma atividade neste dia">' + eventos + linhaAgoraCol + '</div>';
+            return '<div class="crm-cal-dia-col' + (ehFimDeSemana(dataIso) ? ' crm-cal-fim-semana' : '') + '" data-crm-action="novaAtividadeNoDia" data-data="' + esc(dataIso) + '" title="Clique para agendar uma atividade neste dia">' + eventos + linhaAgoraCol + '</div>';
         }).join('');
         var grade = '<div class="crm-cal-grade-corpo">' + gutter + '<div class="crm-cal-dias-wrap">' + colunas + '</div></div>';
 
@@ -1245,7 +1279,8 @@
         var estiloPonto = a.origemPonto ? ('background:' + esc(a.pontoCor || '#64748b') + ';color:' + esc(a.pontoCorTexto || '#fff') + ';border-left-color:' + esc(a.pontoCor || '#64748b') + ';') : '';
         var estiloFinal = estiloPonto + (estiloExtra || '');
         var titulo = a.origemFeriado ? 'Feriado nacional — somente leitura'
-            : (a.origemPonto ? ('Do sistema Ponto (' + (a.pontoTipoRotulo || '') + ') — somente leitura') : '');
+            : (a.origemPonto ? ('Do sistema Ponto (' + (a.pontoTipoRotulo || '') + ') — somente leitura')
+                : (a.somenteLeituraGoogle ? 'Importado da Google Agenda (reserva de voo/hotel) — edições aqui não sincronizam de volta' : ''));
         return '<div class="crm-cal-evento' + (a.feito ? ' crm-cal-evento-feito' : '') + classeOrigem + '" ' + acao + ' data-tipo="' + esc(a.tipo) + '"' +
             (estiloFinal ? (' style="' + estiloFinal + '"') : '') +
             (titulo ? (' title="' + esc(titulo) + '"') : '') + '>' +
@@ -1255,18 +1290,22 @@
     }
 
     /**
-     * Eventos do Ponto que cobrem vários dias (viagem, férias...) vêm como um
-     * item por dia, todos compartilhando `pontoGrupoId` (ver gerarPontoPseudoAtividades).
-     * Nesta semana da grade, acha a coluna (0-6) inicial e final de cada grupo
-     * presente, para desenhar UMA barra contínua em vez de um card por dia.
+     * Eventos que cobrem vários dias vêm como um item por dia, todos
+     * compartilhando um id de grupo — `pontoGrupoId` para eventos do Ponto
+     * (ver gerarPontoPseudoAtividades), `grupoBarraId` para atividades reais
+     * multi-dia (ver expandirAtividadesMultidia — hoje só reservas de
+     * hotel/viagem importadas do Google). Nesta semana da grade, acha a
+     * coluna (0-6) inicial e final de cada grupo presente, para desenhar UMA
+     * barra contínua em vez de um card por dia.
      */
     function acharBarrasPontoNaSemana(semanaDias, porDia) {
         var porGrupo = {};
         semanaDias.forEach(function (dataIso, col) {
             (porDia[dataIso] || []).forEach(function (a) {
-                if (!a.origemPonto || !a.pontoGrupoId) return;
-                var g = porGrupo[a.pontoGrupoId];
-                if (!g) porGrupo[a.pontoGrupoId] = { inicio: col, fim: col, item: a };
+                var gid = (a.origemPonto && a.pontoGrupoId) ? a.pontoGrupoId : a.grupoBarraId;
+                if (!gid) return;
+                var g = porGrupo[gid];
+                if (!g) porGrupo[gid] = { inicio: col, fim: col, item: a };
                 else g.fim = col; // dias da semana vêm em ordem crescente
             });
         });
@@ -1287,53 +1326,107 @@
         return faixas;
     }
 
-    function renderizarTrilhaPontoSemana(semanaDias, porDia) {
+    /**
+     * Uma barra da trilha (um evento multi-dia mesclado). `offsetColuna` é 1
+     * na grade Mês (7 colunas puras) e 2 na grade Semana (a coluna 1 é o
+     * gutter fixo de horário, os dias começam na 2). Eventos do Ponto ficam
+     * somente-leitura (cor própria, sem clique); os demais (hoje, reservas do
+     * Google) abrem o modal de edição normal, como qualquer atividade.
+     */
+    function renderizarBarraMultidia(item, colInicio, colFim, offsetColuna) {
+        var ehPonto = !!item.origemPonto;
+        var tipoInfo = (!ehPonto && window.CrmStore && CrmStore.mapaTiposAtividade()[item.tipo]) || {};
+        var cor = ehPonto ? (item.pontoCor || '#64748b') : '#eef2ff';
+        var corTexto = ehPonto ? (item.pontoCorTexto || '#fff') : '#4338ca';
+        var icone = ehPonto ? (item.pontoIcone || '📅') : (tipoInfo.icone || '📌');
+        var estilo = 'grid-column:' + (colInicio + offsetColuna) + ' / ' + (colFim + offsetColuna + 1) + ';' +
+            'background:' + esc(cor) + ';color:' + esc(corTexto) + ';' + (ehPonto ? '' : 'cursor:pointer;');
+        var titulo = (ehPonto ? ((item.pontoTipoRotulo || '') + ': ' + (item.assunto || '')) : (item.assunto || '(sem assunto)')) +
+            (colFim > colInicio ? ' (' + (colFim - colInicio + 1) + ' dias)' : '');
+        var acao = ehPonto ? '' : (' data-crm-action="abrirModalAtividadeCal" data-id="' + esc(item.id) + '"');
+        return '<div class="crm-cal-mes-barra-ponto" style="' + estilo + '"' + acao + ' title="' + esc(titulo) + '">' +
+            '<span class="crm-cal-evento-icone">' + esc(icone) + '</span>' +
+            '<span class="crm-cal-evento-txt">' + esc(item.assunto || '(sem assunto)') + '</span>' +
+        '</div>';
+    }
+
+    function renderizarTrilhaGrade(semanaDias, porDia, offsetColuna, classeLinha) {
         var barras = acharBarrasPontoNaSemana(semanaDias, porDia);
         if (!barras.length) return '';
         var faixas = empacotarFaixas(barras);
+        // A trilha é uma linha própria por cima da grade de dias — sem isto,
+        // nas semanas em que ela aparece (por causa de uma barra em qualquer
+        // dia), a faixa fica branca cruzando a coluna de sábado/domingo, que
+        // nas células normais já está tingida (ver crm-cal-fim-semana).
+        var fundoFimDeSemana = semanaDias.map(function (dataIso, col) {
+            if (!ehFimDeSemana(dataIso)) return '';
+            return '<div class="crm-cal-trilha-fundo-fds" style="grid-column:' + (col + offsetColuna) + ' / ' + (col + offsetColuna + 1) + '"></div>';
+        }).join('');
         var linhasHtml = faixas.map(function (faixa) {
-            var celulas = faixa.map(function (b) {
-                var a = b.item;
-                var estilo = 'grid-column:' + (b.inicio + 1) + ' / ' + (b.fim + 2) + ';' +
-                    'background:' + esc(a.pontoCor || '#64748b') + ';color:' + esc(a.pontoCorTexto || '#fff') + ';';
-                var titulo = (a.pontoTipoRotulo || '') + ': ' + (a.assunto || '') +
-                    (b.fim > b.inicio ? ' (' + (b.fim - b.inicio + 1) + ' dias nesta semana)' : '');
-                return '<div class="crm-cal-mes-barra-ponto" style="' + estilo + '" title="' + esc(titulo) + '">' +
-                    '<span class="crm-cal-evento-icone">' + esc(a.pontoIcone || '📅') + '</span>' +
-                    '<span class="crm-cal-evento-txt">' + esc(a.assunto || '(sem assunto)') + '</span>' +
-                '</div>';
-            }).join('');
-            return '<div class="crm-cal-mes-trilha-linha">' + celulas + '</div>';
+            var celulas = faixa.map(function (b) { return renderizarBarraMultidia(b.item, b.inicio, b.fim, offsetColuna); }).join('');
+            return '<div class="' + classeLinha + '">' + fundoFimDeSemana + celulas + '</div>';
         }).join('');
         return '<div class="crm-cal-mes-trilha">' + linhasHtml + '</div>';
     }
 
-    function renderizarSemanaMes(semanaDias, porDia, mesAtual, hoje, maxVisiveis) {
-        var trilhaHtml = renderizarTrilhaPontoSemana(semanaDias, porDia);
+    /**
+     * Segmento de uma barra multi-dia DENTRO da célula do dia (mês) — logo
+     * abaixo do número, como qualquer outro card (voo, conta...). Ao
+     * contrário da trilha da semana (uma faixa à parte por cima da grade),
+     * aqui a barra "mora" na própria célula e se conecta visualmente com a
+     * célula vizinha: `posicao` controla o arredondamento e sangra o padding
+     * de 4px da célula nos lados onde a barra continua (inicio sangra a
+     * direita, fim sangra a esquerda, meio sangra os dois — ver CSS).
+     */
+    function renderizarSegmentoBarraMultidia(item, posicao) {
+        var ehPonto = !!item.origemPonto;
+        var tipoInfo = (!ehPonto && window.CrmStore && CrmStore.mapaTiposAtividade()[item.tipo]) || {};
+        var cor = ehPonto ? (item.pontoCor || '#64748b') : '#eef2ff';
+        var corTexto = ehPonto ? (item.pontoCorTexto || '#fff') : '#4338ca';
+        var icone = ehPonto ? (item.pontoIcone || '📅') : (tipoInfo.icone || '📌');
+        var titulo = (ehPonto ? ((item.pontoTipoRotulo || '') + ': ' + (item.assunto || '')) : (item.assunto || '(sem assunto)'));
+        var acao = ehPonto ? '' : (' data-crm-action="abrirModalAtividadeCal" data-id="' + esc(item.id) + '"');
+        var mostrarTexto = (posicao === 'inicio' || posicao === 'unica');
+        return '<div class="crm-cal-mes-barra-seg crm-cal-mes-barra-seg-' + posicao + '" style="background:' + esc(cor) + ';color:' + esc(corTexto) + ';' + (ehPonto ? '' : 'cursor:pointer;') + '"' + acao + ' title="' + esc(titulo) + '">' +
+            (mostrarTexto ? ('<span class="crm-cal-evento-icone">' + esc(icone) + '</span><span class="crm-cal-evento-txt">' + esc(item.assunto || '(sem assunto)') + '</span>') : '') +
+        '</div>';
+    }
 
-        var celulasDias = semanaDias.map(function (dataIso) {
-            // Itens do Ponto multi-dia já viraram barra na trilha acima — não repetir aqui.
-            var itens = (porDia[dataIso] || []).filter(function (a) { return !a.origemPonto; });
+    function renderizarSemanaMes(semanaDias, porDia, mesAtual, hoje, maxVisiveis) {
+        var barras = acharBarrasPontoNaSemana(semanaDias, porDia);
+        var faixas = empacotarFaixas(barras);
+
+        var celulasDias = semanaDias.map(function (dataIso, col) {
+            // Itens multi-dia (Ponto ou reais) já viram segmento de barra abaixo do número — não repetir aqui.
+            var itens = (porDia[dataIso] || []).filter(function (a) { return !a.origemPonto && !a.grupoBarraId; });
             var foraDoMes = dataIso.slice(0, 7) !== mesAtual;
             var ehHoje = dataIso === hoje;
             var visiveis = itens.slice(0, maxVisiveis);
             var extras = itens.length - visiveis.length;
             var eventosHtml = visiveis.map(function (a) { return renderizarEventoCard(a); }).join('') +
                 (extras > 0 ? '<div class="crm-cal-mes-mais">+' + extras + ' mais</div>' : '');
+
+            var segmentosHtml = faixas.map(function (faixa) {
+                var b = faixa.filter(function (bb) { return col >= bb.inicio && col <= bb.fim; })[0];
+                if (!b) return '<div class="crm-cal-mes-barra-vazia"></div>';
+                var posicao = (col === b.inicio && col === b.fim) ? 'unica' : (col === b.inicio ? 'inicio' : (col === b.fim ? 'fim' : 'meio'));
+                return renderizarSegmentoBarraMultidia(b.item, posicao);
+            }).join('');
+
             var numeroMes = ehHoje ? '<span class="crm-cal-cab-numero-hoje">' + Number(dataIso.slice(8, 10)) + '</span>' : Number(dataIso.slice(8, 10));
-            return '<div class="crm-cal-mes-dia' + (foraDoMes ? ' crm-cal-mes-dia-fora' : '') + (ehHoje ? ' crm-cal-mes-dia-hoje' : '') + '" data-crm-action="novaAtividadeNoDia" data-data="' + esc(dataIso) + '" title="Clique para agendar uma atividade neste dia">' +
+            return '<div class="crm-cal-mes-dia' + (foraDoMes ? ' crm-cal-mes-dia-fora' : '') + (ehHoje ? ' crm-cal-mes-dia-hoje' : '') + (ehFimDeSemana(dataIso) ? ' crm-cal-fim-semana' : '') + '" data-crm-action="novaAtividadeNoDia" data-data="' + esc(dataIso) + '" title="Clique para agendar uma atividade neste dia">' +
                 '<div class="crm-cal-mes-numero">' + numeroMes + '</div>' +
+                (faixas.length ? ('<div class="crm-cal-mes-segmentos">' + segmentosHtml + '</div>') : '') +
                 '<div class="crm-cal-mes-eventos">' + eventosHtml + '</div>' +
             '</div>';
         }).join('');
 
-        return '<div class="crm-cal-mes-semana">' + trilhaHtml +
-            '<div class="crm-cal-mes-semana-dias">' + celulasDias + '</div></div>';
+        return '<div class="crm-cal-mes-semana"><div class="crm-cal-mes-semana-dias">' + celulasDias + '</div></div>';
     }
 
     function renderizarCalendarioMes(atividades) {
         var mesRef = _calMesRef;
-        var porDia = CrmCalculos.agruparAtividadesPorGradeMes(atividades, mesRef);
+        var porDia = CrmCalculos.agruparAtividadesPorGradeMes(expandirAtividadesMultidia(atividades), mesRef);
         var dias = Object.keys(porDia);
         var hoje = hojeIsoLocal();
         var mesAtual = mesRef.slice(0, 7);
@@ -1346,7 +1439,7 @@
         '</div>';
 
         var cabecalho = '<div class="crm-cal-mes-cab">' +
-            DIAS_SEMANA_ABREV.map(function (d) { return '<div class="crm-cal-mes-cab-dia">' + d + '</div>'; }).join('') +
+            DIAS_SEMANA_ABREV.map(function (d, i) { return '<div class="crm-cal-mes-cab-dia' + ((i === 0 || i === 6) ? ' crm-cal-fim-semana' : '') + '">' + d + '</div>'; }).join('') +
         '</div>';
 
         var MAX_VISIVEIS = 4;
@@ -1449,6 +1542,49 @@
         document.getElementById('crmAtvCalNegocioLista').style.display = 'none';
     }
 
+    /** Duas faixas de horário no mesmo dia se sobrepõem — sem hora definida conta como dia inteiro (sempre conflita). */
+    function horasSeSobrepoem(a, b) {
+        if (!a.horaInicio || !b.horaInicio) return true;
+        var iniA = horaParaMin(a.horaInicio), fimA = a.horaFim ? horaParaMin(a.horaFim) : iniA + 30;
+        var iniB = horaParaMin(b.horaInicio), fimB = b.horaFim ? horaParaMin(b.horaFim) : iniB + 30;
+        if (fimA <= iniA) fimA = iniA + 30;
+        if (fimB <= iniB) fimB = iniB + 30;
+        return iniA < fimB && iniB < fimA;
+    }
+
+    /**
+     * Verifica se o compromisso que está sendo salvo coincide com algo no
+     * mesmo dia/horário: fim de semana, feriado nacional, evento do Ponto
+     * (férias, viagem...) ou outra atividade real já marcada. Devolve uma
+     * lista de descrições (vazia = sem conflito) — usada só pra alertar antes
+     * de salvar, nunca bloqueia.
+     */
+    function detectarConflitosAtividade(dados, idExcluir) {
+        var conflitos = [];
+
+        if (ehFimDeSemana(dados.data)) {
+            var diaSemana = DIAS_SEMANA_ABREV[new Date(dados.data + 'T00:00:00Z').getUTCDay()];
+            conflitos.push('cai num fim de semana (' + diaSemana + ')');
+        }
+
+        gerarFeriadosPseudoAtividades().forEach(function (f) {
+            if (f.data === dados.data) conflitos.push('feriado nacional: ' + (f.assunto || ''));
+        });
+
+        if (window.PontoBridge && PontoBridge.conectado() && _calMostrarPonto) {
+            gerarPontoPseudoAtividades().forEach(function (p) {
+                if (p.data === dados.data) conflitos.push((p.pontoTipoRotulo || 'Ponto') + ': ' + (p.assunto || ''));
+            });
+        }
+
+        CrmStore.listarAtividades().forEach(function (a) {
+            if (a.id === idExcluir || a.data !== dados.data || !horasSeSobrepoem(dados, a)) return;
+            conflitos.push('"' + (a.assunto || '(sem assunto)') + '"' + (a.horaInicio ? (' às ' + a.horaInicio) : ''));
+        });
+
+        return conflitos;
+    }
+
     function salvarAtividadeCal() {
         if (!requireAdminOrNotify()) return;
         if (!_calAtvNegocioId) { Notifications.error('Selecione o negócio vinculado a esta atividade.'); return; }
@@ -1469,6 +1605,18 @@
         };
 
         var id = document.getElementById('crmAtvCalId').value || null;
+        var conflitos = detectarConflitosAtividade(dados, id);
+
+        if (conflitos.length) {
+            confirmarEExecutar('Esse horário coincide com ' + conflitos.join('; ') + '. Salvar mesmo assim?', function () {
+                gravarAtividadeCal(dados, id);
+            });
+            return;
+        }
+        gravarAtividadeCal(dados, id);
+    }
+
+    function gravarAtividadeCal(dados, id) {
         var criado = null;
         if (id) CrmStore.atualizarAtividade(id, dados);
         else criado = CrmStore.criarAtividade(dados);

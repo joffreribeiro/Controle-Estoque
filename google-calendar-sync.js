@@ -226,6 +226,12 @@
         return d.toISOString().slice(0, 10);
     }
 
+    function subtrairDiaIso(dataIso) {
+        var d = new Date(dataIso + 'T00:00:00Z');
+        d.setUTCDate(d.getUTCDate() - 1);
+        return d.toISOString().slice(0, 10);
+    }
+
     function montarEvento(atividade, negocio, cliente) {
         var tipoInfo = (window.CrmModel && CrmModel.TIPOS_ATIVIDADE[atividade.tipo]) || { icone: '📌', rotulo: atividade.tipo };
         var titulo = tipoInfo.icone + ' ' + (atividade.assunto || '(sem assunto)') + (negocio ? (' — ' + negocio.titulo) : '');
@@ -260,6 +266,11 @@
      */
     function sincronizarAtividade(atividade, negocio, cliente) {
         if (!configurado() || !atividade) return Promise.resolve(null);
+        // Reservas de voo/hotel etc. detectadas pelo Gmail: importadas só pra
+        // aparecer no calendário do CRM, mas o Google rejeita PATCH nelas (não
+        // são eventos editáveis de verdade) — tentar reenviar causou duplicidade
+        // no passado (ver ehEventoAutoDetectadoPeloGmail). Nunca escreve de volta.
+        if (atividade.somenteLeituraGoogle) return Promise.resolve(null);
         if (atividade.feito) return removerEvento(atividade);
         if (!atividade.data) return Promise.resolve(null);
 
@@ -290,6 +301,7 @@
 
     function removerEvento(atividade) {
         if (!configurado() || !atividade || !atividade.googleEventId) return Promise.resolve(null);
+        if (atividade.somenteLeituraGoogle) return Promise.resolve(null); // nunca escreve de volta (ver sincronizarAtividade)
         var id = atividade.googleEventId;
         return chamarApi('DELETE', EVENTS_URL + '/' + id)
             .catch(function () { /* evento já pode ter sido removido no Google */ })
@@ -321,34 +333,58 @@
      * na Google Agenda não são eventos "de verdade" — não aceitam edição via
      * PATCH normal (causou duplicidade quando o CRM tentou reenviar). Detecta
      * pela assinatura típica desses itens (campo `source` apontando pro Gmail).
+     * Ainda são importadas pro calendário do CRM (pra aparecer), mas marcadas
+     * como somenteLeituraGoogle — o app nunca tenta escrever de volta nelas
+     * (ver sincronizarAtividade/removerEvento).
      */
     function ehEventoAutoDetectadoPeloGmail(ev) {
         var origem = ev && ev.source && ev.source.url;
         return !!(origem && /mail\.google\.com/i.test(origem));
     }
 
-    function mapearEventoGoogleParaAtividade(ev) {
+    function mapearEventoGoogleParaAtividade(ev, somenteLeituraGoogle) {
         if (!ev || ev.status === 'cancelled') return null;
         var ini = googleDataHora(ev.start);
         if (!ini) return null;
         var fim = googleDataHora(ev.end);
+
+        // Evento de dia inteiro cobrindo vários dias (ex: "Stay at Hotel X" de
+        // 29 a 30): o `end.date` do Google é EXCLUSIVO (um dia depois do
+        // último dia real), por isso subtrai 1 pra guardar o último dia certo.
+        var dataFim = null;
+        if (ini.allDay && fim && fim.allDay && fim.data > ini.data) {
+            var fimInclusivo = subtrairDiaIso(fim.data);
+            if (fimInclusivo > ini.data) dataFim = fimInclusivo;
+        }
+
         return {
             tipo: 'reuniao',
             assunto: ev.summary || '(sem assunto)',
             descricao: ev.description || '',
             data: ini.data,
+            dataFim: dataFim,
             horaInicio: ini.allDay ? '' : (ini.hora || ''),
             horaFim: (fim && !fim.allDay) ? (fim.hora || '') : '',
             googleEventId: ev.id,
-            origemGoogle: true
+            origemGoogle: true,
+            somenteLeituraGoogle: !!somenteLeituraGoogle
         };
     }
 
     /**
-     * Busca eventos do Google (janela de -7 a +60 dias) e cria como novas
+     * Busca eventos do Google (janela configurada acima) e cria como novas
      * atividades no CRM os que ainda não existem por lá — pulando tanto os
-     * que o próprio CRM criou (marca crmAtividadeId) quanto os já importados
-     * antes (já existe uma atividade com esse googleEventId).
+     * que o próprio CRM criou (marca crmAtividadeId, mas só se a atividade
+     * referenciada ainda existir de verdade — ver nota abaixo) quanto os já
+     * importados antes (já existe uma atividade com esse googleEventId).
+     *
+     * Nota sobre marcas órfãs: se uma atividade for apagada do CRM depois de
+     * já ter sido sincronizada pra um evento recorrente do Google, o evento
+     * no Google mantém a marca crmAtividadeId antiga (apontando pra uma
+     * atividade que não existe mais). Confiar cegamente na marca faria esse
+     * evento nunca mais aparecer em lugar nenhum — nem no CRM (não existe),
+     * nem reimportado (a marca diz "já é meu"). Por isso a marca só é
+     * respeitada se a atividade referenciada ainda estiver na lista atual.
      */
     function importarNovosDoGoogle() {
         if (!configurado() || !window.CrmStore) return Promise.resolve(0);
@@ -361,19 +397,32 @@
 
         return chamarApi('GET', url).then(function (resp) {
             var itens = (resp && resp.items) || [];
-            var googleIdsExistentes = {};
+            var idsAtividadesExistentes = {};
+            var atividadePorGoogleId = {};
             CrmStore.listarAtividades().forEach(function (a) {
-                if (a.googleEventId) googleIdsExistentes[a.googleEventId] = true;
+                idsAtividadesExistentes[a.id] = true;
+                if (a.googleEventId) atividadePorGoogleId[a.googleEventId] = a;
             });
 
             var novos = 0;
             itens.forEach(function (ev) {
                 var props = ev.extendedProperties && ev.extendedProperties.private;
-                if (props && props.crmAtividadeId) return; // criado pelo próprio CRM
-                if (googleIdsExistentes[ev.id]) return; // já importado antes
-                if (ehEventoAutoDetectadoPeloGmail(ev)) return; // reserva de voo/hotel etc. detectada pelo Gmail — não é editável de verdade
+                if (props && props.crmAtividadeId && idsAtividadesExistentes[props.crmAtividadeId]) return; // criado pelo CRM e ainda existe
 
-                var dados = mapearEventoGoogleParaAtividade(ev);
+                var existente = atividadePorGoogleId[ev.id];
+                if (existente) {
+                    // Já importado antes — reconcilia a dataFim se o evento é
+                    // multi-dia e a atividade foi importada antes desse campo
+                    // existir (reservas de hotel importadas na 1ª leva, sem
+                    // capturar o intervalo — ficavam só no dia de início).
+                    var atual = mapearEventoGoogleParaAtividade(ev, ehEventoAutoDetectadoPeloGmail(ev));
+                    if (atual && atual.dataFim && existente.dataFim !== atual.dataFim) {
+                        CrmStore.atualizarAtividade(existente.id, { dataFim: atual.dataFim });
+                    }
+                    return;
+                }
+
+                var dados = mapearEventoGoogleParaAtividade(ev, ehEventoAutoDetectadoPeloGmail(ev));
                 if (!dados) return;
                 CrmStore.criarAtividade(dados);
                 novos++;
