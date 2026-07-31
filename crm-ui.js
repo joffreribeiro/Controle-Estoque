@@ -801,14 +801,46 @@
         outro: { icone: '📌', cor: '#64748b', corTexto: '#ffffff', rotulo: 'Outro' }
     };
     var PONTO_MAX_DIAS_POR_EVENTO = 400; // trava de segurança contra datas absurdas
+    var PONTO_LIMIAR_INTERVALO_SUSPEITO = 60; // acima disso não é plausível p/ Viagem/Férias/Abono etc — provável dado ruim
 
-    /** Lista de datas ISO de `inicio` a `fim`, inclusive, capada em `max`. */
+    /**
+     * Normaliza a data de um evento do Ponto para YYYY-MM-DD. Aceita ISO direto
+     * (com ou sem hora) e DD/MM/YYYY. Registros de Férias mais antigos usam
+     * nomes de campo variados (`inicio`/`dataInicio` em vez de `dataInicioEvento`)
+     * — o próprio Ponto trata essa variação em `computeVacationOverview`, com o
+     * mesmo fallback de três nomes reproduzido em gerarPontoPseudoAtividades.
+     */
+    function normalizarDataPonto(v) {
+        if (!v) return null;
+        var s = String(v).trim();
+        if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0, 10);
+        var m = s.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+        if (m) return m[3] + '-' + m[2] + '-' + m[1];
+        return null;
+    }
+
+    /** Quantidade de dias entre duas datas ISO, inclusive (sem gerar a lista). */
+    function contarDiasIso(iniIso, fimIso) {
+        var d = new Date(iniIso + 'T00:00:00Z');
+        var f = new Date((fimIso || iniIso) + 'T00:00:00Z');
+        if (isNaN(d) || isNaN(f)) return 1;
+        if (f < d) f = new Date(d.getTime());
+        return Math.round((f - d) / 86400000) + 1;
+    }
+
+    /**
+     * Lista de datas ISO de `inicio` a `fim`, inclusive, capada em `max`.
+     * IMPORTANTE: ao "grudar" fimD em d (quando fim < início, ex: erro de
+     * digitação de ano no Ponto), usar `new Date(...)` — nunca `fimD = d`.
+     * Isso faria os dois nomes apontarem pro MESMO objeto; o `d.setUTCDate`
+     * do loop empurraria fimD junto, e `d <= fimD` nunca pararia até o `max`.
+     */
     function expandirIntervaloDias(inicio, fim, max) {
         var out = [];
         var d = new Date(inicio + 'T00:00:00Z');
         var fimD = new Date((fim || inicio) + 'T00:00:00Z');
         if (isNaN(d) || isNaN(fimD)) return [inicio];
-        if (fimD < d) fimD = d;
+        if (fimD < d) fimD = new Date(d.getTime());
         var i = 0;
         while (d <= fimD && i < max) {
             out.push(d.toISOString().slice(0, 10));
@@ -818,27 +850,76 @@
         return out.length ? out : [inicio];
     }
 
+    /**
+     * `AppState.dados.eventos` no Ponto mistura dois tipos de registro:
+     *  - eventos de verdade, criados na aba Eventos (Viagem, Férias, Feriado,
+     *    Abono...);
+     *  - pseudo-eventos AUTO-GERADOS a cada Registro de ponto salvo com período
+     *    (`Registro: matutino/vespertino`), marcados com `linkedRegistroDate`
+     *    (ou `nomeCSS: 'evento-registro'`) — ver app-refatorado.js, função que
+     *    salva o registro do dia (~linha 4403).
+     * Aqui só interessa a aba Eventos; os pseudo-eventos de registro são ruído
+     * no calendário do CRM (nunca são "prazo"/"atividade", são reflexo do
+     * ponto batido no dia).
+     */
+    function ehEventoDeRegistroPonto(ev) {
+        return !!(ev.linkedRegistroDate || ev.nomeCSS === 'evento-registro');
+    }
+
     function gerarPontoPseudoAtividades() {
         if (!window.PontoBridge || !PontoBridge.conectado()) return [];
         var eventos = PontoBridge.getEventosCache();
         var lista = [];
         eventos.forEach(function (ev, idx) {
-            var ini = ev.dataInicioEvento || ev.dataFimEvento;
+            if (ehEventoDeRegistroPonto(ev)) return;
+            var ini = normalizarDataPonto(ev.dataInicioEvento || ev.inicio || ev.dataInicio);
+            var fim = normalizarDataPonto(ev.dataFimEvento || ev.fim || ev.dataFim) || ini;
             if (!ini) return;
             var meta = PONTO_TIPO_META[ev.tipoEvento] || PONTO_TIPO_META.outro;
-            var dias = expandirIntervaloDias(ini, ev.dataFimEvento || ini, PONTO_MAX_DIAS_POR_EVENTO);
+            var totalDias = contarDiasIso(ini, fim);
+
+            // Intervalo implausível para o tipo do evento (ex: "Feriado" de 400 dias) —
+            // quase sempre é dado ruim no Ponto (fim ausente/errado), não uma escala real.
+            // Em vez de inundar o mês inteiro com um card por dia, mostra 1 card de aviso.
+            if (totalDias > PONTO_LIMIAR_INTERVALO_SUSPEITO) {
+                console.warn('Ponto: evento com intervalo suspeito (' + totalDias + ' dias, ' + ini + ' a ' + fim + '). Mostrando 1 card em vez de expandir. Evento bruto:', ev);
+                lista.push({
+                    id: 'ponto_' + idx + '_suspeito',
+                    negocioId: null,
+                    tipo: 'prazo',
+                    assunto: '⚠ ' + (ev.descricaoEvento || meta.rotulo) + ' (' + totalDias + ' dias — confira no Ponto)',
+                    descricao: 'Intervalo de ' + ini + ' a ' + fim + ' parece incorreto para este tipo de evento.',
+                    data: ini,
+                    horaInicio: '',
+                    horaFim: '',
+                    feito: false,
+                    origemPonto: true,
+                    pontoGrupoId: 'ponto_' + idx,
+                    pontoTipoRotulo: meta.rotulo,
+                    pontoCor: ev.corFundo || meta.cor,
+                    pontoCorTexto: ev.corTexto || meta.corTexto,
+                    pontoIcone: meta.icone
+                });
+                return;
+            }
+
+            // `pontoGrupoId` é compartilhado por todos os dias do mesmo evento —
+            // é o que permite à visão Mês mesclar os dias num único bloco
+            // contínuo (renderizarBarrasPontoSemana), em vez de um card por dia.
+            var dias = expandirIntervaloDias(ini, fim, PONTO_MAX_DIAS_POR_EVENTO);
             dias.forEach(function (dataIso, i) {
                 lista.push({
                     id: 'ponto_' + idx + '_' + dataIso,
                     negocioId: null,
                     tipo: 'prazo',
-                    assunto: (ev.descricaoEvento || meta.rotulo) + (dias.length > 1 ? ' (' + (i + 1) + '/' + dias.length + ')' : ''),
+                    assunto: ev.descricaoEvento || meta.rotulo,
                     descricao: '',
                     data: dataIso,
                     horaInicio: '',
                     horaFim: '',
                     feito: false,
                     origemPonto: true,
+                    pontoGrupoId: 'ponto_' + idx,
                     pontoTipoRotulo: meta.rotulo,
                     pontoCor: ev.corFundo || meta.cor,
                     pontoCorTexto: ev.corTexto || meta.corTexto,
@@ -862,12 +943,15 @@
         var pb = window.PontoBridge;
         if (!pb || !pb.configurado()) return '';
         if (pb.conectado()) {
+            var qtd = pb.getEventosCache().length;
+            var erro = pb.getUltimoErro && pb.getUltimoErro();
             return '<div class="crm-cal-ponto">' +
-                '<span class="crm-cal-ponto-on">🟢 Ponto conectado (' + esc(pb.usuarioEmail()) + ')</span>' +
+                '<span class="crm-cal-ponto-on">🟢 Ponto conectado (' + esc(pb.usuarioEmail()) + ') — ' + qtd + ' evento(s) carregado(s)</span>' +
                 '<label class="crm-check"><input type="checkbox" ' + (_calMostrarPonto ? 'checked' : '') +
                     ' onchange="Crm.setMostrarPontoCal(this.checked)"> Mostrar no calendário</label>' +
                 '<button type="button" class="btn-secondary crm-btn-mini" data-crm-action="pontoAtualizar">Atualizar</button>' +
                 '<button type="button" class="btn-secondary crm-btn-mini" data-crm-action="pontoDesconectar">Desconectar</button>' +
+                (erro ? ('<span class="crm-cal-ponto-erro" title="' + esc(erro) + '">⚠ ' + esc(erro) + '</span>') : '') +
             '</div>';
         }
         return '<div class="crm-cal-ponto">' +
@@ -881,12 +965,23 @@
 
     function setMostrarPontoCal(v) { _calMostrarPonto = v; renderizarCalendarioView(); }
 
+    /**
+     * O Ponto já traz feriados nacionais, distritais e da empresa (mais
+     * completo que o cálculo genérico do CRM). Enquanto ele estiver conectado
+     * e visível, os dois catálogos duplicariam feriados nacionais (ex:
+     * "Corpus Christi" aparecendo duas vezes) — então o gerador genérico do
+     * CRM só entra em ação como fallback, quando o Ponto não está disponível.
+     */
+    function feriadosGenericosAtivos() {
+        return _calMostrarFeriados && !(_calMostrarPonto && window.PontoBridge && PontoBridge.conectado());
+    }
+
     function renderizarCalendarioView() {
         var ctx = atividadesCalContexto();
         limparFeriadosOrfaos(); // migração: remove feriados que ficaram salvos como atividade real (fase antiga, via Google)
         garantirEventosPontoCarregados();
         var reais = CrmStore.listarAtividades();
-        var feriados = _calMostrarFeriados ? gerarFeriadosPseudoAtividades() : [];
+        var feriados = feriadosGenericosAtivos() ? gerarFeriadosPseudoAtividades() : [];
         var doPonto = _calMostrarPonto ? gerarPontoPseudoAtividades() : [];
         var todas = reais.concat(feriados).concat(doPonto);
         var porPeriodo = CrmCalculos.filtrarAtividadesPeriodo(todas, _calPeriodo, hojeIsoLocal());
@@ -979,10 +1074,11 @@
             '</tr>';
         }).join('');
 
+        var pontoAtivo = _calMostrarPonto && window.PontoBridge && PontoBridge.conectado();
         var filtroFeriados = '<div class="crm-cal-lista-filtros">' +
-            '<label class="crm-check">' +
+            '<label class="crm-check" title="' + (pontoAtivo ? 'Com o Ponto conectado, os feriados vêm de lá (nacionais, distritais e da empresa) — o cálculo genérico do CRM fica em espera para não duplicar.' : 'Cálculo genérico de feriados nacionais.') + '">' +
                 '<input type="checkbox" ' + (_calMostrarFeriados ? 'checked' : '') + ' onchange="Crm.setMostrarFeriadosCal(this.checked)">' +
-                'Mostrar feriados' +
+                'Mostrar feriados' + (pontoAtivo ? ' (via Ponto)' : '') +
             '</label>' +
         '</div>';
 
@@ -1158,6 +1254,83 @@
         '</div>';
     }
 
+    /**
+     * Eventos do Ponto que cobrem vários dias (viagem, férias...) vêm como um
+     * item por dia, todos compartilhando `pontoGrupoId` (ver gerarPontoPseudoAtividades).
+     * Nesta semana da grade, acha a coluna (0-6) inicial e final de cada grupo
+     * presente, para desenhar UMA barra contínua em vez de um card por dia.
+     */
+    function acharBarrasPontoNaSemana(semanaDias, porDia) {
+        var porGrupo = {};
+        semanaDias.forEach(function (dataIso, col) {
+            (porDia[dataIso] || []).forEach(function (a) {
+                if (!a.origemPonto || !a.pontoGrupoId) return;
+                var g = porGrupo[a.pontoGrupoId];
+                if (!g) porGrupo[a.pontoGrupoId] = { inicio: col, fim: col, item: a };
+                else g.fim = col; // dias da semana vêm em ordem crescente
+            });
+        });
+        return Object.keys(porGrupo).map(function (gid) { return porGrupo[gid]; })
+            .sort(function (a, b) { return a.inicio - b.inicio || (b.fim - b.inicio) - (a.fim - a.inicio); });
+    }
+
+    /** Empacota barras em "faixas" (linhas) sem deixar duas com colunas sobrepostas na mesma linha. */
+    function empacotarFaixas(barras) {
+        var faixas = [];
+        barras.forEach(function (b) {
+            var faixa = faixas.filter(function (f) {
+                return !f.some(function (o) { return !(b.fim < o.inicio || b.inicio > o.fim); });
+            })[0];
+            if (!faixa) { faixa = []; faixas.push(faixa); }
+            faixa.push(b);
+        });
+        return faixas;
+    }
+
+    function renderizarTrilhaPontoSemana(semanaDias, porDia) {
+        var barras = acharBarrasPontoNaSemana(semanaDias, porDia);
+        if (!barras.length) return '';
+        var faixas = empacotarFaixas(barras);
+        var linhasHtml = faixas.map(function (faixa) {
+            var celulas = faixa.map(function (b) {
+                var a = b.item;
+                var estilo = 'grid-column:' + (b.inicio + 1) + ' / ' + (b.fim + 2) + ';' +
+                    'background:' + esc(a.pontoCor || '#64748b') + ';color:' + esc(a.pontoCorTexto || '#fff') + ';';
+                var titulo = (a.pontoTipoRotulo || '') + ': ' + (a.assunto || '') +
+                    (b.fim > b.inicio ? ' (' + (b.fim - b.inicio + 1) + ' dias nesta semana)' : '');
+                return '<div class="crm-cal-mes-barra-ponto" style="' + estilo + '" title="' + esc(titulo) + '">' +
+                    '<span class="crm-cal-evento-icone">' + esc(a.pontoIcone || '📅') + '</span>' +
+                    '<span class="crm-cal-evento-txt">' + esc(a.assunto || '(sem assunto)') + '</span>' +
+                '</div>';
+            }).join('');
+            return '<div class="crm-cal-mes-trilha-linha">' + celulas + '</div>';
+        }).join('');
+        return '<div class="crm-cal-mes-trilha">' + linhasHtml + '</div>';
+    }
+
+    function renderizarSemanaMes(semanaDias, porDia, mesAtual, hoje, maxVisiveis) {
+        var trilhaHtml = renderizarTrilhaPontoSemana(semanaDias, porDia);
+
+        var celulasDias = semanaDias.map(function (dataIso) {
+            // Itens do Ponto multi-dia já viraram barra na trilha acima — não repetir aqui.
+            var itens = (porDia[dataIso] || []).filter(function (a) { return !a.origemPonto; });
+            var foraDoMes = dataIso.slice(0, 7) !== mesAtual;
+            var ehHoje = dataIso === hoje;
+            var visiveis = itens.slice(0, maxVisiveis);
+            var extras = itens.length - visiveis.length;
+            var eventosHtml = visiveis.map(function (a) { return renderizarEventoCard(a); }).join('') +
+                (extras > 0 ? '<div class="crm-cal-mes-mais">+' + extras + ' mais</div>' : '');
+            var numeroMes = ehHoje ? '<span class="crm-cal-cab-numero-hoje">' + Number(dataIso.slice(8, 10)) + '</span>' : Number(dataIso.slice(8, 10));
+            return '<div class="crm-cal-mes-dia' + (foraDoMes ? ' crm-cal-mes-dia-fora' : '') + (ehHoje ? ' crm-cal-mes-dia-hoje' : '') + '" data-crm-action="novaAtividadeNoDia" data-data="' + esc(dataIso) + '" title="Clique para agendar uma atividade neste dia">' +
+                '<div class="crm-cal-mes-numero">' + numeroMes + '</div>' +
+                '<div class="crm-cal-mes-eventos">' + eventosHtml + '</div>' +
+            '</div>';
+        }).join('');
+
+        return '<div class="crm-cal-mes-semana">' + trilhaHtml +
+            '<div class="crm-cal-mes-semana-dias">' + celulasDias + '</div></div>';
+    }
+
     function renderizarCalendarioMes(atividades) {
         var mesRef = _calMesRef;
         var porDia = CrmCalculos.agruparAtividadesPorGradeMes(atividades, mesRef);
@@ -1177,22 +1350,12 @@
         '</div>';
 
         var MAX_VISIVEIS = 4;
-        var celulas = dias.map(function (dataIso) {
-            var itens = porDia[dataIso];
-            var foraDoMes = dataIso.slice(0, 7) !== mesAtual;
-            var ehHoje = dataIso === hoje;
-            var visiveis = itens.slice(0, MAX_VISIVEIS);
-            var extras = itens.length - visiveis.length;
-            var eventosHtml = visiveis.map(function (a) { return renderizarEventoCard(a); }).join('') +
-                (extras > 0 ? '<div class="crm-cal-mes-mais">+' + extras + ' mais</div>' : '');
-            var numeroMes = ehHoje ? '<span class="crm-cal-cab-numero-hoje">' + Number(dataIso.slice(8, 10)) + '</span>' : Number(dataIso.slice(8, 10));
-            return '<div class="crm-cal-mes-dia' + (foraDoMes ? ' crm-cal-mes-dia-fora' : '') + (ehHoje ? ' crm-cal-mes-dia-hoje' : '') + '" data-crm-action="novaAtividadeNoDia" data-data="' + esc(dataIso) + '" title="Clique para agendar uma atividade neste dia">' +
-                '<div class="crm-cal-mes-numero">' + numeroMes + '</div>' +
-                '<div class="crm-cal-mes-eventos">' + eventosHtml + '</div>' +
-            '</div>';
-        }).join('');
+        var semanasHtml = '';
+        for (var w = 0; w < dias.length; w += 7) {
+            semanasHtml += renderizarSemanaMes(dias.slice(w, w + 7), porDia, mesAtual, hoje, MAX_VISIVEIS);
+        }
 
-        return nav + '<div class="crm-cal-mes-grade">' + cabecalho + '<div class="crm-cal-mes-corpo">' + celulas + '</div></div>';
+        return nav + '<div class="crm-cal-mes-grade">' + cabecalho + '<div class="crm-cal-mes-corpo">' + semanasHtml + '</div></div>';
     }
 
     function setCalModo(v) { _calModo = v; renderizarCalendarioView(); }

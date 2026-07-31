@@ -2,17 +2,17 @@
  * google-calendar-sync.js - Sincronização bidirecional entre as atividades do
  * Relacionamento (CRM) e o Google Calendar.
  *
- * Requer:
- *  - A biblioteca "Google Identity Services" carregada antes deste arquivo
- *    (<script src="https://accounts.google.com/gsi/client" async defer></script>).
- *  - Um Client ID OAuth 2.0 ("Aplicativo da Web") do Google Cloud Console,
- *    com a Calendar API habilitada e este domínio (e localhost, em dev)
- *    cadastrado em "Authorized JavaScript origins". Cole o Client ID abaixo.
+ * Autenticação via cloudflare-worker/ (ver README.md nessa pasta): o Worker
+ * guarda o refresh_token do Google e entrega access_tokens novos sob demanda,
+ * então a conexão sobrevive a reload de página e a novas sessões de navegador
+ * sem pedir login de novo — diferente do fluxo antigo (Google Identity
+ * Services / token implícito), que expira em ~1h e nunca recebe refresh_token
+ * porque roda só no navegador.
  *
- * Não guarda nenhum segredo: o Client ID é público (identifica o app, não
- * autentica nada sozinho) — a restrição de segurança vem da origem cadastrada.
- * O token de acesso obtido fica só em memória (nunca é persistido) e expira
- * em ~1h; a cada sessão do navegador é preciso conectar de novo.
+ * Configuração necessária abaixo: WORKER_URL (a URL pública do Worker, depois
+ * do deploy). Na primeira conexão, o app pede a "chave de sincronização"
+ * (SYNC_SECRET configurado no Worker) e guarda em localStorage — nunca no
+ * código-fonte.
  *
  * Política de sincronização:
  *  CRM → Google:
@@ -33,9 +33,8 @@
 (function () {
     'use strict';
 
-    // ── CONFIGURAÇÃO — troque pelo Client ID gerado no Google Cloud Console ──
-    var CLIENT_ID = '339770116384-ng8nr2da6lla6sgk0enti1vd02b8j14q.apps.googleusercontent.com';
-    var SCOPE = 'https://www.googleapis.com/auth/calendar.events https://www.googleapis.com/auth/calendar.readonly';
+    // ── CONFIGURAÇÃO — cole a URL do Worker publicado (ver cloudflare-worker/README.md) ──
+    var WORKER_URL = 'https://estoque-google-bridge.joffre-ribeiro.workers.dev';
     var TIMEZONE = 'America/Sao_Paulo';
     var EVENTS_URL = 'https://www.googleapis.com/calendar/v3/calendars/primary/events';
     // colorId dos eventos criados pelo CRM, para diferenciar visualmente na Google Agenda
@@ -43,14 +42,22 @@
     // 1 Lavanda, 2 Sálvia, 3 Uva, 4 Flamingo, 5 Banana, 6 Tangerina,
     // 7 Pavão, 8 Grafite, 9 Mirtilo, 10 Manjericão, 11 Tomate.
     var EVENT_COLOR_ID = '3'; // Uva (roxo) — combina com a cor do workspace Relacionamento no app
+    var CHAVE_SECRET_LOCAL = 'estoqueGoogleSyncSecret';
 
-    var _tokenClient = null;
     var _accessToken = null;
     var _tokenExpiraEm = 0;
     var _listeners = [];
+    var _refrescando = null; // Promise em andamento — evita disparar 2 refreshes concorrentes
 
     function configurado() {
-        return !!CLIENT_ID && CLIENT_ID.indexOf('COLOQUE_SEU_CLIENT_ID') === -1;
+        return !!WORKER_URL;
+    }
+
+    function getSecretLocal() {
+        try { return localStorage.getItem(CHAVE_SECRET_LOCAL) || ''; } catch (e) { return ''; }
+    }
+    function setSecretLocal(v) {
+        try { localStorage.setItem(CHAVE_SECRET_LOCAL, v); } catch (e) {}
     }
 
     function conectado() {
@@ -65,65 +72,129 @@
         if (typeof fn === 'function') _listeners.push(fn);
     }
 
-    function bibliotecaCarregada() {
-        return !!(window.google && google.accounts && google.accounts.oauth2);
+    /** Busca um access_token novo no Worker, usando o refresh_token guardado lá. */
+    function buscarTokenDoWorker() {
+        var secret = getSecretLocal();
+        if (!configurado() || !secret) return Promise.resolve(null);
+        return fetch(WORKER_URL + '/token', { headers: { 'X-Sync-Secret': secret } })
+            .then(function (resp) { return resp.json().then(function (d) { return { status: resp.status, dados: d }; }); })
+            .then(function (r) {
+                if (r.status === 200 && r.dados && r.dados.access_token) {
+                    _accessToken = r.dados.access_token;
+                    // Renova ~2min antes do vencimento real, pra nunca usar um token na borda de expirar.
+                    _tokenExpiraEm = Date.now() + (Math.max(60, (r.dados.expires_in || 3500) - 120)) * 1000;
+                    return _accessToken;
+                }
+                _accessToken = null;
+                _tokenExpiraEm = 0;
+                return null;
+            })
+            .catch(function () { _accessToken = null; _tokenExpiraEm = 0; return null; });
     }
 
-    function garantirTokenClient() {
-        if (_tokenClient) return _tokenClient;
-        if (!bibliotecaCarregada()) return null;
-        _tokenClient = google.accounts.oauth2.initTokenClient({
-            client_id: CLIENT_ID,
-            scope: SCOPE,
-            callback: function (resp) {
-                if (resp && resp.access_token) {
-                    _accessToken = resp.access_token;
-                    _tokenExpiraEm = Date.now() + ((resp.expires_in || 3500) * 1000);
+    /** Garante um access_token válido (já em memória, ou busca um novo no Worker). */
+    function garantirTokenValido() {
+        if (conectado()) return Promise.resolve(_accessToken);
+        if (_refrescando) return _refrescando;
+        _refrescando = buscarTokenDoWorker().then(function (tok) {
+            _refrescando = null;
+            return tok;
+        });
+        return _refrescando;
+    }
+
+    function pedirSecretAoUsuario() {
+        var atual = getSecretLocal();
+        var novo = window.prompt(
+            'Cole aqui a chave de sincronização do Google Agenda\n' +
+            '(o SYNC_SECRET gerado ao configurar o Cloudflare Worker — ver cloudflare-worker/README.md).\n' +
+            'Fica salva só neste navegador; não precisa colar de novo depois.',
+            atual || ''
+        );
+        if (novo && novo.trim()) { setSecretLocal(novo.trim()); return novo.trim(); }
+        return atual;
+    }
+
+    /**
+     * Abre a tela de consentimento do Google numa janela popup. Ao terminar,
+     * o próprio Worker fecha essa janela e avisa esta aba via postMessage
+     * (ver cloudflare-worker/worker.js → paginaFechar).
+     */
+    function abrirPopupAutorizacao(secret) {
+        var url = WORKER_URL + '/authorize?secret=' + encodeURIComponent(secret);
+        var popup = window.open(url, 'googleAuth', 'width=480,height=680');
+        if (!popup) {
+            if (window.Notifications) Notifications.error('O navegador bloqueou o popup de autorização. Permita popups para este site e tente de novo.');
+            return;
+        }
+
+        var aoReceberMensagem = function (evento) {
+            if (!evento.data || evento.data.tipo !== 'google-bridge') return;
+            window.removeEventListener('message', aoReceberMensagem);
+            if (!evento.data.sucesso) {
+                if (window.Notifications) Notifications.error('Não foi possível conectar ao Google Agenda.');
+                notificar();
+                return;
+            }
+            garantirTokenValido().then(function (tok) {
+                if (tok) {
                     if (window.Notifications) Notifications.success('Google Agenda conectado.');
-                    notificar();
                     importarNovosDoGoogle().then(function (novos) {
                         if (novos && window.Notifications) Notifications.success(novos + ' evento(s) importado(s) do Google Agenda.');
                         notificar();
                     });
                 } else {
-                    if (window.Notifications) Notifications.error('Não foi possível conectar ao Google Agenda.');
                     notificar();
                 }
-            }
-        });
-        return _tokenClient;
+            });
+        };
+        window.addEventListener('message', aoReceberMensagem);
     }
 
     function conectar() {
         if (!configurado()) {
-            if (window.Notifications) Notifications.error('Google Agenda ainda não configurado (falta o Client ID em google-calendar-sync.js).');
+            if (window.Notifications) Notifications.error('Google Agenda ainda não configurado (falta a URL do Worker em google-calendar-sync.js — ver cloudflare-worker/README.md).');
             return;
         }
-        var tc = garantirTokenClient();
-        if (!tc) {
-            if (window.Notifications) Notifications.error('Biblioteca do Google ainda não carregou. Tente novamente em instantes.');
-            return;
-        }
-        tc.requestAccessToken({ prompt: conectado() ? '' : 'consent' });
+        var secret = getSecretLocal() || pedirSecretAoUsuario();
+        if (!secret) return;
+
+        garantirTokenValido().then(function (tok) {
+            if (tok) {
+                // Já havia um refresh_token válido guardado no Worker (reconexão silenciosa).
+                if (window.Notifications) Notifications.success('Google Agenda conectado.');
+                notificar();
+                importarNovosDoGoogle().then(function (novos) {
+                    if (novos && window.Notifications) Notifications.success(novos + ' evento(s) importado(s) do Google Agenda.');
+                    notificar();
+                });
+                return;
+            }
+            abrirPopupAutorizacao(secret);
+        });
     }
 
     function desconectar() {
-        if (_accessToken && bibliotecaCarregada()) {
-            try { google.accounts.oauth2.revoke(_accessToken, function () {}); } catch (_) {}
-        }
+        var secret = getSecretLocal();
         _accessToken = null;
         _tokenExpiraEm = 0;
+        if (configurado() && secret) {
+            fetch(WORKER_URL + '/revoke', { method: 'POST', headers: { 'X-Sync-Secret': secret } }).catch(function () {});
+        }
         notificar();
     }
 
     function chamarApi(metodo, url, corpo) {
-        return fetch(url, {
-            method: metodo,
-            headers: {
-                'Authorization': 'Bearer ' + _accessToken,
-                'Content-Type': 'application/json'
-            },
-            body: corpo ? JSON.stringify(corpo) : undefined
+        return garantirTokenValido().then(function (tok) {
+            if (!tok) { var e = new Error('Não conectado ao Google Agenda.'); e.status = 401; throw e; }
+            return fetch(url, {
+                method: metodo,
+                headers: {
+                    'Authorization': 'Bearer ' + tok,
+                    'Content-Type': 'application/json'
+                },
+                body: corpo ? JSON.stringify(corpo) : undefined
+            });
         }).then(function (resp) {
             if (!resp.ok) {
                 return resp.text().then(function (t) {
@@ -183,7 +254,7 @@
      * Grava o googleEventId de volta na atividade via CrmStore quando muda.
      */
     function sincronizarAtividade(atividade, negocio, cliente) {
-        if (!configurado() || !conectado() || !atividade) return Promise.resolve(null);
+        if (!configurado() || !atividade) return Promise.resolve(null);
         if (atividade.feito) return removerEvento(atividade);
         if (!atividade.data) return Promise.resolve(null);
 
@@ -213,7 +284,7 @@
     }
 
     function removerEvento(atividade) {
-        if (!configurado() || !conectado() || !atividade || !atividade.googleEventId) return Promise.resolve(null);
+        if (!configurado() || !atividade || !atividade.googleEventId) return Promise.resolve(null);
         var id = atividade.googleEventId;
         return chamarApi('DELETE', EVENTS_URL + '/' + id)
             .catch(function () { /* evento já pode ter sido removido no Google */ })
@@ -275,7 +346,7 @@
      * antes (já existe uma atividade com esse googleEventId).
      */
     function importarNovosDoGoogle() {
-        if (!configurado() || !conectado() || !window.CrmStore) return Promise.resolve(0);
+        if (!configurado() || !window.CrmStore) return Promise.resolve(0);
 
         var agora = new Date();
         var min = new Date(agora.getTime() - JANELA_IMPORT_DIAS_PASSADO * 86400000).toISOString();
@@ -304,6 +375,7 @@
             });
             return novos;
         }).catch(function (e) {
+            if (e && e.status === 401) return 0; // não conectado — silencioso, já reportado em outro lugar
             if (window.Notifications) Notifications.error('Falha ao importar eventos do Google Agenda: ' + e.message);
             return 0;
         });
@@ -316,40 +388,51 @@
      */
     function sincronizarTudo() {
         if (!configurado()) {
-            if (window.Notifications) Notifications.error('Configure o Client ID do Google em google-calendar-sync.js primeiro.');
+            if (window.Notifications) Notifications.error('Configure a URL do Worker em google-calendar-sync.js primeiro (ver cloudflare-worker/README.md).');
             return;
         }
-        if (!conectado()) { conectar(); return; }
         if (!window.CrmStore) return;
 
-        importarNovosDoGoogle().then(function (novosImportados) {
-            var atividades = CrmStore.listarAtividades().filter(function (a) { return a.data; });
-            var negocios = CrmStore.listarNegocios();
-            var negocioPorId = {};
-            negocios.forEach(function (n) { negocioPorId[n.id] = n; });
+        garantirTokenValido().then(function (tok) {
+            if (!tok) { conectar(); return; }
 
-            var fila = atividades.slice();
-            var ok = 0, falha = 0;
+            importarNovosDoGoogle().then(function (novosImportados) {
+                var atividades = CrmStore.listarAtividades().filter(function (a) { return a.data; });
+                var negocios = CrmStore.listarNegocios();
+                var negocioPorId = {};
+                negocios.forEach(function (n) { negocioPorId[n.id] = n; });
 
-            function proximo() {
-                if (!fila.length) {
-                    if (window.Notifications) {
-                        Notifications.success('Sincronização com o Google Agenda concluída: ' + ok + ' enviada(s)' +
-                            (novosImportados ? (', ' + novosImportados + ' importada(s)') : '') +
-                            (falha ? (', ' + falha + ' falha(s)') : '') + '.');
+                var fila = atividades.slice();
+                var ok = 0, falha = 0;
+
+                function proximo() {
+                    if (!fila.length) {
+                        if (window.Notifications) {
+                            Notifications.success('Sincronização com o Google Agenda concluída: ' + ok + ' enviada(s)' +
+                                (novosImportados ? (', ' + novosImportados + ' importada(s)') : '') +
+                                (falha ? (', ' + falha + ' falha(s)') : '') + '.');
+                        }
+                        notificar();
+                        return;
                     }
-                    notificar();
-                    return;
+                    var a = fila.shift();
+                    var negocio = negocioPorId[a.negocioId];
+                    var cliente = negocio ? CrmStore.getCliente(negocio.clienteId) : null;
+                    sincronizarAtividade(a, negocio, cliente)
+                        .then(function () { ok++; proximo(); })
+                        .catch(function () { falha++; proximo(); });
                 }
-                var a = fila.shift();
-                var negocio = negocioPorId[a.negocioId];
-                var cliente = negocio ? CrmStore.getCliente(negocio.clienteId) : null;
-                sincronizarAtividade(a, negocio, cliente)
-                    .then(function () { ok++; proximo(); })
-                    .catch(function () { falha++; proximo(); });
-            }
-            proximo();
+                proximo();
+            });
         });
+    }
+
+    // Ao carregar a página, se já existe uma chave de sincronização salva
+    // (conexão feita antes), tenta renovar o access_token em segundo plano —
+    // sem popup, sem pedir nada. É isso que faz a conexão "durar para sempre":
+    // o refresh_token mora no Worker; aqui só buscamos um token novo com ele.
+    if (configurado() && getSecretLocal()) {
+        garantirTokenValido().then(function () { notificar(); });
     }
 
     window.GoogleCalendarSync = {

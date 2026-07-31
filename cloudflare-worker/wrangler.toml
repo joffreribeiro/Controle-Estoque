@@ -1,0 +1,12 @@
+name = "estoque-google-bridge"
+main = "worker.js"
+compatibility_date = "2024-11-01"
+
+# Depois de rodar `wrangler kv namespace create TOKENS`, cole o "id" que ele
+# devolver aqui embaixo, no lugar de SUBSTITUA_PELO_ID_DO_KV.
+kv_namespaces = [
+  { binding = "TOKENS", id = "e4e5c2e9b8b84f00866c34d266aa74c7" }
+]
+
+# Nada de sensível aqui — Client ID, Client Secret e a chave de sincronização
+# vão todos via `wrangler secret put NOME` (ver README.md deste diretório).

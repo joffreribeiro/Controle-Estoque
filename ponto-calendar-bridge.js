@@ -39,6 +39,9 @@
     var _listeners = [];
     var _cache = null; // { eventos: [...], buscadoEm: <timestamp> }
     var _buscando = false;
+    var _ultimoErro = null; // string amigável do último erro de busca, ou null
+
+    function getUltimoErro() { return _ultimoErro; }
 
     function notificar() {
         _listeners.forEach(function (fn) { try { fn(); } catch (_) {} });
@@ -92,12 +95,29 @@
     function desconectar() {
         if (_auth) { try { _auth.signOut(); } catch (_) {} }
         _cache = null;
+        _ultimoErro = null;
         notificar();
     }
 
     /** Leitura sem rede — o que já estiver em cache (pode estar vazio/desatualizado). */
     function getEventosCache() {
         return (_cache && _cache.eventos) || [];
+    }
+
+    /**
+     * O Ponto às vezes acumula eventos EXATAMENTE duplicados (mesmo tipo,
+     * descrição e intervalo de datas — ex: a mesma Férias salva duas vezes).
+     * Mantém só a primeira ocorrência de cada assinatura, para não mostrar a
+     * mesma coisa repetida no calendário do CRM.
+     */
+    function deduplicarEventos(eventos) {
+        var vistos = {};
+        return (eventos || []).filter(function (ev) {
+            var chave = [ev.tipoEvento, ev.descricaoEvento, ev.dataInicioEvento, ev.dataFimEvento].join('|');
+            if (vistos[chave]) return false;
+            vistos[chave] = true;
+            return true;
+        });
     }
 
     /**
@@ -116,20 +136,20 @@
         var uid = _auth.currentUser.uid;
         return _db.collection('ponto').doc(uid).get().then(function (snap) {
             _buscando = false;
+            _ultimoErro = (snap && snap.exists) ? null : 'Nenhum documento encontrado em ponto/' + uid + ' — verifique se é a mesma conta usada no Ponto.';
             var dados = (snap && snap.exists) ? (snap.data().dados || {}) : {};
-            var eventos = Array.isArray(dados.eventos) ? dados.eventos : [];
+            var eventos = deduplicarEventos(Array.isArray(dados.eventos) ? dados.eventos : []);
             _cache = { eventos: eventos, buscadoEm: Date.now() };
             notificar();
             return eventos;
         }).catch(function (e) {
             _buscando = false;
             console.error('Falha ao buscar eventos do Ponto:', e);
-            if (window.Notifications) {
-                var msg = (e && e.code === 'permission-denied')
-                    ? 'Sem permissão para ler os dados do Ponto (confira o login).'
-                    : ('Falha ao buscar dados do Ponto: ' + (e.message || e));
-                Notifications.error(msg);
-            }
+            _ultimoErro = (e && e.code === 'permission-denied')
+                ? 'Sem permissão para ler os dados do Ponto (confira o login e as regras do Firestore).'
+                : ('Falha ao buscar dados do Ponto: ' + (e.message || e));
+            if (window.Notifications) Notifications.error(_ultimoErro);
+            notificar();
             return getEventosCache();
         });
     }
@@ -142,6 +162,7 @@
         desconectar: desconectar,
         aoMudarStatus: aoMudarStatus,
         getEventosCache: getEventosCache,
-        atualizarEventos: atualizarEventos
+        atualizarEventos: atualizarEventos,
+        getUltimoErro: getUltimoErro
     };
 })();
