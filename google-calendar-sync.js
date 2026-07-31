@@ -9,10 +9,12 @@
  * Services / token implícito), que expira em ~1h e nunca recebe refresh_token
  * porque roda só no navegador.
  *
+ * O Worker é autorizado usando o próprio login do Estoque (Firebase Auth,
+ * projeto "estoquefi"): qualquer navegador/dispositivo onde você já está
+ * logado no Estoque libera a Agenda automaticamente, sem colar chave nenhuma.
+ *
  * Configuração necessária abaixo: WORKER_URL (a URL pública do Worker, depois
- * do deploy). Na primeira conexão, o app pede a "chave de sincronização"
- * (SYNC_SECRET configurado no Worker) e guarda em localStorage — nunca no
- * código-fonte.
+ * do deploy).
  *
  * Política de sincronização:
  *  CRM → Google:
@@ -42,7 +44,6 @@
     // 1 Lavanda, 2 Sálvia, 3 Uva, 4 Flamingo, 5 Banana, 6 Tangerina,
     // 7 Pavão, 8 Grafite, 9 Mirtilo, 10 Manjericão, 11 Tomate.
     var EVENT_COLOR_ID = '3'; // Uva (roxo) — combina com a cor do workspace Relacionamento no app
-    var CHAVE_SECRET_LOCAL = 'estoqueGoogleSyncSecret';
 
     var _accessToken = null;
     var _tokenExpiraEm = 0;
@@ -53,11 +54,10 @@
         return !!WORKER_URL;
     }
 
-    function getSecretLocal() {
-        try { return localStorage.getItem(CHAVE_SECRET_LOCAL) || ''; } catch (e) { return ''; }
-    }
-    function setSecretLocal(v) {
-        try { localStorage.setItem(CHAVE_SECRET_LOCAL, v); } catch (e) {}
+    /** Token de login do Estoque (Firebase Auth) — é o que autentica as chamadas ao Worker. */
+    function getFirebaseIdToken(forcar) {
+        if (!(window.firebase && firebase.auth && firebase.auth().currentUser)) return Promise.resolve(null);
+        return firebase.auth().currentUser.getIdToken(!!forcar).catch(function () { return null; });
     }
 
     function conectado() {
@@ -74,22 +74,23 @@
 
     /** Busca um access_token novo no Worker, usando o refresh_token guardado lá. */
     function buscarTokenDoWorker() {
-        var secret = getSecretLocal();
-        if (!configurado() || !secret) return Promise.resolve(null);
-        return fetch(WORKER_URL + '/token', { headers: { 'X-Sync-Secret': secret } })
-            .then(function (resp) { return resp.json().then(function (d) { return { status: resp.status, dados: d }; }); })
-            .then(function (r) {
-                if (r.status === 200 && r.dados && r.dados.access_token) {
-                    _accessToken = r.dados.access_token;
-                    // Renova ~2min antes do vencimento real, pra nunca usar um token na borda de expirar.
-                    _tokenExpiraEm = Date.now() + (Math.max(60, (r.dados.expires_in || 3500) - 120)) * 1000;
-                    return _accessToken;
-                }
-                _accessToken = null;
-                _tokenExpiraEm = 0;
-                return null;
-            })
-            .catch(function () { _accessToken = null; _tokenExpiraEm = 0; return null; });
+        if (!configurado()) return Promise.resolve(null);
+        return getFirebaseIdToken().then(function (idToken) {
+            if (!idToken) return null;
+            return fetch(WORKER_URL + '/token', { headers: { 'Authorization': 'Bearer ' + idToken } })
+                .then(function (resp) { return resp.json().then(function (d) { return { status: resp.status, dados: d }; }); })
+                .then(function (r) {
+                    if (r.status === 200 && r.dados && r.dados.access_token) {
+                        _accessToken = r.dados.access_token;
+                        // Renova ~2min antes do vencimento real, pra nunca usar um token na borda de expirar.
+                        _tokenExpiraEm = Date.now() + (Math.max(60, (r.dados.expires_in || 3500) - 120)) * 1000;
+                        return _accessToken;
+                    }
+                    _accessToken = null;
+                    _tokenExpiraEm = 0;
+                    return null;
+                });
+        }).catch(function () { _accessToken = null; _tokenExpiraEm = 0; return null; });
     }
 
     /** Garante um access_token válido (já em memória, ou busca um novo no Worker). */
@@ -103,52 +104,58 @@
         return _refrescando;
     }
 
-    function pedirSecretAoUsuario() {
-        var atual = getSecretLocal();
-        var novo = window.prompt(
-            'Cole aqui a chave de sincronização do Google Agenda\n' +
-            '(o SYNC_SECRET gerado ao configurar o Cloudflare Worker — ver cloudflare-worker/README.md).\n' +
-            'Fica salva só neste navegador; não precisa colar de novo depois.',
-            atual || ''
-        );
-        if (novo && novo.trim()) { setSecretLocal(novo.trim()); return novo.trim(); }
-        return atual;
-    }
-
     /**
-     * Abre a tela de consentimento do Google numa janela popup. Ao terminar,
-     * o próprio Worker fecha essa janela e avisa esta aba via postMessage
-     * (ver cloudflare-worker/worker.js → paginaFechar).
+     * Abre a tela de consentimento do Google numa janela popup. Como essa é
+     * uma navegação de página inteira (não dá pra anexar um header nela),
+     * primeiro pede ao Worker um "ticket" de uso único via fetch autenticado
+     * com o login do Estoque — só quem já está logado consegue gerar um.
+     * Ao terminar, o próprio Worker fecha o popup e avisa esta aba via
+     * postMessage (ver cloudflare-worker/worker.js → paginaFechar).
      */
-    function abrirPopupAutorizacao(secret) {
-        var url = WORKER_URL + '/authorize?secret=' + encodeURIComponent(secret);
-        var popup = window.open(url, 'googleAuth', 'width=480,height=680');
-        if (!popup) {
-            if (window.Notifications) Notifications.error('O navegador bloqueou o popup de autorização. Permita popups para este site e tente de novo.');
-            return;
-        }
-
-        var aoReceberMensagem = function (evento) {
-            if (!evento.data || evento.data.tipo !== 'google-bridge') return;
-            window.removeEventListener('message', aoReceberMensagem);
-            if (!evento.data.sucesso) {
-                if (window.Notifications) Notifications.error('Não foi possível conectar ao Google Agenda.');
-                notificar();
+    function abrirPopupAutorizacao() {
+        getFirebaseIdToken().then(function (idToken) {
+            if (!idToken) {
+                if (window.Notifications) Notifications.error('Faça login no Estoque antes de conectar o Google Agenda.');
                 return;
             }
-            garantirTokenValido().then(function (tok) {
-                if (tok) {
-                    if (window.Notifications) Notifications.success('Google Agenda conectado.');
-                    importarNovosDoGoogle().then(function (novos) {
-                        if (novos && window.Notifications) Notifications.success(novos + ' evento(s) importado(s) do Google Agenda.');
-                        notificar();
-                    });
-                } else {
-                    notificar();
-                }
-            });
-        };
-        window.addEventListener('message', aoReceberMensagem);
+            fetch(WORKER_URL + '/iniciar-autorizacao', { method: 'POST', headers: { 'Authorization': 'Bearer ' + idToken } })
+                .then(function (resp) { return resp.json(); })
+                .then(function (d) {
+                    if (!d || !d.ticket) {
+                        if (window.Notifications) Notifications.error('Não foi possível iniciar a autorização com o Google.');
+                        return;
+                    }
+                    var popup = window.open(WORKER_URL + '/authorize?ticket=' + encodeURIComponent(d.ticket), 'googleAuth', 'width=480,height=680');
+                    if (!popup) {
+                        if (window.Notifications) Notifications.error('O navegador bloqueou o popup de autorização. Permita popups para este site e tente de novo.');
+                        return;
+                    }
+                    var aoReceberMensagem = function (evento) {
+                        if (!evento.data || evento.data.tipo !== 'google-bridge') return;
+                        window.removeEventListener('message', aoReceberMensagem);
+                        if (!evento.data.sucesso) {
+                            if (window.Notifications) Notifications.error('Não foi possível conectar ao Google Agenda.');
+                            notificar();
+                            return;
+                        }
+                        garantirTokenValido().then(function (tok) {
+                            if (tok) {
+                                if (window.Notifications) Notifications.success('Google Agenda conectado.');
+                                importarNovosDoGoogle().then(function (novos) {
+                                    if (novos && window.Notifications) Notifications.success(novos + ' evento(s) importado(s) do Google Agenda.');
+                                    notificar();
+                                });
+                            } else {
+                                notificar();
+                            }
+                        });
+                    };
+                    window.addEventListener('message', aoReceberMensagem);
+                })
+                .catch(function () {
+                    if (window.Notifications) Notifications.error('Falha ao falar com o serviço de sincronização.');
+                });
+        });
     }
 
     function conectar() {
@@ -156,9 +163,6 @@
             if (window.Notifications) Notifications.error('Google Agenda ainda não configurado (falta a URL do Worker em google-calendar-sync.js — ver cloudflare-worker/README.md).');
             return;
         }
-        var secret = getSecretLocal() || pedirSecretAoUsuario();
-        if (!secret) return;
-
         garantirTokenValido().then(function (tok) {
             if (tok) {
                 // Já havia um refresh_token válido guardado no Worker (reconexão silenciosa).
@@ -170,16 +174,17 @@
                 });
                 return;
             }
-            abrirPopupAutorizacao(secret);
+            abrirPopupAutorizacao();
         });
     }
 
     function desconectar() {
-        var secret = getSecretLocal();
         _accessToken = null;
         _tokenExpiraEm = 0;
-        if (configurado() && secret) {
-            fetch(WORKER_URL + '/revoke', { method: 'POST', headers: { 'X-Sync-Secret': secret } }).catch(function () {});
+        if (configurado()) {
+            getFirebaseIdToken().then(function (idToken) {
+                if (idToken) fetch(WORKER_URL + '/revoke', { method: 'POST', headers: { 'Authorization': 'Bearer ' + idToken } }).catch(function () {});
+            });
         }
         notificar();
     }
@@ -295,8 +300,8 @@
 
     // ── Google → CRM (importação de eventos criados direto na Google Agenda) ──
 
-    var JANELA_IMPORT_DIAS_PASSADO = 7;
-    var JANELA_IMPORT_DIAS_FUTURO = 60;
+    var JANELA_IMPORT_DIAS_PASSADO = 90;
+    var JANELA_IMPORT_DIAS_FUTURO = 365;
 
     function googleDataHora(pontoEvento) {
         if (!pontoEvento) return null;
@@ -427,12 +432,14 @@
         });
     }
 
-    // Ao carregar a página, se já existe uma chave de sincronização salva
-    // (conexão feita antes), tenta renovar o access_token em segundo plano —
-    // sem popup, sem pedir nada. É isso que faz a conexão "durar para sempre":
-    // o refresh_token mora no Worker; aqui só buscamos um token novo com ele.
-    if (configurado() && getSecretLocal()) {
-        garantirTokenValido().then(function () { notificar(); });
+    // Assim que o login do Estoque (Firebase Auth) resolver, tenta renovar o
+    // access_token em segundo plano — sem popup, sem pedir nada. É isso que
+    // faz a conexão "durar para sempre": o refresh_token mora no Worker; aqui
+    // só buscamos um token novo com ele, usando o login que o usuário já tem.
+    if (configurado() && window.firebase && firebase.auth) {
+        firebase.auth().onAuthStateChanged(function (user) {
+            if (user) garantirTokenValido().then(function () { notificar(); });
+        });
     }
 
     window.GoogleCalendarSync = {

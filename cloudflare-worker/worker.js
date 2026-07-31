@@ -8,23 +8,27 @@
  * Identity Services / token implícito), que nunca recebe refresh_token porque
  * é pensado para rodar só no navegador.
  *
+ * Autorização: em vez de uma chave colada manualmente em cada navegador, este
+ * Worker aceita o próprio token de login do Firebase que o Estoque já usa
+ * (projeto "estoquefi") — verificado aqui via JWKS público do Google, sem
+ * precisar de Firebase Admin SDK nem de nenhum segredo novo por navegador.
+ * Qualquer navegador/dispositivo já logado no Estoque libera a Agenda sem
+ * nenhum passo extra.
+ *
  * Depois de configurar (ver README.md deste diretório), a URL pública deste
  * Worker vai em `WORKER_URL` no topo de google-calendar-sync.js.
  *
  * Segredos (definir com `wrangler secret put NOME`, nunca commitados):
  *   GOOGLE_CLIENT_ID     - mesmo Client ID já usado no app (OAuth "Aplicativo Web")
  *   GOOGLE_CLIENT_SECRET - Client Secret desse mesmo OAuth Client
- *   SYNC_SECRET          - string aleatória só sua; é o que autoriza o
- *                          navegador a chamar /authorize, /token e /revoke
- *                          (sem ela, ninguém que só veja o código-fonte
- *                          público do app consegue puxar tokens da sua agenda)
  *
  * KV namespace "TOKENS" (bind no wrangler.toml):
- *   refresh_token    - o refresh_token do Google (chave fixa; uso single-user)
- *   pending:<state>  - nonce de curta duração do fluxo /authorize -> /callback,
- *                       impede que alguém sem o SYNC_SECRET grude o refresh_token
- *                       DA CONTA DELE no seu slot só completando o consentimento
- *                       do Google por fora
+ *   refresh_token   - o refresh_token do Google (chave fixa; uso single-user)
+ *   pending:<state> - nonce de curta duração do fluxo /authorize -> /callback
+ *   ticket:<ticket> - nonce de uso único que autoriza abrir o /authorize
+ *                     (emitido só depois de validar o login do Firebase,
+ *                     porque /authorize é uma navegação de página inteira e
+ *                     não dá pra anexar um header Authorization nela)
  */
 
 const SCOPE = 'https://www.googleapis.com/auth/calendar.events https://www.googleapis.com/auth/calendar.readonly';
@@ -32,10 +36,16 @@ const GOOGLE_AUTH_URL = 'https://accounts.google.com/o/oauth2/v2/auth';
 const GOOGLE_TOKEN_URL = 'https://oauth2.googleapis.com/token';
 const GOOGLE_REVOKE_URL = 'https://oauth2.googleapis.com/revoke';
 const PENDING_TTL_SEGUNDOS = 600; // 10 min para completar o consentimento no popup
+const TICKET_TTL_SEGUNDOS = 120; // 2 min — só o tempo de abrir o popup
+
+const FIREBASE_PROJECT_ID = 'estoquefi';
+const FIREBASE_JWKS_URL = 'https://www.googleapis.com/service_accounts/v1/jwk/securetoken@system.gserviceaccount.com';
+
+let _jwksCache = null; // { porKid: {...}, expiraEm: timestamp } — vive enquanto o isolate do Worker ficar quente
 
 function cors(resp) {
     resp.headers.set('Access-Control-Allow-Origin', '*');
-    resp.headers.set('Access-Control-Allow-Headers', 'Content-Type, X-Sync-Secret');
+    resp.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
     return resp;
 }
 
@@ -52,19 +62,104 @@ function textoAleatorio(tamanho) {
     return [...bytes].map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
-/** Aceita o segredo tanto por header (chamadas via fetch) quanto por query (navegação direta do popup). */
-function autorizado(request, env) {
-    const url = new URL(request.url);
-    const enviado = url.searchParams.get('secret') || request.headers.get('X-Sync-Secret');
-    return !!enviado && !!env.SYNC_SECRET && enviado === env.SYNC_SECRET;
+function base64UrlParaBytes(str) {
+    str = str.replace(/-/g, '+').replace(/_/g, '/');
+    while (str.length % 4) str += '=';
+    const bin = atob(str);
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    return bytes;
+}
+
+function base64UrlParaJson(str) {
+    return JSON.parse(new TextDecoder().decode(base64UrlParaBytes(str)));
+}
+
+async function buscarJwksFirebase() {
+    if (_jwksCache && Date.now() < _jwksCache.expiraEm) return _jwksCache.porKid;
+    const resp = await fetch(FIREBASE_JWKS_URL);
+    const dados = await resp.json();
+    const porKid = {};
+    (dados.keys || []).forEach(function (k) { porKid[k.kid] = k; });
+    _jwksCache = { porKid, expiraEm: Date.now() + 3600 * 1000 };
+    return porKid;
+}
+
+/**
+ * Verifica um ID token do Firebase Auth (o mesmo que o Estoque já emite ao
+ * fazer login) sem depender do Firebase Admin SDK: confere assinatura RS256
+ * contra a JWKS pública do Google, e os campos padrão (iss/aud/exp).
+ * Devolve { uid, email } se válido, ou null.
+ */
+async function verificarFirebaseIdToken(idToken) {
+    if (!idToken) return null;
+    const partes = idToken.split('.');
+    if (partes.length !== 3) return null;
+
+    let header, payload;
+    try {
+        header = base64UrlParaJson(partes[0]);
+        payload = base64UrlParaJson(partes[1]);
+    } catch (e) { return null; }
+
+    if (payload.iss !== 'https://securetoken.google.com/' + FIREBASE_PROJECT_ID) return null;
+    if (payload.aud !== FIREBASE_PROJECT_ID) return null;
+    if (!payload.exp || Date.now() >= payload.exp * 1000) return null;
+    if (!payload.sub) return null;
+
+    const jwks = await buscarJwksFirebase();
+    const jwk = jwks[header.kid];
+    if (!jwk) return null;
+
+    let chave;
+    try {
+        chave = await crypto.subtle.importKey('jwk', jwk, { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' }, false, ['verify']);
+    } catch (e) { return null; }
+
+    const dadosAssinados = new TextEncoder().encode(partes[0] + '.' + partes[1]);
+    const assinatura = base64UrlParaBytes(partes[2]);
+
+    const valido = await crypto.subtle.verify('RSASSA-PKCS1-v1_5', chave, assinatura, dadosAssinados);
+    if (!valido) return null;
+
+    return { uid: payload.sub, email: payload.email || null };
+}
+
+/** Extrai e valida o "Authorization: Bearer <idToken>" da requisição. */
+async function usuarioAutenticado(request) {
+    const auth = request.headers.get('Authorization') || '';
+    const m = auth.match(/^Bearer\s+(.+)$/);
+    if (!m) return null;
+    return verificarFirebaseIdToken(m[1]);
 }
 
 function redirectUriDoWorker(request) {
     return new URL(request.url).origin + '/callback';
 }
 
+/**
+ * Chamada via fetch() (com Authorization: Bearer <idToken do Firebase>).
+ * Devolve um "ticket" de uso único, porque o próximo passo (/authorize) é uma
+ * navegação de página inteira (window.open) — não dá pra mandar header nela.
+ */
+async function handleIniciarAutorizacao(request, env) {
+    const usuario = await usuarioAutenticado(request);
+    if (!usuario) return json({ erro: 'não autenticado' }, 401);
+
+    const ticket = textoAleatorio(16);
+    await env.TOKENS.put('ticket:' + ticket, usuario.uid, { expirationTtl: TICKET_TTL_SEGUNDOS });
+    return json({ ticket });
+}
+
 async function handleAuthorize(request, env) {
-    if (!autorizado(request, env)) return json({ erro: 'não autorizado' }, 401);
+    const url = new URL(request.url);
+    const ticket = url.searchParams.get('ticket');
+    if (!ticket) return json({ erro: 'ticket ausente' }, 401);
+
+    const ticketKey = 'ticket:' + ticket;
+    const dono = await env.TOKENS.get(ticketKey);
+    if (!dono) return json({ erro: 'ticket inválido ou expirado — clique em Conectar de novo' }, 401);
+    await env.TOKENS.delete(ticketKey);
 
     const state = textoAleatorio(16);
     await env.TOKENS.put('pending:' + state, '1', { expirationTtl: PENDING_TTL_SEGUNDOS });
@@ -138,7 +233,8 @@ async function handleCallback(request, env) {
 }
 
 async function handleToken(request, env) {
-    if (!autorizado(request, env)) return json({ erro: 'não autorizado' }, 401);
+    const usuario = await usuarioAutenticado(request);
+    if (!usuario) return json({ erro: 'não autenticado' }, 401);
 
     const refreshToken = await env.TOKENS.get('refresh_token');
     if (!refreshToken) return json({ conectado: false }, 404);
@@ -170,7 +266,8 @@ async function handleToken(request, env) {
 }
 
 async function handleRevoke(request, env) {
-    if (!autorizado(request, env)) return json({ erro: 'não autorizado' }, 401);
+    const usuario = await usuarioAutenticado(request);
+    if (!usuario) return json({ erro: 'não autenticado' }, 401);
 
     const refreshToken = await env.TOKENS.get('refresh_token');
     if (refreshToken) {
@@ -188,6 +285,7 @@ export default {
 
         const url = new URL(request.url);
         try {
+            if (url.pathname === '/iniciar-autorizacao' && request.method === 'POST') return await handleIniciarAutorizacao(request, env);
             if (url.pathname === '/authorize') return await handleAuthorize(request, env);
             if (url.pathname === '/callback') return await handleCallback(request, env);
             if (url.pathname === '/token') return await handleToken(request, env);

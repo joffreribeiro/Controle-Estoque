@@ -8,5 +8,5 @@ kv_namespaces = [
   { binding = "TOKENS", id = "e4e5c2e9b8b84f00866c34d266aa74c7" }
 ]
 
-# Nada de sensível aqui — Client ID, Client Secret e a chave de sincronização
-# vão todos via `wrangler secret put NOME` (ver README.md deste diretório).
+# Nada de sensível aqui — Client ID e Client Secret vão via
+# `wrangler secret put NOME` (ver README.md deste diretório).

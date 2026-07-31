@@ -9,6 +9,12 @@ Uma vez configurado, você só faz login no Google **uma vez**. Depois disso o
 Worker renova sozinho, para sempre (até você clicar "Desconectar" ou revogar o
 acesso na sua conta Google).
 
+Quem autoriza o navegador a falar com o Worker é o próprio login do Estoque
+(Firebase Auth, projeto "estoquefi") — o Worker verifica esse token direto
+contra a chave pública do Google, sem precisar de nenhuma chave colada
+manualmente. Ou seja: **qualquer navegador ou dispositivo onde você já esteja
+logado no Estoque libera a Agenda automaticamente**, sem passo extra nenhum.
+
 ## Pré-requisitos
 
 - Conta gratuita na [Cloudflare](https://dash.cloudflare.com/sign-up) (sem cartão).
@@ -63,16 +69,11 @@ npx wrangler secret put GOOGLE_CLIENT_ID
 
 npx wrangler secret put GOOGLE_CLIENT_SECRET
 # cole a Client Secret copiada no Passo 1
-
-npx wrangler secret put SYNC_SECRET
-# cole uma string aleatória e comprida só sua — é a "senha" que autoriza o
-# navegador a falar com este Worker. Gere uma, por exemplo, com:
-#   node -e "console.log(require('crypto').randomBytes(24).toString('hex'))"
 ```
 
-Guarde o valor do `SYNC_SECRET` em algum lugar seguro — você vai colar ele no
-Controle de Estoque quando conectar pela primeira vez (o app pede e guarda no
-`localStorage` do seu navegador, nunca no código).
+Não existe um terceiro segredo pra colar em lugar nenhum — quem autoriza o
+navegador é o seu próprio login no Estoque (ver explicação no topo deste
+README).
 
 ## Passo 4 — Deploy
 
@@ -93,19 +94,23 @@ https://estoque-google-bridge.SEUSUBDOMINIO.workers.dev
 
 ## Passo 5 — Conectar pelo app
 
-1. Abra o Controle de Estoque → Relacionamento → Calendário.
+1. Abra o Controle de Estoque (logado normalmente) → Relacionamento → Calendário.
 2. Clique **Conectar Google Agenda**.
-3. Na primeira vez, ele pede a chave de sincronização — cole o `SYNC_SECRET`
-   do Passo 3 (fica salvo no navegador, só precisa colar uma vez por
-   navegador/dispositivo).
-4. Abre uma janela de consentimento do Google — aprove.
-5. Pronto. A partir daqui, qualquer sessão futura (mesmo depois de fechar o
-   navegador) reconecta sozinha, sem pedir login de novo.
+3. Abre uma janela de consentimento do Google — aprove.
+4. Pronto. A partir daqui, qualquer navegador ou dispositivo onde você fizer
+   login no Estoque reconecta sozinho, sem pedir login do Google de novo.
 
 ## Como verificar que está funcionando
 
-```bash
-curl "https://estoque-google-bridge.SEUSUBDOMINIO.workers.dev/token?secret=SEU_SYNC_SECRET"
+O `/token` exige o login do Estoque (`Authorization: Bearer <idToken>`), então
+não dá pra testar com `curl` direto sem gerar esse token. O jeito mais simples
+é abrir o Console do navegador na página do app já logado e rodar:
+
+```js
+firebase.auth().currentUser.getIdToken().then(t =>
+  fetch('https://estoque-google-bridge.SEUSUBDOMINIO.workers.dev/token', { headers: { Authorization: 'Bearer ' + t } })
+    .then(r => r.json()).then(console.log)
+)
 ```
 
 - Antes de conectar pelo app: `{"conectado":false}` (HTTP 404).
