@@ -316,7 +316,6 @@ function normalizarAnotacao(aBruta) {
         finalizado: situacao === 'respondida',
         dataConclusao: a.dataConclusao || null,
         oQueFoiFeito: typeof a.oQueFoiFeito === 'string' ? a.oQueFoiFeito : '',
-        respostaTipoDoc: typeof a.respostaTipoDoc === 'string' ? a.respostaTipoDoc : '',
         respostaNumeroDocumento: typeof a.respostaNumeroDocumento === 'string' ? a.respostaNumeroDocumento : '',
         excluidoEm: a.excluidoEm || null,
         criadoEm: a.criadoEm || nowIso(),

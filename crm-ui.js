@@ -102,6 +102,7 @@
         if (window.__crmListenersLigados) return;
         window.__crmListenersLigados = true;
         document.addEventListener('click', aoClicar);
+        document.addEventListener('keydown', aoTeclar);
         document.addEventListener('cliente:salvo', aoSalvarClienteExterno);
         if (window.GoogleCalendarSync) {
             GoogleCalendarSync.aoMudarStatus(function () { if (_secao === 'calendario') renderizarCalendarioView(); });
@@ -1958,10 +1959,17 @@
         val('crmAnotacaoLembrarDias', (anotacao && anotacao.lembrarDiasAntes !== null) ? String(anotacao.lembrarDiasAntes) : '');
         val('crmAnotacaoTags', anotacao ? (anotacao.tags || []).join(', ') : '');
         val('crmAnotacaoObservacoes', anotacao ? (anotacao.observacoes || '') : '');
-        val('crmAnotacaoDataConclusao', anotacao ? (anotacao.dataConclusao || '') : '');
         val('crmAnotacaoOQueFoiFeito', anotacao ? (anotacao.oQueFoiFeito || '') : '');
-        val('crmAnotacaoRespostaTipoDoc', anotacao ? (anotacao.respostaTipoDoc || '') : '');
         val('crmAnotacaoRespostaNumeroDocumento', anotacao ? (anotacao.respostaNumeroDocumento || '') : '');
+
+        // Data de conclusão é derivada da situação (ver aplicarSituacao no
+        // store): exibida, nunca digitada.
+        var dtConcl = document.getElementById('crmAnotacaoDataConclusao');
+        if (dtConcl) {
+            dtConcl.textContent = (anotacao && anotacao.dataConclusao)
+                ? DateUtils.formatBR(anotacao.dataConclusao)
+                : '—';
+        }
 
         // Cópia profunda: editar no modal não deve tocar o store antes de salvar.
         _encaminhamentosTemp = anotacao
@@ -1969,10 +1977,44 @@
             : [];
         renderizarEncaminhamentosModal();
 
+        // "Mais opções" começa recolhido, mas abre sozinho quando guarda algo
+        // preenchido — senão o usuário não descobre o que já existe ali.
+        var temExtras = !!(anotacao && (
+            anotacao.lembrarDiasAntes !== null ||
+            (anotacao.tags && anotacao.tags.length) ||
+            (!anotacao.negocioId && anotacao.funilId)
+        ));
+        setMaisOpcoesAnotacao(temExtras);
+        aoTrocarSituacaoAnotacao();
+
         var btnExcluir = document.getElementById('crmAnotacaoBtnExcluir');
         if (btnExcluir) btnExcluir.style.display = id ? '' : 'none';
 
         document.getElementById('modalAnotacao').style.display = 'flex';
+    }
+
+    /** A Conclusão só interessa quando a demanda está sendo fechada. */
+    function aoTrocarSituacaoAnotacao() {
+        var sel = document.getElementById('crmAnotacaoSituacao');
+        var bloco = document.getElementById('crmAnotacaoConclusao');
+        if (!sel || !bloco) return;
+        var fechando = sel.value === 'consolidando' || sel.value === 'respondida';
+        bloco.style.display = fechando ? '' : 'none';
+    }
+
+    function setMaisOpcoesAnotacao(aberto) {
+        var corpo = document.getElementById('crmAnotacaoMais');
+        var botao = document.getElementById('crmAnotacaoMaisToggle');
+        if (!corpo || !botao) return;
+        corpo.style.display = aberto ? '' : 'none';
+        botao.setAttribute('aria-expanded', aberto ? 'true' : 'false');
+        var seta = botao.querySelector('.crm-bloco-seta');
+        if (seta) seta.textContent = aberto ? '▾' : '▸';
+    }
+
+    function alternarMaisOpcoesAnotacao() {
+        var corpo = document.getElementById('crmAnotacaoMais');
+        if (corpo) setMaisOpcoesAnotacao(corpo.style.display === 'none');
     }
 
     function salvarAnotacao() {
@@ -2005,9 +2047,7 @@
             lembrarDiasAntes: lembrarRaw === '' ? null : Number(lembrarRaw),
             tags: tagsRaw.split(',').map(function (t) { return t.trim(); }).filter(Boolean),
             observacoes: el('crmAnotacaoObservacoes').value.trim(),
-            dataConclusao: el('crmAnotacaoDataConclusao').value || null,
             oQueFoiFeito: el('crmAnotacaoOQueFoiFeito').value.trim(),
-            respostaTipoDoc: el('crmAnotacaoRespostaTipoDoc').value.trim(),
             respostaNumeroDocumento: el('crmAnotacaoRespostaNumeroDocumento').value.trim()
         };
 
@@ -2025,6 +2065,9 @@
             delete normalizada.id;
             delete normalizada.criadoEm;
             delete normalizada.excluidoEm; // salvar não deve ressuscitar uma demanda excluída
+            // O store é dono da data de conclusão (aplicarSituacao). Mandá-la no
+            // patch zeraria a data original de uma demanda já respondida.
+            delete normalizada.dataConclusao;
             CrmStore.atualizarAnotacao(id, normalizada);
         } else {
             CrmStore.criarAnotacao(normalizada);
@@ -2132,7 +2175,7 @@
             '<button type="button" class="btn-secondary crm-btn-mini" data-crm-action="voltarLista" style="margin-bottom:10px">← Voltar</button>' +
             renderizarHeaderDetalhe(negocio, funil, etapaAtual) +
             '<div class="crm-detalhe-grid crm-detalhe-grid-2col">' +
-                '<div class="crm-det-esquerda">' + renderizarPainelEsquerdo(negocio, cliente) + '</div>' +
+                '<div class="crm-det-esquerda">' + renderizarPainelEsquerdo(negocio, cliente, funil, atividades) + '</div>' +
                 '<div>' + renderizarPainelCentro(negocio, atividades) + '</div>' +
             '</div>';
     }
@@ -2167,23 +2210,74 @@
                     (valorTxt ? '<span class="crm-det-valor">' + valorTxt + '</span>' : '') +
                     '<div style="margin-left:auto;display:flex;gap:8px;align-items:center">' +
                         (negocio.status === 'aberto'
-                            ? ('<button type="button" class="crm-btn-ganho" data-crm-action="marcarGanho" data-id="' + esc(negocio.id) + '">Ganho</button>' +
-                               '<button type="button" class="crm-btn-perdido" data-crm-action="marcarPerdido" data-id="' + esc(negocio.id) + '">Perdido</button>')
+                            ? ('<button type="button" class="crm-btn-ganho" data-crm-action="marcarGanho" data-id="' + esc(negocio.id) + '">' + esc(rotuloEtapaTerminal(funil, 'ganho')) + '</button>' +
+                               '<button type="button" class="crm-btn-perdido" data-crm-action="marcarPerdido" data-id="' + esc(negocio.id) + '">' + esc(rotuloEtapaTerminal(funil, 'perdido')) + '</button>')
                             : '') +
                         '<button type="button" class="btn-secondary crm-btn-mini" data-crm-action="editarNegocio" data-id="' + esc(negocio.id) + '">Editar</button>' +
                         '<button type="button" class="btn-secondary crm-btn-mini" data-crm-action="excluirNegocio" data-id="' + esc(negocio.id) + '">🗑</button>' +
                     '</div>' +
                 '</div>' +
                 barra +
+                renderizarFaixaDemandas(negocio) +
             '</div>';
     }
 
-    function renderizarPainelEsquerdo(negocio, cliente) {
+    /**
+     * Rótulo do botão de fechamento vem do nome da própria etapa terminal do
+     * funil: "Ganho"/"Perdido" no Comercial, "Concluída"/"Cancelada" no
+     * Demandas. Evita vocabulário de venda em funil que não é de venda.
+     */
+    function rotuloEtapaTerminal(funil, tipo) {
+        var padrao = tipo === 'ganho' ? 'Ganho' : 'Perdido';
+        if (!funil) return padrao;
+        var etapa = funil.etapas.filter(function (e) { return e.tipo === tipo; })[0];
+        return (etapa && etapa.nome) ? etapa.nome : padrao;
+    }
+
+    /** Panorama das demandas do negócio, logo abaixo da barra de etapas. */
+    function renderizarFaixaDemandas(negocio) {
+        var demandas = CrmStore.listarAnotacoes(negocio.id);
+        if (!demandas.length) return '';
+        var hoje = hojeIsoLocal();
+        var respondidas = 0, aguardando = 0, vencidas = 0;
+        demandas.forEach(function (a) {
+            if (a.situacao === 'respondida') respondidas++;
+            else if (a.situacao === 'aguardando_terceiro') aguardando++;
+            if (CrmCalculos.semaforoPrazo(a, hoje) === 'vencida') vencidas++;
+        });
+        var item = function (valor, rotulo, cls) {
+            return '<span class="crm-faixa-item' + (cls ? (' ' + cls) : '') + '">' +
+                '<b>' + valor + '</b> ' + esc(rotulo) + '</span>';
+        };
+        return '<div class="crm-faixa-demandas">' +
+            item(demandas.length, demandas.length === 1 ? 'demanda' : 'demandas') +
+            item(respondidas, respondidas === 1 ? 'respondida' : 'respondidas', 'crm-faixa-ok') +
+            item(aguardando, 'aguardando terceiros') +
+            (vencidas ? item(vencidas, vencidas === 1 ? 'vencida' : 'vencidas', 'crm-faixa-alerta') : '') +
+        '</div>';
+    }
+
+    /**
+     * Linha rótulo/valor que some quando não há valor — evita encher a coluna
+     * de "—" em campos que aquele funil simplesmente não usa.
+     */
+    function linhaDet(rotulo, valorHtml) {
+        return valorHtml ? ('<div>' + esc(rotulo) + ': ' + valorHtml + '</div>') : '';
+    }
+
+    function renderizarPainelEsquerdo(negocio, cliente, funil, atividades) {
+        var mostrarValor = !!(funil && funil.mostrarValor);
+        var tags = (negocio.tags || []).map(function (t) { return '<span class="crm-tag">' + esc(t) + '</span>'; }).join(' ');
+
+        // Fonte tinha só dois campos e consumia um cabeçalho colapsável inteiro:
+        // origem/recebimento passam a morar no Resumo.
         var resumo = '' +
-            '<div>Cliente: ' + (cliente ? esc(cliente.nome) : '—') + '</div>' +
-            '<div>Etiquetas: ' + ((negocio.tags || []).map(function (t) { return '<span class="crm-tag">' + esc(t) + '</span>'; }).join(' ') || '—') + '</div>' +
-            '<div>Fechamento esperado: ' + (negocio.dataPrevisao ? esc(DateUtils.formatBR(negocio.dataPrevisao)) : '—') + '</div>' +
-            (negocio.status === 'perdido' && negocio.motivoPerda ? ('<div>Motivo da perda: ' + esc(negocio.motivoPerda) + '</div>') : '');
+            linhaDet('Cliente', cliente ? esc(cliente.nome) : '') +
+            linhaDet('Etiquetas', tags) +
+            linhaDet('Origem', negocio.origem ? esc(negocio.origem) : '') +
+            linhaDet('Recebido em', negocio.dataRecebimento ? esc(DateUtils.formatBR(negocio.dataRecebimento)) : '') +
+            (mostrarValor ? linhaDet('Fechamento esperado', negocio.dataPrevisao ? esc(DateUtils.formatBR(negocio.dataPrevisao)) : '') : '') +
+            (negocio.status === 'perdido' ? linhaDet('Motivo da perda', negocio.motivoPerda ? esc(negocio.motivoPerda) : '') : '');
 
         var itensHtml = (negocio.itens && negocio.itens.length)
             ? negocio.itens.map(function (it) {
@@ -2191,42 +2285,39 @@
             }).join('')
             : '<div class="crm-coluna-vazia">Nenhum item.</div>';
 
-        var fonte = '' +
-            '<div>Origem: ' + (negocio.origem ? esc(negocio.origem) : '—') + '</div>' +
-            '<div>Recebido em: ' + (negocio.dataRecebimento ? esc(DateUtils.formatBR(negocio.dataRecebimento)) : '—') + '</div>';
-
         var clienteHtml = cliente
             ? ('<div>' + esc(cliente.nome) + (cliente.contato ? (' (' + esc(cliente.contato) + ')') : '') + '</div>' +
-               '<div>' + esc(cliente.telefone || '—') + '</div>' +
-               '<div>' + esc(cliente.email || '—') + '</div>' +
-               '<div>' + esc(cliente.cnpj || '—') + '</div>' +
-               '<div>' + esc([cliente.endereco, cliente.cidade, cliente.uf].filter(Boolean).join(', ') || '—') + '</div>' +
+               (cliente.telefone ? ('<div>' + esc(cliente.telefone) + '</div>') : '') +
+               (cliente.email ? ('<div>' + esc(cliente.email) + '</div>') : '') +
+               (cliente.cnpj ? ('<div>' + esc(cliente.cnpj) + '</div>') : '') +
+               (function () {
+                   var end = [cliente.endereco, cliente.cidade, cliente.uf].filter(Boolean).join(', ');
+                   return end ? ('<div>' + esc(end) + '</div>') : '';
+               }()) +
                '<button type="button" class="crm-btn-mini" style="margin-top:8px" data-crm-action="editarCliente" ' +
                    'data-id="' + esc(cliente.id) + '" data-origem="detalhe">✎ Editar cadastro</button>')
             : '<div class="crm-coluna-vazia">Nenhum cliente vinculado.</div>';
 
         var visaoGeral = '' +
             '<div>Idade: ' + CrmCalculos.idadeEmDias(negocio) + ' dias</div>' +
-            '<div>Inativo há: ' + CrmCalculos.diasInativo(negocio, CrmStore.listarAtividades()) + ' dias</div>' +
+            '<div>Inativo há: ' + CrmCalculos.diasInativo(negocio, atividades || []) + ' dias</div>' +
             '<div>Criado em: ' + esc(DateUtils.formatBR(negocio.criadoEm)) + '</div>';
 
+        // Produtos só faz sentido em funil que trabalha com valor.
         return '' +
-            secaoColapsavel('resumo', 'Resumo', resumo) +
-            secaoColapsavel('itens', 'Produtos', itensHtml) +
-            secaoColapsavel('fonte', 'Fonte', fonte) +
+            secaoColapsavel('resumo', 'Resumo', resumo || '<div class="crm-coluna-vazia">Sem dados.</div>') +
+            (mostrarValor ? secaoColapsavel('itens', 'Produtos', itensHtml) : '') +
             secaoColapsavel('cliente', 'Cliente', clienteHtml) +
             secaoColapsavel('visaogeral', 'Visão geral', visaoGeral);
     }
 
     function renderizarPainelCentro(negocio, atividades) {
+        var qtdDemandas = CrmStore.listarAnotacoes(negocio.id).length;
         var abas = '' +
             '<div class="crm-det-abas">' +
                 '<button type="button" class="crm-det-aba' + (_abaDetalhe === 'atividade' ? ' active' : '') + '" data-crm-action="trocarAbaDetalhe" data-valor="atividade">Atividade</button>' +
-                '<button type="button" class="crm-det-aba' + (_abaDetalhe === 'anotacoes' ? ' active' : '') + '" data-crm-action="trocarAbaDetalhe" data-valor="anotacoes">Anotações</button>' +
-                '<span class="crm-det-aba crm-det-aba-off" title="Indisponível nesta versão">Chamada</span>' +
-                '<span class="crm-det-aba crm-det-aba-off" title="Indisponível nesta versão">E-mail</span>' +
-                '<span class="crm-det-aba crm-det-aba-off" title="Indisponível nesta versão">Arquivos</span>' +
-                '<span class="crm-det-aba crm-det-aba-off" title="Indisponível nesta versão">Documentos</span>' +
+                '<button type="button" class="crm-det-aba' + (_abaDetalhe === 'anotacoes' ? ' active' : '') + '" data-crm-action="trocarAbaDetalhe" data-valor="anotacoes">Demandas' +
+                    (qtdDemandas ? ' <span class="crm-det-aba-cont">' + qtdDemandas + '</span>' : '') + '</button>' +
             '</div>';
 
         var corpoAba = _abaDetalhe === 'anotacoes' ? renderizarListaAnotacoesNegocio(negocio) : renderizarComposerAtividade(negocio);
@@ -2273,25 +2364,32 @@
     }
 
     function renderizarCardAnotacao(a, negocioId) {
-        var prioridadeBadge = '<span class="crm-prioridade-badge" data-prioridade="' + esc(a.prioridade) + '">' +
-            esc(PRIORIDADE_ROTULO[a.prioridade] || a.prioridade) + '</span>';
+        // "Média" é o padrão e aparecia em todo card, virando ruído. Na Lista o
+        // badge continua sempre, porque lá é coluna ordenável.
+        var prioridadeBadge = a.prioridade !== 'media'
+            ? '<span class="crm-prioridade-badge" data-prioridade="' + esc(a.prioridade) + '">' +
+                esc(PRIORIDADE_ROTULO[a.prioridade] || a.prioridade) + '</span>'
+            : '';
         var prazoTxt = a.prazo ? DateUtils.formatBR(a.prazo) : '';
         var resumo = CrmCalculos.resumoEncaminhamentos(a, hojeIsoLocal());
+        var espera = (resumo.diasAguardando !== null && resumo.diasAguardando > 0)
+            ? (' · ' + resumo.diasAguardando + 'd') : '';
         var aguardando = resumo.comQuem.length
             ? '<div class="crm-anot-nota-aguardando' + (resumo.algumVencido ? ' crm-atrasado' : '') + '">⏳ Aguardando: ' +
-                esc(resumo.comQuem.join(', ')) + (resumo.algumVencido ? ' ⚠' : '') + '</div>'
+                esc(resumo.comQuem.join(', ')) + espera + (resumo.algumVencido ? ' ⚠' : '') + '</div>'
             : '';
         return '' +
             '<div class="crm-anot-linha">' +
                 '<span class="crm-anot-icone" title="Demanda">🗒️</span>' +
-                '<div class="crm-anot-nota' + (a.finalizado ? ' crm-anot-finalizada' : '') + '">' +
-                    '<div data-crm-action="abrirModalAnotacao" data-id="' + esc(a.id) + '">' +
-                        '<div class="crm-anot-nota-data">' + esc(formatarDataHora(a.criadoEm)) + (a.finalizado ? ' · ✓ Finalizado' : '') + '</div>' +
-                        '<div class="crm-anot-nota-assunto">' + esc(a.assunto || '(sem assunto)') + '</div>' +
-                        '<div class="crm-anot-nota-meta">' + badgeSituacao(a) + prioridadeBadge + (prazoTxt ? ('<span>Prazo: ' + esc(prazoTxt) + '</span>') : '') + '</div>' +
-                        aguardando +
-                        (a.observacoes ? '<div class="crm-anot-nota-obs">' + esc(a.observacoes) + '</div>' : '') +
-                    '</div>' +
+                '<div class="crm-anot-nota' + (a.finalizado ? ' crm-anot-finalizada' : '') + '" ' +
+                        'role="button" tabindex="0" data-crm-action="abrirModalAnotacao" data-id="' + esc(a.id) + '">' +
+                    '<div class="crm-anot-nota-data">' + esc(formatarDataHora(a.criadoEm)) + (a.finalizado ? ' · ✓ Finalizado' : '') + '</div>' +
+                    '<div class="crm-anot-nota-assunto">' + esc(a.assunto || '(sem assunto)') + '</div>' +
+                    '<div class="crm-anot-nota-meta">' + badgeSituacao(a) + prioridadeBadge + (prazoTxt ? ('<span>Prazo: ' + esc(prazoTxt) + '</span>') : '') + '</div>' +
+                    aguardando +
+                    (a.observacoes ? '<div class="crm-anot-nota-obs">' + esc(a.observacoes) + '</div>' : '') +
+                    // Aninhado no card clicável: aoClicar usa closest(), então o
+                    // data-crm-action mais interno tem precedência.
                     '<button type="button" class="crm-anot-btn-vincular" data-crm-action="novaAnotacaoNegocio" ' +
                         'data-negocio-id="' + esc(negocioId) + '" data-relacionada-id="' + esc(a.id) + '" title="Nova anotação vinculada a esta">' +
                         '🗒️ Vincular anotação' +
@@ -2878,6 +2976,9 @@
         },
         moverEtapaProgresso: function (el) {
             if (!requireAdminOrNotify()) return;
+            // Clicar na etapa atual gravava histórico à toa e zerava o "· N dias".
+            var atual = CrmStore.listarNegocios().filter(function (n) { return n.id === _detalheId; })[0];
+            if (atual && atual.etapaId === el.dataset.etapaId) return;
             CrmStore.moverNegocio(_detalheId, el.dataset.etapaId, null);
             renderizarConteudoAtivo();
         },
@@ -3007,6 +3108,19 @@
         if (fn) fn(el);
     }
 
+    /**
+     * Elementos com role="button" (cards de demanda) não disparam click no
+     * teclado como um <button> nativo — Enter/Espaço precisam ser traduzidos.
+     */
+    function aoTeclar(e) {
+        if (e.key !== 'Enter' && e.key !== ' ' && e.key !== 'Spacebar') return;
+        var el = e.target.closest('[role="button"][data-crm-action]');
+        if (!el) return;
+        e.preventDefault();
+        var fn = ACOES[el.dataset.crmAction];
+        if (fn) fn(el);
+    }
+
     // ──────────────────────────────────────────────
     //  EXPORT
     // ──────────────────────────────────────────────
@@ -3037,6 +3151,8 @@
         buscarNegocioParaAnotacao: buscarNegocioParaAnotacao,
         desvincularNegocioAnotacao: desvincularNegocioAnotacao,
         aoTrocarFunilAnotacao: aoTrocarFunilAnotacao,
+        aoTrocarSituacaoAnotacao: aoTrocarSituacaoAnotacao,
+        alternarMaisOpcoesAnotacao: alternarMaisOpcoesAnotacao,
         adicionarEncaminhamento: adicionarEncaminhamento,
         consolidarRespostas: consolidarRespostas,
 

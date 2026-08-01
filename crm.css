@@ -386,7 +386,34 @@
 .crm-det-abas { display: flex; gap: 2px; border-bottom: 1px solid var(--border-color); margin-bottom: 12px; flex-wrap: wrap; }
 .crm-det-aba { border: none; background: none; padding: 8px 12px; font-size: 12.5px; font-weight: 600; color: var(--text-muted); cursor: pointer; border-bottom: 2px solid transparent; }
 .crm-det-aba.active { color: var(--primary-light); border-bottom-color: var(--primary-light); }
-.crm-det-aba-off { opacity: 0.45; cursor: not-allowed; }
+.crm-det-aba-cont {
+    display: inline-block;
+    min-width: 18px;
+    padding: 1px 5px;
+    margin-left: 5px;
+    border-radius: 10px;
+    background: var(--bg-light);
+    color: var(--text-muted);
+    font-size: 11px;
+    font-weight: 700;
+}
+.crm-det-aba.active .crm-det-aba-cont { background: var(--primary-light); color: #fff; }
+
+/* Panorama das demandas do negócio, logo abaixo da barra de etapas */
+.crm-faixa-demandas {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    margin-top: 10px;
+    padding: 8px 12px;
+    background: var(--bg-light);
+    border-radius: var(--radius-sm);
+    font-size: 12.5px;
+    color: var(--text-secondary);
+}
+.crm-faixa-item b { font-weight: 700; color: var(--text-primary); }
+.crm-faixa-ok b { color: var(--success-color); }
+.crm-faixa-alerta b { color: var(--danger-color); }
 
 .crm-det-bloco { margin-top: 18px; }
 .crm-bloco-titulo { font-weight: 700; font-size: 14px; color: var(--text-primary); margin-bottom: 8px; }
@@ -458,13 +485,45 @@
     font-size: 12px;
     margin-top: 2px;
 }
+/* Trilho contínuo da thread: linha vertical + cotovelo até cada filha, para o
+   vínculo pai→filha ser legível de relance. */
 .crm-anot-filhos {
+    position: relative;
     margin: 8px 0 0 12px;
-    padding-left: 15px;
-    border-left: 2px dashed var(--border-color);
+    padding-left: 22px;
     display: flex;
     flex-direction: column;
     gap: 8px;
+}
+.crm-anot-filhos::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: -8px;
+    bottom: 22px;
+    width: 2px;
+    background: var(--border-color);
+    border-radius: 2px;
+}
+.crm-anot-filhos > .crm-anot-linha { position: relative; }
+.crm-anot-filhos > .crm-anot-linha::before {
+    content: "";
+    position: absolute;
+    left: -22px;
+    top: 15px;
+    width: 16px;
+    height: 2px;
+    background: var(--border-color);
+    border-radius: 2px;
+}
+.crm-anot-filhos > .crm-anot-linha:last-child::after {
+    content: "";
+    position: absolute;
+    left: -22px;
+    top: 15px;
+    bottom: 0;
+    width: 2px;
+    background: var(--bg-white);
 }
 .crm-anot-btn-vincular {
     border: none;
@@ -474,8 +533,16 @@
     font-weight: 600;
     cursor: pointer;
     padding: 4px 0 0;
+    opacity: 0;
+    transition: opacity .12s;
 }
+/* Fica escondido até o card receber foco ou hover — repetido em cada nota, ele
+   competia com o conteúdo. Continua no DOM para teclado e leitores de tela. */
+.crm-anot-nota:hover .crm-anot-btn-vincular,
+.crm-anot-nota:focus-within .crm-anot-btn-vincular,
+.crm-anot-btn-vincular:focus { opacity: 1; }
 .crm-anot-btn-vincular:hover { color: var(--primary-light); text-decoration: underline; }
+.crm-anot-nota:focus-visible { outline: 2px solid var(--primary-light); outline-offset: 2px; }
 
 .crm-tag-vinculo { background: #fff8db; color: #92751a; }
 .crm-anot-link-icone { font-size: 12px; }
@@ -1243,6 +1310,42 @@
     margin-bottom: 12px;
 }
 .crm-bloco-titulo .crm-btn-mini { margin-left: auto; }
+
+/* Bloco "Mais opções": mesma casca do crm-bloco, mas o título é um botão */
+.crm-bloco-recolhivel { padding-bottom: 12px; }
+.crm-bloco-toggle {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    border: none;
+    background: none;
+    padding: 0;
+    font-family: inherit;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    cursor: pointer;
+}
+.crm-bloco-toggle:hover { color: var(--text-primary); }
+.crm-bloco-toggle[aria-expanded="true"] {
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 6px;
+    margin-bottom: 12px;
+}
+.crm-bloco-seta { font-size: 10px; }
+
+/* Campo preenchido pelo sistema: exibe, não aceita digitação */
+.crm-campo-derivado {
+    padding: 8px 10px;
+    border: 1px dashed var(--border-color);
+    border-radius: var(--radius-sm);
+    background: var(--bg-light);
+    color: var(--text-secondary);
+    font-size: 13px;
+}
 
 .crm-form-linha { display: flex; gap: 12px; flex-wrap: wrap; }
 .crm-form-linha > .form-group { flex: 1 1 180px; min-width: 0; }

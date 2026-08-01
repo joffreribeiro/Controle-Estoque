@@ -371,7 +371,6 @@ function ordenarAnotacoes(anotacoes, criterio, direcao, extra) {
             case 'dataSolicitacao': return String(a.dataSolicitacao || '');
             case 'tipoDoc': return normalizarParaBusca(a.tipoDoc);
             case 'numeroDocumento': return normalizarParaBusca(a.numeroDocumento);
-            case 'destinatario': return normalizarParaBusca(a.destinatario);
             case 'acaoRealizar': return normalizarParaBusca(a.acaoRealizar);
             case 'prioridade': return PRIORIDADE_PESO[a.prioridade] || 0;
             case 'prazo': return String(a.prazo || '');

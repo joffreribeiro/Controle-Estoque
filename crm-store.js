@@ -716,6 +716,10 @@
         var crm = getCrm();
         if (!crm) return null;
         var anotacao = CrmModel.criarAnotacao(dados);
+        // Mesma derivação de atualizarAnotacao: uma demanda já nascida
+        // "respondida" precisa da data de conclusão, agora que o campo não é
+        // mais digitável no modal.
+        aplicarSituacao(anotacao, anotacao.situacao);
         emLote(function () {
             if (!crm.anotacoes) crm.anotacoes = [];
             crm.anotacoes.push(anotacao);

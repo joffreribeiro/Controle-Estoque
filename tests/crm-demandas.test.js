@@ -70,6 +70,16 @@ describe('CrmModel.normalizarAnotacao — migração de registros legados', () =
     const a = CrmModel.normalizarAnotacao({ assunto: 'x', situacao: 'inventada' });
     expect(a.situacao).toBe('recebida');
   });
+
+  it('não emite mais respostaTipoDoc, e descarta o valor de registros antigos', () => {
+    const a = CrmModel.normalizarAnotacao({ assunto: 'x', respostaTipoDoc: 'Ofício de resposta' });
+    expect('respostaTipoDoc' in a).toBe(false);
+    // o irmão que a Lista realmente exibe continua vivo
+    const b = CrmModel.normalizarAnotacao({ assunto: 'x', respostaNumeroDocumento: '123/2026' });
+    expect(b.respostaNumeroDocumento).toBe('123/2026');
+    // e segue idempotente sem o campo removido
+    expect(CrmModel.normalizarAnotacao(a)).toEqual(a);
+  });
 });
 
 describe('CrmModel.normalizarCrm — demandas avulsas', () => {
