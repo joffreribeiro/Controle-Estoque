@@ -981,6 +981,7 @@
                 '<label class="crm-check"><input type="checkbox" ' + (_calMostrarPonto ? 'checked' : '') +
                     ' onchange="Crm.setMostrarPontoCal(this.checked)"> Mostrar no calendário</label>' +
                 '<button type="button" class="btn-secondary crm-btn-mini" data-crm-action="pontoAtualizar">Atualizar</button>' +
+                '<button type="button" class="btn-secondary crm-btn-mini" data-crm-action="pontoVerDuplicados" title="Lista os eventos quase-duplicados do Ponto, com o índice de cada um para apagar manualmente no Console do Firestore">🔍 Duplicatas</button>' +
                 '<button type="button" class="btn-secondary crm-btn-mini" data-crm-action="pontoDesconectar">Desconectar</button>' +
                 (erro ? ('<span class="crm-cal-ponto-erro" title="' + esc(erro) + '">⚠ ' + esc(erro) + '</span>') : '') +
             '</div>';
@@ -992,6 +993,56 @@
                 'onkeydown="if(event.key===\'Enter\'){event.preventDefault();Crm.pontoConectar();}">' +
             '<button type="button" class="btn-secondary crm-btn-mini" data-crm-action="pontoConectar">Conectar Ponto</button>' +
         '</div>';
+    }
+
+    /**
+     * Modal só-leitura: mostra os grupos de eventos do Ponto que colidem na
+     * mesma chave usada por deduplicarEventos (tipo + datas), com o índice de
+     * cada um no array bruto `dados.eventos` — a mesma posição que aparece no
+     * editor de array do Console do Firestore. A exclusão em si é sempre
+     * manual, lá; este módulo nunca escreve no projeto do Ponto.
+     */
+    function abrirModalPontoDuplicados() {
+        var pb = window.PontoBridge;
+        var lista = document.getElementById('crmPontoDuplicadosLista');
+        if (!lista) return;
+        var duplicados = (pb && pb.conectado()) ? pb.diagnosticarDuplicados() : [];
+
+        if (!duplicados.length) {
+            lista.innerHTML = '<p class="crm-coluna-vazia">Nenhum evento duplicado encontrado nos dados carregados agora. ' +
+                'Se você acabou de editar algo no Ponto, clique em "Atualizar" no calendário e abra este diagnóstico de novo.</p>';
+        } else {
+            var grupos = {};
+            var ordem = [];
+            duplicados.forEach(function (d) {
+                var chave = d.tipoEvento + '|' + d.dataInicioEvento + '|' + d.dataFimEvento;
+                if (!grupos[chave]) { grupos[chave] = []; ordem.push(chave); }
+                grupos[chave].push(d);
+            });
+            lista.innerHTML = ordem.map(function (chave) {
+                var itens = grupos[chave];
+                var cabecalho = esc((PONTO_TIPO_META[itens[0].tipoEvento] || {}).rotulo || itens[0].tipoEvento) +
+                    ' · ' + esc(dataOuTraco(itens[0].dataInicioEvento)) +
+                    (itens[0].dataFimEvento !== itens[0].dataInicioEvento ? (' – ' + esc(dataOuTraco(itens[0].dataFimEvento))) : '');
+                var linhas = itens.map(function (d) {
+                    return '<tr>' +
+                        '<td>' + d.indice + '</td>' +
+                        '<td>' + esc(d.descricaoEvento || '(sem descrição)') + '</td>' +
+                        '<td>' + (d.mantido
+                            ? '<span class="crm-badge-status crm-badge-ganho">Mantido — já aparece no CRM</span>'
+                            : '<span class="crm-badge-status crm-badge-perdido">Remover</span>') + '</td>' +
+                    '</tr>';
+                }).join('');
+                return '<div class="crm-secao" style="margin-bottom:12px">' +
+                    '<div class="crm-secao-header" style="cursor:default"><span class="crm-secao-titulo">' + cabecalho + '</span></div>' +
+                    '<div class="crm-secao-corpo"><table class="crm-lista-table"><thead><tr>' +
+                        '<th>Índice no array</th><th>Descrição</th><th>Ação no Firestore</th>' +
+                    '</tr></thead><tbody>' + linhas + '</tbody></table></div>' +
+                '</div>';
+            }).join('');
+        }
+
+        document.getElementById('modalPontoDuplicados').style.display = 'flex';
     }
 
     function setMostrarPontoCal(v) { _calMostrarPonto = v; renderizarCalendarioView(); }
@@ -1071,16 +1122,46 @@
         '</div>';
     }
 
+    /**
+     * Eventos multi-dia do Ponto (Férias, Viagem...) chegam aqui já explodidos
+     * em um pseudo-atividade por dia (gerarPontoPseudoAtividades), todos
+     * compartilhando `pontoGrupoId` — senão a visão Mês/Semana não conseguiria
+     * mesclar os dias numa barra contínua. Na Lista o efeito colateral era um
+     * evento de 16 dias virar 16 linhas idênticas; aqui remonta cada grupo
+     * numa única linha, com `data`/`dataFim` cobrindo do primeiro ao último dia.
+     */
+    function mesclarLinhasMultidia(atividades) {
+        var grupos = {}, ordem = [];
+        atividades.forEach(function (a) {
+            var chave = a.pontoGrupoId || a.id;
+            if (!grupos[chave]) { grupos[chave] = []; ordem.push(chave); }
+            grupos[chave].push(a);
+        });
+        return ordem.map(function (chave) {
+            var itens = grupos[chave];
+            if (itens.length === 1) return itens[0];
+            var datas = itens.map(function (i) { return i.data; }).sort();
+            var mesclada = {};
+            for (var k in itens[0]) { if (Object.prototype.hasOwnProperty.call(itens[0], k)) mesclada[k] = itens[0][k]; }
+            mesclada.data = datas[0];
+            mesclada.dataFim = datas[datas.length - 1];
+            return mesclada;
+        });
+    }
+
     function renderizarCalendarioLista(atividades, ctx) {
         var ordenadas = CrmCalculos.ordenarAtividadesPorData(atividades);
+        var mescladas = mesclarLinhasMultidia(ordenadas);
         var mapaTipos = CrmStore.mapaTiposAtividade();
-        var linhas = ordenadas.map(function (a) {
+        var linhas = mescladas.map(function (a) {
             var negocio = ctx.negocioPorId[a.negocioId];
             var cliente = negocio ? ctx.clientePorId[negocio.clienteId] : null;
             var tipoInfo = mapaTipos[a.tipo] || { icone: '📌', rotulo: a.tipo };
             var vencida = (!a.feito && a.data && a.data < hojeIsoLocal()) ? ' class="crm-lista-vencida"' : (a.feito ? ' class="crm-cal-linha-feita"' : '');
-            var duracao = CrmCalculos.duracaoAtividade(a.horaInicio, a.horaFim);
+            var multidia = a.dataFim && a.dataFim > a.data;
+            var duracao = multidia ? (contarDiasIso(a.data, a.dataFim) + ' dias') : CrmCalculos.duracaoAtividade(a.horaInicio, a.horaFim);
             var horaTxt = a.horaInicio ? (a.horaInicio + (a.horaFim ? ('–' + a.horaFim) : '')) : '';
+            var dataTxt = multidia ? (dataOuTraco(a.data) + ' – ' + dataOuTraco(a.dataFim)) : dataOuTraco(a.data);
             var somenteLeitura = a.origemFeriado || a.origemPonto;
             var selo = a.origemFeriado
                 ? ' <span class="crm-cal-badge-feriado" title="Feriado nacional — somente leitura">🎉 Feriado</span>'
@@ -1099,7 +1180,7 @@
                 '<td>' + (cliente ? esc(cliente.nome) : '-') + '</td>' +
                 '<td>' + (cliente && cliente.email ? esc(cliente.email) : '-') + '</td>' +
                 '<td>' + (cliente && cliente.telefone ? esc(cliente.telefone) : '-') + '</td>' +
-                '<td>' + esc(dataOuTraco(a.data)) + (horaTxt ? (' <span class="crm-cal-hora">' + esc(horaTxt) + '</span>') : '') + '</td>' +
+                '<td>' + esc(dataTxt) + (horaTxt ? (' <span class="crm-cal-hora">' + esc(horaTxt) + '</span>') : '') + '</td>' +
                 '<td>' + (duracao ? esc(duracao) : '-') + '</td>' +
                 '<td>' + (negocio && negocio.responsavel ? esc(negocio.responsavel) : '-') + '</td>' +
             '</tr>';
@@ -1118,7 +1199,7 @@
             '<th></th><th>Assunto</th><th>Negócio</th><th>Pessoa de contato</th><th>E-mail</th><th>Telefone</th>' +
             '<th>Data de vencimento</th><th>Duração</th><th>Atribuído a</th>' +
             '</tr></thead><tbody>' +
-            (ordenadas.length ? linhas : '<tr><td colspan="9" style="text-align:center;padding:20px;color:#94a3b8;">Nenhuma atividade encontrada.</td></tr>') +
+            (mescladas.length ? linhas : '<tr><td colspan="9" style="text-align:center;padding:20px;color:#94a3b8;">Nenhuma atividade encontrada.</td></tr>') +
             '</tbody></table></div>';
     }
 
@@ -3083,6 +3164,7 @@
                 renderizarCalendarioView();
             });
         },
+        pontoVerDuplicados: function () { abrirModalPontoDuplicados(); },
 
         abrirModalTiposAtividade: function () { abrirModalTiposAtividade(); },
         moverTipoAtividade: function (el) { moverTipoAtividade(el.dataset.chave, Number(el.dataset.dir)); },

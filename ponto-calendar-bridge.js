@@ -38,6 +38,7 @@
     var _app = null, _auth = null, _db = null;
     var _listeners = [];
     var _cache = null; // { eventos: [...], buscadoEm: <timestamp> }
+    var _cacheBruto = null; // dados.eventos como veio do Firestore, ANTES da dedup — só para diagnosticarDuplicados()
     var _buscando = false;
     var _ultimoErro = null; // string amigável do último erro de busca, ou null
 
@@ -65,7 +66,7 @@
             _app = existente || firebase.initializeApp(PONTO_CONFIG, APP_NAME);
             _auth = firebase.auth(_app);
             _db = firebase.firestore(_app);
-            _auth.onAuthStateChanged(function () { _cache = null; notificar(); });
+            _auth.onAuthStateChanged(function () { _cache = null; _cacheBruto = null; notificar(); });
         } catch (e) {
             console.error('Ponte com o Ponto: falha ao inicializar app secundário do Firebase.', e);
             _app = null;
@@ -95,6 +96,7 @@
     function desconectar() {
         if (_auth) { try { _auth.signOut(); } catch (_) {} }
         _cache = null;
+        _cacheBruto = null;
         _ultimoErro = null;
         notificar();
     }
@@ -105,15 +107,19 @@
     }
 
     /**
-     * O Ponto às vezes acumula eventos EXATAMENTE duplicados (mesmo tipo,
-     * descrição e intervalo de datas — ex: a mesma Férias salva duas vezes).
-     * Mantém só a primeira ocorrência de cada assinatura, para não mostrar a
-     * mesma coisa repetida no calendário do CRM.
+     * O Ponto às vezes acumula eventos quase-duplicados: mesmo tipo e mesmo
+     * intervalo de datas, mas com a descrição diferente (ex: "Férias",
+     * "Férias - 1º Período" e "Férias - 2º Período", todos cobrindo o MESMO
+     * intervalo — não uma divisão real em dois períodos, que teria datas
+     * diferentes para cada metade). A chave ignora a descrição de propósito:
+     * um mesmo tipo de evento não se repete duas vezes exatamente nas mesmas
+     * datas na vida real, então tratar isso como duplicata é seguro. Mantém
+     * só a primeira ocorrência de cada assinatura.
      */
     function deduplicarEventos(eventos) {
         var vistos = {};
         return (eventos || []).filter(function (ev) {
-            var chave = [ev.tipoEvento, ev.descricaoEvento, ev.dataInicioEvento, ev.dataFimEvento].join('|');
+            var chave = [ev.tipoEvento, ev.dataInicioEvento, ev.dataFimEvento].join('|');
             if (vistos[chave]) return false;
             vistos[chave] = true;
             return true;
@@ -138,7 +144,9 @@
             _buscando = false;
             _ultimoErro = (snap && snap.exists) ? null : 'Nenhum documento encontrado em ponto/' + uid + ' — verifique se é a mesma conta usada no Ponto.';
             var dados = (snap && snap.exists) ? (snap.data().dados || {}) : {};
-            var eventos = deduplicarEventos(Array.isArray(dados.eventos) ? dados.eventos : []);
+            var bruto = Array.isArray(dados.eventos) ? dados.eventos : [];
+            _cacheBruto = bruto;
+            var eventos = deduplicarEventos(bruto);
             _cache = { eventos: eventos, buscadoEm: Date.now() };
             notificar();
             return eventos;
@@ -154,6 +162,48 @@
         });
     }
 
+    /**
+     * Diagnóstico só-leitura para limpeza manual: agrupa o array BRUTO (antes
+     * da dedup) pela mesma chave tipo+datas usada em deduplicarEventos, e
+     * devolve só os grupos com mais de um item. `indice` é a posição de cada
+     * evento no array original — a mesma posição que aparece ao expandir o
+     * campo `dados.eventos` no editor de array do Console do Firestore
+     * (projeto ponto-68b4a, coleção "ponto", documento com o seu uid). Este
+     * módulo só lê o Firestore do Ponto; a exclusão em si é manual, lá.
+     */
+    function diagnosticarDuplicados() {
+        if (!conectado()) return [];
+        var bruto = _cacheBruto || [];
+        var grupos = {};
+        bruto.forEach(function (ev, indice) {
+            var chave = [ev.tipoEvento, ev.dataInicioEvento, ev.dataFimEvento].join('|');
+            if (!grupos[chave]) grupos[chave] = [];
+            grupos[chave].push({
+                indice: indice,
+                tipoEvento: ev.tipoEvento || '',
+                descricaoEvento: ev.descricaoEvento || '',
+                dataInicioEvento: ev.dataInicioEvento || '',
+                dataFimEvento: ev.dataFimEvento || ''
+            });
+        });
+        var duplicados = [];
+        Object.keys(grupos).forEach(function (chave) {
+            var itens = grupos[chave];
+            if (itens.length < 2) return;
+            itens.forEach(function (item, i) {
+                duplicados.push({
+                    indice: item.indice,
+                    tipoEvento: item.tipoEvento,
+                    descricaoEvento: item.descricaoEvento,
+                    dataInicioEvento: item.dataInicioEvento,
+                    dataFimEvento: item.dataFimEvento,
+                    mantido: i === 0 // é o que o CRM já mostra hoje (deduplicarEventos mantém o 1º de cada grupo)
+                });
+            });
+        });
+        return duplicados;
+    }
+
     window.PontoBridge = {
         configurado: configurado,
         conectado: conectado,
@@ -163,6 +213,7 @@
         aoMudarStatus: aoMudarStatus,
         getEventosCache: getEventosCache,
         atualizarEventos: atualizarEventos,
+        diagnosticarDuplicados: diagnosticarDuplicados,
         getUltimoErro: getUltimoErro
     };
 })();

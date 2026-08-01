@@ -4857,6 +4857,29 @@
         </div>
     </div>
 
+    <div id="modalPontoDuplicados" class="modal">
+        <div class="modal-content" style="max-width:680px">
+            <div class="modal-header">
+                <h3>Eventos duplicados no Ponto</h3>
+                <button class="modal-close" onclick="fecharModal('modalPontoDuplicados')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p class="crm-tipos-atv-ajuda">
+                    Esta ponte só lê o Ponto — nunca escreve nele. A lista abaixo é só para você
+                    localizar e apagar os registros extras direto lá: abra o
+                    <strong>Console do Firebase</strong> → projeto <code>ponto-68b4a</code> →
+                    Firestore Database → coleção <code>ponto</code> → documento com o seu UID →
+                    campo <code>dados.eventos</code>, expanda o array e remova os índices marcados
+                    "Remover" abaixo (o marcado "Mantido" é o que já aparece no calendário do CRM).
+                </p>
+                <div id="crmPontoDuplicadosLista"></div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline" onclick="fecharModal('modalPontoDuplicados')">Fechar</button>
+            </div>
+        </div>
+    </div>
+
     <div id="modalTiposAtividade" class="modal">
         <div class="modal-content" style="max-width:560px">
             <div class="modal-header">
@@ -4906,9 +4929,9 @@
     <script src="crm-compat.js?v=1"></script>
     <script src="crm-store.js?v=7"></script>
     <script src="crm-kanban.js?v=1"></script>
-    <script src="crm-ui.js?v=37"></script>
+    <script src="crm-ui.js?v=39"></script>
     <script src="google-calendar-sync.js?v=16"></script>
-    <script src="ponto-calendar-bridge.js?v=3"></script>
+    <script src="ponto-calendar-bridge.js?v=5"></script>
     <link rel="stylesheet" href="crm.css?v=25">
     <script src="fluxo-nav.js?v=2"></script>
 
