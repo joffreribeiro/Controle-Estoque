@@ -2301,27 +2301,43 @@
     }
 
     function renderizarListaAnotacoesNegocio(negocio) {
-        var todas = CrmStore.listarAnotacoes(negocio.id);
-        var idsValidos = {};
-        todas.forEach(function (a) { idsValidos[a.id] = true; });
+        var doNegocio = CrmStore.listarAnotacoes(negocio.id);
+        var idsDoNegocio = {};
+        doNegocio.forEach(function (a) { idsDoNegocio[a.id] = true; });
 
+        // Filhos são buscados em TODAS as demandas (não só as deste negócio):
+        // uma anotação vinculada pode ter sido salva como avulsa (sem negocioId
+        // próprio) e mesmo assim precisa aparecer na thread da sua "mãe" aqui.
+        var todasGlobal = CrmStore.listarAnotacoes();
         var filhasPorPai = {};
-        var raizes = [];
-        todas.forEach(function (a) {
-            if (a.anotacaoRelacionadaId && idsValidos[a.anotacaoRelacionadaId]) {
+        todasGlobal.forEach(function (a) {
+            if (a.anotacaoRelacionadaId) {
                 (filhasPorPai[a.anotacaoRelacionadaId] = filhasPorPai[a.anotacaoRelacionadaId] || []).push(a);
-            } else {
-                raizes.push(a);
             }
         });
-        raizes.sort(function (a, b) { return String(b.criadoEm || '').localeCompare(String(a.criadoEm || '')); });
-        Object.keys(filhasPorPai).forEach(function (pid) {
-            filhasPorPai[pid].sort(function (a, b) { return String(a.criadoEm || '').localeCompare(String(b.criadoEm || '')); });
-        });
+
+        var raizes = doNegocio.filter(function (a) {
+            return !(a.anotacaoRelacionadaId && idsDoNegocio[a.anotacaoRelacionadaId]);
+        }).sort(function (a, b) { return String(b.criadoEm || '').localeCompare(String(a.criadoEm || '')); });
+
+        var vistos = {};
+        raizes.forEach(function (r) { vistos[r.id] = true; });
+
+        function coletarDescendencia(id) {
+            var resultado = [];
+            (filhasPorPai[id] || []).forEach(function (f) {
+                if (vistos[f.id]) return; // evita ciclo/duplicata
+                vistos[f.id] = true;
+                resultado.push(f);
+                resultado = resultado.concat(coletarDescendencia(f.id));
+            });
+            return resultado;
+        }
 
         var threads = raizes.map(function (raiz) {
-            var filhas = filhasPorPai[raiz.id] || [];
-            var filhasHtml = filhas.map(function (f) { return renderizarCardAnotacao(f, negocio.id); }).join('');
+            var descendentes = coletarDescendencia(raiz.id)
+                .sort(function (a, b) { return String(a.criadoEm || '').localeCompare(String(b.criadoEm || '')); });
+            var filhasHtml = descendentes.map(function (f) { return renderizarCardAnotacao(f, negocio.id); }).join('');
             return '<div class="crm-anot-thread">' +
                 renderizarCardAnotacao(raiz, negocio.id) +
                 (filhasHtml ? '<div class="crm-anot-filhos">' + filhasHtml + '</div>' : '') +

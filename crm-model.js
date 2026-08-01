@@ -360,6 +360,100 @@ function normalizarConfig(cBruta, funis) {
 }
 
 /**
+ * Auto-cura de dados antigos: se qualquer demanda de uma thread vinculada
+ * está "respondida", a thread inteira (mãe, filhas, netas, em qualquer
+ * direção do vínculo) deve estar — cobre registros gravados antes do
+ * cascateamento existir em CrmStore, sem depender de o usuário reabrir e
+ * salvar cada uma manualmente. Roda a cada normalização (idempotente).
+ */
+function reconciliarThreadsRespondidas(anotacoes) {
+    const porId = {};
+    anotacoes.forEach(a => { porId[a.id] = a; });
+
+    const filhasPorPai = {};
+    anotacoes.forEach(a => {
+        if (a.anotacaoRelacionadaId) {
+            (filhasPorPai[a.anotacaoRelacionadaId] = filhasPorPai[a.anotacaoRelacionadaId] || []).push(a);
+        }
+    });
+
+    function vizinhos(a) {
+        const lista = [];
+        if (a.anotacaoRelacionadaId && porId[a.anotacaoRelacionadaId]) lista.push(porId[a.anotacaoRelacionadaId]);
+        (filhasPorPai[a.id] || []).forEach(f => lista.push(f));
+        return lista;
+    }
+
+    const visitado = {};
+    anotacoes.forEach(raiz => {
+        if (visitado[raiz.id]) return;
+        const fila = [raiz];
+        const componente = [];
+        visitado[raiz.id] = true;
+        while (fila.length) {
+            const atual = fila.pop();
+            componente.push(atual);
+            vizinhos(atual).forEach(v => {
+                if (!visitado[v.id]) { visitado[v.id] = true; fila.push(v); }
+            });
+        }
+        if (componente.length > 1 && componente.some(a => a.situacao === 'respondida')) {
+            componente.forEach(a => {
+                if (a.situacao !== 'respondida') {
+                    a.situacao = 'respondida';
+                    a.finalizado = true;
+                    if (!a.dataConclusao) a.dataConclusao = (a.criadoEm || nowIso()).slice(0, 10);
+                }
+            });
+        }
+    });
+}
+
+/**
+ * Mantém a etapa do negócio no Quadro coerente com o conjunto de demandas
+ * vinculadas a ele: todas respondidas → etapa "ganho" do funil; qualquer uma
+ * reaberta → volta para a etapa "aberta". Negócios sem demanda alguma ou já
+ * marcados como perdidos ficam de fora (etapa continua manual).
+ */
+function reconciliarEtapasComDemandas(negocios, funis, anotacoes) {
+    const funilPorId = {};
+    funis.forEach(f => { funilPorId[f.id] = f; });
+
+    const demandasPorNegocio = {};
+    anotacoes.forEach(a => {
+        if (a.negocioId && !a.excluidoEm) {
+            (demandasPorNegocio[a.negocioId] = demandasPorNegocio[a.negocioId] || []).push(a);
+        }
+    });
+
+    negocios.forEach(n => {
+        const demandas = demandasPorNegocio[n.id];
+        if (!demandas || !demandas.length) return;
+
+        const funil = funilPorId[n.funilId];
+        if (!funil) return;
+        const etapaGanho = funil.etapas.filter(e => e.tipo === 'ganho')[0];
+        const etapaAberta = funil.etapas.filter(e => e.tipo === 'aberta')[0] || funil.etapas[0];
+        if (!etapaGanho || !etapaAberta) return;
+
+        const etapaAtual = funil.etapas.filter(e => e.id === n.etapaId)[0];
+        if (etapaAtual && etapaAtual.tipo === 'perdido') return;
+
+        const todasRespondidas = demandas.every(a => a.situacao === 'respondida');
+
+        if (todasRespondidas && (!etapaAtual || etapaAtual.tipo !== 'ganho')) {
+            n.etapaId = etapaGanho.id;
+            n.status = 'ganho';
+            if (!n.dataFechamento) n.dataFechamento = nowIso().slice(0, 10);
+        } else if (!todasRespondidas && etapaAtual && etapaAtual.tipo === 'ganho') {
+            n.etapaId = etapaAberta.id;
+            n.status = 'aberto';
+            n.dataFechamento = null;
+        }
+    });
+}
+
+/**
  * Normaliza o objeto crm inteiro: garante todos os arrays, preenche defaults,
  * gera IDs faltantes e realoca negócios órfãos (funil/etapa inexistente)
  * para a primeira etapa aberta do primeiro funil. Pura e idempotente.
@@ -431,6 +525,8 @@ function normalizarCrm(crmBruto) {
             ? a
             : Object.assign({}, a, { anotacaoRelacionadaId: null })
     ));
+    reconciliarThreadsRespondidas(anotacoes);
+    reconciliarEtapasComDemandas(negocios, funis, anotacoes);
 
     const config = normalizarConfig(crm.config, funis);
 

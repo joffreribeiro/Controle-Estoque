@@ -474,6 +474,39 @@
         return true;
     }
 
+    /**
+     * Mantém o Quadro coerente com a Lista: quando todas as demandas
+     * vinculadas a um negócio ficam "respondida", o card avança sozinho para
+     * a etapa de "ganho" do funil; se alguma reabre, ele volta para a etapa
+     * "aberta". Negócios sem demanda alguma, ou já perdidos, não são mexidos.
+     */
+    function sincronizarEtapaComDemandas(negocioId) {
+        var crm = getCrm();
+        if (!crm || !negocioId) return;
+        var n = (crm.negocios || []).filter(function (x) { return x.id === negocioId && !x.excluidoEm; })[0];
+        if (!n) return;
+        var funil = (crm.funis || []).filter(function (f) { return f.id === n.funilId; })[0];
+        if (!funil) return;
+
+        var demandas = (crm.anotacoes || []).filter(function (a) { return a.negocioId === negocioId && !a.excluidoEm; });
+        if (!demandas.length) return;
+
+        var etapaGanho = funil.etapas.filter(function (e) { return e.tipo === 'ganho'; })[0];
+        var etapaAberta = funil.etapas.filter(function (e) { return e.tipo === 'aberta'; })[0] || funil.etapas[0];
+        if (!etapaGanho || !etapaAberta) return;
+
+        var etapaAtual = funil.etapas.filter(function (e) { return e.id === n.etapaId; })[0];
+        if (etapaAtual && etapaAtual.tipo === 'perdido') return;
+
+        var todasRespondidas = demandas.every(function (a) { return a.situacao === 'respondida'; });
+
+        if (todasRespondidas && (!etapaAtual || etapaAtual.tipo !== 'ganho')) {
+            moverNegocio(negocioId, etapaGanho.id, null);
+        } else if (!todasRespondidas && etapaAtual && etapaAtual.tipo === 'ganho') {
+            moverNegocio(negocioId, etapaAberta.id, null);
+        }
+    }
+
     function marcarGanho(id) {
         var crm = getCrm();
         if (!crm) return false;
@@ -687,6 +720,7 @@
             if (!crm.anotacoes) crm.anotacoes = [];
             crm.anotacoes.push(anotacao);
             registrarNaDemanda(anotacao, 'Demanda criada: ' + anotacao.assunto, { acao: 'criada' });
+            if (anotacao.negocioId) sincronizarEtapaComDemandas(anotacao.negocioId);
         });
         return anotacao;
     }
@@ -706,8 +740,10 @@
                 a[campo] = patch[campo];
             });
             // `finalizado` é consequência da situação, nunca fonte da verdade.
+            var negociosParaSincronizar = {};
             if (Object.prototype.hasOwnProperty.call(patch || {}, 'situacao')) {
                 aplicarSituacao(a, a.situacao);
+                if (a.situacao === 'respondida') marcarThreadComoRespondida(crm, a.id, negociosParaSincronizar);
             }
             a.atualizadoEm = new Date().toISOString();
 
@@ -717,8 +753,62 @@
                         { campo: campo, de: antes[campo], para: a[campo] });
                 }
             });
+
+            if (a.negocioId) negociosParaSincronizar[a.negocioId] = true;
+            Object.keys(negociosParaSincronizar).forEach(function (nid) { sincronizarEtapaComDemandas(nid); });
         });
         return a;
+    }
+
+    /** Sobe a cadeia de vínculos até a demanda que não é filha de nenhuma outra. */
+    function raizDaThread(crm, id) {
+        var porId = {};
+        (crm.anotacoes || []).forEach(function (x) { porId[x.id] = x; });
+        var atual = porId[id];
+        var vistos = {};
+        while (atual && atual.anotacaoRelacionadaId && porId[atual.anotacaoRelacionadaId] && !vistos[atual.id]) {
+            vistos[atual.id] = true;
+            atual = porId[atual.anotacaoRelacionadaId];
+        }
+        return atual || null;
+    }
+
+    /**
+     * Ao responder/concluir qualquer demanda de uma thread vinculada, a thread
+     * inteira acompanha — sobe até a raiz do vínculo e desce por todas as
+     * ligadas a ela, evitando ficar com uma respondida e as outras esquecidas
+     * em aberto (não importa qual delas foi respondida primeiro).
+     */
+    function marcarThreadComoRespondida(crm, id, negociosParaSincronizar) {
+        negociosParaSincronizar = negociosParaSincronizar || {};
+        var raiz = raizDaThread(crm, id);
+        if (!raiz) return negociosParaSincronizar;
+        if (raiz.negocioId) negociosParaSincronizar[raiz.negocioId] = true;
+        if (raiz.situacao !== 'respondida') {
+            var de = raiz.situacao;
+            aplicarSituacao(raiz, 'respondida');
+            raiz.atualizadoEm = new Date().toISOString();
+            registrarNaDemanda(raiz, 'Situação: ' + de + ' → respondida (herdada de demanda vinculada)',
+                { campo: 'situacao', de: de, para: 'respondida' });
+        }
+        cascatearSituacaoParaFilhas(crm, raiz.id, 'respondida', negociosParaSincronizar);
+        return negociosParaSincronizar;
+    }
+
+    function cascatearSituacaoParaFilhas(crm, paiId, situacao, negociosParaSincronizar) {
+        negociosParaSincronizar = negociosParaSincronizar || {};
+        var filhas = (crm.anotacoes || []).filter(function (x) { return x.anotacaoRelacionadaId === paiId && !x.excluidoEm; });
+        filhas.forEach(function (filha) {
+            if (filha.negocioId) negociosParaSincronizar[filha.negocioId] = true;
+            if (filha.situacao === situacao) return;
+            var de = filha.situacao;
+            aplicarSituacao(filha, situacao);
+            filha.atualizadoEm = new Date().toISOString();
+            registrarNaDemanda(filha, 'Situação: ' + de + ' → ' + situacao + ' (herdada de demanda vinculada)',
+                { campo: 'situacao', de: de, para: situacao });
+            cascatearSituacaoParaFilhas(crm, filha.id, situacao, negociosParaSincronizar);
+        });
+        return negociosParaSincronizar;
     }
 
     /** Sincroniza os derivados de situação. Não grava histórico nem salva. */
@@ -745,6 +835,10 @@
             a.atualizadoEm = new Date().toISOString();
             registrarNaDemanda(a, 'Situação: ' + de + ' → ' + situacao,
                 { campo: 'situacao', de: de, para: situacao });
+            var negociosParaSincronizar = {};
+            if (situacao === 'respondida') marcarThreadComoRespondida(crm, a.id, negociosParaSincronizar);
+            if (a.negocioId) negociosParaSincronizar[a.negocioId] = true;
+            Object.keys(negociosParaSincronizar).forEach(function (nid) { sincronizarEtapaComDemandas(nid); });
         });
         return true;
     }
@@ -764,6 +858,7 @@
             a.excluidoEm = new Date().toISOString();
             a.atualizadoEm = a.excluidoEm;
             registrarNaDemanda(a, 'Demanda excluída: ' + a.assunto, { acao: 'excluida' });
+            if (a.negocioId) sincronizarEtapaComDemandas(a.negocioId);
         });
         return true;
     }
@@ -777,6 +872,7 @@
             a.excluidoEm = null;
             a.atualizadoEm = new Date().toISOString();
             registrarNaDemanda(a, 'Demanda restaurada: ' + a.assunto, { acao: 'restaurada' });
+            if (a.negocioId) sincronizarEtapaComDemandas(a.negocioId);
         });
         return true;
     }
