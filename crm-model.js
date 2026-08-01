@@ -188,9 +188,8 @@ function normalizarNegocio(nBruto) {
 
 function normalizarAtividade(aBruta) {
     const a = ehObjeto(aBruta) ? aBruta : {};
-    // O tipo é validado contra a lista de tipos configurados (dinâmica, ver
-    // CrmStore.listarTiposAtividade) — aqui só garante que é uma string não vazia.
-    const tipo = (typeof a.tipo === 'string' && a.tipo.trim()) ? a.tipo : 'tarefa';
+    // O tipo é validado contra a lista de tipos conhecidos — força para 'tarefa' se inválido.
+    const tipo = (typeof a.tipo === 'string' && TIPOS_ATIVIDADE[a.tipo]) ? a.tipo : 'tarefa';
     return {
         id: a.id || novoId('atv'),
         negocioId: a.negocioId || null,
