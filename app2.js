@@ -1173,6 +1173,7 @@ function removerRepresentante(nome) {
 async function inicializar() {
     carregarDados();
     try { if (window.CrmStore) window.CrmStore.ensureCrmDefault(); } catch (e) { console.error('CRM ensureCrmDefault:', e); }
+    try { if (window.PontoStore) window.PontoStore.ensurePontoDefault(); } catch (e) { console.error('Ponto ensurePontoDefault:', e); }
     try { renderizarListaRepresentantesConfig(); } catch (e) {}
     try { carregarPrecificacoesSalvas(); } catch (e) {}
     // Load contract config into Configurações tab
@@ -2761,6 +2762,7 @@ async function carregarDoCloud({confirmOverwrite=true} = {}) {
         }
         estoque = data.estado;
         try { if (window.CrmStore) window.CrmStore.ensureCrmDefault(); } catch (e) { console.error('CRM ensureCrmDefault (cloud):', e); }
+        try { if (window.PontoStore) window.PontoStore.ensurePontoDefault(); } catch (e) { console.error('Ponto ensurePontoDefault (cloud):', e); }
         // Sincronizar _localUpdatedAt com o timestamp remoto para evitar re-trigger do onSnapshot
         try {
             const tsRemoto = data.updatedAt ? data.updatedAt.toDate().toISOString() : new Date().toISOString();
@@ -2888,6 +2890,7 @@ async function carregarDoCloudAuto() {
             // substituir local automaticamente
             estoque = data.estado;
             try { if (window.CrmStore) window.CrmStore.ensureCrmDefault(); } catch (e) { console.error('CRM ensureCrmDefault (cloud auto):', e); }
+            try { if (window.PontoStore) window.PontoStore.ensurePontoDefault(); } catch (e) { console.error('Ponto ensurePontoDefault (cloud auto):', e); }
             // Sincronizar _localUpdatedAt com o timestamp remoto
             try { estoque._localUpdatedAt = data.updatedAt.toDate().toISOString(); } catch(e) {}
             // Restaurar dados IMBEL salvos no backup principal (se existirem)
@@ -3675,6 +3678,8 @@ function trocarAba(aba) {
             try { renderizarPropostas(); } catch (e) { if (window.__showRuntimeErrorOverlay) window.__showRuntimeErrorOverlay(e); }
         } else if (aba === 'relacionamento') {
             try { if (window.Crm) Crm.renderizar(); } catch (e) { console.error('relacionamento:', e); if (window.__showRuntimeErrorOverlay) window.__showRuntimeErrorOverlay(e); }
+        } else if (aba === 'ponto') {
+            try { if (window.PontoUI) PontoUI.renderizar(); } catch (e) { console.error('ponto:', e); if (window.__showRuntimeErrorOverlay) window.__showRuntimeErrorOverlay(e); }
         } else if (aba === 'estoque') {
             try { renderizarTabela(); } catch (e) { if (window.__showRuntimeErrorOverlay) window.__showRuntimeErrorOverlay(e); }
         } else if (aba === 'configuracoes') {

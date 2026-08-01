@@ -163,6 +163,36 @@
     }
 
     /**
+     * Busca o documento `ponto/{uid}` INTEIRO — não só `.eventos` como
+     * atualizarEventos() — para a migração única (Fase 2 do plano de absorção
+     * do Ponto no Estoque). Sem cache: é uma ação admin, sob demanda, não
+     * chamada a cada render. Devolve `dados` bruto tal como veio do
+     * Firestore, sem normalizar — quem chama decide o que fazer com ele
+     * (normalmente: descartar `dados.crm` e passar o resto por
+     * PontoModel.normalizarPonto()).
+     */
+    function buscarDadosCompletos() {
+        if (!conectado()) return Promise.reject(new Error('Conecte-se ao Ponto antes de importar.'));
+        var uid = _auth.currentUser.uid;
+        return _db.collection('ponto').doc(uid).get().then(function (snap) {
+            if (!snap || !snap.exists) {
+                _ultimoErro = 'Nenhum documento encontrado em ponto/' + uid + ' — verifique se é a mesma conta usada no Ponto.';
+                notificar();
+                throw new Error(_ultimoErro);
+            }
+            _ultimoErro = null;
+            notificar();
+            return snap.data().dados || {};
+        }).catch(function (e) {
+            _ultimoErro = (e && e.code === 'permission-denied')
+                ? 'Sem permissão para ler os dados do Ponto (confira o login e as regras do Firestore).'
+                : (_ultimoErro || ('Falha ao buscar dados do Ponto: ' + (e.message || e)));
+            notificar();
+            throw e;
+        });
+    }
+
+    /**
      * Diagnóstico só-leitura para limpeza manual: agrupa o array BRUTO (antes
      * da dedup) pela mesma chave tipo+datas usada em deduplicarEventos, e
      * devolve só os grupos com mais de um item. `indice` é a posição de cada
@@ -213,6 +243,7 @@
         aoMudarStatus: aoMudarStatus,
         getEventosCache: getEventosCache,
         atualizarEventos: atualizarEventos,
+        buscarDadosCompletos: buscarDadosCompletos,
         diagnosticarDuplicados: diagnosticarDuplicados,
         getUltimoErro: getUltimoErro
     };

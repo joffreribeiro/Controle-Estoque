@@ -90,6 +90,7 @@
                     '<button class="ws-btn operacao active" data-ws="operacao" type="button">' + I.box + '<span>Operação</span></button>' +
                     '<button class="ws-btn relacionamento" data-ws="relacionamento" type="button">' + I.heart + '<span>Relacionamento</span></button>' +
                     '<button class="ws-btn imbel" data-ws="imbel" type="button">' + I.shield + '<span>IMBEL</span></button>' +
+                    '<button class="ws-btn ponto" data-tab="ponto" onclick="trocarAba(\'ponto\')" type="button" style="border-left: 1px solid var(--sidebar-border)">' + '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>' + '<span>Ponto</span></button>' +
                 '</div>' +
                 '<div class="flow-status"></div>' +
             '</div>' +

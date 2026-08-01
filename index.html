@@ -128,6 +128,14 @@
                 </div>
 
                 <div class="nav-group">
+                    <div class="nav-group-label">RH</div>
+                    <button class="nav-item" data-tab="ponto" onclick="trocarAba('ponto')">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                        <span class="nav-text">Ponto</span>
+                    </button>
+                </div>
+
+                <div class="nav-group">
                     <div class="nav-group-label">Análise</div>
                     <button class="nav-item" data-tab="relatorios" onclick="trocarAba('relatorios')">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
@@ -2069,6 +2077,18 @@
                         <tbody id="tabelaVendasRepBody"></tbody>
                     </table>
                 </div>
+            </div>
+        </div>
+
+        <!-- ========================================
+             ABA: PONTO (jornada/RH)
+             ======================================== -->
+        <div class="tab-content" id="tab-ponto">
+            <div class="content-area">
+                <div class="section-header" style="padding-bottom:0">
+                    <h2 class="section-title">Ponto</h2>
+                </div>
+                <div id="pontoConteudo"></div>
             </div>
         </div>
 
@@ -4931,8 +4951,15 @@
     <script src="crm-kanban.js?v=1"></script>
     <script src="crm-ui.js?v=39"></script>
     <script src="google-calendar-sync.js?v=16"></script>
-    <script src="ponto-calendar-bridge.js?v=5"></script>
+    <script src="ponto-calendar-bridge.js?v=6"></script>
     <link rel="stylesheet" href="crm.css?v=25">
+
+    <script src="ponto-model.js?v=1"></script>
+    <script src="ponto-calculos.js?v=1"></script>
+    <script src="ponto-store.js?v=1"></script>
+    <script src="ponto-ui.js?v=2"></script>
+    <link rel="stylesheet" href="ponto.css?v=2">
+
     <script src="fluxo-nav.js?v=2"></script>
 
     <script>

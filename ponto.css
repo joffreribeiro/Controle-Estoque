@@ -1,0 +1,81 @@
+/**
+ * ponto.css - Estilos da aba de Ponto (jornada/RH)
+ * Não define paleta própria — reaproveita os tokens de styles.css (mesma
+ * convenção do crm.css).
+ */
+
+.ponto-subabas {
+    display: flex;
+    gap: 4px;
+    border-bottom: 1px solid var(--border-color);
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+}
+
+.ponto-subaba {
+    border: none;
+    background: none;
+    padding: 10px 14px;
+    font-size: 13.5px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: var(--transition);
+}
+
+.ponto-subaba:hover { color: var(--text-primary); }
+
+.ponto-subaba.active {
+    color: var(--primary-color);
+    border-bottom-color: var(--primary-color);
+}
+
+.ponto-subaba-corpo { min-height: 200px; }
+
+.ponto-placeholder {
+    padding: 32px 16px;
+    text-align: center;
+    color: var(--text-muted);
+    background: var(--bg-light);
+    border-radius: var(--radius-sm);
+    border: 1px dashed var(--border-color);
+}
+
+.ponto-migracao-aviso {
+    font-size: 13px;
+    color: var(--text-secondary);
+    background: var(--bg-light);
+    border-radius: var(--radius-sm);
+    padding: 10px 12px;
+    margin-bottom: 12px;
+}
+
+.ponto-migracao-conexao {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 12.5px;
+    flex-wrap: wrap;
+    margin-bottom: 12px;
+}
+
+.ponto-migracao-status-on { color: var(--success-color); font-weight: 700; }
+
+.ponto-migracao-erro {
+    color: var(--danger-color);
+    font-weight: 600;
+    width: 100%;
+}
+
+.ponto-migracao-resultado {
+    background: var(--bg-white);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    padding: 14px 16px;
+    font-size: 13.5px;
+}
+
+.ponto-migracao-resultado ul { margin: 8px 0; padding-left: 20px; }
+
+.ponto-migracao-verificar { color: var(--text-muted); font-size: 12.5px; }
