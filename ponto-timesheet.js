@@ -31,6 +31,11 @@
     // Esses tipos nunca viram célula mesclada — sempre célula normal colorida.
     var TIPOS_NAO_MESCLAR = TIPOS_NAO_CONTAR_SALDO;
 
+    // Justificativas de atestado médico (grupo "Atestado Médico" do modal de Registro,
+    // ver GRUPOS_ATESTADO em ponto-ui.js) — pintam só as linhas de horário cobertas,
+    // sem célula mesclada e sem texto nenhum na célula.
+    var TIPOS_ATESTADO_MEDICO = ['afastamento', 'comparecimento_matutino', 'comparecimento_vespertino'];
+
     function hhmm(min) { return PontoCalculos.minutosParaHHMM(min); }
 
     function parseData(s) {
@@ -160,9 +165,18 @@
     // ──────────────────────────────────────────────
     //  Evento visual de cada dia da grade
     // ──────────────────────────────────────────────
+    // Pseudo-eventos que o Ponto original auto-gerava a cada registro salvo com
+    // período (`linkedRegistroDate`/`nomeCSS: 'evento-registro'`, ver mesmo
+    // conceito em crm-ui.js/ehEventoDeRegistroPonto) — dados legados, viram
+    // ruído na grade (ex: "Registro: dia todo") e nunca devem representar a
+    // justificativa de um registro, que já é pintada linha a linha mais abaixo.
+    function ehEventoLinkadoRegistro(ev) {
+        return !!(ev.linkedRegistroDate || ev.nomeCSS === 'evento-registro');
+    }
+
     function eventoDoDia(ctx, iso) {
         var ev = PontoCalculos.getEventoByData(ctx.eventos, iso);
-        if (ev) return ev;
+        if (ev && !ehEventoLinkadoRegistro(ev)) return ev;
 
         // Férias vindas de periodosAquisitivos (não são eventos, mas pintam a grade).
         var data = parseData(iso);
@@ -178,7 +192,10 @@
         }
 
         // Evento sintético a partir de um registro marcado com período.
+        // Atestado médico (afastamento/comparecimento) não vira célula mesclada —
+        // é pintado linha a linha mais abaixo, sem texto na célula.
         var reg = ctx.mapaReg[iso];
+        if (reg && TIPOS_ATESTADO_MEDICO.indexOf(reg.tipoAtestado) !== -1) return null;
         if (reg && reg.periodoEvento && (reg.createLinkedEvent === undefined || reg.createLinkedEvent)) {
             var tipo = (reg.tipoEventoRegistro && ctx.tiposEvento.some(function (t) { return t.id === reg.tipoEventoRegistro; }))
                 ? reg.tipoEventoRegistro : 'outro';
@@ -192,18 +209,11 @@
         return null;
     }
 
-    /**
-     * Porte literal do switch de classeEvento() em gerarTimesheetAcordo() do
-     * Ponto original — inclui a mesma lacuna dele: 'afastamento' e
-     * 'compensar_acordo' NÃO têm case próprio ali e caem no genérico
-     * 'evento-outro', mesmo havendo classes .evento-afastamento/.evento-compensar-acordo
-     * definidas no CSS (usadas por outra tela, não pela grade). Mantido assim
-     * de propósito — é o que gera as cores que o usuário já conhecia.
-     */
     function classeEvento(tipo) {
         switch (tipo) {
             case 'feriado': return 'evento-feriado';
             case 'ferias': return 'evento-ferias';
+            case 'afastamento': return 'evento-afastamento';
             case 'viagem': return 'evento-viagem';
             case 'abono': return 'evento-abono';
             case 'abono_acordo': return 'evento-abono-acordo';
@@ -269,6 +279,7 @@
                             if (ev.tipoEvento === 'ferias') texto = 'Férias';
                             else if ((ev.tipoEvento === 'abono_acordo' || ev.tipoEvento === 'abono' || ev.tipoEvento === 'pagar_hora_acordo') &&
                                      (periodoEv === 'matutino' || periodoEv === 'vespertino')) texto = '';
+                            else if (ev.tipoEvento === 'afastamento') texto = ev.descricaoEvento || 'Atestado';
                             else texto = ev.descricaoEvento || ev.tipoEvento;
 
                             cells.push('<td rowspan="' + span + '" class="' + classeEvento(ev.tipoEvento) +
@@ -305,11 +316,11 @@
                         }
                     }
 
-                    // Atestado/abono pintam apenas as linhas do período coberto.
-                    if (r && r.tipoAtestado && r.tipoAtestado !== 'afastamento') {
+                    // Atestado/abono pintam apenas as linhas do período coberto, sem texto na célula.
+                    if (r && r.tipoAtestado) {
                         var ehMat = r.tipoAtestado === 'comparecimento_matutino' || r.tipoAtestado === 'abono_matutino';
                         var ehVes = r.tipoAtestado === 'comparecimento_vespertino' || r.tipoAtestado === 'abono_vespertino';
-                        var ehDia = r.tipoAtestado === 'abono_dia_todo';
+                        var ehDia = r.tipoAtestado === 'abono_dia_todo' || r.tipoAtestado === 'afastamento';
                         var cobertas = ehMat ? [0, 1] : (ehVes ? [3, 4] : (ehDia ? [0, 1, 2, 3, 4] : []));
                         if (cobertas.indexOf(rowIndex) !== -1) {
                             classes.push(r.tipoAtestado.indexOf('abono_') === 0 ? 'ts-abono' : 'ts-atestado-comparecimento');

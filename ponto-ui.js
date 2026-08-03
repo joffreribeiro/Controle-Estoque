@@ -671,6 +671,7 @@
     }
 
     // Mesmos 4 grupos e rótulos do select "Tipo" do modalRegistro original (index-refatorado.html).
+    var TIPOS_ATESTADO_MEDICO = ['afastamento', 'comparecimento_matutino', 'comparecimento_vespertino'];
     var GRUPOS_ATESTADO = [
         { rotulo: 'Atestado Médico', opcoes: [
             ['afastamento', 'Atestado de Afastamento (dia todo)'],
@@ -717,6 +718,70 @@
         if (p.length !== 3) return '';
         var dow = new Date(Number(p[0]), Number(p[1]) - 1, Number(p[2])).getDay();
         return DIAS_SEMANA_COMPLETO[dow] || '';
+    }
+
+    /**
+     * Horário padrão do dia (entrada do acordo ativo, ou 07:45; almoço do acordo,
+     * ou 60min; carga = 8h + extras do acordo) — mesma convenção usada pelo
+     * cálculo de comparecimento_matutino em ponto-calculos.js.
+     */
+    function horarioPadraoDoDia(dataIso) {
+        var acordo = PontoCalculos.getAcordoByData(PontoStore.listarAcordos(), dataIso);
+        var regra = PontoCalculos.getRegraHorarioForDay(acordo, dataIso);
+        return {
+            entradaPadrao: (regra && regra.inicioExpediente) || '07:45',
+            almocoMin: (regra && regra.almocoMin != null) ? regra.almocoMin : 60,
+            carga: 480 + ((regra && regra.minutosExtras) || 0)
+        };
+    }
+
+    /**
+     * Preenche entrada/saídaAlmoço/retornoAlmoço/saída do registro em edição
+     * pro dia bater com a carga padrão do acordo. Se nada estiver preenchido,
+     * usa o dia padrão inteiro (entrada padrão → carga/2 → almoço → carga/2).
+     * Se algo já estiver preenchido, mantém e completa o resto em torno disso.
+     */
+    function preencherHorarioPadraoAtestado(d) {
+        if (!d || !d.data) return;
+        var p = horarioPadraoDoDia(d.data);
+        var metade = p.carga / 2;
+        var min = PontoCalculos.timeToMinutes;
+        var fmt = PontoCalculos.minutosParaHHMM;
+
+        var entrada = d.entrada ? min(d.entrada) : null;
+        var saidaAlmoco = d.saidaAlmoco ? min(d.saidaAlmoco) : null;
+        var retornoAlmoco = d.retornoAlmoco ? min(d.retornoAlmoco) : null;
+        var saida = d.saida ? min(d.saida) : null;
+
+        if (entrada == null && saidaAlmoco == null && retornoAlmoco == null && saida == null) {
+            entrada = min(p.entradaPadrao);
+            saidaAlmoco = entrada + metade;
+            retornoAlmoco = saidaAlmoco + p.almocoMin;
+            saida = retornoAlmoco + metade;
+        } else {
+            if (entrada == null) entrada = (saidaAlmoco != null) ? saidaAlmoco - metade : min(p.entradaPadrao);
+            if (saida == null) {
+                if (retornoAlmoco != null) saida = retornoAlmoco + metade;
+                else if (saidaAlmoco != null) saida = saidaAlmoco + p.almocoMin + metade;
+                else saida = entrada + metade + p.almocoMin + metade;
+            }
+            if (saidaAlmoco == null || retornoAlmoco == null) {
+                var duracaoAlmoco = Math.min(p.almocoMin, Math.max(0, saida - entrada));
+                if (saidaAlmoco == null && retornoAlmoco == null) {
+                    saidaAlmoco = entrada + (saida - entrada - duracaoAlmoco) / 2;
+                    retornoAlmoco = saidaAlmoco + duracaoAlmoco;
+                } else if (saidaAlmoco == null) {
+                    saidaAlmoco = retornoAlmoco - duracaoAlmoco;
+                } else {
+                    retornoAlmoco = saidaAlmoco + duracaoAlmoco;
+                }
+            }
+        }
+
+        d.entrada = fmt(entrada);
+        d.saidaAlmoco = fmt(saidaAlmoco);
+        d.retornoAlmoco = fmt(retornoAlmoco);
+        d.saida = fmt(saida);
     }
 
     /** Lê todos os campos do modal de volta pro draft antes de qualquer ação que force um re-render (troca de data/tipo). */
@@ -1216,7 +1281,14 @@
         },
         registroCancelar: function () { _registroForm = null; renderizar(); },
         registroDataMudou: function () { sincronizarRegistroForm(); renderizar(); },
-        registroTipoMudou: function () { sincronizarRegistroForm(); renderizar(); },
+        registroTipoMudou: function () {
+            sincronizarRegistroForm();
+            if (TIPOS_ATESTADO_MEDICO.indexOf(_registroForm.tipoAtestado) !== -1) {
+                if (!_registroForm.observacoes) _registroForm.observacoes = 'Atestado';
+                preencherHorarioPadraoAtestado(_registroForm);
+            }
+            renderizar();
+        },
         registroSalvar: function () {
             if (!podeEditar()) return;
             var dados = {
@@ -1228,6 +1300,12 @@
                 tipoAtestado: valorCampo('pontoRegAtestado') || null,
                 observacoes: valorCampo('pontoRegObs')
             };
+            // Cobre registros que já tinham a justificativa de atestado salva sem
+            // horário (ex: dados antigos, ou o tipo foi escolhido sem disparar o
+            // evento de troca) — completa na hora de salvar também.
+            if (TIPOS_ATESTADO_MEDICO.indexOf(dados.tipoAtestado) !== -1) {
+                preencherHorarioPadraoAtestado(dados);
+            }
             var res = PontoStore.salvarRegistro(dados);
             if (res && res.erros && res.erros.length) {
                 if (window.Notifications) Notifications.error(res.erros.join('; '));
@@ -1467,6 +1545,11 @@
     function aoClicarPonto(e) {
         var el = e.target.closest('[data-ponto-action]');
         if (!el) return;
+        // SELECT/INPUT/TEXTAREA disparam suas ações via 'change' (aoMudarPonto);
+        // tratar o 'click' aqui recriaria o elemento em pleno gesto de abrir
+        // um <select>, fechando o dropdown nativo instantaneamente.
+        var tag = el.tagName;
+        if (tag === 'SELECT' || tag === 'INPUT' || tag === 'TEXTAREA') return;
         var fn = ACOES[el.dataset.pontoAction];
         if (fn) fn(el);
     }

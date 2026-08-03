@@ -90,7 +90,7 @@
                     '<button class="ws-btn operacao active" data-ws="operacao" type="button">' + I.box + '<span>Operação</span></button>' +
                     '<button class="ws-btn relacionamento" data-ws="relacionamento" type="button">' + I.heart + '<span>Relacionamento</span></button>' +
                     '<button class="ws-btn imbel" data-ws="imbel" type="button">' + I.shield + '<span>IMBEL</span></button>' +
-                    '<button class="ws-btn ponto" data-tab="ponto" onclick="trocarAba(\'ponto\')" type="button" style="border-left: 1px solid var(--sidebar-border)">' + '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>' + '<span>Ponto</span></button>' +
+                    '<button class="ws-btn ponto" data-ws="ponto" type="button" style="border-left: 1px solid var(--sidebar-border)">' + '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>' + '<span>Ponto</span></button>' +
                 '</div>' +
                 '<div class="flow-status"></div>' +
             '</div>' +
@@ -279,8 +279,9 @@
         els.wsBtns.forEach(function (b) { b.classList.toggle('active', b.getAttribute('data-ws') === ws); });
         var imbel = (ws === 'imbel');
         var relacionamento = (ws === 'relacionamento');
-        els.pipebar.style.display = (imbel || relacionamento) ? 'none' : '';
-        els.refbar.style.display = (imbel || relacionamento) ? 'none' : '';
+        var ponto = (ws === 'ponto');
+        els.pipebar.style.display = (imbel || relacionamento || ponto) ? 'none' : '';
+        els.refbar.style.display = (imbel || relacionamento || ponto) ? 'none' : '';
         try { localStorage.setItem(LS_WS, ws); } catch (e) {}
 
         if (imbel) {
@@ -291,6 +292,10 @@
             clearRefActive();
             stepBtns.forEach(function (b) { b.classList.remove('active'); });
             try { if (typeof window.trocarAba === 'function') window.trocarAba('relacionamento'); } catch (e) {}
+        } else if (ponto) {
+            clearRefActive();
+            stepBtns.forEach(function (b) { b.classList.remove('active'); });
+            try { if (typeof window.trocarAba === 'function') window.trocarAba('ponto'); } catch (e) {}
         } else {
             goStep(currentStep);
         }
@@ -327,7 +332,7 @@
             var s = parseInt(localStorage.getItem(LS_STEP), 10);
             if (!isNaN(s) && s >= 0 && s < STEPS.length) savedStep = s;
             var w = localStorage.getItem(LS_WS);
-            if (w === 'imbel' || w === 'operacao' || w === 'relacionamento') savedWs = w;
+            if (w === 'imbel' || w === 'operacao' || w === 'relacionamento' || w === 'ponto') savedWs = w;
             if (w === 'negocio') savedWs = 'relacionamento'; // migração do nome antigo do workspace
         } catch (e) {}
         currentStep = savedStep;
