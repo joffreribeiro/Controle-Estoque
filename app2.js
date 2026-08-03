@@ -4942,7 +4942,7 @@ function gerarPdfProposta(propostaId, tipo = 'simples') {
         doc.text('FÁBRICA DE ITAJUBÁ', 15, 15);
         doc.setFontSize(9);
         doc.setFont('helvetica', 'normal');
-        doc.text('Controle de Estoque — Material Bélico', 15, 22);
+        doc.text('Arsenal — Material Bélico', 15, 22);
         doc.setFont('helvetica', 'bold');
         doc.setFontSize(14);
         doc.setTextColor(201, 162, 39);
@@ -25820,7 +25820,7 @@ function prepararEmailVenda(venda) {
     const cfg = _getCfgEmail();
     const contrato = venda.contrato || '';
     const cliente  = venda.loja || '';
-    const assinatura = cfg.assinatura || 'Atenciosamente,\nControle de Estoque — Fábrica de Itajubá';
+    const assinatura = cfg.assinatura || 'Atenciosamente,\nArsenal — Fábrica de Itajubá';
 
     // Formato exato solicitado:
     // Assunto: CTR xxx/2026 - [nome do comprador]

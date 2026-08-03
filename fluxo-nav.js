@@ -83,7 +83,7 @@
             '<div class="flow-globalbar">' +
                 '<div class="flow-brand">' +
                     '<span class="flow-brand-mark">' + logoInner + '</span>' +
-                    '<span>Controle de Estoque</span>' +
+                    '<span>Arsenal</span>' +
                     '<span class="flow-brand-sub">Fábrica de Itajubá</span>' +
                 '</div>' +
                 '<div class="ws-switch" role="tablist" aria-label="Workspace">' +

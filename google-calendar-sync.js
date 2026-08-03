@@ -240,7 +240,7 @@
         if (atividade.descricao) descPartes.push(atividade.descricao);
         if (negocio) descPartes.push('Negócio: ' + (negocio.titulo || ''));
         if (cliente) descPartes.push('Cliente: ' + (cliente.nome || ''));
-        descPartes.push('— Sincronizado automaticamente do Controle de Estoque (CRM). Edições feitas aqui no Google não retornam ao sistema.');
+        descPartes.push('— Sincronizado automaticamente do Arsenal (CRM). Edições feitas aqui no Google não retornam ao sistema.');
 
         var evento = {
             summary: titulo,
