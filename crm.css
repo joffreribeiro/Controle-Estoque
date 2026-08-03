@@ -441,6 +441,9 @@
 }
 .crm-atv-tipo.active { background: var(--info-bg); color: var(--info-color); border-color: var(--info-color); }
 .crm-atv-linha { display: flex; gap: 6px; align-items: center; margin-bottom: 8px; flex-wrap: wrap; }
+.crm-atv-linha-periodo { align-items: flex-end; }
+.crm-atv-periodo-grupo { display: flex; flex-direction: column; gap: 3px; }
+.crm-atv-periodo-label { font-size: 11px; font-weight: 600; color: var(--text-muted); }
 .crm-atv-acoes { display: flex; gap: 8px; justify-content: flex-end; }
 
 /* Foco */

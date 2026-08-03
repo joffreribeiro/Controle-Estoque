@@ -1493,6 +1493,7 @@
 
         document.getElementById('crmAtvCalAssunto').value = atividade ? (atividade.assunto || '') : '';
         document.getElementById('crmAtvCalData').value = atividade ? (atividade.data || '') : (dataPreenchida || hojeIsoLocal());
+        document.getElementById('crmAtvCalDataFim').value = atividade ? (atividade.dataFim || '') : '';
         document.getElementById('crmAtvCalHoraInicio').value = atividade ? (atividade.horaInicio || '') : '';
         document.getElementById('crmAtvCalHoraFim').value = atividade ? (atividade.horaFim || '') : '';
         document.getElementById('crmAtvCalDescricao').value = atividade ? (atividade.descricao || '') : '';
@@ -1502,6 +1503,14 @@
         if (btnExcluir) btnExcluir.style.display = id ? '' : 'none';
 
         document.getElementById('modalAtividadeCal').style.display = 'flex';
+        atualizarMiniAgendaCal();
+    }
+
+    /** Se a data fim ficou vazia ou anterior à nova data início, acompanha-a — evita período invertido. */
+    function aoMudarDataInicioAtividadeCal() {
+        var data = document.getElementById('crmAtvCalData').value;
+        var fimEl = document.getElementById('crmAtvCalDataFim');
+        if (data && fimEl.value && fimEl.value < data) fimEl.value = data;
         atualizarMiniAgendaCal();
     }
 
@@ -1595,6 +1604,8 @@
         if (!assunto) { Notifications.error('Assunto é obrigatório.'); return; }
         var data = document.getElementById('crmAtvCalData').value;
         if (!data) { Notifications.error('Data é obrigatória.'); return; }
+        var dataFim = document.getElementById('crmAtvCalDataFim').value || '';
+        if (dataFim && dataFim < data) { Notifications.error('A data final não pode ser anterior à data de início.'); return; }
 
         var dados = {
             negocioId: _calAtvNegocioId,
@@ -1602,6 +1613,7 @@
             assunto: assunto,
             descricao: document.getElementById('crmAtvCalDescricao').value.trim(),
             data: data,
+            dataFim: (dataFim && dataFim > data) ? dataFim : null,
             horaInicio: document.getElementById('crmAtvCalHoraInicio').value || '',
             horaFim: document.getElementById('crmAtvCalHoraFim').value || '',
             feito: document.getElementById('crmAtvCalFeito').checked
@@ -3150,6 +3162,7 @@
         excluirAtividadeCal: excluirAtividadeCal,
         buscarNegocioParaAtividadeCal: buscarNegocioParaAtividadeCal,
         atualizarMiniAgendaCal: atualizarMiniAgendaCal,
+        aoMudarDataInicioAtividadeCal: aoMudarDataInicioAtividadeCal,
 
         salvarTrocaFunilNegocio: salvarTrocaFunilNegocio
     };

@@ -4813,11 +4813,18 @@
                         <input type="text" id="crmAtvCalAssunto" placeholder="Assunto da atividade">
                     </div>
 
-                    <div class="crm-atv-linha">
-                        <input type="date" id="crmAtvCalData" onchange="Crm.atualizarMiniAgendaCal()">
-                        <input type="time" id="crmAtvCalHoraInicio" onchange="Crm.atualizarMiniAgendaCal()">
+                    <div class="crm-atv-linha crm-atv-linha-periodo">
+                        <div class="crm-atv-periodo-grupo">
+                            <label class="crm-atv-periodo-label">Início</label>
+                            <input type="date" id="crmAtvCalData" onchange="Crm.aoMudarDataInicioAtividadeCal()">
+                            <input type="time" id="crmAtvCalHoraInicio" onchange="Crm.atualizarMiniAgendaCal()">
+                        </div>
                         <span>–</span>
-                        <input type="time" id="crmAtvCalHoraFim" onchange="Crm.atualizarMiniAgendaCal()">
+                        <div class="crm-atv-periodo-grupo">
+                            <label class="crm-atv-periodo-label">Fim</label>
+                            <input type="date" id="crmAtvCalDataFim" onchange="Crm.atualizarMiniAgendaCal()">
+                            <input type="time" id="crmAtvCalHoraFim" onchange="Crm.atualizarMiniAgendaCal()">
+                        </div>
                     </div>
 
                     <div class="form-group">
