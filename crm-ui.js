@@ -65,8 +65,7 @@
     var _calSemanaRef = CrmCalculos.inicioSemana(hojeIsoLocal()); // domingo da semana exibida na vista Calendário
     var _calMesRef = hojeIsoLocal().slice(0, 7) + '-01'; // 1º dia do mês exibido na vista Mês
     var _calMostrarFeriados = false; // filtro da Lista: mostrar/ocultar feriados nacionais
-    var _calMostrarPonto = true; // filtro: mostrar/ocultar Eventos/Férias importados do Ponto
-    var _pontoAutoFetchFeito = false; // garante no máx. 1 busca automática por carregamento de página
+    var _calMostrarPonto = true; // filtro: mostrar/ocultar Eventos do Ponto no calendário
     var _calAtvNegocioId = null; // negócio selecionado no modal de atividade global
 
     var ICONES_HISTORICO = { criacao: '✨', campo: '✎', etapa: '➡️', exclusao: '🗑', atividade: '📅', nota: '📝', anotacao: '🗒️' };
@@ -106,12 +105,6 @@
         document.addEventListener('cliente:salvo', aoSalvarClienteExterno);
         if (window.GoogleCalendarSync) {
             GoogleCalendarSync.aoMudarStatus(function () { if (_secao === 'calendario') renderizarCalendarioView(); });
-        }
-        if (window.PontoBridge) {
-            PontoBridge.aoMudarStatus(function () {
-                if (!PontoBridge.conectado()) _pontoAutoFetchFeito = false;
-                if (_secao === 'calendario') renderizarCalendarioView();
-            });
         }
     }
 
@@ -792,10 +785,13 @@
         return lista;
     }
 
-    // ── Ponte com o sistema Ponto (PontoBridge, ponto-calendar-bridge.js) ──
-    // Eventos e Férias do Ponto viram pseudo-atividades somente leitura, no
-    // mesmo espírito dos feriados nacionais (gerarFeriadosPseudoAtividades):
-    // geradas na hora a partir do cache do PontoBridge, nunca gravadas aqui.
+    // ── Ponto nativo (PontoStore, ver ponto-store.js) ──
+    // Eventos do módulo de Ponto viram pseudo-atividades somente leitura no
+    // calendário do CRM, no mesmo espírito dos feriados nacionais
+    // (gerarFeriadosPseudoAtividades): geradas na hora a partir de
+    // PontoStore.listarEventos(), nunca gravadas aqui. Até a Fase 5 do plano de
+    // migração isto lia de um projeto Firebase externo via ponto-calendar-bridge.js
+    // (aposentado); agora é o mesmo dado que a aba Ponto já mostra.
 
     var PONTO_TIPO_META = {
         feriado: { icone: '🏖️', cor: '#dc2626', corTexto: '#ffffff', rotulo: 'Feriado' },
@@ -898,34 +894,34 @@
     }
 
     function gerarPontoPseudoAtividades() {
-        if (!window.PontoBridge || !PontoBridge.conectado()) return [];
-        var eventos = PontoBridge.getEventosCache();
+        if (!window.PontoStore) return [];
+        var eventos = PontoStore.listarEventos();
         var lista = [];
-        eventos.forEach(function (ev, idx) {
+        eventos.forEach(function (ev) {
             if (ehEventoDeRegistroPonto(ev)) return;
-            var ini = normalizarDataPonto(ev.dataInicioEvento || ev.inicio || ev.dataInicio);
-            var fim = normalizarDataPonto(ev.dataFimEvento || ev.fim || ev.dataFim) || ini;
+            var ini = normalizarDataPonto(ev.dataInicioEvento);
+            var fim = normalizarDataPonto(ev.dataFimEvento) || ini;
             if (!ini) return;
             var meta = PONTO_TIPO_META[ev.tipoEvento] || PONTO_TIPO_META.outro;
             var totalDias = contarDiasIso(ini, fim);
 
             // Intervalo implausível para o tipo do evento (ex: "Feriado" de 400 dias) —
-            // quase sempre é dado ruim no Ponto (fim ausente/errado), não uma escala real.
-            // Em vez de inundar o mês inteiro com um card por dia, mostra 1 card de aviso.
+            // quase sempre é dado ruim, não uma escala real. Em vez de inundar o
+            // mês inteiro com um card por dia, mostra 1 card de aviso.
             if (totalDias > PONTO_LIMIAR_INTERVALO_SUSPEITO) {
                 console.warn('Ponto: evento com intervalo suspeito (' + totalDias + ' dias, ' + ini + ' a ' + fim + '). Mostrando 1 card em vez de expandir. Evento bruto:', ev);
                 lista.push({
-                    id: 'ponto_' + idx + '_suspeito',
+                    id: 'ponto_' + ev.id + '_suspeito',
                     negocioId: null,
                     tipo: 'prazo',
-                    assunto: '⚠ ' + (ev.descricaoEvento || meta.rotulo) + ' (' + totalDias + ' dias — confira no Ponto)',
+                    assunto: '⚠ ' + (ev.descricaoEvento || meta.rotulo) + ' (' + totalDias + ' dias — confira na aba Ponto)',
                     descricao: 'Intervalo de ' + ini + ' a ' + fim + ' parece incorreto para este tipo de evento.',
                     data: ini,
                     horaInicio: '',
                     horaFim: '',
                     feito: false,
                     origemPonto: true,
-                    pontoGrupoId: 'ponto_' + idx,
+                    pontoGrupoId: 'ponto_' + ev.id,
                     pontoTipoRotulo: meta.rotulo,
                     pontoCor: ev.corFundo || meta.cor,
                     pontoCorTexto: ev.corTexto || meta.corTexto,
@@ -938,9 +934,9 @@
             // é o que permite à visão Mês mesclar os dias num único bloco
             // contínuo (renderizarBarrasPontoSemana), em vez de um card por dia.
             var dias = expandirIntervaloDias(ini, fim, PONTO_MAX_DIAS_POR_EVENTO);
-            dias.forEach(function (dataIso, i) {
+            dias.forEach(function (dataIso) {
                 lista.push({
-                    id: 'ponto_' + idx + '_' + dataIso,
+                    id: 'ponto_' + ev.id + '_' + dataIso,
                     negocioId: null,
                     tipo: 'prazo',
                     assunto: ev.descricaoEvento || meta.rotulo,
@@ -950,7 +946,7 @@
                     horaFim: '',
                     feito: false,
                     origemPonto: true,
-                    pontoGrupoId: 'ponto_' + idx,
+                    pontoGrupoId: 'ponto_' + ev.id,
                     pontoTipoRotulo: meta.rotulo,
                     pontoCor: ev.corFundo || meta.cor,
                     pontoCorTexto: ev.corTexto || meta.corTexto,
@@ -961,107 +957,32 @@
         return lista;
     }
 
-    /** No máximo 1 busca automática por carregamento de página; o resto é sob demanda (conectar/atualizar). */
-    function garantirEventosPontoCarregados() {
-        if (!window.PontoBridge || !PontoBridge.conectado() || _pontoAutoFetchFeito) return;
-        _pontoAutoFetchFeito = true;
-        PontoBridge.atualizarEventos().then(function () {
-            if (_secao === 'calendario') renderizarCalendarioView();
-        });
-    }
-
     function renderizarPontoStatus() {
-        var pb = window.PontoBridge;
-        if (!pb || !pb.configurado()) return '';
-        if (pb.conectado()) {
-            var qtd = pb.getEventosCache().length;
-            var erro = pb.getUltimoErro && pb.getUltimoErro();
-            return '<div class="crm-cal-ponto">' +
-                '<span class="crm-cal-ponto-on">🟢 Ponto conectado (' + esc(pb.usuarioEmail()) + ') — ' + qtd + ' evento(s) carregado(s)</span>' +
-                '<label class="crm-check"><input type="checkbox" ' + (_calMostrarPonto ? 'checked' : '') +
-                    ' onchange="Crm.setMostrarPontoCal(this.checked)"> Mostrar no calendário</label>' +
-                '<button type="button" class="btn-secondary crm-btn-mini" data-crm-action="pontoAtualizar">Atualizar</button>' +
-                '<button type="button" class="btn-secondary crm-btn-mini" data-crm-action="pontoVerDuplicados" title="Lista os eventos quase-duplicados do Ponto, com o índice de cada um para apagar manualmente no Console do Firestore">🔍 Duplicatas</button>' +
-                '<button type="button" class="btn-secondary crm-btn-mini" data-crm-action="pontoDesconectar">Desconectar</button>' +
-                (erro ? ('<span class="crm-cal-ponto-erro" title="' + esc(erro) + '">⚠ ' + esc(erro) + '</span>') : '') +
-            '</div>';
-        }
+        if (!window.PontoStore) return '';
+        var qtd = PontoStore.listarEventos().length;
         return '<div class="crm-cal-ponto">' +
-            '<span class="crm-cal-ponto-off">📅 Ponto: desconectado</span>' +
-            '<input type="email" id="crmPontoEmail" class="crm-filtro-input crm-cal-ponto-input" placeholder="e-mail do Ponto" autocomplete="username">' +
-            '<input type="password" id="crmPontoSenha" class="crm-filtro-input crm-cal-ponto-input" placeholder="senha" autocomplete="current-password" ' +
-                'onkeydown="if(event.key===\'Enter\'){event.preventDefault();Crm.pontoConectar();}">' +
-            '<button type="button" class="btn-secondary crm-btn-mini" data-crm-action="pontoConectar">Conectar Ponto</button>' +
+            '<span class="crm-cal-ponto-on">🟢 Ponto — ' + qtd + ' evento(s)</span>' +
+            '<label class="crm-check"><input type="checkbox" ' + (_calMostrarPonto ? 'checked' : '') +
+                ' onchange="Crm.setMostrarPontoCal(this.checked)"> Mostrar no calendário</label>' +
         '</div>';
-    }
-
-    /**
-     * Modal só-leitura: mostra os grupos de eventos do Ponto que colidem na
-     * mesma chave usada por deduplicarEventos (tipo + datas), com o índice de
-     * cada um no array bruto `dados.eventos` — a mesma posição que aparece no
-     * editor de array do Console do Firestore. A exclusão em si é sempre
-     * manual, lá; este módulo nunca escreve no projeto do Ponto.
-     */
-    function abrirModalPontoDuplicados() {
-        var pb = window.PontoBridge;
-        var lista = document.getElementById('crmPontoDuplicadosLista');
-        if (!lista) return;
-        var duplicados = (pb && pb.conectado()) ? pb.diagnosticarDuplicados() : [];
-
-        if (!duplicados.length) {
-            lista.innerHTML = '<p class="crm-coluna-vazia">Nenhum evento duplicado encontrado nos dados carregados agora. ' +
-                'Se você acabou de editar algo no Ponto, clique em "Atualizar" no calendário e abra este diagnóstico de novo.</p>';
-        } else {
-            var grupos = {};
-            var ordem = [];
-            duplicados.forEach(function (d) {
-                var chave = d.tipoEvento + '|' + d.dataInicioEvento + '|' + d.dataFimEvento;
-                if (!grupos[chave]) { grupos[chave] = []; ordem.push(chave); }
-                grupos[chave].push(d);
-            });
-            lista.innerHTML = ordem.map(function (chave) {
-                var itens = grupos[chave];
-                var cabecalho = esc((PONTO_TIPO_META[itens[0].tipoEvento] || {}).rotulo || itens[0].tipoEvento) +
-                    ' · ' + esc(dataOuTraco(itens[0].dataInicioEvento)) +
-                    (itens[0].dataFimEvento !== itens[0].dataInicioEvento ? (' – ' + esc(dataOuTraco(itens[0].dataFimEvento))) : '');
-                var linhas = itens.map(function (d) {
-                    return '<tr>' +
-                        '<td>' + d.indice + '</td>' +
-                        '<td>' + esc(d.descricaoEvento || '(sem descrição)') + '</td>' +
-                        '<td>' + (d.mantido
-                            ? '<span class="crm-badge-status crm-badge-ganho">Mantido — já aparece no CRM</span>'
-                            : '<span class="crm-badge-status crm-badge-perdido">Remover</span>') + '</td>' +
-                    '</tr>';
-                }).join('');
-                return '<div class="crm-secao" style="margin-bottom:12px">' +
-                    '<div class="crm-secao-header" style="cursor:default"><span class="crm-secao-titulo">' + cabecalho + '</span></div>' +
-                    '<div class="crm-secao-corpo"><table class="crm-lista-table"><thead><tr>' +
-                        '<th>Índice no array</th><th>Descrição</th><th>Ação no Firestore</th>' +
-                    '</tr></thead><tbody>' + linhas + '</tbody></table></div>' +
-                '</div>';
-            }).join('');
-        }
-
-        document.getElementById('modalPontoDuplicados').style.display = 'flex';
     }
 
     function setMostrarPontoCal(v) { _calMostrarPonto = v; renderizarCalendarioView(); }
 
     /**
      * O Ponto já traz feriados nacionais, distritais e da empresa (mais
-     * completo que o cálculo genérico do CRM). Enquanto ele estiver conectado
-     * e visível, os dois catálogos duplicariam feriados nacionais (ex:
-     * "Corpus Christi" aparecendo duas vezes) — então o gerador genérico do
-     * CRM só entra em ação como fallback, quando o Ponto não está disponível.
+     * completo que o cálculo genérico do CRM). Enquanto estiver visível, os
+     * dois catálogos duplicariam feriados nacionais (ex: "Corpus Christi"
+     * aparecendo duas vezes) — então o gerador genérico do CRM só entra em
+     * ação como fallback, quando a aba Ponto não tem dados.
      */
     function feriadosGenericosAtivos() {
-        return _calMostrarFeriados && !(_calMostrarPonto && window.PontoBridge && PontoBridge.conectado());
+        return _calMostrarFeriados && !(_calMostrarPonto && window.PontoStore);
     }
 
     function renderizarCalendarioView() {
         var ctx = atividadesCalContexto();
         limparFeriadosOrfaos(); // migração: remove feriados que ficaram salvos como atividade real (fase antiga, via Google)
-        garantirEventosPontoCarregados();
         var reais = CrmStore.listarAtividades();
         var feriados = feriadosGenericosAtivos() ? gerarFeriadosPseudoAtividades() : [];
         var doPonto = _calMostrarPonto ? gerarPontoPseudoAtividades() : [];
@@ -1186,9 +1107,9 @@
             '</tr>';
         }).join('');
 
-        var pontoAtivo = _calMostrarPonto && window.PontoBridge && PontoBridge.conectado();
+        var pontoAtivo = _calMostrarPonto && !!window.PontoStore;
         var filtroFeriados = '<div class="crm-cal-lista-filtros">' +
-            '<label class="crm-check" title="' + (pontoAtivo ? 'Com o Ponto conectado, os feriados vêm de lá (nacionais, distritais e da empresa) — o cálculo genérico do CRM fica em espera para não duplicar.' : 'Cálculo genérico de feriados nacionais.') + '">' +
+            '<label class="crm-check" title="' + (pontoAtivo ? 'Os feriados vêm da aba Ponto (nacionais, distritais e da empresa) — o cálculo genérico do CRM fica em espera para não duplicar.' : 'Cálculo genérico de feriados nacionais.') + '">' +
                 '<input type="checkbox" ' + (_calMostrarFeriados ? 'checked' : '') + ' onchange="Crm.setMostrarFeriadosCal(this.checked)">' +
                 'Mostrar feriados' + (pontoAtivo ? ' (via Ponto)' : '') +
             '</label>' +
@@ -1653,7 +1574,7 @@
             if (f.data === dados.data) conflitos.push('feriado nacional: ' + (f.assunto || ''));
         });
 
-        if (window.PontoBridge && PontoBridge.conectado() && _calMostrarPonto) {
+        if (window.PontoStore && _calMostrarPonto) {
             gerarPontoPseudoAtividades().forEach(function (p) {
                 if (p.data === dados.data) conflitos.push((p.pontoTipoRotulo || 'Ponto') + ': ' + (p.assunto || ''));
             });
@@ -3141,30 +3062,6 @@
         googleConectar: function () { if (window.GoogleCalendarSync) GoogleCalendarSync.conectar(); },
         googleDesconectar: function () { if (window.GoogleCalendarSync) GoogleCalendarSync.desconectar(); },
         googleSincronizarTudo: function () { if (window.GoogleCalendarSync) GoogleCalendarSync.sincronizarTudo(); },
-
-        pontoConectar: function () {
-            if (!window.PontoBridge) return;
-            var email = (document.getElementById('crmPontoEmail') || {}).value || '';
-            var senha = (document.getElementById('crmPontoSenha') || {}).value || '';
-            PontoBridge.conectar(email.trim(), senha).then(function () {
-                _pontoAutoFetchFeito = true; // já vamos buscar abaixo; evita disparo duplicado
-                if (window.Notifications) Notifications.success('Conectado ao Ponto.');
-                return PontoBridge.atualizarEventos(true);
-            }).then(function () {
-                renderizarCalendarioView();
-            }).catch(function (e) {
-                if (window.Notifications) Notifications.error('Falha ao conectar ao Ponto: ' + (e && e.message ? e.message : e));
-            });
-        },
-        pontoDesconectar: function () { if (window.PontoBridge) PontoBridge.desconectar(); },
-        pontoAtualizar: function () {
-            if (!window.PontoBridge) return;
-            PontoBridge.atualizarEventos(true).then(function () {
-                if (window.Notifications) Notifications.success('Eventos do Ponto atualizados.');
-                renderizarCalendarioView();
-            });
-        },
-        pontoVerDuplicados: function () { abrirModalPontoDuplicados(); },
 
         abrirModalTiposAtividade: function () { abrirModalTiposAtividade(); },
         moverTipoAtividade: function (el) { moverTipoAtividade(el.dataset.chave, Number(el.dataset.dir)); },

@@ -79,3 +79,655 @@
 .ponto-migracao-resultado ul { margin: 8px 0; padding-left: 20px; }
 
 .ponto-migracao-verificar { color: var(--text-muted); font-size: 12.5px; }
+
+.ponto-filtro-mes { margin-bottom: 10px; font-size: 13px; color: var(--text-secondary); }
+
+.ponto-filtro-mes select {
+    margin-left: 6px;
+    padding: 4px 8px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    font-size: 13px;
+    background: var(--bg-white);
+    color: var(--text-primary);
+}
+
+.ponto-folha-resumo { display: flex; gap: 12px; margin-bottom: 14px; flex-wrap: wrap; }
+
+.ponto-folha-resumo > div {
+    background: var(--bg-light);
+    border-radius: var(--radius-sm);
+    padding: 10px 14px;
+    min-width: 120px;
+}
+
+.ponto-folha-resumo span {
+    display: block;
+    font-size: 11.5px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: .02em;
+}
+
+.ponto-folha-resumo strong { font-size: 16px; color: var(--text-primary); }
+
+.ponto-status-falta td:last-child { color: var(--danger-color); font-weight: 600; }
+.ponto-status-extra td:last-child { color: var(--success-color); font-weight: 600; }
+
+/* ================================================
+   TIMESHEET (Folha de Ponto) — porte do styles.css do Ponto original.
+   Cores literais são intencionais: reproduzem a grade que o usuário já lia.
+   ================================================ */
+.ponto-ts-toolbar { margin-bottom: 12px; font-size: 13px; color: var(--text-secondary); }
+
+.ponto-ts-toolbar select {
+    margin-left: 6px;
+    padding: 5px 9px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    font-size: 13px;
+    background: var(--bg-white);
+    color: var(--text-primary);
+}
+
+.ponto-ts-resumo { display: flex; gap: 12px; margin-top: 16px; flex-wrap: wrap; }
+.ponto-ts-resumo > div { background: var(--bg-light); border-radius: var(--radius-sm); padding: 10px 14px; min-width: 130px; }
+.ponto-ts-resumo span { display: block; font-size: 11.5px; color: var(--text-muted); text-transform: uppercase; }
+.ponto-ts-resumo strong { font-size: 16px; color: var(--text-primary); }
+
+/* Paleta extraída literalmente de slate-redesign.css (tema claro) do Ponto original —
+   é a mesma grade que o usuário já lia antes da migração. */
+:root {
+    --ts-header-from: #0f1c3f;
+    --ts-header-to: #1a2f6e;
+    --ts-header-accent: #3b82f6;
+    --ts-row-odd: #ffffff;
+    --ts-row-even: #f7f9fc;
+    --ts-border: #dde3ef;
+    --ts-label-bg: #f0f4fa;
+    --ts-label-color: #334155;
+    --ts-fds-bg: #eaecf1;
+    --ts-sep-color: #1e3a8a;
+    --ts-mono: 'JetBrains Mono', 'Courier New', monospace;
+    --ts-display: 'Syne', 'DM Sans', sans-serif;
+}
+
+.timesheet-mes {
+    margin-top: 20px;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 2px 16px rgba(15, 28, 63, .10), 0 1px 3px rgba(15, 28, 63, .06);
+    border: 1px solid var(--ts-border);
+}
+
+.timesheet-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: linear-gradient(135deg, var(--ts-header-from) 0%, var(--ts-header-to) 100%);
+    color: #fff;
+    font-family: var(--ts-display);
+    font-size: 13px;
+    font-weight: 800;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    padding: 10px 16px;
+    border-bottom: 2px solid var(--ts-header-accent);
+}
+.timesheet-header::before {
+    content: '';
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--ts-header-accent);
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, .35);
+    flex-shrink: 0;
+}
+/* Mês corrente (rolado até aqui ao abrir a Folha de Ponto): cabeçalho num azul mais vivo. */
+.timesheet-current .timesheet-header {
+    background: linear-gradient(135deg, #1e3a8a 0%, #1d4ed8 100%);
+    border-bottom-color: #60a5fa;
+}
+.timesheet-current .timesheet-header::before {
+    background: #60a5fa;
+    box-shadow: 0 0 0 3px rgba(96, 165, 250, .4), 0 0 8px rgba(96, 165, 250, .6);
+}
+
+.timesheet-wrapper { overflow-x: auto; background: var(--ts-row-odd); }
+
+.timesheet-table {
+    border-collapse: collapse;
+    width: 100%;
+    font-family: var(--ts-mono);
+    font-size: 11px;
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+.timesheet-table th, .timesheet-table td { border: none; text-align: center; vertical-align: middle; }
+
+.timesheet-table thead th {
+    background: linear-gradient(180deg, #1e3a8a 0%, #1a3278 100%);
+    color: rgba(255, 255, 255, .9);
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: .02em;
+    padding: 4px 3px;
+    border-right: 1px solid rgba(255, 255, 255, .08);
+    line-height: 1;
+    white-space: nowrap;
+}
+.timesheet-table thead th:first-child,
+.timesheet-table thead th.th-saldo-anterior,
+.timesheet-table thead th.th-saldo-acumulado {
+    background: linear-gradient(180deg, #0f1c3f 0%, #122050 100%);
+    min-width: 80px;
+    font-family: var(--ts-display);
+    font-size: 9px;
+    font-weight: 800;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+}
+
+.timesheet-table tbody td {
+    padding: 1px 4px;
+    line-height: 1;
+    font-size: 11px;
+    font-weight: 500;
+    color: #1e293b;
+    height: 28px;
+    border-right: 1px solid var(--ts-border);
+    transition: background .1s;
+}
+.timesheet-table tbody tr { border-bottom: 1px solid var(--ts-border); }
+.timesheet-table tbody tr:nth-child(odd) td:not(.col-fimsemana):not(.col-saldo-anterior):not(.col-saldo-acumulado):not(.evento-vertical) { background: var(--ts-row-odd); }
+.timesheet-table tbody tr:nth-child(even) td:not(.col-fimsemana):not(.col-saldo-anterior):not(.col-saldo-acumulado):not(.evento-vertical) { background: var(--ts-row-even); }
+
+.timesheet-table tbody td:first-child {
+    background: var(--ts-label-bg);
+    color: var(--ts-label-color);
+    font-family: var(--ts-display);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: .03em;
+    text-align: left;
+    padding: 0 10px;
+    border-right: 2px solid var(--ts-border);
+    white-space: nowrap;
+}
+
+.th-dia { display: flex; flex-direction: column; align-items: center; gap: 1px; line-height: 1; }
+.th-dia-semana { font-size: 9px; font-weight: 500; opacity: .75; color: rgba(255, 255, 255, .8); }
+.th-dia-num { font-size: 12px; font-weight: 700; color: #fff; }
+
+.timesheet-table td.col-fimsemana {
+    background: var(--ts-fds-bg) repeating-linear-gradient(135deg, transparent, transparent 3px, rgba(0, 0, 0, .04) 3px, rgba(0, 0, 0, .04) 6px);
+    color: transparent;
+}
+.row-duracao-almoco td:not(.col-fimsemana):not(.col-saldo-anterior):not(.col-saldo-acumulado):not(.evento-vertical) {
+    background: #f1f5fb;
+    color: #475569;
+    font-size: 10px;
+    font-weight: 400;
+    font-style: italic;
+}
+.row-saldo-mes td {
+    background: linear-gradient(90deg, #f0f4fd 0%, #e8eef9 100%);
+    font-family: var(--ts-display);
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: .04em;
+    border-top: 2px solid #bfcbef;
+    color: #0f1c3f;
+}
+.row-saldo-mes td:first-child {
+    background: linear-gradient(90deg, #e8eef9 0%, #dbe4f5 100%);
+    color: #0f1c3f;
+    letter-spacing: .08em;
+}
+
+.row-separador-azul td {
+    background: var(--ts-sep-color) !important;
+    border: none !important;
+    padding: 0 !important;
+    height: 2px !important;
+    line-height: 1px !important;
+}
+
+.timesheet-table td.saldo-positivo { color: #14532d; background: #dcfce7; font-weight: 700; outline: 2px solid #bbf7d0; outline-offset: -2px; }
+.timesheet-table td.saldo-negativo { color: #7f1d1d; background: #fee2e2; font-weight: 700; outline: 2px solid #fecaca; outline-offset: -2px; }
+
+.timesheet-observacao {
+    white-space: pre-wrap;
+    word-break: break-word;
+    max-width: 16rem;
+    max-height: 6.5rem;
+    overflow: auto;
+}
+
+.timesheet-table td.ts-clickable { color: #1e40af; font-weight: 600; cursor: pointer; }
+.timesheet-table td.ts-clickable:hover { color: #1d4ed8; text-decoration: underline; }
+
+/* Células verticais de evento e das colunas de saldo */
+.timesheet-table td.evento-vertical {
+    writing-mode: vertical-rl;
+    text-orientation: upright;
+    font-weight: 700;
+    font-size: 10px;
+    min-width: 28px;
+    line-height: 1;
+    letter-spacing: .12em;
+    white-space: normal;
+    overflow: hidden;
+    border-right: 1px solid rgba(0, 0, 0, .08);
+    opacity: .95;
+}
+
+.col-saldo-anterior, .col-saldo-acumulado {
+    background: #eef2fb;
+    border-left: 2px solid #bfcbef;
+    border-right: 2px solid #bfcbef;
+    color: #1e3a8a;
+    font-weight: 600;
+    padding: 0;
+}
+
+.saldo-vertical-text {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    writing-mode: vertical-rl;
+    text-orientation: upright;
+    font-size: 10px;
+    line-height: 1;
+    letter-spacing: .06em;
+    font-weight: 700;
+    opacity: .8;
+    height: 100%;
+    width: 100%;
+}
+
+/* Paleta de eventos — idêntica ao switch de classeEvento() do Ponto original,
+   incluindo a mesma lacuna dele (afastamento/compensar_acordo caem no genérico). */
+.evento-feriado { background: #fef2f2; color: #b91c1c; border-left: 3px solid #ef4444; }
+.evento-ferias { background: #fffbeb; color: #92400e; border-left: 3px solid #f59e0b; }
+.evento-afastamento { background: #eff6ff; color: #1d4ed8; border-left: 3px solid #3b82f6; }
+.evento-viagem { background: #f5f3ff; color: #6d28d9; border-left: 3px solid #8b5cf6; }
+.evento-outro { background: #f8fafc; color: #475569; border-left: 3px solid #94a3b8; }
+.evento-abono, .evento-abono-acordo { background: #f0fdf4; color: #15803d; border-left: 3px solid #22c55e; }
+.evento-compensar-acordo, .evento-pagar-hora-acordo { background: #fff7ed; color: #c2410c; border-left: 3px solid #fb923c; }
+.evento-abono-periodo { background: #f0fdf4 !important; color: #15803d !important; }
+.evento-pagar-hora-periodo { background: #fdf2f8 !important; color: #9d174d !important; }
+
+.ts-atestado-comparecimento { background: #fffbeb !important; color: #92400e !important; border-left: 2px solid #f59e0b !important; font-style: italic; }
+.ts-abono { background: #f0fdf4 !important; color: #14532d !important; border-left: 2px solid #22c55e !important; font-style: italic; }
+
+/* ================================================
+   Toolbars e filtros (Registros / Eventos / Acordos)
+   ================================================ */
+.ponto-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px 14px;
+    align-items: flex-end;
+    padding: 12px 14px;
+    background: var(--bg-light);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    margin-bottom: 14px;
+}
+
+.ponto-filtro-grupo { display: flex; flex-direction: column; gap: 4px; }
+.ponto-filtro-grupo label { font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: .02em; }
+
+.ponto-filtro-grupo input, .ponto-filtro-grupo select {
+    padding: 6px 8px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    font-size: 13px;
+    background: var(--bg-white);
+    color: var(--text-primary);
+    min-width: 130px;
+}
+
+.ponto-filtro-cresce { flex: 1 1 160px; }
+.ponto-filtro-cresce input { width: 100%; }
+.ponto-toolbar-acoes { display: flex; gap: 8px; margin-left: auto; align-items: flex-end; }
+
+/* ── Tabela de Registros ── */
+.rp-table td { vertical-align: middle; }
+.rp-td-data { white-space: nowrap; }
+.rp-data-dia { font-weight: 600; }
+.rp-data-dsem { margin-left: 6px; font-size: 11px; color: var(--text-muted); text-transform: uppercase; }
+.rp-data-fds { color: var(--danger-color); }
+.rp-tr-fds { background: var(--bg-light); }
+.rp-hora { font-variant-numeric: tabular-nums; }
+.rp-hora-vazia { color: var(--text-muted); }
+.rp-td-justi { white-space: nowrap; }
+.rp-td-obs { max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; color: var(--text-muted); }
+
+.rp-saldo-chip {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 11.5px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+}
+.rp-saldo-chip.saldo-positivo { background: #dcfce7; color: #166534; }
+.rp-saldo-chip.saldo-negativo { background: #fee2e2; color: #991b1b; }
+.rp-saldo-zero { color: var(--text-muted); }
+
+.reg-badge {
+    display: inline-block;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 7px;
+    border-radius: 10px;
+    white-space: nowrap;
+    background: var(--bg-light);
+    color: var(--text-secondary);
+}
+.reg-badge-atestado { background: #fef9c3; color: #713f12; border: 1px solid #facc15; }
+.reg-badge-abono { background: #dcfce7; color: #14532d; border: 1px solid #4ade80; }
+
+/* ── Badges de tipo na tabela de Eventos ── */
+.evento-badge {
+    display: inline-block;
+    padding: 3px 9px;
+    border-radius: 10px;
+    font-size: 11px;
+    font-weight: 700;
+    white-space: nowrap;
+    background: #f3f4f6;
+    color: #374151;
+}
+.evento-badge.feriado { background: #ffe4e6; color: #9f1239; }
+.evento-badge.ferias { background: #fef9c3; color: #854d0e; }
+.evento-badge.afastamento { background: #e0f2fe; color: #075985; }
+.evento-badge.viagem { background: #ede9fe; color: #5b21b6; }
+.evento-badge.abono, .evento-badge.abono_acordo { background: #dcfce7; color: #166534; }
+.evento-badge.pagar_hora_acordo, .evento-badge.compensar_acordo { background: #fce7f3; color: #9d174d; }
+
+/* ── Férias ── */
+.ponto-ferias-table td { vertical-align: middle; }
+.ponto-ferias-disp { font-weight: 700; color: var(--primary-color); }
+.ponto-link-ferias { color: var(--primary-color); text-decoration: underline; cursor: pointer; }
+.ponto-link-ferias:hover { color: var(--primary-dark, var(--primary-color)); }
+
+/* ── Modal "Solicitar Férias" ── */
+.ponto-modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, .55);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 2000;
+    padding: 16px;
+}
+
+.ponto-modal {
+    background: var(--bg-white);
+    border-radius: var(--radius-md, 10px);
+    width: 100%;
+    max-width: 420px;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, .35);
+}
+
+.ponto-modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px;
+    background: var(--bg-light);
+    border-bottom: 1px solid var(--border-color);
+}
+.ponto-modal-header h4 { margin: 0; font-size: 15px; }
+.ponto-modal-fechar { background: none; border: none; font-size: 18px; line-height: 1; cursor: pointer; color: var(--text-muted); }
+.ponto-modal-fechar:hover { color: var(--text-primary); }
+
+.ponto-modal-corpo { padding: 16px 20px; display: flex; flex-direction: column; gap: 10px; }
+.ponto-modal-campo { display: flex; flex-direction: column; gap: 2px; }
+.ponto-modal-campo label { font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: .02em; }
+.ponto-modal-campo span { font-size: 14px; color: var(--text-primary); }
+.ponto-modal-campo strong { font-size: 15px; color: var(--text-primary); }
+.ponto-modal-destaque { color: var(--primary-color); }
+
+.ponto-modal-sep { border: none; border-top: 1px solid var(--border-color); margin: 4px 0; }
+
+.ponto-modal-label { font-size: 12px; font-weight: 600; color: var(--text-secondary); margin-top: 4px; }
+.ponto-modal-corpo input, .ponto-modal-corpo select, .ponto-modal-corpo textarea {
+    padding: 8px 10px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    font-size: 13.5px;
+    background: var(--bg-white);
+    color: var(--text-primary);
+}
+.ponto-modal-dias { font-size: 12.5px; color: var(--primary-color); font-weight: 600; }
+
+.ponto-modal-rodape {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    padding: 14px 20px;
+    border-top: 1px solid var(--border-color);
+}
+
+/* ── Modal "Registro de Ponto" ── */
+.ponto-modal.ponto-mreg { max-width: 460px; }
+
+.ponto-mreg-date-row { display: flex; align-items: flex-end; gap: 14px; }
+.ponto-mreg-date-campo { flex: 0 0 auto; }
+.ponto-mreg-weekday { font-size: 13px; font-weight: 600; color: var(--text-secondary); padding-bottom: 9px; }
+
+.ponto-mreg-block {
+    background: var(--bg-light);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    padding: 12px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+.ponto-mreg-block-label { font-size: 11.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .03em; color: var(--text-muted); }
+
+.ponto-mreg-times-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 14px; }
+
+.ponto-mreg-info {
+    display: flex;
+    gap: 8px;
+    align-items: flex-start;
+    background: var(--bg-white);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    padding: 8px 10px;
+    font-size: 12px;
+    color: var(--text-secondary);
+    line-height: 1.4;
+}
+
+/* ── Acordos em cards ── */
+.ponto-acordos-lista { display: flex; flex-direction: column; gap: 14px; }
+
+.acordo-card-v2 {
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md, 8px);
+    background: var(--bg-white);
+    overflow: hidden;
+}
+
+.acv2-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border-color);
+    flex-wrap: wrap;
+}
+.acv2-header-left { display: flex; align-items: center; gap: 10px; }
+.acv2-titulo { font-size: 15px; font-weight: 700; color: var(--text-primary); }
+.acv2-header-actions { display: flex; gap: 6px; }
+
+.acv2-badge { font-size: 10.5px; font-weight: 700; padding: 2px 9px; border-radius: 10px; text-transform: uppercase; }
+.acv2-badge-active { background: #dcfce7; color: #166534; }
+.acv2-badge-inactive { background: #f3f4f6; color: #6b7280; }
+
+.acv2-stats { display: flex; flex-wrap: wrap; gap: 1px; background: var(--border-color); }
+.acv2-stat { flex: 1 1 110px; background: var(--bg-light); padding: 10px 14px; }
+.acv2-stat-label { display: block; font-size: 10.5px; color: var(--text-muted); text-transform: uppercase; }
+.acv2-stat-value { font-size: 14px; font-weight: 700; color: var(--text-primary); }
+
+.acv2-sections { display: flex; flex-direction: column; }
+
+/* Seções colapsáveis (Períodos / Regras / Abono-Pagar Hora / Eventos) */
+.acv2-section { border-top: 1px solid var(--border-color); }
+
+.acv2-section-toggle {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 16px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    text-align: left;
+    font: inherit;
+}
+
+.acv2-section-titulo { font-size: 12px; font-weight: 700; text-transform: uppercase; color: var(--text-muted); letter-spacing: .02em; }
+.acv2-section-count {
+    background: var(--bg-light);
+    border-radius: 10px;
+    padding: 1px 8px;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--text-secondary);
+    min-width: 18px;
+    text-align: center;
+}
+.acv2-section-chevron { margin-left: auto; color: var(--text-muted); transition: transform .15s ease; }
+.acv2-section.acv2-section-open .acv2-section-chevron { transform: rotate(180deg); }
+
+.acv2-section-body { display: none; padding: 0 16px 14px 16px; }
+.acv2-section.acv2-section-open .acv2-section-body { display: block; }
+
+.acv2-row-evento { display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }
+.acv2-evento-tipo { font-weight: 700; text-transform: capitalize; }
+.acv2-evento-desc { flex: 1; color: var(--text-secondary); }
+.acv2-evento-data { font-size: 11.5px; color: var(--text-muted); white-space: nowrap; }
+
+.acv2-beneficio + .acv2-beneficio { margin-top: 12px; }
+.acv2-beneficio-header { display: flex; justify-content: space-between; font-size: 12.5px; margin-bottom: 4px; }
+.acv2-beneficio-label { font-weight: 600; color: var(--text-secondary); }
+.acv2-beneficio-nums { font-weight: 700; color: var(--text-primary); }
+.acv2-beneficio-nums.acv2-esgotado { color: var(--danger-color); }
+.acv2-progress { height: 6px; border-radius: 4px; background: var(--bg-light); overflow: hidden; }
+.acv2-progress-bar { height: 100%; background: var(--primary-color); border-radius: 4px; }
+.acv2-progress-bar.acv2-progress-danger { background: var(--danger-color); }
+
+/* ── "Gerenciar Acordo" — form com abas laterais (Resumo/Períodos/Regras/Abono e Pagar Hora) ── */
+.ponto-acd-form { flex-direction: column; }
+
+.ponto-acd-panels { display: flex; gap: 16px; width: 100%; flex-wrap: wrap; }
+
+.ponto-acd-sidebar { display: flex; flex-direction: column; gap: 4px; flex: 0 0 160px; }
+
+.ponto-acd-side-btn {
+    text-align: left;
+    padding: 9px 12px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    background: var(--bg-white);
+    color: var(--text-secondary);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+}
+.ponto-acd-side-btn.active { background: var(--primary-color); color: #fff; border-color: var(--primary-color); }
+
+.ponto-acd-conteudo { flex: 1 1 320px; min-width: 0; }
+.ponto-acd-conteudo h4 { margin: 0 0 10px 0; font-size: 14px; }
+
+.ponto-acd-resumo { display: flex; flex-direction: column; gap: 14px; }
+.ponto-acd-passo { display: flex; gap: 12px; align-items: flex-start; }
+.ponto-acd-passo span {
+    flex: 0 0 auto;
+    width: 24px; height: 24px;
+    border-radius: 50%;
+    background: var(--primary-color);
+    color: #fff;
+    font-size: 12px;
+    font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+}
+.ponto-acd-passo strong { display: block; font-size: 13.5px; }
+.ponto-acd-passo p { margin: 2px 0 0 0; font-size: 12.5px; color: var(--text-muted); }
+
+.ponto-subform-novo {
+    margin-top: 14px;
+    padding-top: 12px;
+    border-top: 1px dashed var(--border-color);
+}
+.ponto-subform-novo > strong { display: block; font-size: 12.5px; text-transform: uppercase; color: var(--text-muted); margin-bottom: 8px; }
+
+.ponto-vazio { text-align: center; color: var(--text-muted); font-style: italic; padding: 14px !important; }
+.ponto-hint { font-size: 12.5px; color: var(--text-muted); margin: 0 0 10px 0; }
+.ponto-uso-beneficio { font-size: 12.5px; color: var(--text-secondary); margin: 4px 0; }
+
+.acv2-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 6px 8px;
+    border-radius: var(--radius-sm);
+    font-size: 12.5px;
+    color: var(--text-secondary);
+}
+.acv2-row + .acv2-row { margin-top: 4px; }
+.acv2-row-ativo { background: #ecfdf5; color: #065f46; font-weight: 600; }
+.acv2-row-sub { display: block; font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+.acv2-chip { background: var(--bg-light); border-radius: 10px; padding: 2px 8px; font-size: 11px; font-weight: 700; white-space: nowrap; }
+.acv2-row-ativo .acv2-chip { background: #d1fae5; color: #065f46; }
+.acv2-empty-section { font-size: 12.5px; color: var(--text-muted); font-style: italic; margin: 0; }
+
+.ponto-acoes-topo { margin-bottom: 10px; }
+
+.ponto-col-acoes { white-space: nowrap; display: flex; gap: 6px; }
+
+.ponto-form {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px 14px;
+    background: var(--bg-light);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    padding: 14px;
+    margin-bottom: 14px;
+}
+
+.ponto-campo { display: flex; flex-direction: column; gap: 4px; font-size: 12.5px; color: var(--text-secondary); }
+
+.ponto-campo input, .ponto-campo select {
+    padding: 6px 8px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    font-size: 13px;
+    background: var(--bg-white);
+    color: var(--text-primary);
+    min-width: 140px;
+}
+
+.ponto-campo-largo { flex: 1 1 100%; }
+.ponto-campo-largo input { width: 100%; }
+
+.ponto-form-acoes { flex: 1 1 100%; display: flex; gap: 8px; justify-content: flex-end; }
+
+.ponto-subform { flex: 1 1 100%; border-top: 1px dashed var(--border-color); padding-top: 10px; margin-top: 4px; }
+.ponto-subform strong { display: block; font-size: 12.5px; margin-bottom: 6px; color: var(--text-secondary); }
+.ponto-subform-linha { display: flex; gap: 8px; align-items: flex-end; margin-bottom: 8px; flex-wrap: wrap; }

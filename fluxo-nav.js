@@ -106,7 +106,7 @@
         els.pipebar = header.querySelector('.pipebar');
         els.refbar = header.querySelector('.refbar');
         els.status = header.querySelector('.flow-status');
-        els.wsBtns = header.querySelectorAll('.ws-btn');
+        els.wsBtns = header.querySelectorAll('.ws-btn[data-ws]');
 
         buildPipebar();
         buildRefbar();

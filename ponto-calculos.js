@@ -203,6 +203,74 @@ function calculateDayWithContext(registros, eventos, acordos, dataStr, registro)
     return Object.assign({}, calc, { evento, acordo, regra });
 }
 
+/**
+ * Uso de Abono e Pagar Hora de um acordo (porte de calcularUsoBeneficiosAcordo do Ponto).
+ * `qtdAbono` é expresso em MEIO-PERÍODOS (1 = meio período, 2 = dia inteiro);
+ * `qtdPagarHora` em horas. Consumo vem de eventos (abono_acordo/pagar_hora_acordo
+ * vinculados via acordoIndex) e de registros com tipoAtestado abono_acordo_ / pagar_hora_acordo_.
+ */
+function calcularUsoBeneficiosAcordo(acordoIndex, acordo, eventos, registros, acordos) {
+    let usadosMeioPeriodo = 0;
+    let horasPagasUsadas = 0;
+
+    (eventos || []).forEach(ev => {
+        if (ev.acordoIndex == null || Number(ev.acordoIndex) !== Number(acordoIndex)) return;
+        const tipo = String(ev.tipoEvento || '').toLowerCase();
+        const periodo = String(ev.periodo || '').toLowerCase();
+        const fatorPeriodo = (periodo === 'matutino' || periodo === 'vespertino') ? 0.5 : 1;
+
+        if (tipo === 'abono_acordo') {
+            const inicio = new Date(ev.dataInicioEvento), fim = new Date(ev.dataFimEvento);
+            if (!isNaN(inicio) && !isNaN(fim)) {
+                const dias = Math.floor((fim - inicio) / 86400000) + 1;
+                usadosMeioPeriodo += dias * (fatorPeriodo * 2);
+            }
+        }
+        if (tipo === 'pagar_hora_acordo' || tipo === 'compensar_acordo' || tipo === 'pagar_hora') {
+            const inicio = new Date(ev.dataInicioEvento), fim = new Date(ev.dataFimEvento);
+            if (!isNaN(inicio) && !isNaN(fim)) {
+                const dias = Math.floor((fim - inicio) / 86400000) + 1;
+                const horasPorDia = (periodo === 'matutino' || periodo === 'vespertino') ? 4 : 8;
+                horasPagasUsadas += dias * horasPorDia;
+            }
+        }
+    });
+
+    const periodos = acordo.periodos || [];
+    (registros || []).forEach(reg => {
+        const ta = String(reg.tipoAtestado || '');
+        if (!ta.startsWith('abono_acordo_') && !ta.startsWith('pagar_hora_acordo_')) return;
+        const dataReg = reg.data;
+        const pertence = periodos.some(p => dataReg >= p.inicio && dataReg <= p.fim);
+        if (!pertence) return;
+        const acordoDaData = getAcordoByData(acordos, dataReg);
+        if (!acordoDaData) return;
+        if ((acordos || []).indexOf(acordoDaData) !== Number(acordoIndex)) return;
+
+        const sufixo = ta.replace('abono_acordo_', '').replace('pagar_hora_acordo_', '');
+        const fator = (sufixo === 'matutino' || sufixo === 'vespertino') ? 0.5 : 1;
+
+        if (ta.startsWith('abono_acordo_')) {
+            usadosMeioPeriodo += fator * 2;
+        } else if (ta.startsWith('pagar_hora_acordo_')) {
+            const regraReg = getRegraHorarioForDay(acordoDaData, dataReg);
+            const extrasMin = (regraReg && regraReg.minutosExtras) || 0;
+            const cargaMin = 480 + extrasMin;
+            horasPagasUsadas += (fator * cargaMin) / 60;
+        }
+    });
+
+    const qtdAbono = acordo.qtdAbono || 0;
+    const qtdPagarHora = acordo.qtdPagarHora || 0;
+
+    return {
+        usadoAbono: usadosMeioPeriodo,
+        restanteAbono: Math.max(0, qtdAbono - usadosMeioPeriodo),
+        usadoPagarHora: horasPagasUsadas,
+        restantePagarHora: Math.max(0, qtdPagarHora - horasPagasUsadas)
+    };
+}
+
 /** Totalizações para um período (soma de calculateDayWithContext em cada registro). */
 function calculatePeriodTotals(registros, eventos, acordos) {
     let totalTrabalhadas = 0, totalSaldo = 0, horasExtras = 0, horasFaltas = 0, horasAcordo = 0;
@@ -221,6 +289,18 @@ function calculatePeriodTotals(registros, eventos, acordos) {
         totalTrabalhadas, totalSaldo, horasExtras, horasFaltas, horasAcordo,
         diasComExtra, diasComFalta, diasProcessados: (registros || []).length
     };
+}
+
+/**
+ * Formata minutos (podem ser negativos) como "HH:MM", ex: -27 -> "-00:27".
+ * Porte de DateUtils.minutesToTime do Ponto — é este o formato usado no
+ * timesheet, então trocá-lo por outro mudaria a folha de ponto visualmente.
+ */
+function minutosParaHHMM(totalMinutes) {
+    const sinal = totalMinutes < 0 ? '-' : '';
+    const abs = Math.abs(Math.round(totalMinutes));
+    const h = Math.floor(abs / 60), m = abs % 60;
+    return sinal + String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0');
 }
 
 /** Formata minutos (podem ser negativos) como "Hh MMmin", ex: -90 -> "-1h 30min". */
@@ -244,7 +324,9 @@ const PontoCalculos = {
     calculateDayDetail,
     calculateDayWithContext,
     calculatePeriodTotals,
-    formatarMinutos
+    formatarMinutos,
+    minutosParaHHMM,
+    calcularUsoBeneficiosAcordo
 };
 
 if (typeof window !== 'undefined') {

@@ -100,7 +100,8 @@ function normalizarRegraHorario(rBruto) {
         tolSaida: Number.isFinite(Number(r.tolSaida)) ? Number(r.tolSaida) : 5,
         minutosExtras: Number.isFinite(Number(r.minutosExtras)) ? Number(r.minutosExtras) : 0,
         vale: Number.isFinite(Number(r.vale)) ? Number(r.vale) : 0,
-        inicioExpediente: (typeof r.inicioExpediente === 'string' && horaValida(r.inicioExpediente)) ? r.inicioExpediente : null
+        inicioExpediente: (typeof r.inicioExpediente === 'string' && horaValida(r.inicioExpediente)) ? r.inicioExpediente : null,
+        tipo: typeof r.tipo === 'string' ? r.tipo : ''
     };
 }
 
@@ -110,7 +111,11 @@ function normalizarAcordo(aBruto) {
         id: (typeof a.id === 'string' && a.id) ? a.id : novoId('acd'),
         nome: (typeof a.nome === 'string' && a.nome.trim()) ? a.nome.trim() : '',
         periodos: (Array.isArray(a.periodos) ? a.periodos : []).map(normalizarPeriodoAcordo),
-        regrasHorario: (Array.isArray(a.regrasHorario) ? a.regrasHorario : []).map(normalizarRegraHorario)
+        regrasHorario: (Array.isArray(a.regrasHorario) ? a.regrasHorario : []).map(normalizarRegraHorario),
+        // Cota de Abono (em meio-períodos) e Pagar Hora (em horas) disponíveis neste acordo —
+        // consumidos por eventos/registros vinculados (ver PontoCalculos.calcularUsoBeneficiosAcordo).
+        qtdAbono: Number.isFinite(Number(a.qtdAbono)) ? Number(a.qtdAbono) : 0,
+        qtdPagarHora: Number.isFinite(Number(a.qtdPagarHora)) ? Number(a.qtdPagarHora) : 0
     };
 }
 
