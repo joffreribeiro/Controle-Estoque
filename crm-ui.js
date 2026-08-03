@@ -1481,6 +1481,7 @@
         }
         document.getElementById('crmAtvCalNegocioLista').style.display = 'none';
         document.getElementById('crmAtvCalNegocioBusca').disabled = !!_calAtvNegocioId;
+        document.getElementById('crmAtvCalNegocioLimpar').style.display = _calAtvNegocioId ? '' : 'none';
 
         var tipo = atividade ? atividade.tipo : 'tarefa';
         document.getElementById('crmAtvCalTipo').value = tipo;
@@ -1551,7 +1552,17 @@
         if (!negocio) return;
         _calAtvNegocioId = negocio.id;
         document.getElementById('crmAtvCalNegocioBusca').value = negocio.titulo || '';
+        document.getElementById('crmAtvCalNegocioBusca').disabled = true;
         document.getElementById('crmAtvCalNegocioLista').style.display = 'none';
+        document.getElementById('crmAtvCalNegocioLimpar').style.display = '';
+    }
+
+    /** Desfaz a seleção de negócio — a atividade pode ser salva avulsa, sem vínculo. */
+    function limparNegocioAtividadeCal() {
+        _calAtvNegocioId = null;
+        document.getElementById('crmAtvCalNegocioBusca').value = '';
+        document.getElementById('crmAtvCalNegocioBusca').disabled = false;
+        document.getElementById('crmAtvCalNegocioLimpar').style.display = 'none';
     }
 
     /** Duas faixas de horário no mesmo dia se sobrepõem — sem hora definida conta como dia inteiro (sempre conflita). */
@@ -1599,7 +1610,6 @@
 
     function salvarAtividadeCal() {
         if (!requireAdminOrNotify()) return;
-        if (!_calAtvNegocioId) { Notifications.error('Selecione o negócio vinculado a esta atividade.'); return; }
         var assunto = document.getElementById('crmAtvCalAssunto').value.trim();
         if (!assunto) { Notifications.error('Assunto é obrigatório.'); return; }
         var data = document.getElementById('crmAtvCalData').value;
@@ -3163,6 +3173,7 @@
         buscarNegocioParaAtividadeCal: buscarNegocioParaAtividadeCal,
         atualizarMiniAgendaCal: atualizarMiniAgendaCal,
         aoMudarDataInicioAtividadeCal: aoMudarDataInicioAtividadeCal,
+        limparNegocioAtividadeCal: limparNegocioAtividadeCal,
 
         salvarTrocaFunilNegocio: salvarTrocaFunilNegocio
     };

@@ -4797,10 +4797,11 @@
                     <input type="hidden" id="crmAtvCalTipo" value="tarefa">
 
                     <div class="form-group crm-autocomplete">
-                        <label for="crmAtvCalNegocioBusca">Negócio vinculado *</label>
+                        <label for="crmAtvCalNegocioBusca">Negócio vinculado <span class="crm-campo-opcional">(opcional)</span></label>
                         <input type="text" id="crmAtvCalNegocioBusca" autocomplete="off" placeholder="Buscar negócio por título ou cliente..."
                                oninput="Crm.buscarNegocioParaAtividadeCal(this.value)" onfocus="Crm.buscarNegocioParaAtividadeCal(this.value)">
                         <div id="crmAtvCalNegocioLista" class="crm-ac-lista" style="display:none"></div>
+                        <button type="button" class="crm-atv-negocio-limpar" id="crmAtvCalNegocioLimpar" style="display:none" onclick="Crm.limparNegocioAtividadeCal()">Remover vínculo</button>
                     </div>
 
                     <div class="form-group">
