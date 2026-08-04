@@ -4,12 +4,45 @@
  * convenção do crm.css).
  */
 
+/* styles.css tem uma regra genérica "table thead th { position: sticky; top: 0 }" pra
+   outras telas do sistema (cabeçalho fixo dentro de um contêiner com scroll próprio).
+   Toda tabela do Ponto vive dentro de um wrapper com overflow-x:auto (.crm-lista-wrapper,
+   .timesheet-wrapper), o que já conta como "contêiner com scroll" pro sticky, mesmo sem
+   barra visível — então essa regra genérica fazia o thead de CADA tabela (e de CADA mês
+   na Folha de Ponto) tentar grudar no topo do próprio wrapper, brigando visualmente com o
+   painel externo congelado abaixo. Aqui ninguém tem esse comportamento: quem fica fixo é
+   o painel de fora (título/sub-abas/filtro), as tabelas rolam normal por baixo dele. */
+#pontoConteudo table thead th { position: static; }
+
+/* Congelados ao rolar: título da aba, sub-abas e a barra de filtro/seletor logo abaixo
+   dela (a que existir em cada sub-aba — Acordo na Folha, filtros em Registros/Eventos/
+   Acordos). Só a tabela/grade em si rola. As alturas variam (densidade, layout responsivo),
+   então --ponto-header-h/--ponto-subabas-h são medidas e atualizadas via JS
+   (ajustarPontoSticky em ponto-ui.js), no mesmo esquema de --flow-header-height. */
+#tab-ponto .section-header {
+    position: sticky;
+    top: var(--flow-header-height, 0px);
+    z-index: 65;
+    background: var(--surface, var(--bg-white));
+}
+
 .ponto-subabas {
     display: flex;
     gap: 4px;
     border-bottom: 1px solid var(--border-color);
     margin-bottom: 16px;
     flex-wrap: wrap;
+    position: sticky;
+    top: calc(var(--flow-header-height, 0px) + var(--ponto-header-h, 0px));
+    z-index: 60;
+    background: var(--bg-white);
+}
+
+.ponto-toolbar, .ponto-ts-toolbar {
+    position: sticky;
+    top: calc(var(--flow-header-height, 0px) + var(--ponto-header-h, 0px) + var(--ponto-subabas-h, 0px));
+    z-index: 55;
+    background: var(--bg-white);
 }
 
 .ponto-subaba {
@@ -41,44 +74,6 @@
     border-radius: var(--radius-sm);
     border: 1px dashed var(--border-color);
 }
-
-.ponto-migracao-aviso {
-    font-size: 13px;
-    color: var(--text-secondary);
-    background: var(--bg-light);
-    border-radius: var(--radius-sm);
-    padding: 10px 12px;
-    margin-bottom: 12px;
-}
-
-.ponto-migracao-conexao {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    font-size: 12.5px;
-    flex-wrap: wrap;
-    margin-bottom: 12px;
-}
-
-.ponto-migracao-status-on { color: var(--success-color); font-weight: 700; }
-
-.ponto-migracao-erro {
-    color: var(--danger-color);
-    font-weight: 600;
-    width: 100%;
-}
-
-.ponto-migracao-resultado {
-    background: var(--bg-white);
-    border: 1px solid var(--border-color);
-    border-radius: var(--radius-sm);
-    padding: 14px 16px;
-    font-size: 13.5px;
-}
-
-.ponto-migracao-resultado ul { margin: 8px 0; padding-left: 20px; }
-
-.ponto-migracao-verificar { color: var(--text-muted); font-size: 12.5px; }
 
 .ponto-filtro-mes { margin-bottom: 10px; font-size: 13px; color: var(--text-secondary); }
 
@@ -565,16 +560,32 @@
     justify-content: space-between;
     gap: 12px;
     padding: 12px 16px;
-    border-bottom: 1px solid var(--border-color);
+    background: linear-gradient(135deg, #0f1c3f 0%, #1a3278 100%);
     flex-wrap: wrap;
 }
 .acv2-header-left { display: flex; align-items: center; gap: 10px; }
-.acv2-titulo { font-size: 15px; font-weight: 700; color: var(--text-primary); }
+.acv2-titulo { font-size: 15px; font-weight: 700; color: #fff; }
 .acv2-header-actions { display: flex; gap: 6px; }
 
+/* Botões do cabeçalho escuro: fantasma claro por padrão, "+ Evento" em destaque sólido. */
+.acv2-header-actions .crm-btn-mini {
+    background: rgba(255, 255, 255, .08);
+    border-color: rgba(255, 255, 255, .25);
+    color: #fff;
+}
+.acv2-header-actions .crm-btn-mini:hover:not(:disabled) { background: rgba(255, 255, 255, .18); color: #fff; }
+.acv2-header-actions .crm-btn-mini-perigo { border-color: rgba(248, 113, 113, .45); color: #fca5a5; }
+.acv2-header-actions .crm-btn-mini-perigo:hover:not(:disabled) { background: rgba(220, 38, 38, .85); border-color: transparent; color: #fff; }
+.acv2-header-actions [data-ponto-action="acordoNovoEvento"] {
+    background: #3b82f6;
+    border-color: #3b82f6;
+    color: #fff;
+}
+.acv2-header-actions [data-ponto-action="acordoNovoEvento"]:hover:not(:disabled) { background: #2563eb; border-color: #2563eb; }
+
 .acv2-badge { font-size: 10.5px; font-weight: 700; padding: 2px 9px; border-radius: 10px; text-transform: uppercase; }
-.acv2-badge-active { background: #dcfce7; color: #166534; }
-.acv2-badge-inactive { background: #f3f4f6; color: #6b7280; }
+.acv2-badge-active { background: #d1fae5; color: #065f46; }
+.acv2-badge-inactive { background: rgba(255, 255, 255, .12); color: rgba(255, 255, 255, .75); }
 
 .acv2-stats { display: flex; flex-wrap: wrap; gap: 1px; background: var(--border-color); }
 .acv2-stat { flex: 1 1 110px; background: var(--bg-light); padding: 10px 14px; }
@@ -630,8 +641,8 @@
 .acv2-progress-bar { height: 100%; background: var(--primary-color); border-radius: 4px; }
 .acv2-progress-bar.acv2-progress-danger { background: var(--danger-color); }
 
-/* ── "Gerenciar Acordo" — form com abas laterais (Resumo/Períodos/Regras/Abono e Pagar Hora) ── */
-.ponto-acd-form { flex-direction: column; }
+/* ── Modal "Gerenciar Acordo" — abas laterais (Resumo/Períodos/Regras/Abono e Pagar Hora) ── */
+.ponto-modal.ponto-acd-modal { max-width: 760px; }
 
 .ponto-acd-panels { display: flex; gap: 16px; width: 100%; flex-wrap: wrap; }
 

@@ -307,6 +307,9 @@
         if (!els.header) return;
         var h = els.header.offsetHeight;
         document.body.style.setProperty('padding-top', h + 'px');
+        // Exposta como variável CSS para telas com sua própria barra fixa (ex: sub-abas do
+        // Ponto) grudarem logo abaixo do cabeçalho fixo, sem precisar hardcodar a altura.
+        document.documentElement.style.setProperty('--flow-header-height', h + 'px');
     }
 
     // ══════════════════════════════════════════════════════════

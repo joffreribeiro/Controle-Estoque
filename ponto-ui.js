@@ -16,14 +16,10 @@
         { chave: 'registros', rotulo: 'Registros' },
         { chave: 'acordos', rotulo: 'Acordos' },
         { chave: 'eventos', rotulo: 'Eventos' },
-        { chave: 'ferias', rotulo: 'Férias' },
-        { chave: 'config', rotulo: 'Configurações' },
-        { chave: 'migracao', rotulo: 'Migração' }
+        { chave: 'ferias', rotulo: 'Férias' }
     ];
 
     var _subaba = 'folha';
-    var _migrando = false;
-    var _resultadoMigracao = null; // { registros, eventos, acordos, periodosAquisitivos, importadoEm } | null
     var _mesRegistros = null;     // 'YYYY-MM' | null
     var _acordoTimesheet = null;  // índice do acordo exibido na Folha de Ponto | null
     var _folhaDeveRolar = true;   // true logo após abrir a Folha de Ponto (ou trocar de acordo) — rola até o mês atual uma vez e desliga
@@ -86,7 +82,10 @@
     var _registroForm = null; // draft do formulário de registro (novo ou edição) | null
     var _eventoForm = null;   // draft do formulário de evento | null
     var _acordoForm = null;   // draft do formulário de acordo | null
-    var _configForm = null;   // draft do formulário de configurações | null
+
+    // Dias de férias por período aquisitivo: CLT (Art. 130) garante 30 dias corridos
+    // na regra geral — não é configurável pelo usuário.
+    var FERIAS_DIAS_CLT = 30;
 
     var MESES_PT = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
 
@@ -252,13 +251,13 @@
     /**
      * Aba Férias — porte de renderizarPeriodosAquisitivosTable(): agrupa os
      * subperíodos por período aquisitivo, usa rowspan nas colunas do grupo e
-     * calcula Total Dias / Dias Disponíveis a partir de configuracoes.feriasDias.
+     * calcula Total Dias / Dias Disponíveis a partir da cota fixa da CLT (30 dias).
      */
     function renderizarFerias() {
         var todos = PontoStore.listarPeriodosAquisitivos();
         if (!todos.length) return '<div class="ponto-placeholder"><p>Nenhum período aquisitivo salvo.</p></div>';
 
-        var entitlement = Number((PontoStore.getConfiguracoes() || {}).feriasDias) || 30;
+        var entitlement = FERIAS_DIAS_CLT;
         var MS_DIA = 24 * 60 * 60 * 1000;
 
         var grupos = {};
@@ -390,7 +389,11 @@
      * "Salvar X" quando uma linha existente está sendo editada — mesmo padrão do
      * original (editarPeriodoAcordo/adicionarPeriodoAcordo).
      */
-    function formAcordo(draft) {
+    /** Modal "Gerenciar Acordo" — porte do modalAcordo do Ponto, com as mesmas 4 abas laterais. */
+    function renderizarModalAcordo() {
+        if (!_acordoForm) return '';
+        var draft = _acordoForm;
+
         var abas = [
             { chave: 'resumo', rotulo: 'Resumo' },
             { chave: 'periodos', rotulo: 'Períodos' },
@@ -408,12 +411,19 @@
         else if (draft._aba === 'beneficios') conteudo = acordoBeneficiosPanel(draft);
         else conteudo = acordoResumoPanel();
 
-        return '<div class="ponto-form ponto-acd-form">' +
-            campoTexto('pontoAcdNome', 'Nome do Acordo', draft.nome, 'text', 'ponto-campo-largo') +
-            '<div class="ponto-acd-panels">' + sidebar + '<div class="ponto-acd-conteudo">' + conteudo + '</div></div>' +
-            '<div class="ponto-form-acoes">' +
-                '<button type="button" class="btn-primary crm-btn-mini" data-ponto-action="acordoSalvar">Salvar Acordo</button>' +
-                '<button type="button" class="btn-secondary crm-btn-mini" data-ponto-action="acordoCancelar">Cancelar</button>' +
+        return '<div class="ponto-modal-backdrop">' +
+            '<div class="ponto-modal ponto-acd-modal">' +
+                '<div class="ponto-modal-header"><h4>Gerenciar Acordo</h4>' +
+                    '<button type="button" class="ponto-modal-fechar" data-ponto-action="acordoCancelar">×</button></div>' +
+                '<div class="ponto-modal-corpo">' +
+                    '<div class="ponto-modal-campo"><label>Nome do Acordo</label>' +
+                        '<input type="text" id="pontoAcdNome" value="' + esc(draft.nome) + '"></div>' +
+                    '<div class="ponto-acd-panels">' + sidebar + '<div class="ponto-acd-conteudo">' + conteudo + '</div></div>' +
+                '</div>' +
+                '<div class="ponto-modal-rodape">' +
+                    '<button type="button" class="btn-secondary crm-btn-mini" data-ponto-action="acordoCancelar">Cancelar</button>' +
+                    '<button type="button" class="btn-primary crm-btn-mini" data-ponto-action="acordoSalvar">Salvar Acordo</button>' +
+                '</div>' +
             '</div>' +
         '</div>';
     }
@@ -555,10 +565,8 @@
             '<div class="ponto-filtro-grupo ponto-filtro-cresce"><label>Buscar</label>' +
                 '<input type="text" data-ponto-action="acordoBuscar" value="' + esc(_buscaAcordos) + '" placeholder="Buscar acordo por nome..."></div>' +
         '</div>';
-        var formHtml = _acordoForm ? formAcordo(_acordoForm) : '';
-
         var acordos = PontoStore.listarAcordos();
-        if (!acordos.length) return acoesTopo + formHtml + '<div class="ponto-placeholder"><p>Nenhum acordo cadastrado ainda.</p></div>';
+        if (!acordos.length) return acoesTopo + '<div class="ponto-placeholder"><p>Nenhum acordo cadastrado ainda.</p></div>';
 
         var hoje = new Date().toISOString().slice(0, 10);
         var eventos = PontoStore.listarEventos();
@@ -576,7 +584,7 @@
           });
 
         if (!ordenados.length) {
-            return acoesTopo + formHtml + '<div class="ponto-placeholder"><p>Nenhum acordo encontrado para "' + esc(_buscaAcordos) + '".</p></div>';
+            return acoesTopo + '<div class="ponto-placeholder"><p>Nenhum acordo encontrado para "' + esc(_buscaAcordos) + '".</p></div>';
         }
 
         var vigente = function (x) { return x.inicio <= hoje && (!x.fim || x.fim >= hoje); };
@@ -667,7 +675,7 @@
             '</div>';
         }).join('');
 
-        return acoesTopo + formHtml + '<div class="ponto-acordos-lista">' + cards + '</div>';
+        return acoesTopo + '<div class="ponto-acordos-lista">' + cards + '</div>';
     }
 
     // Mesmos 4 grupos e rótulos do select "Tipo" do modalRegistro original (index-refatorado.html).
@@ -949,24 +957,6 @@
         '</tr></thead><tbody>' + linhas + '</tbody></table></div>';
     }
 
-    function renderizarConfiguracoes() {
-        if (!_configForm) _configForm = Object.assign({}, PontoStore.getConfiguracoes());
-        var c = _configForm;
-        return '<div class="ponto-form">' +
-            campoTexto('pontoCfgJornada', 'Jornada semanal (h)', c.tipoJornada, 'number') +
-            campoTexto('pontoCfgEntrada', 'Entrada padrão', c.entradaPadrao, 'time') +
-            campoTexto('pontoCfgSaida', 'Saída padrão', c.saidaPadrao, 'time') +
-            campoTexto('pontoCfgAlmoco', 'Almoço (min)', c.almocoMinutos, 'number') +
-            campoTexto('pontoCfgTolerancia', 'Tolerância atraso (min)', c.toleranciaAtraso, 'number') +
-            campoTexto('pontoCfgBancoInicio', 'Início período banco', c.inicioPeriodoBanco, 'date') +
-            campoTexto('pontoCfgBancoFim', 'Fim período banco', c.fimPeriodoBanco, 'date') +
-            campoTexto('pontoCfgFeriasDias', 'Dias de férias', c.feriasDias, 'number') +
-            '<div class="ponto-form-acoes">' +
-                '<button type="button" class="btn-primary crm-btn-mini" data-ponto-action="configSalvar">Salvar configurações</button>' +
-            '</div>' +
-        '</div>';
-    }
-
     /**
      * Folha de Ponto = o timesheet em grade do Ponto original (um bloco por mês
      * do ano fiscal do acordo). Delegado a ponto-timesheet.js, que é o porte
@@ -984,116 +974,8 @@
             case 'acordos': return renderizarAcordos();
             case 'eventos': return renderizarEventos();
             case 'ferias': return renderizarFerias();
-            case 'config': return renderizarConfiguracoes();
-            case 'migracao': return renderizarMigracao();
             default: return renderizarPlaceholder(chave);
         }
-    }
-
-    // ──────────────────────────────────────────────
-    //  MIGRAÇÃO (Fase 2) — importação única do Ponto original
-    // ──────────────────────────────────────────────
-
-    /**
-     * Painel de migração: conecta no Firestore do Ponto (mesmo mecanismo de
-     * app secundário do ponto-calendar-bridge.js, credenciais próprias do
-     * Ponto) e importa o documento inteiro pra dentro de estoque.ponto. Uma
-     * ação admin, pensada pra rodar uma vez só — não é um bridge permanente.
-     */
-    function renderizarMigracao() {
-        var pb = window.PontoBridge;
-        if (!pb || !pb.configurado()) {
-            return '<div class="ponto-placeholder"><p>Firebase indisponível nesta página — não é possível conectar ao Ponto.</p></div>';
-        }
-
-        var aviso = '<p class="ponto-migracao-aviso">Isto lê o Firestore do sistema Ponto original (projeto <code>ponto-68b4a</code>) ' +
-            'e sobrescreve <strong>estoque.ponto</strong> com os dados normalizados. É uma ação para rodar uma vez, com as ' +
-            'credenciais que você já usa para entrar no Ponto — nada é escrito de volta lá.</p>';
-
-        var conexao;
-        if (pb.conectado()) {
-            var erro = pb.getUltimoErro && pb.getUltimoErro();
-            conexao = '<div class="ponto-migracao-conexao">' +
-                '<span class="ponto-migracao-status-on">🟢 Conectado ao Ponto (' + esc(pb.usuarioEmail()) + ')</span>' +
-                '<button type="button" class="btn-secondary crm-btn-mini" data-ponto-action="migracaoImportar"' +
-                    (_migrando ? ' disabled' : '') + '>' + (_migrando ? 'Importando…' : 'Importar dados do Ponto') + '</button>' +
-                '<button type="button" class="btn-secondary crm-btn-mini" data-ponto-action="migracaoDesconectar">Desconectar</button>' +
-                (erro ? ('<div class="ponto-migracao-erro">⚠ ' + esc(erro) + '</div>') : '') +
-            '</div>';
-        } else {
-            conexao = '<div class="ponto-migracao-conexao">' +
-                '<input type="email" id="pontoMigracaoEmail" class="crm-filtro-input" placeholder="e-mail do Ponto" autocomplete="username">' +
-                '<input type="password" id="pontoMigracaoSenha" class="crm-filtro-input" placeholder="senha" autocomplete="current-password" ' +
-                    'onkeydown="if(event.key===\'Enter\'){event.preventDefault();PontoUI.migracaoConectar();}">' +
-                '<button type="button" class="btn-secondary crm-btn-mini" data-ponto-action="migracaoConectar">Conectar Ponto</button>' +
-            '</div>';
-        }
-
-        var resultado = '';
-        if (_resultadoMigracao) {
-            var r = _resultadoMigracao;
-            resultado = '<div class="ponto-migracao-resultado">' +
-                '<p>✅ Importado em ' + esc(r.importadoEm) + ':</p>' +
-                '<ul>' +
-                    '<li>' + r.registros + ' registro(s) de ponto</li>' +
-                    '<li>' + r.eventos + ' evento(s)</li>' +
-                    '<li>' + r.acordos + ' acordo(s)</li>' +
-                    '<li>' + r.periodosAquisitivos + ' período(s) aquisitivo(s)</li>' +
-                '</ul>' +
-                '<p class="ponto-migracao-verificar">Confira uma amostra desses números contra o Ponto original antes de confiar neles ' +
-                    '(Fase 2 do plano de migração pede essa validação antes de seguir para as views de leitura).</p>' +
-            '</div>';
-        }
-
-        return aviso + conexao + resultado;
-    }
-
-    function migracaoConectar() {
-        var email = ((document.getElementById('pontoMigracaoEmail') || {}).value || '').trim();
-        var senha = (document.getElementById('pontoMigracaoSenha') || {}).value || '';
-        PontoBridge.conectar(email, senha).then(function () {
-            renderizar();
-        }).catch(function (e) {
-            if (window.Notifications) Notifications.error('Falha ao conectar ao Ponto: ' + (e && e.message ? e.message : e));
-        });
-    }
-
-    function migracaoImportar() {
-        if (typeof requireAdminOrNotify === 'function' && !requireAdminOrNotify()) return;
-        var executar = function () {
-            _migrando = true;
-            renderizar();
-            PontoBridge.buscarDadosCompletos().then(function (dadosBrutos) {
-                var semCrm = Object.assign({}, dadosBrutos);
-                delete semCrm.crm; // decisão do plano: a cópia de CRM do Ponto fica pra trás
-                var normalizado = PontoStore.importarDadosMigrados(semCrm);
-                _resultadoMigracao = {
-                    registros: normalizado.registros.length,
-                    eventos: normalizado.eventos.length,
-                    acordos: normalizado.acordos.length,
-                    periodosAquisitivos: normalizado.periodosAquisitivos.length,
-                    importadoEm: new Date().toLocaleString('pt-BR')
-                };
-                _migrando = false;
-                if (window.Notifications) Notifications.success('Dados do Ponto importados.');
-                renderizar();
-            }).catch(function (e) {
-                _migrando = false;
-                if (window.Notifications) Notifications.error('Falha ao importar dados do Ponto: ' + (e && e.message ? e.message : e));
-                renderizar();
-            });
-        };
-
-        if (window.Notifications && Notifications.confirm) {
-            Notifications.confirm('Importar agora vai sobrescrever estoque.ponto com os dados do Ponto original. Continuar?', executar);
-        } else {
-            executar();
-        }
-    }
-
-    function migracaoDesconectar() {
-        if (window.PontoBridge) PontoBridge.desconectar();
-        renderizar();
     }
 
     function renderizar() {
@@ -1112,6 +994,7 @@
         '</div>';
 
         el.innerHTML = abas + '<div class="ponto-subaba-corpo">' + renderizarConteudoSubaba(_subaba) + '</div>';
+        ajustarPontoSticky();
 
         // Modais renderizados fora de #pontoConteudo, direto em <body>: um ancestral
         // com `transform` (ex: .tab-content, usado pra transição de aba) quebra
@@ -1125,7 +1008,7 @@
             modalRoot.id = 'pontoModalRoot';
             document.body.appendChild(modalRoot);
         }
-        modalRoot.innerHTML = renderizarModalFerias() + renderizarModalRegistro();
+        modalRoot.innerHTML = renderizarModalFerias() + renderizarModalRegistro() + renderizarModalAcordo();
 
         if (_subaba === 'folha' && _folhaDeveRolar) {
             _folhaDeveRolar = false;
@@ -1145,9 +1028,6 @@
             if (_subaba === 'folha') _folhaDeveRolar = true;
             renderizar();
         },
-        migracaoConectar: function () { migracaoConectar(); },
-        migracaoDesconectar: function () { migracaoDesconectar(); },
-        migracaoImportar: function () { migracaoImportar(); },
         filtrarMesRegistros: function (el) { _mesRegistros = el.value; renderizar(); },
 
         // ── Filtros das listas ──
@@ -1201,7 +1081,7 @@
                     totalConcedidos += sub.dias;
                 }
             });
-            var entitlement = Number((PontoStore.getConfiguracoes() || {}).feriasDias) || 30;
+            var entitlement = FERIAS_DIAS_CLT;
 
             _feriasModal = {
                 periodoIndex: periodoIndex,
@@ -1507,29 +1387,6 @@
             };
             _subaba = 'eventos';
             renderizar();
-        },
-
-        // ── Configurações (Fase 4) ──
-        configSalvar: function () {
-            if (!podeEditar()) return;
-            var patch = {
-                tipoJornada: Number(valorCampo('pontoCfgJornada')),
-                entradaPadrao: valorCampo('pontoCfgEntrada'),
-                saidaPadrao: valorCampo('pontoCfgSaida'),
-                almocoMinutos: Number(valorCampo('pontoCfgAlmoco')),
-                toleranciaAtraso: Number(valorCampo('pontoCfgTolerancia')),
-                inicioPeriodoBanco: valorCampo('pontoCfgBancoInicio') || null,
-                fimPeriodoBanco: valorCampo('pontoCfgBancoFim') || null,
-                feriasDias: Number(valorCampo('pontoCfgFeriasDias'))
-            };
-            var res = PontoStore.atualizarConfiguracoes(patch);
-            if (res && res.erros && res.erros.length) {
-                if (window.Notifications) Notifications.error(res.erros.join('; '));
-                return;
-            }
-            _configForm = null;
-            if (window.Notifications) Notifications.success('Configurações atualizadas.');
-            renderizar();
         }
     };
 
@@ -1561,15 +1418,30 @@
         if (fn) fn(el);
     }
 
+    /**
+     * Mede a altura real do título da aba e das sub-abas e expõe como variáveis
+     * CSS (--ponto-header-h/--ponto-subabas-h) — mesmo esquema de
+     * --flow-header-height em fluxo-nav.js. Isso deixa a barra de filtro/seletor
+     * de cada sub-aba (.ponto-toolbar/.ponto-ts-toolbar) grudada logo abaixo,
+     * sem precisar hardcodar alturas que variam com densidade/responsivo.
+     */
+    function ajustarPontoSticky() {
+        var root = document.documentElement;
+        var header = document.querySelector('#tab-ponto .section-header');
+        var subabas = document.querySelector('.ponto-subabas');
+        root.style.setProperty('--ponto-header-h', (header ? header.offsetHeight : 0) + 'px');
+        root.style.setProperty('--ponto-subabas-h', (subabas ? subabas.offsetHeight : 0) + 'px');
+    }
+
     function ligarListenersUmaVez() {
         if (window.__pontoListenersLigados) return;
         window.__pontoListenersLigados = true;
         document.addEventListener('click', aoClicarPonto);
         document.addEventListener('change', aoMudarPonto);
+        window.addEventListener('resize', ajustarPontoSticky);
     }
 
     window.PontoUI = {
-        renderizar: renderizar,
-        migracaoConectar: migracaoConectar
+        renderizar: renderizar
     };
 })();

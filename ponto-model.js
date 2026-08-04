@@ -171,7 +171,6 @@ function normalizarConfiguracoes(cBruto) {
         entradaPadrao: (typeof c.entradaPadrao === 'string') ? c.entradaPadrao : '',
         saidaPadrao: (typeof c.saidaPadrao === 'string') ? c.saidaPadrao : '',
         almocoMinutos: Number.isFinite(Number(c.almocoMinutos)) ? Number(c.almocoMinutos) : 60,
-        toleranciaAtraso: Number.isFinite(Number(c.toleranciaAtraso)) ? Number(c.toleranciaAtraso) : 5,
         inicioPeriodoBanco: normalizarDataIso(c.inicioPeriodoBanco),
         fimPeriodoBanco: normalizarDataIso(c.fimPeriodoBanco),
         feriasDias: Number.isFinite(Number(c.feriasDias)) && Number(c.feriasDias) > 0 ? Number(c.feriasDias) : 30
@@ -319,8 +318,6 @@ function validarConfiguracoes(config) {
     if (isNaN(tipoJornada) || tipoJornada <= 0 || tipoJornada > 168) erros.push('Tipo de jornada deve estar entre 1 e 168 horas');
     const almocoMinutos = Number(config.almocoMinutos != null ? config.almocoMinutos : 60);
     if (isNaN(almocoMinutos) || almocoMinutos < 0 || almocoMinutos > 480) erros.push('Almoço deve estar entre 0 e 480 minutos');
-    const toleranciaAtraso = Number(config.toleranciaAtraso != null ? config.toleranciaAtraso : 5);
-    if (isNaN(toleranciaAtraso) || toleranciaAtraso < 0) erros.push('Tolerância deve ser não-negativa');
     if (config.inicioPeriodoBanco && !normalizarDataIso(config.inicioPeriodoBanco)) erros.push('Data de início do banco de horas inválida');
     if (config.fimPeriodoBanco && !normalizarDataIso(config.fimPeriodoBanco)) erros.push('Data de fim do banco de horas inválida');
     return erros;
