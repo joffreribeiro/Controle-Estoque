@@ -232,6 +232,21 @@
         return d.toISOString().slice(0, 10);
     }
 
+    function chaveDataAssunto(data, assunto) {
+        return (data || '') + '|' + String(assunto || '').trim().toLowerCase();
+    }
+
+    /**
+     * Remove ícone(s) do início do texto vindo do Google. `montarEvento` grava
+     * o evento no Google como "ícone + assunto" (ex.: "👥 Conta luz"); se esse
+     * mesmo evento for reimportado (o vínculo googleEventId se perdeu), sem
+     * isto o ícone entraria de vez no campo assunto — e a cada rodada de
+     * ida-e-volta ganharia mais um ícone acumulado na frente do texto.
+     */
+    function removerIconePrefixo(texto) {
+        return String(texto || '').replace(/^(?:[\p{Extended_Pictographic}‍️]+\s*)+/u, '').trim();
+    }
+
     function montarEvento(atividade, negocio, cliente) {
         var tipoInfo = (window.CrmModel && CrmModel.TIPOS_ATIVIDADE[atividade.tipo]) || { icone: '📌', rotulo: atividade.tipo };
         var titulo = tipoInfo.icone + ' ' + (atividade.assunto || '(sem assunto)') + (negocio ? (' — ' + negocio.titulo) : '');
@@ -359,7 +374,7 @@
 
         return {
             tipo: 'reuniao',
-            assunto: ev.summary || '(sem assunto)',
+            assunto: removerIconePrefixo(ev.summary) || '(sem assunto)',
             descricao: ev.description || '',
             data: ini.data,
             dataFim: dataFim,
@@ -399,9 +414,11 @@
             var itens = (resp && resp.items) || [];
             var idsAtividadesExistentes = {};
             var atividadePorGoogleId = {};
+            var atividadePorChave = {};
             CrmStore.listarAtividades().forEach(function (a) {
                 idsAtividadesExistentes[a.id] = true;
                 if (a.googleEventId) atividadePorGoogleId[a.googleEventId] = a;
+                atividadePorChave[chaveDataAssunto(a.data, a.assunto)] = a;
             });
 
             var novos = 0;
@@ -424,7 +441,27 @@
 
                 var dados = mapearEventoGoogleParaAtividade(ev, ehEventoAutoDetectadoPeloGmail(ev));
                 if (!dados) return;
-                CrmStore.criarAtividade(dados);
+
+                // Segunda rede de proteção: uma ocorrência recorrente (ex.: conta
+                // mensal) troca de `id` do Google a cada mês, mas se o vínculo
+                // googleEventId de uma ocorrência já importada se perder (atividade
+                // concluída removeu o evento e zerou o campo, falha de sincronização
+                // etc.), a checagem acima não a reconhece e criaria uma cópia. Aqui
+                // reconecta em vez de duplicar quando já existe atividade com a
+                // mesma data + assunto.
+                var chave = chaveDataAssunto(dados.data, dados.assunto);
+                var duplicata = atividadePorChave[chave];
+                if (duplicata) {
+                    if (!duplicata.googleEventId) {
+                        CrmStore.atualizarAtividade(duplicata.id, { googleEventId: ev.id });
+                        atividadePorGoogleId[ev.id] = duplicata;
+                    }
+                    return;
+                }
+
+                var criada = CrmStore.criarAtividade(dados);
+                atividadePorGoogleId[ev.id] = criada;
+                atividadePorChave[chave] = criada;
                 novos++;
             });
             return novos;
