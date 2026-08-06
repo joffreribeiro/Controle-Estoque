@@ -995,6 +995,14 @@ try {
             window.firestoreDB = null;
             updateFirestoreStatus(false, null, 'Cloud: não disponível');
         }
+
+        // Instância do Storage — usada pelo CRM (crm-ui.js) para upload de anexos.
+        try {
+            window.firebaseStorage = (typeof firebase.storage === 'function') ? firebase.storage() : null;
+        } catch (e) {
+            console.warn('Firebase Storage não disponível:', e);
+            window.firebaseStorage = null;
+        }
     } else {
         console.warn('Firebase SDK não carregado — funções cloud desativadas.');
         // atualizar UI se possível
@@ -1554,7 +1562,7 @@ function renderConsultaPrecificacoes(dados) {
                 if (!_propVinc) {
                     html += `<button class="btn-action btn-edit" onclick="gerarPropostaDePrecificacao('${prec.id}', ${idxProd})" title="Gerar proposta">📋</button>`;
                 }
-                html += `<button class="btn-action btn-delete" onclick="excluirPrecificacao('${prec.id}')">🗑</button>`;
+                html += `<button class="btn-action btn-delete" onclick="excluirPrecificacao('${prec.id}')" title="Excluir precificação">🗑</button>`;
                 html += `</td>`;
                 html += `</tr>`;
 
@@ -4791,7 +4799,14 @@ function gerarRelatorioRentabilidade() {
         const emojiRank = i => ['🥇','🥈','🥉'][i] || (i + 1);
         const tbodyProd = document.getElementById('tabelaRentabilidadeBody');
         if (tbodyProd) {
-            tbodyProd.innerHTML = rows.map((r, i) => `
+            tbodyProd.innerHTML = rows.map((r, i) => {
+                // Sem custo cadastrado, lucro = receita e margem calcula ~100% —
+                // não é um resultado real, é ausência de dado. Ver EstoqueCalculos.calcularStatusCusto.
+                const semCusto = EstoqueCalculos.calcularStatusCusto(r) === 'sem_custo';
+                const margemHtml = semCusto
+                    ? `<span style="color:#94a3b8">${r.margem.toFixed(1)}%</span> <span title="Custo não cadastrado — margem não é confiável" style="cursor:help">⚠️</span>`
+                    : `<span style="color:${corMargem(r.margem)}">${r.margem.toFixed(1)}%</span>`;
+                return `
                 <tr>
                   <td style="text-align:left; padding-left:15px; font-weight:500">${r.nome}</td>
                   <td>${r.qtd}</td>
@@ -4799,10 +4814,11 @@ function gerarRelatorioRentabilidade() {
                   <td>${r.custoUnit > 0 ? 'R$ ' + r.custoUnit.toLocaleString('pt-BR',{minimumFractionDigits:2}) : '<span style="color:#94a3b8">Sem custo</span>'}</td>
                   <td>${r.custoTotal > 0 ? 'R$ ' + r.custoTotal.toLocaleString('pt-BR',{minimumFractionDigits:2}) : '—'}</td>
                   <td style="font-weight:600; color:${r.lucro >= 0 ? '#16a34a' : '#dc2626'}">R$ ${r.lucro.toLocaleString('pt-BR',{minimumFractionDigits:2})}</td>
-                  <td style="font-weight:700; color:${corMargem(r.margem)}">${r.margem.toFixed(1)}%</td>
+                  <td style="font-weight:700">${margemHtml}</td>
                   <td style="text-align:center; font-size:1.1rem">${emojiRank(i)}</td>
                 </tr>
-            `).join('');
+            `;
+            }).join('');
         }
 
         // 5. Agregar por representante
@@ -4843,6 +4859,10 @@ function gerarRelatorioRentabilidade() {
                 const lucro = d.receita - d.custo;
                 const margem = d.receita > 0 ? (lucro / d.receita) * 100 : 0;
                 const cor = repColors[rep] || '#1e3a5f';
+                const semCusto = EstoqueCalculos.calcularStatusCusto({ custoTotal: d.custo }) === 'sem_custo';
+                const margemHtml = semCusto
+                    ? `<span style="color:#94a3b8">${margem.toFixed(1)}%</span> <span title="Custo não cadastrado — margem não é confiável" style="cursor:help">⚠️</span>`
+                    : `<span style="color:${corMargem(margem)}">${margem.toFixed(1)}%</span>`;
                 return `
                     <tr>
                       <td><span class="badge-rep" style="background:${cor}20; color:${cor}; font-weight:700; padding:3px 10px; border-radius:20px">${rep}</span></td>
@@ -4850,7 +4870,7 @@ function gerarRelatorioRentabilidade() {
                       <td style="color:#16a34a; font-weight:600">R$ ${d.receita.toLocaleString('pt-BR',{minimumFractionDigits:2})}</td>
                       <td>${d.custo > 0 ? 'R$ ' + d.custo.toLocaleString('pt-BR',{minimumFractionDigits:2}) : '—'}</td>
                       <td style="font-weight:600; color:${lucro>=0?'#16a34a':'#dc2626'}">R$ ${lucro.toLocaleString('pt-BR',{minimumFractionDigits:2})}</td>
-                      <td style="font-weight:700; color:${corMargem(margem)}">${margem.toFixed(1)}%</td>
+                      <td style="font-weight:700">${margemHtml}</td>
                     </tr>
                 `;
             }).join('');
@@ -6910,8 +6930,8 @@ function renderControleImbelPrecos() {
                   <span class="imbel-preco-val">R$ ${(Number(pr.valor)||0).toLocaleString('pt-BR',{minimumFractionDigits:2})}</span>
                   ${pr.obs ? `<span class="imbel-preco-obs">${_escapeHtml(pr.obs)}</span>` : ''}
                   <div style="display:flex;gap:4px;margin-left:auto">
-                    <button class="imbel-row-btn" onclick="abrirModalPrecoImbel('${pr.id}')">✎</button>
-                    <button class="imbel-row-btn danger" onclick="excluirPrecoImbel('${pr.id}')">✕</button>
+                    <button class="imbel-row-btn" onclick="abrirModalPrecoImbel('${pr.id}')" title="Editar preço">✎</button>
+                    <button class="imbel-row-btn danger" onclick="excluirPrecoImbel('${pr.id}')" title="Excluir preço">✕</button>
                   </div>
                 </div>`;
               }).join('')}`;
@@ -11567,6 +11587,72 @@ function salvarVendaDetalhada(event) {
     finalizarSalvamentoVendaDetalhada({ contrato: contratoFinal, loja, representante, observacoes, itens, totalQtd, totalValor, isEditing, vendaAnterior, vendaAnteriorSnapshot, vendaEditandoIdLocal: vendaEditandoId });
 }
 
+// ──────────────────────────────────────────────
+//  Menu flutuante "⋯" para agrupar ações raras/destrutivas em tabelas densas
+//  (ex.: linha de contrato na tabela Vendas/Envio). Um único elemento
+//  reaproveitado e reposicionado a cada abertura — mesmo espírito do popup
+//  de troca de funil do CRM (crm-ui.js: abrirSeletorFunilNegocio), mas
+//  ancorado no botão que o abriu em vez de centralizado na tela.
+// ──────────────────────────────────────────────
+let _menuAcoesBtnAtivo = null;
+
+function _elMenuAcoesFlutuante() {
+    let menu = document.getElementById('menuAcoesFlutuante');
+    if (!menu) {
+        menu = document.createElement('div');
+        menu.id = 'menuAcoesFlutuante';
+        menu.className = 'menu-acoes-flutuante';
+        document.body.appendChild(menu);
+        document.addEventListener('click', (e) => {
+            if (_menuAcoesBtnAtivo && !menu.contains(e.target) && e.target !== _menuAcoesBtnAtivo) {
+                fecharMenuAcoes();
+            }
+        }, true);
+        window.addEventListener('scroll', () => { if (_menuAcoesBtnAtivo) fecharMenuAcoes(); }, true);
+        window.addEventListener('resize', () => { if (_menuAcoesBtnAtivo) fecharMenuAcoes(); });
+    }
+    return menu;
+}
+
+function fecharMenuAcoes() {
+    const menu = document.getElementById('menuAcoesFlutuante');
+    if (menu) menu.style.display = 'none';
+    _menuAcoesBtnAtivo = null;
+}
+
+function toggleMenuAcoes(btn, html) {
+    const menu = _elMenuAcoesFlutuante();
+    if (_menuAcoesBtnAtivo === btn && menu.style.display === 'flex') {
+        fecharMenuAcoes();
+        return;
+    }
+    menu.innerHTML = html;
+    menu.style.display = 'flex';
+    _menuAcoesBtnAtivo = btn;
+
+    const r = btn.getBoundingClientRect();
+    const alturaMenu = menu.offsetHeight;
+    const espacoAbaixo = window.innerHeight - r.bottom;
+    menu.style.top = (espacoAbaixo < alturaMenu + 8 && r.top > alturaMenu)
+        ? (r.top - alturaMenu - 4) + 'px'
+        : (r.bottom + 4) + 'px';
+    const larguraMenu = menu.offsetWidth || 190;
+    menu.style.left = Math.max(4, r.right - larguraMenu) + 'px';
+}
+window.toggleMenuAcoes = toggleMenuAcoes;
+window.fecharMenuAcoes = fecharMenuAcoes;
+
+/** Conteúdo do menu "⋯" da linha de contrato em Vendas/Envio — ações raras/destrutivas. */
+function htmlMenuAcoesVenda(vendaId, contratoKey, contratoRefEnvio) {
+    return `
+        <button class="menu-acoes-item" onclick="fecharMenuAcoes(); abrirHistoricoContrato('${contratoKey}')">🕘 Histórico do Contrato</button>
+        <button class="menu-acoes-item" onclick="fecharMenuAcoes(); limparControleEnvio('${contratoRefEnvio}')">📭 Limpar dados de envio</button>
+        <button class="menu-acoes-item menu-acoes-item-destrutivo" onclick="fecharMenuAcoes(); cancelarContrato('${contratoKey}')">✖ Cancelar contrato</button>
+        <button class="menu-acoes-item menu-acoes-item-destrutivo" onclick="fecharMenuAcoes(); excluirVenda(${vendaId})">🗑 Excluir venda</button>
+    `;
+}
+window.htmlMenuAcoesVenda = htmlMenuAcoesVenda;
+
 function renderizarRegistroVendas() {
     const tbody = document.getElementById('tabelaRegistroVendasBody');
     if (!tbody) return;
@@ -11808,13 +11894,13 @@ function renderizarRegistroVendas() {
             const emailEnviadoEm = (estoque.controleEnvio?.[primeira.contratoRaw || contratoKey]?.emailEnviadoEm) || '';
             const emailBtnTitle = emailEnviadoEm ? `Email enviado em ${emailEnviadoEm}` : 'Preparar email de pedido';
             const emailBtnStyle = emailEnviadoEm ? 'color:#15803d;border-color:#bbf7d0;background:#f0fdf4' : '';
+            // Ações frequentes ficam visíveis; as raras/destrutivas (histórico, cancelar,
+            // limpar envio, excluir) vão para o menu "⋯" — eram 7 ícones lado a lado.
+            const contratoRefEnvio = primeira.contratoRaw || contratoKey;
             actionsHtml = `<button class="btn-action btn-edit" onclick="abrirModalVendaDetalhada(${primeira.vendaId})" title="Editar venda">✎</button>` +
-                          `<button class="btn-action btn-delete" onclick="excluirVenda(${primeira.vendaId})" title="Excluir venda">🗑</button>` +
-                          `<button class="btn-action" onclick="abrirHistoricoContrato('${contratoKey}')" title="Histórico do Contrato">🕘</button>` +
-                          `<button class="btn-action btn-cancel" onclick="cancelarContrato('${contratoKey}')" title="Cancelar contrato">✖</button>` +
-                          `<button class="btn-action btn-delete" onclick="limparControleEnvio('${primeira.contratoRaw || contratoKey}')" title="Limpar dados de envio">📭</button>` +
                           `<button class="btn-contrato-docx" onclick="gerarContratoVenda('${primeira.vendaId || primeira.contratoRaw}')" title="Gerar contrato .docx">📄</button>` +
-                          `<button class="btn-action" onclick="prepararEmailPorContrato('${primeira.contratoRaw || contratoKey}')" title="${emailBtnTitle}" style="${emailBtnStyle}">✉️</button>`;
+                          `<button class="btn-action" onclick="prepararEmailPorContrato('${contratoRefEnvio}')" title="${emailBtnTitle}" style="${emailBtnStyle}">✉️</button>` +
+                          `<button class="btn-action" onclick="toggleMenuAcoes(this, htmlMenuAcoesVenda(${primeira.vendaId}, '${contratoKey}', '${contratoRefEnvio}'))" title="Mais ações">⋯</button>`;
         }
 
         resumo.innerHTML = `

@@ -53,6 +53,12 @@
     var _anotacaoRelacionadaId = null; // anotação-pai (thread) selecionada no modal
     var _encaminhamentosTemp = []; // encaminhamentos em edição no modal (só gravados ao salvar)
     var _negocioTrocandoFunil = null; // negócio cuja troca de funil está em progresso
+    var _avisoPrazosMostrado = false; // some ao ser descartado ou já ter sido exibido nesta sessão
+
+    // ── Estado da vista Timeline (Gantt somente leitura sobre negócios/demandas) ──
+    var _timelineAgrupar = 'funil'; // 'funil' | 'cliente'
+    var _timelineZoom = 'mes'; // 'semana' | 'mes' | 'trimestre'
+    var TIMELINE_PX_POR_DIA = { semana: 36, mes: 10, trimestre: 3.5 };
 
     // ── Estado da Caixa de Demandas ──
     var _demandaAba = 'comigo'; // comigo | aguardando | consolidar | concluidas | todas
@@ -68,7 +74,7 @@
     var _calMostrarPonto = true; // filtro: mostrar/ocultar Eventos do Ponto no calendário
     var _calAtvNegocioId = null; // negócio selecionado no modal de atividade global
 
-    var ICONES_HISTORICO = { criacao: '✨', campo: '✎', etapa: '➡️', exclusao: '🗑', atividade: '📅', nota: '📝', anotacao: '🗒️' };
+    var ICONES_HISTORICO = { criacao: '✨', campo: '✎', etapa: '➡️', exclusao: '🗑', atividade: '📅', nota: '📝', anotacao: '🗒️', anexo: '📎' };
     var PRIORIDADE_ROTULO = { baixa: 'Baixa', media: 'Média', alta: 'Alta', critico: 'Crítico' };
     var SITUACAO_ROTULO = {
         recebida: 'Recebida', comigo: 'Comigo', aguardando_terceiro: 'Aguardando terceiro',
@@ -143,19 +149,23 @@
         secaoNegocios.style.display = _secao === 'negocios' ? '' : 'none';
         if (secaoCalendario) secaoCalendario.style.display = _secao === 'calendario' ? '' : 'none';
 
+        if (_secao === 'negocios') renderizarAvisoPrazos();
+
         if (_secao === 'calendario') { renderizarCalendarioView(); return; }
 
         var kanban = document.getElementById('crmKanban');
         var lista = document.getElementById('crmListaNegocios');
         var demandas = document.getElementById('crmDemandas');
         var previsao = document.getElementById('crmPrevisao');
+        var timeline = document.getElementById('crmTimeline');
         var excluidos = document.getElementById('crmExcluidos');
+        var painel = document.getElementById('crmPainel');
         var detalhe = document.getElementById('crmViewDetalhe');
         var barra = document.querySelector('.crm-barra-visoes');
         if (!kanban) return;
 
         if (_detalheId) {
-            [kanban, lista, demandas, previsao, excluidos].forEach(function (el) { if (el) el.style.display = 'none'; });
+            [kanban, lista, demandas, previsao, timeline, excluidos, painel].forEach(function (el) { if (el) el.style.display = 'none'; });
             if (barra) barra.style.display = 'none';
             detalhe.style.display = 'block';
             renderizarDetalhe(_detalheId);
@@ -168,7 +178,9 @@
         lista.style.display = _visao === 'lista' ? '' : 'none';
         if (demandas) demandas.style.display = _visao === 'demandas' ? '' : 'none';
         previsao.style.display = _visao === 'previsao' ? '' : 'none';
+        if (timeline) timeline.style.display = _visao === 'timeline' ? '' : 'none';
         excluidos.style.display = _visao === 'excluidos' ? '' : 'none';
+        if (painel) painel.style.display = _visao === 'painel' ? '' : 'none';
 
         // A barra de filtros de demandas serve tanto à Caixa quanto à Lista completa.
         var ehVisaoDemanda = (_visao === 'lista' || _visao === 'demandas');
@@ -186,7 +198,9 @@
         else if (_visao === 'demandas') renderizarDemandasView();
         else if (_visao === 'lista') renderizarListaView();
         else if (_visao === 'previsao') renderizarPrevisaoView(funil);
+        else if (_visao === 'timeline') renderizarTimelineView();
         else if (_visao === 'excluidos') renderizarExcluidosView(funil);
+        else if (_visao === 'painel') renderizarPainelView();
     }
 
     function setSecao(v) {
@@ -259,6 +273,45 @@
      * Contexto compartilhado pelas visões de demanda: índices de negócio/cliente/
      * funil e a lista já filtrada e ordenada pelos filtros da barra.
      */
+    /**
+     * Banner de sessão no topo da aba, avisando de prazos próximos/vencidos e
+     * terceiros atrasados sem exigir que o usuário navegue até a Caixa de
+     * Demandas. Mostra uma vez por sessão (não persiste, some ao ser
+     * descartado ou ao trocar de negócio/demanda).
+     */
+    function renderizarAvisoPrazos() {
+        var el = document.getElementById('crmAvisoPrazos');
+        if (!el || _avisoPrazosMostrado) return;
+        _avisoPrazosMostrado = true; // calculado uma única vez por sessão, mesmo sem descarte manual
+
+        var anotacoes = CrmStore.listarAnotacoes();
+        var resumo = CrmCalculos.resumoPainelDemandas(anotacoes, { hoje: hojeIsoLocal() });
+        if (!resumo.emAlerta && !resumo.comTerceiroAtrasado) return;
+
+        var partes = [];
+        if (resumo.emAlerta) partes.push(resumo.emAlerta + ' demanda(s) vencem hoje ou nos próximos dias');
+        if (resumo.comTerceiroAtrasado) partes.push(resumo.comTerceiroAtrasado + ' com terceiro atrasado');
+
+        el.innerHTML = '' +
+            '<div class="crm-demanda-avisos crm-aviso-prazos">' +
+                '<span>⚠ ' + esc(partes.join(' · ')) + '</span>' +
+                '<button type="button" class="crm-btn-mini" onclick="Crm.verNoPainelDoAviso()">Ver no Painel</button>' +
+                '<button type="button" class="crm-aviso-fechar" onclick="Crm.descartarAvisoPrazos()" title="Dispensar">×</button>' +
+            '</div>';
+    }
+
+    function verNoPainelDoAviso() {
+        descartarAvisoPrazos();
+        _visao = 'painel';
+        _detalheId = null;
+        renderizarConteudoAtivo();
+    }
+
+    function descartarAvisoPrazos() {
+        var el = document.getElementById('crmAvisoPrazos');
+        if (el) el.innerHTML = '';
+    }
+
     function contextoDemandas() {
         var anotacoes = CrmStore.listarAnotacoes();
         var negocios = CrmStore.listarNegocios();
@@ -400,6 +453,7 @@
 
         var html = '<div class="crm-demanda-topo">' +
                 '<div class="crm-demanda-abas">' + abas + '</div>' +
+                '<button type="button" class="crm-btn-negocio crm-btn-secundario" onclick="Crm.abrirModalRegistroRapido()">+ Registro rápido</button>' +
                 '<button type="button" class="crm-btn-negocio" onclick="Crm.abrirModalAnotacao()">+ Nova Demanda</button>' +
             '</div>' +
             avisos +
@@ -415,6 +469,108 @@
     function setDemandaAba(valor) {
         _demandaAba = valor;
         renderizarConteudoAtivo();
+    }
+
+    // ── Registro rápido de demanda (3 campos, sem abrir o modal completo) ──
+
+    function abrirModalRegistroRapido() {
+        document.getElementById('crmRapidoAssunto').value = '';
+        document.getElementById('crmRapidoRemetente').value = '';
+        document.getElementById('crmRapidoPrazo').value = '';
+        document.getElementById('modalRegistroRapido').style.display = 'flex';
+    }
+
+    function salvarRegistroRapido() {
+        if (!requireAdminOrNotify()) return;
+        var assunto = document.getElementById('crmRapidoAssunto').value.trim();
+        if (!assunto) { Notifications.error('Assunto é obrigatório'); return; }
+        var funilAtivo = CrmStore.getFunilAtivo();
+
+        var dados = CrmModel.normalizarAnotacao({
+            assunto: assunto,
+            remetente: document.getElementById('crmRapidoRemetente').value.trim(),
+            prazo: document.getElementById('crmRapidoPrazo').value || null,
+            situacao: 'recebida',
+            origemDemanda: 'Rápido',
+            funilId: funilAtivo ? funilAtivo.id : null
+        });
+
+        var erros = CrmModel.validarAnotacao(dados);
+        if (erros.length) { Notifications.error(erros[0]); return; }
+
+        var criada = CrmStore.criarAnotacao(dados);
+        fecharModal('modalRegistroRapido');
+        renderizarConteudoAtivo();
+        if (criada) oferecerCompletarDetalhes(criada.id);
+    }
+
+    /** Convite para completar os demais campos quando houver tempo — não bloqueia o registro imediato. */
+    function oferecerCompletarDetalhes(anotacaoId) {
+        Notifications.success('Demanda registrada.');
+        confirmarEExecutar('Demanda registrada. Completar detalhes agora?', function () {
+            abrirModalAnotacao(anotacaoId);
+        });
+    }
+
+    // ── Painel de indicadores ──
+
+    /**
+     * Visão gerencial da Caixa de Demandas: cards numéricos, barra de
+     * proporção por situação, ranking por responsável e próximos vencimentos.
+     * Somente leitura — calculada em cima de contextoDemandas(), sem estado próprio.
+     */
+    function renderizarPainelView() {
+        var ctx = contextoDemandas();
+        var hoje = ctx.extra.hoje;
+        var resumo = CrmCalculos.resumoPainelDemandas(ctx.anotacoes, ctx.extra);
+
+        var cards = [
+            ['Total', resumo.total, ''],
+            ['Vencidas', resumo.vencidas, resumo.vencidas ? 'crm-painel-card-alerta' : ''],
+            ['Em alerta', resumo.emAlerta, resumo.emAlerta ? 'crm-painel-card-alerta' : ''],
+            ['Com terceiro atrasado', resumo.comTerceiroAtrasado, resumo.comTerceiroAtrasado ? 'crm-painel-card-alerta' : '']
+        ].map(function (c) {
+            return '<div class="crm-painel-card ' + c[2] + '"><div class="crm-painel-card-valor">' + c[1] + '</div><div class="crm-painel-card-rotulo">' + esc(c[0]) + '</div></div>';
+        }).join('');
+
+        var totalSituacoes = Object.keys(resumo.porSituacao).reduce(function (acc, k) { return acc + resumo.porSituacao[k]; }, 0);
+        var barra = Object.keys(resumo.porSituacao).map(function (situacao) {
+            var n = resumo.porSituacao[situacao];
+            if (!n) return '';
+            var pct = totalSituacoes ? (n / totalSituacoes * 100) : 0;
+            return '<div class="crm-painel-barra-seg" data-situacao="' + esc(situacao) + '" style="width:' + pct.toFixed(1) + '%" ' +
+                'title="' + esc(SITUACAO_ROTULO[situacao] || situacao) + ': ' + n + '">' +
+                '<span>' + esc(SITUACAO_ROTULO[situacao] || situacao) + ' (' + n + ')</span></div>';
+        }).join('');
+
+        var responsaveisOrdenados = Object.keys(resumo.porResponsavel).sort(function (a, b) {
+            return resumo.porResponsavel[b] - resumo.porResponsavel[a];
+        });
+        var listaResponsaveis = responsaveisOrdenados.map(function (nome) {
+            return '<div class="crm-painel-lista-item"><span>' + esc(nome) + '</span><span>' + resumo.porResponsavel[nome] + '</span></div>';
+        }).join('') || '<p class="crm-coluna-vazia">Nenhuma demanda ativa.</p>';
+
+        var listaVencimentos = resumo.proximosVencimentos.map(function (a) {
+            return '<div class="crm-painel-lista-item crm-painel-lista-clicavel" role="button" tabindex="0" ' +
+                'data-crm-action="abrirModalAnotacao" data-id="' + esc(a.id) + '">' +
+                '<span>' + esc(a.assunto || '(sem assunto)') + '</span>' +
+                badgeSituacao(a) +
+                celulaPrazo(a, hoje).replace('<td', '<span').replace('</td>', '</span>') +
+                '</div>';
+        }).join('') || '<p class="crm-coluna-vazia">Nenhum vencimento próximo.</p>';
+
+        var html = '' +
+            '<div class="crm-painel-cards">' + cards + '</div>' +
+            '<div class="crm-bloco-titulo">Demandas por situação</div>' +
+            '<div class="crm-painel-barra">' + (barra || '<p class="crm-coluna-vazia">Nenhuma demanda ativa.</p>') + '</div>' +
+            '<div class="crm-painel-colunas">' +
+                '<div><div class="crm-bloco-titulo">Por responsável</div><div class="crm-painel-lista">' + listaResponsaveis + '</div></div>' +
+                '<div><div class="crm-bloco-titulo">Vencendo em breve</div><div class="crm-painel-lista">' + listaVencimentos + '</div></div>' +
+            '</div>';
+
+        var el = document.getElementById('crmPainel');
+        if (el) el.innerHTML = html;
+        atualizarContagem(resumo.total, 'demanda', 'demandas');
     }
 
     // ── Lista (Anotações) ──
@@ -2014,6 +2170,16 @@
         var btnExcluir = document.getElementById('crmAnotacaoBtnExcluir');
         if (btnExcluir) btnExcluir.style.display = id ? '' : 'none';
 
+        var elComentarios = document.getElementById('crmComentariosAnotacao');
+        if (elComentarios) {
+            elComentarios.innerHTML = id
+                ? renderizarComentarios('anotacao', id)
+                : '<p class="crm-comentarios-vazio">Salve a demanda antes de comentar.</p>';
+        }
+
+        var elAnexos = document.getElementById('crmAnexosAnotacao');
+        if (elAnexos) elAnexos.innerHTML = renderizarAnexos('anotacao', id);
+
         document.getElementById('modalAnotacao').style.display = 'flex';
     }
 
@@ -2139,6 +2305,132 @@
 
         document.getElementById('crmPrevisao').innerHTML = html || '<p>Nenhum negócio em aberto.</p>';
         atualizarContagem(negocios.length);
+    }
+
+    // ── Timeline (Gantt somente leitura sobre negócios + demandas de todos os funis) ──
+
+    function setTimelineAgrupar(v) { _timelineAgrupar = (v === 'cliente') ? 'cliente' : 'funil'; renderizarConteudoAtivo(); }
+    function setTimelineZoom(v) { _timelineZoom = TIMELINE_PX_POR_DIA[v] ? v : 'mes'; renderizarConteudoAtivo(); }
+
+    function timelineDiffDias(isoA, isoB) {
+        var a = new Date(isoA + 'T00:00:00Z'), b = new Date(isoB + 'T00:00:00Z');
+        return Math.round((b - a) / 86400000);
+    }
+
+    /** Cabeçalho de escala: um marcador por mês dentro do intervalo [inicioIso, fimIso]. */
+    function timelineCabecalhoMeses(inicioIso, fimIso, pxPorDia) {
+        var marcos = [];
+        var cursor = inicioIso.slice(0, 7) + '-01';
+        while (cursor <= fimIso) {
+            var offset = timelineDiffDias(inicioIso, cursor) * pxPorDia;
+            var partes = cursor.split('-');
+            marcos.push('<div class="crm-timeline-marco-mes" style="left:' + Math.max(0, offset).toFixed(1) + 'px">' +
+                esc(MESES[parseInt(partes[1], 10) - 1].slice(0, 3) + '/' + partes[0].slice(2)) + '</div>');
+            cursor = CrmCalculos.somarMeses(cursor, 1);
+        }
+        return marcos.join('');
+    }
+
+    /**
+     * Empacota barras que se sobrepõem no tempo em sub-linhas dentro do mesmo
+     * grupo, pra não desenhar duas barras concorrentes uma em cima da outra.
+     */
+    function empacotarSubLinhasTimeline(barras) {
+        var ordenadas = barras.slice().sort(function (a, b) { return String(a.inicio).localeCompare(String(b.inicio)); });
+        var subLinhas = []; // cada uma guarda o `fim` da última barra colocada nela
+        var porBarra = [];
+        ordenadas.forEach(function (b) {
+            var idx = subLinhas.findIndex(function (fimAtual) { return b.inicio > fimAtual; });
+            if (idx === -1) { idx = subLinhas.length; subLinhas.push(b.fim); }
+            else subLinhas[idx] = b.fim;
+            porBarra.push({ barra: b, linha: idx });
+        });
+        return { itens: porBarra, totalLinhas: subLinhas.length || 1 };
+    }
+
+    function renderizarBarraTimeline(b, inicioEscala, pxPorDia, hoje, linha) {
+        var offsetDias = timelineDiffDias(inicioEscala, b.inicio);
+        var duracaoDias = Math.max(1, timelineDiffDias(b.inicio, b.fim) + 1);
+        var left = (offsetDias * pxPorDia).toFixed(1);
+        var largura = Math.max(6, duracaoDias * pxPorDia).toFixed(1);
+        var atrasada = !b.semPrazo && b.fim < hoje && b.status !== 'ganho' && b.status !== 'perdido' && b.situacao !== 'respondida';
+        var classeStatus = b.tipo === 'negocio'
+            ? ('crm-timeline-barra-' + (b.status || 'aberto'))
+            : ('crm-timeline-barra-' + (b.situacao === 'respondida' ? 'ganho' : 'aberto'));
+        var titulo = (b.tipo === 'negocio' ? 'Negócio' : 'Demanda') + ': ' + b.titulo +
+            (b.semPrazo ? ' (sem prazo definido)' : (' — ' + DateUtils.formatBR(b.inicio) + ' a ' + DateUtils.formatBR(b.fim)));
+        var top = 2 + (linha || 0) * 26;
+        return '<div class="crm-timeline-barra ' + classeStatus + (b.semPrazo ? ' crm-timeline-barra-semprazo' : '') + (atrasada ? ' crm-timeline-barra-atrasada' : '') + '"' +
+            ' style="left:' + left + 'px;width:' + largura + 'px;top:' + top + 'px"' +
+            ' title="' + esc(titulo) + '"' +
+            ' data-crm-action="' + (b.tipo === 'negocio' ? 'abrirDetalhe' : 'abrirModalAnotacao') + '" data-id="' + esc(b.id) + '">' +
+            '<span class="crm-timeline-barra-txt">' + esc(b.titulo) + '</span>' +
+        '</div>';
+    }
+
+    function renderizarTimelineView() {
+        var crm = CrmStore.getCrm();
+        var negocios = CrmStore.listarNegocios();
+        var anotacoes = CrmStore.listarAnotacoes();
+        var barras = CrmCalculos.calcularBarrasTimeline(negocios, anotacoes);
+
+        var el = document.getElementById('crmTimeline');
+        if (!barras.length) {
+            el.innerHTML = '<p>Nenhum negócio ou demanda com data para exibir na timeline.</p>';
+            atualizarContagem(0);
+            return;
+        }
+
+        var hoje = hojeIsoLocal();
+        var inicioEscala = barras.reduce(function (min, b) { return b.inicio < min ? b.inicio : min; }, hoje);
+        var fimEscala = barras.reduce(function (max, b) { return b.fim > max ? b.fim : max; }, hoje);
+        // Folga de 7 dias em cada ponta pra barra não colar na borda da escala.
+        inicioEscala = CrmCalculos.somarDias(inicioEscala, -7);
+        fimEscala = CrmCalculos.somarDias(fimEscala, 7);
+
+        var pxPorDia = TIMELINE_PX_POR_DIA[_timelineZoom];
+        var larguraTotal = timelineDiffDias(inicioEscala, fimEscala) * pxPorDia;
+        var offsetHoje = timelineDiffDias(inicioEscala, hoje) * pxPorDia;
+
+        var grupos = CrmCalculos.agruparBarrasTimeline(barras, _timelineAgrupar, crm.funis, CrmStore.listarClientes());
+
+        var linhasHtml = grupos.map(function (g) {
+            var empacotado = empacotarSubLinhasTimeline(g.barras);
+            var linhaBarras = empacotado.itens.map(function (it) {
+                return renderizarBarraTimeline(it.barra, inicioEscala, pxPorDia, hoje, it.linha);
+            }).join('');
+            var alturaTrilha = 4 + empacotado.totalLinhas * 26;
+            return '' +
+                '<div class="crm-timeline-grupo">' +
+                    '<div class="crm-timeline-grupo-rotulo">' + esc(g.rotulo) + ' <span class="crm-timeline-grupo-contagem">' + g.barras.length + '</span></div>' +
+                    '<div class="crm-timeline-grupo-trilha" style="width:' + larguraTotal.toFixed(1) + 'px;height:' + alturaTrilha + 'px">' + linhaBarras + '</div>' +
+                '</div>';
+        }).join('');
+
+        el.innerHTML = '' +
+            '<div class="crm-timeline-toolbar">' +
+                '<label class="crm-timeline-opcao">Agrupar por ' +
+                    '<select data-crm-action="setTimelineAgrupar" onchange="Crm.setTimelineAgrupar(this.value)">' +
+                        '<option value="funil"' + (_timelineAgrupar === 'funil' ? ' selected' : '') + '>Funil</option>' +
+                        '<option value="cliente"' + (_timelineAgrupar === 'cliente' ? ' selected' : '') + '>Cliente</option>' +
+                    '</select>' +
+                '</label>' +
+                '<label class="crm-timeline-opcao">Zoom ' +
+                    '<select onchange="Crm.setTimelineZoom(this.value)">' +
+                        '<option value="semana"' + (_timelineZoom === 'semana' ? ' selected' : '') + '>Semana</option>' +
+                        '<option value="mes"' + (_timelineZoom === 'mes' ? ' selected' : '') + '>Mês</option>' +
+                        '<option value="trimestre"' + (_timelineZoom === 'trimestre' ? ' selected' : '') + '>Trimestre</option>' +
+                    '</select>' +
+                '</label>' +
+            '</div>' +
+            '<div class="crm-timeline-scroll">' +
+                '<div class="crm-timeline-conteudo" style="width:' + larguraTotal.toFixed(1) + 'px">' +
+                    '<div class="crm-timeline-cabecalho">' + timelineCabecalhoMeses(inicioEscala, fimEscala, pxPorDia) + '</div>' +
+                    '<div class="crm-timeline-linha-hoje" style="left:' + offsetHoje.toFixed(1) + 'px"></div>' +
+                    linhasHtml +
+                '</div>' +
+            '</div>';
+        atualizarContagem(barras.length, 'item', 'itens');
     }
 
     // ── Excluídos ──
@@ -2332,23 +2624,164 @@
             secaoColapsavel('resumo', 'Resumo', resumo || '<div class="crm-coluna-vazia">Sem dados.</div>') +
             (mostrarValor ? secaoColapsavel('itens', 'Produtos', itensHtml) : '') +
             secaoColapsavel('cliente', 'Cliente', clienteHtml) +
+            secaoColapsavel('anexos', 'Anexos', renderizarAnexos('negocio', negocio.id)) +
             secaoColapsavel('visaogeral', 'Visão geral', visaoGeral);
+    }
+
+    // ── Anexos (metadados de arquivo no Firebase Storage) ──
+
+    function formatarTamanhoArquivo(bytes) {
+        var n = Number(bytes) || 0;
+        if (n < 1024) return n + ' B';
+        if (n < 1024 * 1024) return (n / 1024).toFixed(1) + ' KB';
+        return (n / (1024 * 1024)).toFixed(1) + ' MB';
+    }
+
+    function renderizarAnexos(entidade, entidadeId) {
+        if (!entidadeId) return '<p class="crm-coluna-vazia">Salve antes de anexar arquivos.</p>';
+        var itens = CrmStore.listarAnexos(entidade, entidadeId);
+        var listaHtml = itens.map(function (a) {
+            return '' +
+                '<div class="crm-anexo-item">' +
+                    '<a href="' + esc(a.url) + '" target="_blank" rel="noopener noreferrer" class="crm-anexo-nome">📎 ' + esc(a.nome || '(sem nome)') + '</a>' +
+                    '<span class="crm-anexo-tamanho">' + esc(formatarTamanhoArquivo(a.tamanho)) + '</span>' +
+                    '<button type="button" class="crm-nota-icone" title="Remover anexo" data-crm-action="removerAnexo" ' +
+                        'data-id="' + esc(a.id) + '" data-entidade="' + esc(entidade) + '" data-entidade-id="' + esc(entidadeId) + '">🗑</button>' +
+                '</div>';
+        }).join('') || '<p class="crm-coluna-vazia">Nenhum anexo.</p>';
+
+        return '' +
+            '<div class="crm-anexos-lista">' + listaHtml + '</div>' +
+            '<div class="crm-anexo-composer">' +
+                '<input type="file" id="crmAnexoInput_' + esc(entidade) + '">' +
+                '<button type="button" class="crm-btn-mini" data-crm-action="enviarAnexo" data-entidade="' + esc(entidade) + '" data-entidade-id="' + esc(entidadeId) + '">Enviar</button>' +
+            '</div>';
+    }
+
+    function enviarAnexo(entidade, entidadeId) {
+        if (!requireAdminOrNotify()) return;
+        var input = document.getElementById('crmAnexoInput_' + entidade);
+        var file = input && input.files && input.files[0];
+        if (!file) { Notifications.error('Selecione um arquivo.'); return; }
+        if (!window.firebaseStorage) { Notifications.error('Envio de arquivos indisponível: Firebase Storage não inicializado.'); return; }
+
+        var caminho = 'crm/' + entidade + '/' + entidadeId + '/' + Date.now() + '_' + file.name;
+        var ref = window.firebaseStorage.ref().child(caminho);
+        Notifications.info('Enviando ' + file.name + '...');
+        ref.put(file).then(function () {
+            return ref.getDownloadURL();
+        }).then(function (url) {
+            CrmStore.adicionarAnexo(entidade, entidadeId, { nome: file.name, url: url, tamanho: file.size, tipo: file.type });
+            Notifications.success('Anexo enviado.');
+            atualizarAnexosNaTela(entidade, entidadeId);
+        }).catch(function (err) {
+            console.error('Upload de anexo falhou:', err);
+            Notifications.error('Falha ao enviar anexo.');
+        });
+    }
+
+    function removerAnexo(id, entidade, entidadeId) {
+        if (!requireAdminOrNotify()) return;
+        confirmarEExecutar('Remover este anexo?', function () {
+            CrmStore.removerAnexo(id);
+            atualizarAnexosNaTela(entidade, entidadeId);
+        });
+    }
+
+    /** Atualiza só o bloco de anexos visível (detalhe do negócio ou modal de demanda), sem re-render geral. */
+    function atualizarAnexosNaTela(entidade, entidadeId) {
+        if (entidade === 'negocio') {
+            renderizarConteudoAtivo();
+            return;
+        }
+        var elModal = document.getElementById('crmAnexosAnotacao');
+        if (elModal) elModal.innerHTML = renderizarAnexos('anotacao', entidadeId);
     }
 
     function renderizarPainelCentro(negocio, atividades) {
         var qtdDemandas = CrmStore.listarAnotacoes(negocio.id).length;
+        var qtdComentarios = CrmStore.listarComentarios('negocio', negocio.id).length;
         var abas = '' +
             '<div class="crm-det-abas">' +
                 '<button type="button" class="crm-det-aba' + (_abaDetalhe === 'atividade' ? ' active' : '') + '" data-crm-action="trocarAbaDetalhe" data-valor="atividade">Atividade</button>' +
                 '<button type="button" class="crm-det-aba' + (_abaDetalhe === 'anotacoes' ? ' active' : '') + '" data-crm-action="trocarAbaDetalhe" data-valor="anotacoes">Demandas' +
                     (qtdDemandas ? ' <span class="crm-det-aba-cont">' + qtdDemandas + '</span>' : '') + '</button>' +
+                '<button type="button" class="crm-det-aba' + (_abaDetalhe === 'comentarios' ? ' active' : '') + '" data-crm-action="trocarAbaDetalhe" data-valor="comentarios">Comentários' +
+                    (qtdComentarios ? ' <span class="crm-det-aba-cont">' + qtdComentarios + '</span>' : '') + '</button>' +
             '</div>';
 
-        var corpoAba = _abaDetalhe === 'anotacoes' ? renderizarListaAnotacoesNegocio(negocio) : renderizarComposerAtividade(negocio);
+        var corpoAba = _abaDetalhe === 'anotacoes' ? renderizarListaAnotacoesNegocio(negocio)
+            : (_abaDetalhe === 'comentarios' ? renderizarComentarios('negocio', negocio.id) : renderizarComposerAtividade(negocio));
 
         return abas + corpoAba +
             '<div class="crm-det-bloco">' + renderizarFoco(negocio, atividades) + '</div>' +
             '<div class="crm-det-bloco">' + renderizarHistoricoFiltrado(negocio) + '</div>';
+    }
+
+    // ── Comentários (mural de discussão, separado do histórico de auditoria) ──
+
+    function formatarComentarioTexto(texto) {
+        return esc(texto).replace(/@([\p{L}0-9_.]+)/gu, '<span class="crm-comentario-mencao">@$1</span>');
+    }
+
+    function renderizarComentarios(entidade, entidadeId) {
+        var itens = CrmStore.listarComentarios(entidade, entidadeId);
+        var listaHtml = itens.map(function (c) {
+            return '' +
+                '<div class="crm-comentario-item">' +
+                    '<div class="crm-comentario-cab">' +
+                        '<span class="crm-comentario-autor">' + esc(c.autor || 'Alguém') + '</span>' +
+                        '<span class="crm-comentario-data">' + formatarDataHora(c.criadoEm) + (c.editadoEm ? ' (editado)' : '') + '</span>' +
+                        '<button type="button" class="crm-comentario-excluir" title="Excluir comentário" data-crm-action="excluirComentario" data-id="' + esc(c.id) + '" data-entidade="' + esc(entidade) + '" data-entidade-id="' + esc(entidadeId) + '">🗑</button>' +
+                    '</div>' +
+                    '<div class="crm-comentario-txt">' + formatarComentarioTexto(c.texto) + '</div>' +
+                '</div>';
+        }).join('');
+
+        // id do textarea sufixado pela entidade: o modal de demanda pode ficar
+        // sobreposto à página de detalhe do negócio no DOM (ambos presentes ao
+        // mesmo tempo), então um id fixo colidiria entre os dois contextos.
+        var idTexto = 'crmComentarioTexto_' + entidade;
+        return '' +
+            '<div class="crm-comentarios">' +
+                '<div class="crm-comentarios-lista">' + (listaHtml || '<p class="crm-comentarios-vazio">Nenhum comentário ainda.</p>') + '</div>' +
+                '<div class="crm-comentario-composer">' +
+                    '<textarea id="' + idTexto + '" rows="2" placeholder="Escreva um comentário... use @nome para mencionar alguém"></textarea>' +
+                    '<button type="button" class="btn btn-primary crm-btn-mini" data-crm-action="salvarComentario" data-entidade="' + esc(entidade) + '" data-entidade-id="' + esc(entidadeId) + '">Comentar</button>' +
+                '</div>' +
+            '</div>';
+    }
+
+    /**
+     * Comentários aparecem em dois contextos bem diferentes: dentro do detalhe
+     * do negócio (parte do render normal de renderizarConteudoAtivo) e dentro
+     * do modal de demanda (elemento fixo cujo display é alternado à parte —
+     * ver abrirModalAnotacao). Por isso a atualização depois de salvar/excluir
+     * é sempre "reconstrua só o container de comentários certo", em vez de
+     * assumir qual dos dois contextos está ativo.
+     */
+    function atualizarContainerComentarios(entidade, entidadeId) {
+        if (entidade === 'anotacao') {
+            var elModal = document.getElementById('crmComentariosAnotacao');
+            if (elModal) elModal.innerHTML = renderizarComentarios('anotacao', entidadeId);
+        } else {
+            renderizarConteudoAtivo();
+        }
+    }
+
+    function salvarComentario(entidade, entidadeId) {
+        var el = document.getElementById('crmComentarioTexto_' + entidade);
+        if (!el) return;
+        var texto = el.value.trim();
+        if (!texto) return;
+        CrmStore.criarComentario(entidade, entidadeId, texto, '');
+        atualizarContainerComentarios(entidade, entidadeId);
+    }
+
+    function excluirComentario(id, entidade, entidadeId) {
+        if (!requireAdminOrNotify()) return;
+        CrmStore.removerComentario(id);
+        atualizarContainerComentarios(entidade, entidadeId);
     }
 
     function renderizarComposerAtividade(negocio) {
@@ -2503,9 +2936,10 @@
             { valor: 'todos', rotulo: 'Todos' },
             { valor: 'atividades', rotulo: 'Atividades' },
             { valor: 'anotacoes', rotulo: 'Anotações' },
-            { valor: 'alteracoes', rotulo: 'Alterações' }
+            { valor: 'alteracoes', rotulo: 'Alterações' },
+            { valor: 'notas', rotulo: 'Notas' }
         ];
-        var mapaFiltro = { atividades: 'atividade', anotacoes: 'anotacao' };
+        var mapaFiltro = { atividades: 'atividade', anotacoes: 'anotacao', notas: 'nota' };
         function pertenceAlteracoes(h) { return h.tipo === 'campo' || h.tipo === 'etapa' || h.tipo === 'criacao' || h.tipo === 'exclusao'; }
 
         var itensFiltrados = todos.filter(function (h) {
@@ -2523,10 +2957,51 @@
 
         var itensHtml = itensFiltrados.map(function (h) {
             var icone = ICONES_HISTORICO[h.tipo] || '•';
-            return '<div class="crm-timeline-item"><span>' + icone + '</span> <span>' + esc(h.texto) + '</span> <span class="crm-card-vinculos">' + esc(DateUtils.formatBR(h.criadoEm)) + '</span></div>';
+            var acoesNota = (h.tipo === 'nota' && h.editavel)
+                ? '<span class="crm-nota-acoes">' +
+                    '<button type="button" class="crm-nota-icone" title="Editar nota" data-crm-action="editarNotaHistorico" data-id="' + esc(h.id) + '" data-negocio-id="' + esc(negocio.id) + '">✎</button>' +
+                    '<button type="button" class="crm-nota-icone" title="Excluir nota" data-crm-action="excluirNotaHistorico" data-id="' + esc(h.id) + '" data-negocio-id="' + esc(negocio.id) + '">🗑</button>' +
+                  '</span>'
+                : '';
+            return '<div class="crm-timeline-item"><span>' + icone + '</span> <span>' + esc(h.texto) + '</span> <span class="crm-card-vinculos">' + esc(DateUtils.formatBR(h.criadoEm)) + (h.editadoEm ? ' (editado)' : '') + '</span>' + acoesNota + '</div>';
         }).join('');
 
-        return '<div class="crm-bloco-titulo">Histórico</div><div class="crm-hist-pills">' + pills + '</div>' + (itensHtml || '<p>Nenhum registro.</p>');
+        var composer = '' +
+            '<div class="crm-nota-composer">' +
+                '<textarea id="crmNotaTexto" placeholder="Adicionar nota..." rows="2"></textarea>' +
+                '<button type="button" class="crm-btn-mini" data-crm-action="adicionarNotaHistorico" data-negocio-id="' + esc(negocio.id) + '">Adicionar nota</button>' +
+            '</div>';
+
+        return '<div class="crm-bloco-titulo">Histórico</div>' + composer + '<div class="crm-hist-pills">' + pills + '</div>' + (itensHtml || '<p>Nenhum registro.</p>');
+    }
+
+    function adicionarNotaHistorico(negocioId) {
+        if (!requireAdminOrNotify()) return;
+        var el = document.getElementById('crmNotaTexto');
+        var texto = el ? el.value.trim() : '';
+        if (!texto) return;
+        CrmStore.adicionarNota('negocio', negocioId, texto);
+        renderizarConteudoAtivo();
+    }
+
+    function editarNotaHistorico(historicoId) {
+        if (!requireAdminOrNotify()) return;
+        var crm = CrmStore.getCrm();
+        var item = (crm.historico || []).filter(function (h) { return h.id === historicoId; })[0];
+        var novoTexto = prompt('Editar nota:', item ? item.texto : '');
+        if (novoTexto === null) return;
+        novoTexto = novoTexto.trim();
+        if (!novoTexto) return;
+        CrmStore.editarNota(historicoId, novoTexto);
+        renderizarConteudoAtivo();
+    }
+
+    function excluirNotaHistorico(historicoId) {
+        if (!requireAdminOrNotify()) return;
+        confirmarEExecutar('Excluir esta nota?', function () {
+            CrmStore.removerNota(historicoId);
+            renderizarConteudoAtivo();
+        });
     }
 
     // ──────────────────────────────────────────────
@@ -3015,6 +3490,13 @@
         trocarAbaDetalhe: function (el) { _abaDetalhe = el.dataset.valor; _atividadeEditandoId = null; renderizarConteudoAtivo(); },
         trocarFunilNegocio: function (el) { abrirSeletorFunilNegocio(el.dataset.negocioId); },
         filtroHistorico: function (el) { _filtroHistorico = el.dataset.valor; renderizarConteudoAtivo(); },
+        salvarComentario: function (el) { salvarComentario(el.dataset.entidade, el.dataset.entidadeId); },
+        excluirComentario: function (el) { excluirComentario(el.dataset.id, el.dataset.entidade, el.dataset.entidadeId); },
+        adicionarNotaHistorico: function (el) { adicionarNotaHistorico(el.dataset.negocioId); },
+        editarNotaHistorico: function (el) { editarNotaHistorico(el.dataset.id); },
+        excluirNotaHistorico: function (el) { excluirNotaHistorico(el.dataset.id); },
+        enviarAnexo: function (el) { enviarAnexo(el.dataset.entidade, el.dataset.entidadeId); },
+        removerAnexo: function (el) { removerAnexo(el.dataset.id, el.dataset.entidade, el.dataset.entidadeId); },
 
         escolherTipoAtividade: function (el) {
             document.getElementById('crmAtvTipo').value = el.dataset.valor;
@@ -3132,6 +3614,10 @@
         setBusca: setBusca,
         setMostrarFechados: setMostrarFechados,
         setOrdenarPor: setOrdenarPor,
+        setTimelineAgrupar: setTimelineAgrupar,
+        setTimelineZoom: setTimelineZoom,
+        verNoPainelDoAviso: verNoPainelDoAviso,
+        descartarAvisoPrazos: descartarAvisoPrazos,
 
         setListaBusca: setListaBusca,
         setListaFiltro: setListaFiltro,
@@ -3147,6 +3633,8 @@
         adicionarItem: adicionarItem,
 
         abrirModalAnotacao: abrirModalAnotacao,
+        abrirModalRegistroRapido: abrirModalRegistroRapido,
+        salvarRegistroRapido: salvarRegistroRapido,
         salvarAnotacao: salvarAnotacao,
         excluirAnotacao: excluirAnotacao,
         buscarNegocioParaAnotacao: buscarNegocioParaAnotacao,

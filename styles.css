@@ -483,6 +483,26 @@ table thead th { position: sticky; top: 0; background: linear-gradient(180deg,#f
     z-index: 2;
     border-right: 1px solid var(--border-color);
 }
+
+/* Congelar primeira coluna nas tabelas de Rentabilidade (Relatórios) — mesmo
+   padrão do tabelaEstoque acima, aplicado à primeira coluna (Produto/Representante). */
+#tabelaRentabilidade th:first-child,
+#tabelaRentabilidadeRep th:first-child {
+    position: sticky;
+    left: 0;
+    z-index: 6;
+    background: linear-gradient(180deg,#fff,#f7fbff);
+    border-right: 1px solid var(--border-color);
+}
+#tabelaRentabilidade td:first-child,
+#tabelaRentabilidadeRep td:first-child {
+    position: sticky;
+    left: 0;
+    background: var(--bg-white);
+    z-index: 2;
+    border-right: 1px solid var(--border-color);
+    box-shadow: 2px 0 4px rgba(8,14,24,0.06);
+}
 /* Congelar coluna "Ações" (direita) em tabelas de dashboard */
 /* Aplicamos regras tanto para a classe `.col-acoes` quanto para o fallback `:last-child`.
    Usamos z-index altos para garantir que fique acima das células do corpo, e `top:0` nos
@@ -2705,6 +2725,38 @@ tr.total-row:hover {
     font-size: 0.78rem;
     line-height: 1;
 }
+
+/* Menu flutuante "⋯" — agrupa ações raras/destrutivas fora da linha da tabela */
+.menu-acoes-flutuante {
+    display: none;
+    position: fixed;
+    flex-direction: column;
+    min-width: 190px;
+    background: var(--bg-white);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    box-shadow: var(--shadow-lg);
+    padding: 4px;
+    z-index: 9999;
+}
+.menu-acoes-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    text-align: left;
+    background: none;
+    border: none;
+    border-radius: var(--radius-xs);
+    padding: 8px 10px;
+    font-size: 0.82rem;
+    color: var(--text-primary);
+    cursor: pointer;
+    white-space: nowrap;
+}
+.menu-acoes-item:hover { background: var(--bg-light); }
+.menu-acoes-item-destrutivo { color: var(--danger-color); }
+.menu-acoes-item-destrutivo:hover { background: var(--danger-bg); }
 
 .btn-action {
     border: none;
@@ -12460,17 +12512,31 @@ table.imbel-table tbody tr:hover .imbel-row-actions { opacity: 1; }
     border-bottom: 1px solid var(--tv-navy-50);
     font-size: 0.75rem;
 }
+/* Bolinha de status: a cor sozinha não deve ser o único sinal (acessibilidade —
+   ver Tarefa 5), por isso cada estado também ganha um símbolo textual curto via
+   ::before, sem precisar mudar a marcação gerada em app2.js. */
 .imbel-alert-dot {
-    width: 7px;
-    height: 7px;
+    width: 13px;
+    height: 13px;
     border-radius: 50%;
     flex-shrink: 0;
-    margin-top: 4px;
+    margin-top: 1px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    font-size: 9px;
+    font-weight: 800;
+    line-height: 1;
 }
 .imbel-alert-dot.warn  { background: #d97706; }
 .imbel-alert-dot.crit  { background: #dc2626; }
 .imbel-alert-dot.info  { background: #2563eb; }
 .imbel-alert-dot.ok    { background: #16a34a; }
+.imbel-alert-dot.warn::before { content: '!'; }
+.imbel-alert-dot.crit::before { content: '✕'; }
+.imbel-alert-dot.info::before { content: 'i'; font-style: italic; }
+.imbel-alert-dot.ok::before   { content: '✓'; }
 
 /* Rep comparison (IMBEL vs concorrentes) */
 .imbel-rep-row {

@@ -943,7 +943,7 @@
                 '<td>' + (calc.saldo
                     ? '<span class="rp-saldo-chip ' + clsSaldo + '">' + PontoCalculos.minutosParaHHMM(calc.saldo) + '</span>'
                     : '<span class="rp-saldo-chip rp-saldo-zero">—</span>') + '</td>' +
-                '<td class="rp-td-obs">' + esc(r.observacoes || '') + '</td>' +
+                '<td class="rp-td-obs" title="' + esc(r.observacoes || '') + '">' + esc(r.observacoes || '') + '</td>' +
                 '<td class="ponto-col-acoes">' +
                     '<button type="button" class="crm-btn-mini" data-ponto-action="registroEditar" data-valor="' + esc(r.data) + '">Editar</button>' +
                     '<button type="button" class="crm-btn-mini crm-btn-mini-perigo" data-ponto-action="registroExcluir" data-valor="' + esc(r.data) + '">Excluir</button>' +

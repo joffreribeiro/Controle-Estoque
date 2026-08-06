@@ -398,7 +398,7 @@
 .rp-hora { font-variant-numeric: tabular-nums; }
 .rp-hora-vazia { color: var(--text-muted); }
 .rp-td-justi { white-space: nowrap; }
-.rp-td-obs { max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; color: var(--text-muted); }
+.rp-td-obs { min-width: 140px; max-width: 240px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; color: var(--text-muted); cursor: default; }
 
 .rp-saldo-chip {
     display: inline-block;

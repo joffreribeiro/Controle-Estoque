@@ -589,6 +589,7 @@
                 </div>
 
                 <div id="crmSecaoNegocios">
+                    <div id="crmAvisoPrazos"></div>
                     <div class="crm-topo">
                         <div class="crm-topo-titulo">
                             <h2 class="section-title">Negócios</h2>
@@ -606,7 +607,9 @@
                             <button type="button" class="crm-visao-btn" data-valor="demandas" data-crm-action="setVisao" title="Caixa de demandas">📥</button>
                             <button type="button" class="crm-visao-btn" data-valor="lista" data-crm-action="setVisao" title="Lista completa">☰</button>
                             <button type="button" class="crm-visao-btn" data-valor="previsao" data-crm-action="setVisao" title="Previsão">📅</button>
+                            <button type="button" class="crm-visao-btn" data-valor="timeline" data-crm-action="setVisao" title="Timeline">📊</button>
                             <button type="button" class="crm-visao-btn" data-valor="excluidos" data-crm-action="setVisao" title="Excluídos">🗑</button>
+                            <button type="button" class="crm-visao-btn" data-valor="painel" data-crm-action="setVisao" title="Painel">📈</button>
                         </div>
                         <input type="text" id="crmBusca" class="crm-busca" placeholder="Buscar negócio..." oninput="Crm.setBusca(this.value)">
                         <label class="crm-check-fechados">
@@ -695,7 +698,9 @@
                     <div id="crmDemandas" class="crm-demandas" style="display:none"></div>
                     <div id="crmListaNegocios" class="crm-lista" style="display:none"></div>
                     <div id="crmPrevisao" class="crm-previsao" style="display:none"></div>
+                    <div id="crmTimeline" class="crm-timeline" style="display:none"></div>
                     <div id="crmExcluidos" class="crm-excluidos" style="display:none"></div>
+                    <div id="crmPainel" class="crm-painel" style="display:none"></div>
                     <div id="crmViewDetalhe" class="crm-detalhe" style="display:none"></div>
                 </div>
 
@@ -3642,6 +3647,7 @@
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js"></script>
     <script>
         // Funções auxiliares para o modal de login
         function openLoginModal() {
@@ -4776,11 +4782,50 @@
                         <textarea id="crmAnotacaoObservacoes" rows="2"></textarea>
                     </div>
                 </div>
+
+                <!-- ⑤ COMENTÁRIOS — mural de discussão, separado do histórico técnico -->
+                <div class="crm-bloco">
+                    <div class="crm-bloco-titulo">⑤ Comentários</div>
+                    <div id="crmComentariosAnotacao"></div>
+                </div>
+
+                <!-- ⑥ ANEXOS — referência a arquivo no Firebase Storage (contrato, print do e-mail etc.) -->
+                <div class="crm-bloco">
+                    <div class="crm-bloco-titulo">⑥ Anexos</div>
+                    <div id="crmAnexosAnotacao"></div>
+                </div>
             </div>
             <div class="modal-footer">
                 <button class="btn btn-outline" id="crmAnotacaoBtnExcluir" style="display:none;margin-right:auto" onclick="Crm.excluirAnotacao()">Excluir</button>
                 <button class="btn btn-outline" onclick="fecharModal('modalAnotacao')">Cancelar</button>
                 <button class="btn btn-primary" onclick="Crm.salvarAnotacao()">Salvar anotação</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="modalRegistroRapido" class="modal">
+        <div class="modal-content" style="max-width:420px">
+            <div class="modal-header">
+                <h3>Registro rápido de demanda</h3>
+                <button class="modal-close" onclick="fecharModal('modalRegistroRapido')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="crmRapidoAssunto">Assunto *</label>
+                    <input type="text" id="crmRapidoAssunto" placeholder="O que chegou?">
+                </div>
+                <div class="form-group">
+                    <label for="crmRapidoRemetente">Solicitante / Remetente</label>
+                    <input type="text" id="crmRapidoRemetente" placeholder="Quem pediu">
+                </div>
+                <div class="form-group">
+                    <label for="crmRapidoPrazo">Prazo</label>
+                    <input type="date" id="crmRapidoPrazo">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline" onclick="fecharModal('modalRegistroRapido')">Cancelar</button>
+                <button class="btn btn-primary" onclick="Crm.salvarRegistroRapido()">Registrar</button>
             </div>
         </div>
     </div>
@@ -4928,6 +4973,8 @@
     </div>
 
     <script src="app2.js?v=37"></script>
+
+    <script src="estoque-calculos.js?v=1"></script>
 
     <script src="crm-model.js?v=11"></script>
     <script src="crm-calculos.js?v=6"></script>

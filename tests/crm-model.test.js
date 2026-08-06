@@ -138,4 +138,90 @@ describe('CrmModel.normalizarCrm — fase 2', () => {
     expect(crm.negocios[0].excluidoEm).toBe('2026-07-01T00:00:00.000Z');
     expect(crm.negocios[0].participantes).toEqual(['cli1']);
   });
+
+  it('descarta comentário órfão (entidade referenciada não existe) e mantém o válido', () => {
+    const crm = CrmModel.normalizarCrm({
+      funis: [{ id: 'f1', etapas: [{ id: 'e1', tipo: 'aberta' }] }],
+      negocios: [{ id: 'n1', funilId: 'f1', etapaId: 'e1' }],
+      comentarios: [
+        { id: 'c1', entidade: 'negocio', entidadeId: 'n1', texto: 'ok' },
+        { id: 'c2', entidade: 'negocio', entidadeId: 'inexistente', texto: 'órfão' }
+      ]
+    });
+    expect(crm.comentarios.map(c => c.id)).toEqual(['c1']);
+  });
+
+  it('preserva comentário de negócio excluído (soft delete) — sobrevive pra eventual restauração', () => {
+    const crm = CrmModel.normalizarCrm({
+      funis: [{ id: 'f1', etapas: [{ id: 'e1', tipo: 'aberta' }] }],
+      negocios: [{ id: 'n1', funilId: 'f1', etapaId: 'e1', excluidoEm: '2026-07-01T00:00:00.000Z' }],
+      comentarios: [{ id: 'c1', entidade: 'negocio', entidadeId: 'n1', texto: 'ainda aqui' }]
+    });
+    expect(crm.comentarios.map(c => c.id)).toEqual(['c1']);
+  });
+});
+
+describe('CrmModel.extrairMencoes / normalizarComentario', () => {
+  it('extrai menções @nome do texto, ignorando pontuação ao redor', () => {
+    expect(CrmModel.extrairMencoes('Oi @Joffre, pode ver isso com @maria.silva?')).toEqual(['Joffre', 'maria.silva']);
+    expect(CrmModel.extrairMencoes('sem menção nenhuma')).toEqual([]);
+  });
+
+  it('normalizarComentario preenche defaults e deriva mencoes do texto', () => {
+    const c = CrmModel.normalizarComentario({ entidade: 'anotacao', entidadeId: 'a1', texto: 'para @fulano', autor: 'Joffre' });
+    expect(c.id).toMatch(/^cmt_/);
+    expect(c.entidade).toBe('anotacao');
+    expect(c.mencoes).toEqual(['fulano']);
+    expect(c.editadoEm).toBeNull();
+  });
+
+  it('entidade inválida cai para "negocio"', () => {
+    expect(CrmModel.normalizarComentario({ entidade: 'outracoisa' }).entidade).toBe('negocio');
+  });
+});
+
+describe('CrmModel.normalizarAnexo', () => {
+  it('preenche defaults e mantém os metadados informados', () => {
+    const a = CrmModel.normalizarAnexo({
+      entidade: 'anotacao', entidadeId: 'a1', nome: 'contrato.pdf',
+      url: 'https://firebasestorage.googleapis.com/x', tamanho: 2048, tipo: 'application/pdf', autor: 'Joffre'
+    });
+    expect(a.id).toMatch(/^anx_/);
+    expect(a.entidade).toBe('anotacao');
+    expect(a.nome).toBe('contrato.pdf');
+    expect(a.url).toBe('https://firebasestorage.googleapis.com/x');
+    expect(a.tamanho).toBe(2048);
+    expect(a.tipo).toBe('application/pdf');
+    expect(a.autor).toBe('Joffre');
+  });
+
+  it('entidade inválida cai para "negocio" e tamanho negativo/NaN vira 0', () => {
+    expect(CrmModel.normalizarAnexo({ entidade: 'x' }).entidade).toBe('negocio');
+    expect(CrmModel.normalizarAnexo({ tamanho: -5 }).tamanho).toBe(0);
+    expect(CrmModel.normalizarAnexo({ tamanho: 'abc' }).tamanho).toBe(0);
+  });
+
+  it('normalizarCrm inclui anexos: [] por padrão e descarta anexo órfão', () => {
+    const crm = CrmModel.normalizarCrm({
+      funis: [{ id: 'f1', etapas: [{ id: 'e1', tipo: 'aberta' }] }],
+      negocios: [{ id: 'n1', funilId: 'f1', etapaId: 'e1' }],
+      anexos: [
+        { id: 'x1', entidade: 'negocio', entidadeId: 'n1', nome: 'ok.pdf' },
+        { id: 'x2', entidade: 'negocio', entidadeId: 'inexistente', nome: 'orfao.pdf' }
+      ]
+    });
+    expect(crm.anexos.map(a => a.id)).toEqual(['x1']);
+
+    const crmVazio = CrmModel.normalizarCrm({});
+    expect(crmVazio.anexos).toEqual([]);
+  });
+
+  it('preserva anexo de negócio excluído (soft delete) — sobrevive pra eventual restauração', () => {
+    const crm = CrmModel.normalizarCrm({
+      funis: [{ id: 'f1', etapas: [{ id: 'e1', tipo: 'aberta' }] }],
+      negocios: [{ id: 'n1', funilId: 'f1', etapaId: 'e1', excluidoEm: '2026-07-01T00:00:00.000Z' }],
+      anexos: [{ id: 'x1', entidade: 'negocio', entidadeId: 'n1', nome: 'ainda-aqui.pdf' }]
+    });
+    expect(crm.anexos.map(a => a.id)).toEqual(['x1']);
+  });
 });

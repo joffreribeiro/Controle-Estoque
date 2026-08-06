@@ -339,6 +339,61 @@ function normalizarHistoricoItem(hBruto) {
     };
 }
 
+/**
+ * Extrai `@menções` de um texto de comentário: sequência de letras/números
+ * após `@`, sem acento nem espaço (ex.: "@Joffre" ou "@joffre_r"). Não valida
+ * contra um cadastro de usuários (o sistema não tem um hoje) — é só o texto
+ * cru da menção, pra UI destacar visualmente e futuramente ligar a uma
+ * notificação real quando/se um cadastro de usuários existir.
+ */
+function extrairMencoes(texto) {
+    const matches = String(texto || '').match(/@[\p{L}0-9_.]+/gu) || [];
+    return matches.map(m => m.slice(1));
+}
+
+/**
+ * Comentário livre num negócio ou numa demanda (anotação) — mural de
+ * discussão da equipe, separado do histórico técnico de auditoria de campos
+ * (`historico`). `mencoes` é derivado do texto (ver extrairMencoes), sempre
+ * recalculado na normalização pra nunca ficar dessincronizado do texto salvo.
+ */
+function normalizarComentario(cBruto) {
+    const c = ehObjeto(cBruto) ? cBruto : {};
+    return {
+        id: c.id || novoId('cmt'),
+        entidade: c.entidade === 'anotacao' ? 'anotacao' : 'negocio',
+        entidadeId: c.entidadeId || null,
+        texto: typeof c.texto === 'string' ? c.texto : '',
+        autor: typeof c.autor === 'string' ? c.autor : '',
+        mencoes: extrairMencoes(c.texto),
+        criadoEm: c.criadoEm || nowIso(),
+        editadoEm: c.editadoEm || null
+    };
+}
+
+/**
+ * Anexo: referência a um arquivo já enviado ao Firebase Storage (contrato
+ * assinado, print do e-mail que originou a demanda etc.), ligado a um negócio
+ * ou a uma demanda. Guarda só metadados — o binário nunca entra em
+ * estoque.crm (documento serializado inteiro), quem faz o upload e obtém a
+ * `url` é a camada de UI, antes de chamar CrmStore.adicionarAnexo.
+ */
+function normalizarAnexo(aBruto) {
+    const a = ehObjeto(aBruto) ? aBruto : {};
+    const tamanho = Number(a.tamanho);
+    return {
+        id: a.id || novoId('anx'),
+        entidade: a.entidade === 'anotacao' ? 'anotacao' : 'negocio',
+        entidadeId: a.entidadeId || null,
+        nome: typeof a.nome === 'string' ? a.nome : '',
+        url: typeof a.url === 'string' ? a.url : '',
+        tamanho: (Number.isFinite(tamanho) && tamanho >= 0) ? tamanho : 0,
+        tipo: typeof a.tipo === 'string' ? a.tipo : '',
+        criadoEm: a.criadoEm || nowIso(),
+        autor: typeof a.autor === 'string' ? a.autor : ''
+    };
+}
+
 function normalizarConfig(cBruta, funis) {
     const c = ehObjeto(cBruta) ? cBruta : {};
     const idsValidos = funis.map(f => f.id);
@@ -346,7 +401,7 @@ function normalizarConfig(cBruta, funis) {
     const filtrosBrutos = ehObjeto(c.filtros) ? c.filtros : {};
     return {
         funilAtivoId,
-        visao: ['kanban', 'lista', 'demandas', 'previsao', 'excluidos'].indexOf(c.visao) !== -1 ? c.visao : 'kanban',
+        visao: ['kanban', 'lista', 'demandas', 'previsao', 'excluidos', 'painel'].indexOf(c.visao) !== -1 ? c.visao : 'kanban',
         subaba: 'negocios',
         detalheAbertoId: c.detalheAbertoId || null,
         filtros: {
@@ -526,6 +581,22 @@ function normalizarCrm(crmBruto) {
     reconciliarThreadsRespondidas(anotacoes);
     reconciliarEtapasComDemandas(negocios, funis, anotacoes);
 
+    // Comentários órfãos (entidade referenciada não existe mais) são
+    // descartados na normalização — mesmo tratamento dado a atividades
+    // órfãs acima. Negócio/demanda excluídos (soft delete via excluidoEm)
+    // continuam existindo no array, então seus comentários sobrevivem à
+    // exclusão (ficam disponíveis se o item for restaurado).
+    const comentarios = (Array.isArray(crm.comentarios) ? crm.comentarios : [])
+        .map(normalizarComentario)
+        .filter(c => c.entidadeId && (c.entidade === 'anotacao' ? idsAnotacaoValidos[c.entidadeId] : idsNegocioValidos[c.entidadeId]));
+
+    // Anexos órfãos (entidade referenciada não existe mais) são descartados,
+    // mesmo critério dos comentários acima — negócio/demanda excluídos via
+    // soft delete continuam existindo no array, então seus anexos sobrevivem.
+    const anexos = (Array.isArray(crm.anexos) ? crm.anexos : [])
+        .map(normalizarAnexo)
+        .filter(a => a.entidadeId && (a.entidade === 'anotacao' ? idsAnotacaoValidos[a.entidadeId] : idsNegocioValidos[a.entidadeId]));
+
     const config = normalizarConfig(crm.config, funis);
 
     const tiposAtividadeBrutos = Array.isArray(crm.tiposAtividade) ? crm.tiposAtividade : null;
@@ -540,6 +611,8 @@ function normalizarCrm(crmBruto) {
         atividades,
         anotacoes,
         historico,
+        comentarios,
+        anexos,
         tiposAtividade,
         config
     };
@@ -553,6 +626,8 @@ function criarFunil(dados) { return normalizarFunil(dados); }
 function criarNegocio(dados) { return normalizarNegocio(dados); }
 function criarAtividade(dados) { return normalizarAtividade(dados); }
 function criarAnotacao(dados) { return normalizarAnotacao(dados); }
+function criarComentario(dados) { return normalizarComentario(dados); }
+function criarAnexo(dados) { return normalizarAnexo(dados); }
 function criarEncaminhamento(dados) { return normalizarEncaminhamento(dados); }
 
 function funilDeTemplate(chave) {
@@ -680,6 +755,9 @@ const CrmModel = {
     normalizarAnotacao,
     normalizarEncaminhamento,
     normalizarHistoricoItem,
+    normalizarComentario,
+    normalizarAnexo,
+    extrairMencoes,
     normalizarConfig,
     normalizarTipoAtividade,
     tiposAtividadePadrao,
@@ -688,6 +766,8 @@ const CrmModel = {
     criarNegocio,
     criarAtividade,
     criarAnotacao,
+    criarComentario,
+    criarAnexo,
     criarEncaminhamento,
     funilDeTemplate,
 

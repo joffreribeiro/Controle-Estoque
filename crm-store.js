@@ -186,7 +186,7 @@
     function setVisao(visao) {
         var crm = getCrm();
         if (!crm) return;
-        var validas = ['kanban', 'lista', 'previsao', 'excluidos'];
+        var validas = ['kanban', 'lista', 'demandas', 'previsao', 'excluidos', 'timeline', 'painel'];
         emLote(function () { crm.config.visao = validas.indexOf(visao) !== -1 ? visao : 'kanban'; });
     }
 
@@ -591,6 +591,95 @@
         (crm.atividades || []).forEach(function (a, i) { if (a.id === id) idx = i; });
         if (idx === -1) return false;
         emLote(function () { crm.atividades.splice(idx, 1); });
+        return true;
+    }
+
+    // ──────────────────────────────────────────────
+    //  COMENTÁRIOS (mural de discussão por negócio/anotação — não é histórico de auditoria)
+    // ──────────────────────────────────────────────
+
+    function listarComentarios(entidade, entidadeId) {
+        var crm = getCrm();
+        if (!crm) return [];
+        return (crm.comentarios || [])
+            .filter(function (c) { return c.entidade === entidade && c.entidadeId === entidadeId; })
+            .sort(function (a, b) { return String(a.criadoEm || '').localeCompare(String(b.criadoEm || '')); });
+    }
+
+    function criarComentario(entidade, entidadeId, texto, autor) {
+        var crm = getCrm();
+        if (!crm) return null;
+        var comentario = CrmModel.criarComentario({ entidade: entidade, entidadeId: entidadeId, texto: texto, autor: autor || '' });
+        emLote(function () {
+            if (!crm.comentarios) crm.comentarios = [];
+            crm.comentarios.push(comentario);
+        });
+        return comentario;
+    }
+
+    function atualizarComentario(id, texto) {
+        var crm = getCrm();
+        if (!crm) return null;
+        var c = (crm.comentarios || []).filter(function (x) { return x.id === id; })[0];
+        if (!c) return null;
+        emLote(function () {
+            c.texto = texto;
+            c.mencoes = CrmModel.extrairMencoes(texto);
+            c.editadoEm = new Date().toISOString();
+        });
+        return c;
+    }
+
+    function removerComentario(id) {
+        var crm = getCrm();
+        if (!crm) return false;
+        var idx = -1;
+        (crm.comentarios || []).forEach(function (c, i) { if (c.id === id) idx = i; });
+        if (idx === -1) return false;
+        emLote(function () { crm.comentarios.splice(idx, 1); });
+        return true;
+    }
+
+    // ──────────────────────────────────────────────
+    //  ANEXOS (referência a arquivo no Firebase Storage — o binário nunca
+    //  entra em estoque.crm; quem faz o upload e obtém a URL é a UI)
+    // ──────────────────────────────────────────────
+
+    function listarAnexos(entidade, entidadeId) {
+        var crm = getCrm();
+        if (!crm) return [];
+        return (crm.anexos || [])
+            .filter(function (a) { return a.entidade === entidade && a.entidadeId === entidadeId; })
+            .sort(function (a, b) { return String(b.criadoEm || '').localeCompare(String(a.criadoEm || '')); });
+    }
+
+    function adicionarAnexo(entidade, entidadeId, dadosMetadados) {
+        var crm = getCrm();
+        if (!crm) return null;
+        var anexo = CrmModel.criarAnexo(Object.assign({}, dadosMetadados, {
+            entidade: entidade, entidadeId: entidadeId, autor: (dadosMetadados && dadosMetadados.autor) || autorAtual()
+        }));
+        emLote(function () {
+            if (!crm.anexos) crm.anexos = [];
+            crm.anexos.push(anexo);
+            registrarHistorico(entidade, entidadeId, 'anexo', 'Anexo adicionado: ' + (anexo.nome || '(sem nome)'),
+                { anexoId: anexo.id, acao: 'adicionado', nome: anexo.nome });
+        });
+        return anexo;
+    }
+
+    function removerAnexo(id) {
+        var crm = getCrm();
+        if (!crm) return false;
+        var idx = -1;
+        (crm.anexos || []).forEach(function (a, i) { if (a.id === id) idx = i; });
+        if (idx === -1) return false;
+        var removido = crm.anexos[idx];
+        emLote(function () {
+            crm.anexos.splice(idx, 1);
+            registrarHistorico(removido.entidade, removido.entidadeId, 'anexo', 'Anexo removido: ' + (removido.nome || '(sem nome)'),
+                { anexoId: removido.id, acao: 'removido', nome: removido.nome });
+        });
         return true;
     }
 
@@ -1053,6 +1142,15 @@
         atualizarEncaminhamento: atualizarEncaminhamento,
         responderEncaminhamento: responderEncaminhamento,
         removerEncaminhamento: removerEncaminhamento,
+
+        listarComentarios: listarComentarios,
+        criarComentario: criarComentario,
+        atualizarComentario: atualizarComentario,
+        removerComentario: removerComentario,
+
+        listarAnexos: listarAnexos,
+        adicionarAnexo: adicionarAnexo,
+        removerAnexo: removerAnexo,
 
         listarClientes: listarClientes,
         getCliente: getCliente,

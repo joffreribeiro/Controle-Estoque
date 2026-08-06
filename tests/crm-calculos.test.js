@@ -6,7 +6,8 @@ describe('CrmCalculos — export completo do módulo', () => {
     ['somarItens', 'agruparPorEtapa', 'somarValor', 'resumoFunil', 'filtrarNegocios',
       'ordenarNegocios', 'reordenarNaEtapa', 'taxaConversao', 'formatarMoeda', 'negociosDoCliente',
       'timelineDe', 'hojeIso', 'diasEntre', 'atividadesPendentesDe', 'proximaAtividade',
-      'temAtividadePendente', 'diasNaEtapa', 'idadeEmDias', 'diasInativo', 'agruparPorMesFechamento'
+      'temAtividadePendente', 'diasNaEtapa', 'idadeEmDias', 'diasInativo', 'agruparPorMesFechamento',
+      'calcularBarrasTimeline', 'agruparBarrasTimeline', 'resumoPainelDemandas'
     ].forEach(function (nome) {
       expect(typeof CrmCalculos[nome]).toBe('function');
     });
@@ -131,5 +132,117 @@ describe('CrmCalculos — atividades e métricas derivadas', () => {
     ];
     const grupos = CrmCalculos.agruparPorMesFechamento(negocios);
     expect(grupos.map(g => g.mes)).toEqual(['2026-07', '2026-08', null]);
+  });
+});
+
+describe('CrmCalculos.calcularBarrasTimeline', () => {
+  it('usa dataRecebimento/dataPrevisao do negócio e dataSolicitacao/prazo da demanda', () => {
+    const negocios = [{ id: 'n1', titulo: 'Negócio A', dataRecebimento: '2026-08-01', dataPrevisao: '2026-08-10', funilId: 'f1' }];
+    const anotacoes = [{ id: 'a1', assunto: 'Demanda A', dataSolicitacao: '2026-08-05', prazo: '2026-08-07', funilId: 'f1' }];
+    const barras = CrmCalculos.calcularBarrasTimeline(negocios, anotacoes);
+    expect(barras).toEqual([
+      { id: 'n1', tipo: 'negocio', titulo: 'Negócio A', inicio: '2026-08-01', fim: '2026-08-10', semPrazo: false, funilId: 'f1', clienteId: null, status: undefined },
+      { id: 'a1', tipo: 'anotacao', titulo: 'Demanda A', inicio: '2026-08-05', fim: '2026-08-07', semPrazo: false, funilId: 'f1', clienteId: null, situacao: undefined }
+    ]);
+  });
+
+  it('sem data de início/fim: cai para criadoEm e marca semPrazo (barra de 1 dia)', () => {
+    const negocios = [{ id: 'n1', titulo: 'Sem datas', criadoEm: '2026-08-01T10:00:00.000Z' }];
+    const barras = CrmCalculos.calcularBarrasTimeline(negocios, []);
+    expect(barras[0].inicio).toBe('2026-08-01');
+    expect(barras[0].fim).toBe('2026-08-01');
+    expect(barras[0].semPrazo).toBe(true);
+  });
+
+  it('datas invertidas (fim antes do início) são corrigidas para uma barra de 1 dia', () => {
+    const negocios = [{ id: 'n1', titulo: 'Invertido', dataRecebimento: '2026-08-10', dataPrevisao: '2026-08-01' }];
+    const barras = CrmCalculos.calcularBarrasTimeline(negocios, []);
+    expect(barras[0].inicio).toBe('2026-08-10');
+    expect(barras[0].fim).toBe('2026-08-10');
+  });
+
+  it('ignora negócios/demandas excluídos e ordena pelo início', () => {
+    const negocios = [
+      { id: 'n1', titulo: 'Depois', dataRecebimento: '2026-08-20' },
+      { id: 'n2', titulo: 'Antes', dataRecebimento: '2026-08-01' },
+      { id: 'n3', titulo: 'Excluído', dataRecebimento: '2026-08-05', excluidoEm: '2026-08-06T00:00:00.000Z' }
+    ];
+    const barras = CrmCalculos.calcularBarrasTimeline(negocios, []);
+    expect(barras.map(b => b.id)).toEqual(['n2', 'n1']);
+  });
+});
+
+describe('CrmCalculos.agruparBarrasTimeline', () => {
+  it('agrupa por funil, com rótulo "Sem funil" para barras sem vínculo', () => {
+    const funis = [{ id: 'f1', nome: 'Vendas' }];
+    const barras = [
+      { id: 'n1', funilId: 'f1' },
+      { id: 'n2', funilId: null },
+      { id: 'n3', funilId: 'f1' }
+    ];
+    const grupos = CrmCalculos.agruparBarrasTimeline(barras, 'funil', funis, []);
+    expect(grupos.map(g => g.rotulo)).toEqual(['Vendas', 'Sem funil']);
+    expect(grupos[0].barras.map(b => b.id)).toEqual(['n1', 'n3']);
+  });
+
+  it('agrupa por cliente, com rótulo "Sem cliente" para barras sem vínculo', () => {
+    const clientes = [{ id: 'c1', nome: 'Acme' }];
+    const barras = [{ id: 'n1', clienteId: 'c1' }, { id: 'n2', clienteId: null }];
+    const grupos = CrmCalculos.agruparBarrasTimeline(barras, 'cliente', [], clientes);
+    expect(grupos.map(g => g.rotulo)).toEqual(['Acme', 'Sem cliente']);
+  });
+});
+
+describe('CrmCalculos.resumoPainelDemandas', () => {
+  const hoje = '2026-08-06';
+  const extra = { hoje };
+  const anotacoes = [
+    { id: 'a1', situacao: 'recebida', finalizado: false, prazo: '2026-08-01', responsavel: '', encaminhamentos: [] },
+    { id: 'a2', situacao: 'comigo', finalizado: false, prazo: '2026-08-10', responsavel: 'Ana', encaminhamentos: [] },
+    {
+      id: 'a3', situacao: 'aguardando_terceiro', finalizado: false, prazo: '2026-08-06', responsavel: 'Ana',
+      encaminhamentos: [{ id: 'e1', para: 'Financeiro', status: 'pendente', prazoResposta: '2026-08-01', dataEnvio: '2026-07-20' }]
+    },
+    { id: 'a4', situacao: 'consolidando', finalizado: false, prazo: null, responsavel: 'Bruno', encaminhamentos: [] },
+    { id: 'a5', situacao: 'respondida', finalizado: true, prazo: '2026-07-01', responsavel: 'Ana', encaminhamentos: [] },
+    { id: 'a6', situacao: 'comigo', finalizado: false, prazo: '2026-08-07', lembrarDiasAntes: 3, responsavel: 'Bruno', encaminhamentos: [] },
+    { id: 'a7', situacao: 'recebida', finalizado: false, prazo: '2026-09-01', responsavel: 'Ana', encaminhamentos: [], excluidoEm: '2026-08-01T00:00:00.000Z' }
+  ];
+
+  it('conta o total e ignora demandas excluídas', () => {
+    const r = CrmCalculos.resumoPainelDemandas(anotacoes, extra);
+    expect(r.total).toBe(6);
+  });
+
+  it('agrupa por situação usando as mesmas chaves de SITUACOES_ANOTACAO', () => {
+    const r = CrmCalculos.resumoPainelDemandas(anotacoes, extra);
+    expect(r.porSituacao).toEqual({
+      recebida: 1, comigo: 2, aguardando_terceiro: 1, consolidando: 1, respondida: 1
+    });
+  });
+
+  it('conta vencidas (semaforoPrazo === "vencida")', () => {
+    const r = CrmCalculos.resumoPainelDemandas(anotacoes, extra);
+    expect(r.vencidas).toBe(1);
+  });
+
+  it('conta emAlerta (semaforoPrazo "alerta" ou "hoje")', () => {
+    const r = CrmCalculos.resumoPainelDemandas(anotacoes, extra);
+    expect(r.emAlerta).toBe(2);
+  });
+
+  it('conta comTerceiroAtrasado via resumoEncaminhamentos().algumVencido', () => {
+    const r = CrmCalculos.resumoPainelDemandas(anotacoes, extra);
+    expect(r.comTerceiroAtrasado).toBe(1);
+  });
+
+  it('agrupa por responsável, com "Sem responsável" para vazio', () => {
+    const r = CrmCalculos.resumoPainelDemandas(anotacoes, extra);
+    expect(r.porResponsavel).toEqual({ 'Sem responsável': 1, Ana: 3, Bruno: 2 });
+  });
+
+  it('lista até 5 próximos vencimentos não finalizados, ordenados por prazo asc', () => {
+    const r = CrmCalculos.resumoPainelDemandas(anotacoes, extra);
+    expect(r.proximosVencimentos.map(a => a.id)).toEqual(['a1', 'a3', 'a6', 'a2']);
   });
 });

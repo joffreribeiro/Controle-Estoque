@@ -508,6 +508,88 @@ function agruparPorMesFechamento(negocios) {
     return grupos;
 }
 
+/**
+ * Uma barra por negócio/demanda para a visão Timeline (somente leitura, não
+ * persiste nada — calculada em cima de `negocios`/`anotacoes` já existentes).
+ * Início: dataRecebimento (negócio) / dataSolicitacao (demanda), caindo para
+ * criadoEm quando ausente. Fim: dataPrevisao/dataFechamento (negócio) ou
+ * prazo/dataConclusao (demanda), caindo para o próprio início quando ausente
+ * (barra de 1 dia). `semPrazo` sinaliza que o fim é um fallback, não um dado
+ * real — a UI usa isso para jogar a barra numa faixa "sem prazo definido" em
+ * vez de desenhar como se fosse um intervalo real.
+ */
+function calcularBarrasTimeline(negocios, anotacoes, extra) {
+    const negocioPorId = {};
+    (negocios || []).forEach(n => { negocioPorId[n.id] = n; });
+
+    const barrasNegocio = (negocios || [])
+        .filter(n => !n.excluidoEm)
+        .map(n => {
+            const inicio = n.dataRecebimento || (n.criadoEm || '').slice(0, 10);
+            const fimReal = n.dataFechamento || n.dataPrevisao || null;
+            return {
+                id: n.id,
+                tipo: 'negocio',
+                titulo: n.titulo || '(sem título)',
+                inicio,
+                fim: fimReal || inicio,
+                semPrazo: !fimReal,
+                funilId: n.funilId || null,
+                clienteId: n.clienteId || null,
+                status: n.status
+            };
+        });
+
+    const barrasAnotacao = (anotacoes || [])
+        .filter(a => !a.excluidoEm)
+        .map(a => {
+            const vinculo = vinculoDaAnotacao(a, negocioPorId);
+            const inicio = a.dataSolicitacao || (a.criadoEm || '').slice(0, 10);
+            const fimReal = a.dataConclusao || a.prazo || null;
+            return {
+                id: a.id,
+                tipo: 'anotacao',
+                titulo: a.assunto || '(sem assunto)',
+                inicio,
+                fim: fimReal || inicio,
+                semPrazo: !fimReal,
+                funilId: vinculo.funilId,
+                clienteId: vinculo.clienteId,
+                situacao: a.situacao
+            };
+        });
+
+    return barrasNegocio.concat(barrasAnotacao)
+        .filter(b => b.inicio)
+        .map(b => (b.fim < b.inicio) ? Object.assign({}, b, { fim: b.inicio }) : b)
+        .sort((x, y) => String(x.inicio).localeCompare(String(y.inicio)));
+}
+
+/**
+ * Agrupa as barras da Timeline por funil ou por cliente (para a UI oferecer
+ * a alternância de agrupamento). `criterio`: 'funil' | 'cliente'. Barras sem
+ * o campo do critério caem no grupo `null` ("Sem funil"/"Sem cliente").
+ */
+function agruparBarrasTimeline(barras, criterio, funis, clientes) {
+    const nomeFunil = id => { const f = (funis || []).find(x => x.id === id); return f ? f.nome : null; };
+    const nomeCliente = id => { const c = (clientes || []).find(x => x.id === id); return c ? c.nome : null; };
+    const chaveDe = b => criterio === 'cliente' ? b.clienteId : b.funilId;
+    const rotuloDe = id => criterio === 'cliente' ? (nomeCliente(id) || 'Sem cliente') : (nomeFunil(id) || 'Sem funil');
+
+    const porChave = {};
+    const ordem = [];
+    (barras || []).forEach(b => {
+        const chave = chaveDe(b) || '__sem__';
+        if (!porChave[chave]) { porChave[chave] = []; ordem.push(chave); }
+        porChave[chave].push(b);
+    });
+    return ordem.map(chave => ({
+        chave,
+        rotulo: chave === '__sem__' ? rotuloDe(null) : rotuloDe(chave),
+        barras: porChave[chave]
+    }));
+}
+
 // ──────────────────────────────────────────────
 //  CALENDÁRIO DE ATIVIDADES (visão global, todas os negócios)
 // ──────────────────────────────────────────────
@@ -716,6 +798,51 @@ function agruparAtividadesPorGradeMes(atividades, mesRefIso) {
     return mapa;
 }
 
+// Mesmas chaves de CrmModel.SITUACOES_ANOTACAO — repetidas aqui porque
+// crm-calculos.js não depende de crm-model.js (funções puras isoladas).
+const SITUACOES_ANOTACAO_PAINEL = ['recebida', 'comigo', 'aguardando_terceiro', 'consolidando', 'respondida'];
+
+/**
+ * Resumo agregado para o Painel de indicadores da Caixa de Demandas: quantas
+ * demandas em cada situação, quantas vencidas/em alerta/com terceiro
+ * atrasado, distribuição por responsável e os próximos vencimentos. Ignora
+ * demandas excluídas (mesmo critério de filtrarAnotacoes).
+ */
+function resumoPainelDemandas(anotacoes, extra) {
+    const hoje = extra && extra.hoje;
+    const ativas = (anotacoes || []).filter(a => a && !a.excluidoEm);
+
+    const porSituacao = {};
+    SITUACOES_ANOTACAO_PAINEL.forEach(s => { porSituacao[s] = 0; });
+    const porResponsavel = {};
+    let vencidas = 0, emAlerta = 0, comTerceiroAtrasado = 0;
+
+    ativas.forEach(a => {
+        if (Object.prototype.hasOwnProperty.call(porSituacao, a.situacao)) porSituacao[a.situacao]++;
+
+        const sem = semaforoPrazo(a, hoje);
+        if (sem === 'vencida') vencidas++;
+        if (sem === 'alerta' || sem === 'hoje') emAlerta++;
+        if (resumoEncaminhamentos(a, hoje).algumVencido) comTerceiroAtrasado++;
+
+        const resp = (a.responsavel && String(a.responsavel).trim()) ? a.responsavel : 'Sem responsável';
+        porResponsavel[resp] = (porResponsavel[resp] || 0) + 1;
+    });
+
+    const naoFinalizadasComPrazo = ativas.filter(a => !a.finalizado && a.prazo);
+    const proximosVencimentos = ordenarAnotacoes(naoFinalizadasComPrazo, 'prazo', 'asc', extra).slice(0, 5);
+
+    return {
+        total: ativas.length,
+        porSituacao,
+        vencidas,
+        emAlerta,
+        comTerceiroAtrasado,
+        porResponsavel,
+        proximosVencimentos
+    };
+}
+
 /**
  * Itens de histórico de uma entidade específica, mais recentes primeiro.
  */
@@ -746,7 +873,10 @@ const CrmCalculos = {
     taxaConversao,
     formatarMoeda,
     negociosDoCliente,
+    resumoPainelDemandas,
     timelineDe,
+    calcularBarrasTimeline,
+    agruparBarrasTimeline,
 
     hojeIso,
     diasEntre,
