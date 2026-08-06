@@ -348,13 +348,13 @@
 
 /* Paleta de eventos — idêntica ao switch de classeEvento() do Ponto original,
    incluindo a mesma lacuna dele (afastamento/compensar_acordo caem no genérico). */
-.timesheet-table td.evento-feriado { background: #fef2f2; color: #b91c1c; border-left: 3px solid #ef4444; }
-.timesheet-table td.evento-ferias { background: #fffbeb; color: #92400e; border-left: 3px solid #f59e0b; }
-.timesheet-table td.evento-afastamento { background: #eff6ff; color: #1d4ed8; border-left: 3px solid #3b82f6; }
-.timesheet-table td.evento-viagem { background: #f5f3ff; color: #6d28d9; border-left: 3px solid #8b5cf6; }
-.timesheet-table td.evento-outro { background: #f8fafc; color: #475569; border-left: 3px solid #94a3b8; }
-.timesheet-table td.evento-abono, .timesheet-table td.evento-abono-acordo { background: #f0fdf4; color: #15803d; border-left: 3px solid #22c55e; }
-.timesheet-table td.evento-compensar-acordo, .timesheet-table td.evento-pagar-hora-acordo { background: #fff7ed; color: #c2410c; border-left: 3px solid #fb923c; }
+.timesheet-table td.evento-feriado { background: #fef2f2; color: #b91c1c; }
+.timesheet-table td.evento-ferias { background: #fffbeb; color: #92400e; }
+.timesheet-table td.evento-afastamento { background: #eff6ff; color: #1d4ed8; }
+.timesheet-table td.evento-viagem { background: #f5f3ff; color: #6d28d9; }
+.timesheet-table td.evento-outro { background: #f8fafc; color: #475569; }
+.timesheet-table td.evento-abono, .timesheet-table td.evento-abono-acordo { background: #f0fdf4; color: #15803d; }
+.timesheet-table td.evento-compensar-acordo, .timesheet-table td.evento-pagar-hora-acordo { background: #fff7ed; color: #c2410c; }
 .evento-abono-periodo { background: #f0fdf4 !important; color: #15803d !important; }
 .evento-pagar-hora-periodo { background: #fdf2f8 !important; color: #9d174d !important; }
 
