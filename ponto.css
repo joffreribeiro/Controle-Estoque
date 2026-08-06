@@ -4,14 +4,19 @@
  * convenção do crm.css).
  */
 
-/* styles.css tem uma regra genérica "table thead th { position: sticky; top: 0 }" pra
-   outras telas do sistema (cabeçalho fixo dentro de um contêiner com scroll próprio).
+/* styles.css tem DUAS regras genéricas de cabeçalho fixo pra outras telas do
+   sistema: "table thead th { position: sticky; top: 0 }" e, separadamente,
+   "thead { position: sticky; top: 0; z-index: 950 }" no elemento <thead> em
+   si (bem mais alto que o z-index 55-65 do painel congelado do Ponto — por
+   isso não basta neutralizar os <th>, o <thead> continua grudando por cima
+   de tudo se não for resetado também).
    Toda tabela do Ponto vive dentro de um wrapper com overflow-x:auto (.crm-lista-wrapper,
    .timesheet-wrapper), o que já conta como "contêiner com scroll" pro sticky, mesmo sem
-   barra visível — então essa regra genérica fazia o thead de CADA tabela (e de CADA mês
+   barra visível — então essas regras genéricas faziam o thead de CADA tabela (e de CADA mês
    na Folha de Ponto) tentar grudar no topo do próprio wrapper, brigando visualmente com o
    painel externo congelado abaixo. Aqui ninguém tem esse comportamento: quem fica fixo é
    o painel de fora (título/sub-abas/filtro), as tabelas rolam normal por baixo dele. */
+#pontoConteudo table thead,
 #pontoConteudo table thead th { position: static; }
 
 /* Congelados ao rolar: título da aba, sub-abas e a barra de filtro/seletor logo abaixo
