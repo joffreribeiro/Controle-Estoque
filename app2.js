@@ -3772,6 +3772,9 @@ let _estState = {
     hiddenReps: new Set(),
     sortCol: null,
     sortDir: 'desc',
+    filtro: { termo: '', categoria: '', mostrarZeros: true },
+    pagina: 1,
+    porPagina: 50,
 };
 
 function _estVisibleReps() {
@@ -3992,6 +3995,17 @@ function renderizarTabela() {
     }
 
     // ── Renderizar corpo ──
+    // Filtro (texto/categoria/zerados) + paginação decidem só quais linhas viram
+    // HTML no DOM — os totais/KPIs abaixo continuam somando a lista inteira
+    // (produtosOrdenados), sem mudar de comportamento.
+    const filtro = _estState.filtro || {};
+    const termoBuscaEst = (filtro.termo || '').toLowerCase();
+    const catFiltroEst = (filtro.categoria || '').toLowerCase();
+    const inicioPagina = (_estState.pagina - 1) * _estState.porPagina;
+    const fimPagina = inicioPagina + _estState.porPagina;
+    let indiceFiltrado = 0;
+    let totalFiltradoEst = 0;
+
     let rows = '';
     produtosOrdenados.forEach(produto => {
         const produtoId = produto.id;
@@ -3999,6 +4013,14 @@ function renderizarTabela() {
         const obs = produto.observacoes ? String(produto.observacoes).trim() : '';
         const categoria = (categoriaPorProduto && categoriaPorProduto[produto.nome]) || produto.categoria || '';
         const ncm = produto.ncm || '';
+
+        const passaBuscaEst = !termoBuscaEst ||
+            produto.nome.toLowerCase().includes(termoBuscaEst) ||
+            ncm.toLowerCase().includes(termoBuscaEst) ||
+            categoria.toLowerCase().includes(termoBuscaEst);
+        const passaCatEst = !catFiltroEst || categoria.toLowerCase().includes(catFiltroEst);
+        const passaZeroEst = filtro.mostrarZeros !== false || metricaImbel.consolidadoSaldo !== 0;
+        const passaFiltroEst = passaBuscaEst && passaCatEst && passaZeroEst;
 
         const estoqueTotal = Number(
             (produto.estoqueConsolidado ?? produto.estoqueTotal ?? produto.estoque ?? produto.qtdTotal ?? produto.estoqueInicial) || 0
@@ -4128,7 +4150,13 @@ function renderizarTabela() {
         totais.GERAL.venda += cVenda;
         totais.GERAL.saldo += cSaldo;
 
-        rows += row;
+        if (passaFiltroEst) {
+            if (indiceFiltrado >= inicioPagina && indiceFiltrado < fimPagina) {
+                rows += row;
+            }
+            indiceFiltrado++;
+            totalFiltradoEst++;
+        }
     });
 
     if (!rows) rows = `<tr><td colspan="99" style="padding:20px;text-align:center;color:#94a3b8;font-size:0.82rem">Nenhum produto para exibir.</td></tr>`;
@@ -4157,9 +4185,10 @@ function renderizarTabela() {
         tfoot.innerHTML = foot;
     }
 
-    // ── Renderizar RepBar e KPIs ──
+    // ── Renderizar RepBar e KPIs (sempre sobre a lista inteira, não a página atual) ──
     try { _estRenderRepBar(produtosOrdenados); } catch (e) {}
     try { _estRenderKPIs(produtosOrdenados, totais, repsVisiveis); } catch (e) {}
+    try { _estRenderPaginacao(totalFiltradoEst); } catch (e) {}
 
     // Aplicar densidade padrão (compacto) se ainda não definida
     const tabEstoque = document.getElementById('tab-estoque');
@@ -4378,8 +4407,10 @@ function renderizarCadastroProdutos() {
         return tr;
     }
 
-    // Renderizar produtos principais com botão expand se tiver peças
-    principais.forEach(produto => {
+    // Renderizar produtos principais com botão expand se tiver peças, e as peças
+    // órfãs (pai fora da lista filtrada) — em lotes de 50 via LazyLoader, pra não
+    // travar a tela quando a lista tem centenas/milhares de produtos.
+    function _renderUnidadeProdutoPrincipal(produto) {
         const filhas = pecasPorPai[produto.nome.toUpperCase()] || [];
         const temPecas = filhas.length > 0;
         const tr = _renderLinhaProduto(produto, false);
@@ -4416,12 +4447,34 @@ function renderizarCadastroProdutos() {
         filhas.forEach(peca => {
             tbody.appendChild(_renderLinhaProduto(peca, true));
         });
-    });
+    }
 
-    // Peças cujo pai não aparece na lista filtrada — mostrar normalmente
-    pecasOrfas.forEach(produto => {
-        tbody.appendChild(_renderLinhaProduto(produto, false));
-    });
+    const unidadesParaRenderizar = principais.map(produto => ({ tipo: 'principal', produto }))
+        .concat(pecasOrfas.map(produto => ({ tipo: 'orfa', produto })));
+
+    function _renderUnidade(unidade) {
+        if (unidade.tipo === 'principal') _renderUnidadeProdutoPrincipal(unidade.produto);
+        else tbody.appendChild(_renderLinhaProduto(unidade.produto, false));
+    }
+
+    if (window.LazyLoader) {
+        LazyLoader.render(tbody, unidadesParaRenderizar, _renderUnidade, {
+            chunkSize: 50,
+            criarSentinela: function (restantes) {
+                const tr = document.createElement('tr');
+                tr.className = 'lazy-sentinela';
+                const td = document.createElement('td');
+                td.colSpan = 11;
+                td.style.cssText = 'text-align:center;padding:12px;color:#94a3b8;font-size:0.8rem';
+                td.textContent = `Carregando mais produtos... (${restantes} restante${restantes !== 1 ? 's' : ''})`;
+                tr.appendChild(td);
+                return tr;
+            }
+        });
+    } else {
+        // Fallback defensivo caso lazy-loader.js não tenha carregado — comportamento antigo.
+        unidadesParaRenderizar.forEach(_renderUnidade);
+    }
 
     // ── Atualizar KPIs com contagem global (não filtrada) ──
     const semCI = Math.max(0, totalGeral - comCI);
@@ -4477,6 +4530,13 @@ function filtrarCadastroProdutos() {
     _cadProdFiltroCategoria = document.getElementById('produtoFiltroCategoria')?.value || '';
     renderizarCadastroProdutos();
 }
+
+// Versão com debounce para o campo de busca por texto: evita re-renderizar a
+// tabela inteira a cada tecla digitada (o filtro por categoria, um <select>,
+// continua chamando filtrarCadastroProdutos() direto — não precisa de debounce).
+const filtrarCadastroProdutosDebounced = window.Debounce
+    ? Debounce.criar(filtrarCadastroProdutos, 300)
+    : filtrarCadastroProdutos;
 
 function toggleFiltroSemCI() {
     _cadProdFiltroSemCI = !_cadProdFiltroSemCI;
@@ -4964,7 +5024,7 @@ function gerarPdfProposta(propostaId, tipo = 'simples') {
         doc.text('FÁBRICA DE ITAJUBÁ', 15, 15);
         doc.setFontSize(9);
         doc.setFont('helvetica', 'normal');
-        doc.text('Nexus — Conectando Suas Operações', 15, 22);
+        doc.text('Nexus — Operações Conectadas', 15, 22);
         doc.setFont('helvetica', 'bold');
         doc.setFontSize(14);
         doc.setTextColor(201, 162, 39);
@@ -15052,31 +15112,51 @@ document.addEventListener('DOMContentLoaded', inicializar);
 // BUSCA / FILTRO NA TABELA DE ESTOQUE
 // ========================================
 
+/**
+ * Filtro da tabela de Estoque (matriz consolidada). Antes disparava o filtro
+ * escondendo/mostrando linhas já renderizadas via display:none — passou a
+ * guardar o critério em `_estState.filtro` e voltar para a página 1, deixando
+ * `renderizarTabela()` aplicar filtro + paginação juntos (só ~50 linhas por
+ * vez entram no DOM, mesmo com o produto filtrado presente em qualquer página).
+ */
 function filtrarTabelaEstoque(termo) {
-    const tbody = document.getElementById('corpoTabela');
-    if (!tbody) return;
-    const rows = tbody.querySelectorAll('tr[data-id]');
-    const termoLower = (termo || '').toLowerCase().trim();
-    const catFiltro = (document.getElementById('estFiltroCategoria')?.value || '').toLowerCase();
-    const mostrarZeros = document.getElementById('estMostrarZerados')?.checked !== false;
+    _estState.filtro = {
+        termo: (termo || '').trim(),
+        categoria: document.getElementById('estFiltroCategoria')?.value || '',
+        mostrarZeros: document.getElementById('estMostrarZerados')?.checked !== false
+    };
+    _estState.pagina = 1;
+    renderizarTabela();
+}
 
-    rows.forEach(row => {
-        const nome = (row.dataset.nome || '').toLowerCase();
-        const cat  = (row.dataset.cat  || '').toLowerCase();
-        const ncm  = (row.dataset.ncm  || '').toLowerCase();
+// Debounce só no campo de busca por texto (digitação); categoria/checkbox
+// continuam chamando filtrarTabelaEstoque(...) direto no onchange, sem atraso.
+const filtrarTabelaEstoqueDebounced = window.Debounce
+    ? Debounce.criar(filtrarTabelaEstoque, 300)
+    : filtrarTabelaEstoque;
 
-        const passaBusca = !termoLower || nome.includes(termoLower) || ncm.includes(termoLower) || cat.includes(termoLower);
-        const passaCat   = !catFiltro  || cat.includes(catFiltro);
+function _estIrParaPagina(pagina) {
+    _estState.pagina = Math.max(1, pagina);
+    renderizarTabela();
+}
 
-        // Para filtro zerados: verificar saldo consolidado na célula
-        let passaZero = true;
-        if (!mostrarZeros) {
-            const saldoCell = row.querySelector('td.est-consol-cell.est-saldo-zero');
-            passaZero = !saldoCell;
-        }
+function _estRenderPaginacao(totalFiltrado) {
+    const el = document.getElementById('estPaginacao');
+    if (!el) return;
+    const porPagina = _estState.porPagina;
+    const totalPaginas = Math.max(1, Math.ceil(totalFiltrado / porPagina));
+    if (_estState.pagina > totalPaginas) _estState.pagina = totalPaginas;
+    const pagina = _estState.pagina;
 
-        row.style.display = (passaBusca && passaCat && passaZero) ? '' : 'none';
-    });
+    if (totalPaginas <= 1) { el.innerHTML = ''; return; }
+
+    const inicio = totalFiltrado === 0 ? 0 : (pagina - 1) * porPagina + 1;
+    const fim = Math.min(pagina * porPagina, totalFiltrado);
+    el.innerHTML = `
+        <button type="button" class="btn btn-outline btn-sm" ${pagina <= 1 ? 'disabled' : ''} onclick="_estIrParaPagina(${pagina - 1})">← Anterior</button>
+        <span>${inicio}–${fim} de ${totalFiltrado} · página ${pagina} de ${totalPaginas}</span>
+        <button type="button" class="btn btn-outline btn-sm" ${pagina >= totalPaginas ? 'disabled' : ''} onclick="_estIrParaPagina(${pagina + 1})">Próxima →</button>
+    `;
 }
 
 // ========================================
@@ -25908,7 +25988,7 @@ function prepararEmailVenda(venda) {
     const cfg = _getCfgEmail();
     const contrato = venda.contrato || '';
     const cliente  = venda.loja || '';
-    const assinatura = cfg.assinatura || 'Atenciosamente,\nNexus — Conectando Suas Operações';
+    const assinatura = cfg.assinatura || 'Atenciosamente,\nNexus — Operações Conectadas';
 
     // Formato exato solicitado:
     // Assunto: CTR xxx/2026 - [nome do comprador]

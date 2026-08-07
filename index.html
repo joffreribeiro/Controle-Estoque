@@ -3,13 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Nexus | Conectando Suas Operações</title>
+    <title>Nexus | Operações Conectadas</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600;700&family=IBM+Plex+Sans+Condensed:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="styles.css?v=20260625-02">
     <link rel="stylesheet" href="imbel.css?v=20260611-02">
     <link rel="stylesheet" href="fluxo-nav.css?v=3">
-    <link id="favicon" rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='48' fill='%230b1723'/%3E%3Crect x='30' y='70' width='40' height='12' rx='1' fill='%23d4af37'/%3E%3Crect x='20' y='55' width='15' height='12' rx='1' fill='%23f6c84c'/%3E%3Crect x='42' y='55' width='15' height='12' rx='1' fill='%23f6c84c'/%3E%3Crect x='65' y='55' width='15' height='12' rx='1' fill='%23f6c84c'/%3E%3Crect x='30' y='40' width='15' height='12' rx='1' fill='%23ffd700'/%3E%3Crect x='55' y='40' width='15' height='12' rx='1' fill='%23ffd700'/%3E%3Crect x='25' y='28' width='12' height='9' rx='1' fill='%23f6c84c'/%3E%3Crect x='44' y='28' width='12' height='9' rx='1' fill='%23f6c84c'/%3E%3Crect x='63' y='28' width='12' height='9' rx='1' fill='%23f6c84c'/%3E%3C/svg%3E">
+    <link id="favicon" rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20100%20100%22%3E%0A%20%20%3Ccircle%20cx%3D%2250%22%20cy%3D%2250%22%20r%3D%2248%22%20fill%3D%22%230b1723%22%3E%3C%2Fcircle%3E%0A%20%20%3Cline%20x1%3D%2250%22%20y1%3D%2250%22%20x2%3D%2250%22%20y2%3D%2220%22%20stroke%3D%22%23e5a128%22%20stroke-width%3D%226%22%20stroke-linecap%3D%22round%22%3E%3C%2Fline%3E%0A%20%20%3Cline%20x1%3D%2250%22%20y1%3D%2250%22%20x2%3D%2276%22%20y2%3D%2265%22%20stroke%3D%22%23e5a128%22%20stroke-width%3D%226%22%20stroke-linecap%3D%22round%22%3E%3C%2Fline%3E%0A%20%20%3Cline%20x1%3D%2250%22%20y1%3D%2250%22%20x2%3D%2224%22%20y2%3D%2265%22%20stroke%3D%22%23e5a128%22%20stroke-width%3D%226%22%20stroke-linecap%3D%22round%22%3E%3C%2Fline%3E%0A%20%20%3Ccircle%20cx%3D%2250%22%20cy%3D%2250%22%20r%3D%2212%22%20fill%3D%22%23ffd700%22%3E%3C%2Fcircle%3E%0A%20%20%3Ccircle%20cx%3D%2250%22%20cy%3D%2220%22%20r%3D%228%22%20fill%3D%22%23f6c84c%22%3E%3C%2Fcircle%3E%0A%20%20%3Ccircle%20cx%3D%2276%22%20cy%3D%2265%22%20r%3D%228%22%20fill%3D%22%23f6c84c%22%3E%3C%2Fcircle%3E%0A%20%20%3Ccircle%20cx%3D%2224%22%20cy%3D%2265%22%20r%3D%228%22%20fill%3D%22%23f6c84c%22%3E%3C%2Fcircle%3E%0A%3C%2Fsvg%3E">
     <script src="https://cdn.jsdelivr.net/npm/lz-string@1.5.0/libs/lz-string.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -30,37 +30,20 @@
             <div class="sidebar-top">
                 <div class="sidebar-logo">
                     <div class="logo-icon" aria-hidden="true">
-                        <svg class="logo-svg" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-                            <defs>
-                                <linearGradient id="goldGrad1Sidebar" x1="0%" y1="0%" x2="100%" y2="100%">
-                                    <stop offset="0%" style="stop-color:#ffd700;stop-opacity:1" />
-                                    <stop offset="100%" style="stop-color:#b8942a;stop-opacity:1" />
-                                </linearGradient>
-                                <linearGradient id="goldGrad2Sidebar" x1="0%" y1="0%" x2="100%" y2="100%">
-                                    <stop offset="0%" style="stop-color:#f6c84c;stop-opacity:1" />
-                                    <stop offset="100%" style="stop-color:#d4af37;stop-opacity:1" />
-                                </linearGradient>
-                                <linearGradient id="goldGrad3Sidebar" x1="0%" y1="0%" x2="100%" y2="100%">
-                                    <stop offset="0%" style="stop-color:#d4af37;stop-opacity:1" />
-                                    <stop offset="100%" style="stop-color:#aa8c2a;stop-opacity:1" />
-                                </linearGradient>
-                            </defs>
-                            <rect x="30" y="70" width="40" height="12" rx="1" fill="url(#goldGrad3Sidebar)" stroke="#0b1723" stroke-width="1" opacity="0.95"/>
-                            <rect x="20" y="55" width="15" height="12" rx="1" fill="url(#goldGrad2Sidebar)" stroke="#0b1723" stroke-width="1" opacity="0.9"/>
-                            <rect x="42" y="55" width="15" height="12" rx="1" fill="url(#goldGrad2Sidebar)" stroke="#0b1723" stroke-width="1" opacity="0.9"/>
-                            <rect x="65" y="55" width="15" height="12" rx="1" fill="url(#goldGrad2Sidebar)" stroke="#0b1723" stroke-width="1" opacity="0.9"/>
-                            <rect x="30" y="40" width="15" height="12" rx="1" fill="url(#goldGrad1Sidebar)" stroke="#0b1723" stroke-width="1" opacity="0.85"/>
-                            <rect x="55" y="40" width="15" height="12" rx="1" fill="url(#goldGrad1Sidebar)" stroke="#0b1723" stroke-width="1" opacity="0.85"/>
-                            <rect x="25" y="28" width="12" height="9" rx="1" fill="url(#goldGrad2Sidebar)" stroke="#0b1723" stroke-width="0.8" opacity="0.8"/>
-                            <rect x="44" y="28" width="12" height="9" rx="1" fill="url(#goldGrad2Sidebar)" stroke="#0b1723" stroke-width="0.8" opacity="0.8"/>
-                            <rect x="63" y="28" width="12" height="9" rx="1" fill="url(#goldGrad2Sidebar)" stroke="#0b1723" stroke-width="0.8" opacity="0.8"/>
-                            <rect x="35" y="18" width="10" height="8" rx="1" fill="url(#goldGrad1Sidebar)" stroke="#0b1723" stroke-width="0.8" opacity="0.75"/>
-                            <rect x="55" y="18" width="10" height="8" rx="1" fill="url(#goldGrad1Sidebar)" stroke="#0b1723" stroke-width="0.8" opacity="0.75"/>
+                        <svg class="logo-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+                          <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffd700"></stop><stop offset="1" stop-color="#b8942a"></stop></linearGradient></defs>
+                          <line x1="50" y1="50" x2="50" y2="20" stroke="url(#g)" stroke-width="5" stroke-linecap="round"></line>
+                          <line x1="50" y1="50" x2="76" y2="65" stroke="url(#g)" stroke-width="5" stroke-linecap="round"></line>
+                          <line x1="50" y1="50" x2="24" y2="65" stroke="url(#g)" stroke-width="5" stroke-linecap="round"></line>
+                          <circle cx="50" cy="50" r="11" fill="url(#g)"></circle>
+                          <circle cx="50" cy="20" r="7" fill="url(#g)"></circle>
+                          <circle cx="76" cy="65" r="7" fill="url(#g)"></circle>
+                          <circle cx="24" cy="65" r="7" fill="url(#g)"></circle>
                         </svg>
                     </div>
                     <div class="logo-text">
                         <h1>Nexus</h1>
-                        <div class="subtitle">Conectando Suas Operações</div>
+                        <div class="subtitle">Operações Conectadas</div>
                     </div>
                 </div>
 
@@ -292,7 +275,7 @@
                     <div class="header-actions produtos-toolbar">
                         <div class="prod-search-wrap">
                             <svg class="search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-                            <input type="text" id="produtoBusca" class="prod-search-input" placeholder="Buscar por nome, PN, componente…" oninput="filtrarCadastroProdutos()" autocomplete="off">
+                            <input type="text" id="produtoBusca" class="prod-search-input" placeholder="Buscar por nome, PN, componente…" oninput="filtrarCadastroProdutosDebounced()" autocomplete="off">
                         </div>
                         <select id="produtoFiltroCategoria" class="prod-filter-select" onchange="filtrarCadastroProdutos()">
                             <option value="">Todas as categorias</option>
@@ -410,7 +393,7 @@
                         <svg class="search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
                         <input type="text" id="filtroEstoqueBusca" class="prod-search-input"
                                placeholder="Filtrar nome, NCM, categoria…"
-                               oninput="filtrarTabelaEstoque(this.value)"
+                               oninput="filtrarTabelaEstoqueDebounced(this.value)"
                                autocomplete="off">
                     </div>
 
@@ -464,6 +447,7 @@
                         <tfoot id="rodapeTabela"></tfoot>
                     </table>
                 </div>
+                <div id="estPaginacao" class="est-paginacao"><!-- preenchido por _estRenderPaginacao() --></div>
 
             </div>
         </div>
@@ -3179,7 +3163,7 @@
                                 </div>
                                 <div class="cfg-field span2">
                                     <label>Assinatura padrão da mensagem</label>
-                                    <textarea id="cfgEmailAssinatura" rows="3" style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:var(--radius-control);font-size:.88rem;resize:vertical;box-sizing:border-box" placeholder="Atenciosamente,&#10;Nexus — Conectando Suas Operações"></textarea>
+                                    <textarea id="cfgEmailAssinatura" rows="3" style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:var(--radius-control);font-size:.88rem;resize:vertical;box-sizing:border-box" placeholder="Atenciosamente,&#10;Nexus — Operações Conectadas"></textarea>
                                 </div>
                             </div>
                             <div class="cfg-btn-row" style="margin-top:12px">
@@ -3222,7 +3206,7 @@
                 </span>
             </div>
             <div>
-                © 2026 Nexus - Conectando Suas Operações
+                © 2026 Nexus - Operações Conectadas
             </div>
         </footer>
 
@@ -4972,6 +4956,8 @@
         </div>
     </div>
 
+    <script src="lazy-loader.js?v=1"></script>
+    <script src="debounce.js?v=1"></script>
     <script src="app2.js?v=37"></script>
 
     <script src="estoque-calculos.js?v=1"></script>

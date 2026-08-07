@@ -84,7 +84,7 @@
                 '<div class="flow-brand">' +
                     '<span class="flow-brand-mark">' + logoInner + '</span>' +
                     '<span>Nexus</span>' +
-                    '<span class="flow-brand-sub">Conectando Suas Operações</span>' +
+                    '<span class="flow-brand-sub">Operações Conectadas</span>' +
                 '</div>' +
                 '<div class="ws-switch" role="tablist" aria-label="Workspace">' +
                     '<button class="ws-btn operacao active" data-ws="operacao" type="button">' + I.box + '<span>Operação</span></button>' +
