@@ -83,8 +83,8 @@
             '<div class="flow-globalbar">' +
                 '<div class="flow-brand">' +
                     '<span class="flow-brand-mark">' + logoInner + '</span>' +
-                    '<span>Arsenal</span>' +
-                    '<span class="flow-brand-sub">Fábrica de Itajubá</span>' +
+                    '<span>Nexus</span>' +
+                    '<span class="flow-brand-sub">Conectando Suas Operações</span>' +
                 '</div>' +
                 '<div class="ws-switch" role="tablist" aria-label="Workspace">' +
                     '<button class="ws-btn operacao active" data-ws="operacao" type="button">' + I.box + '<span>Operação</span></button>' +

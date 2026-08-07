@@ -3644,8 +3644,10 @@ function trocarAba(aba) {
         if (activeLegacyBtn) activeLegacyBtn.classList.add('active');
 
         // Atualizar conteúdo de forma segura
-        document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active', 'fade-in'));
         target.classList.add('active');
+        void target.offsetWidth; // força reflow p/ a animação reiniciar mesmo ao trocar de aba rapidamente
+        target.classList.add('fade-in');
 
 
         if (aba === 'dashboard') {
@@ -4962,7 +4964,7 @@ function gerarPdfProposta(propostaId, tipo = 'simples') {
         doc.text('FÁBRICA DE ITAJUBÁ', 15, 15);
         doc.setFontSize(9);
         doc.setFont('helvetica', 'normal');
-        doc.text('Arsenal — Material Bélico', 15, 22);
+        doc.text('Nexus — Conectando Suas Operações', 15, 22);
         doc.setFont('helvetica', 'bold');
         doc.setFontSize(14);
         doc.setTextColor(201, 162, 39);
@@ -25906,7 +25908,7 @@ function prepararEmailVenda(venda) {
     const cfg = _getCfgEmail();
     const contrato = venda.contrato || '';
     const cliente  = venda.loja || '';
-    const assinatura = cfg.assinatura || 'Atenciosamente,\nArsenal — Fábrica de Itajubá';
+    const assinatura = cfg.assinatura || 'Atenciosamente,\nNexus — Conectando Suas Operações';
 
     // Formato exato solicitado:
     // Assunto: CTR xxx/2026 - [nome do comprador]
